@@ -94,7 +94,10 @@ bool AgentConfig::save()
 
 QString AgentConfig::configFilePath()
 {
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    // Co-locate with logs under ~/.AgentLauncher/ so all user data lives in
+    // one place (Logger uses the same directory).
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                        + QStringLiteral("/.AgentLauncher");
     return dir + QStringLiteral("/agents.json");
 }
 

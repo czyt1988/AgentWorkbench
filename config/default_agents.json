@@ -8,8 +8,8 @@
             "configDir": "%USERPROFILE%/.kimi-code",
             "icon": "qrc:/icons/kimi-code.svg",
             "color": "#FF6B35",
-            "installCommand": "npm install -g @kimi-code/cli",
-            "updateCommand": "npm update -g @kimi-code/cli",
+            "installCommand": "npm install -g @moonshot-ai/kimi-code@latest",
+            "updateCommand": "npm update -g @moonshot-ai/kimi-code",
             "versionCommand": "kimi --version"
         },
         {
@@ -20,7 +20,7 @@
             "configDir": "%USERPROFILE%/.config/opencode",
             "icon": "qrc:/icons/opencode.svg",
             "color": "#3B82F6",
-            "installCommand": "npm install -g opencode-ai",
+            "installCommand": "npm install -g opencode-ai@latest",
             "updateCommand": "npm update -g opencode-ai",
             "versionCommand": "opencode --version"
         },
@@ -32,7 +32,7 @@
             "configDir": "%USERPROFILE%/.qwen",
             "icon": "qrc:/icons/qwen-code.svg",
             "color": "#8B5CF6",
-            "installCommand": "npm install -g @qwen-code/qwen-code",
+            "installCommand": "npm install -g @qwen-code/qwen-code@latest",
             "updateCommand": "npm update -g @qwen-code/qwen-code",
             "versionCommand": "qwen --version",
             "setupCommand": "if not exist \"%USERPROFILE%\\.qwen-serve-token\" powershell -NoProfile -Command \"[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N')\" > \"%USERPROFILE%\\.qwen-serve-token\"",
@@ -46,7 +46,7 @@
             "configDir": "%USERPROFILE%/.openclaw",
             "icon": "qrc:/icons/openclaw.svg",
             "color": "#DC2626",
-            "installCommand": "npm install -g openclaw",
+            "installCommand": "npm install -g openclaw@latest",
             "updateCommand": "npm update -g openclaw",
             "versionCommand": "openclaw --version"
         },
@@ -58,7 +58,7 @@
             "configDir": "%USERPROFILE%/.dsh",
             "icon": "qrc:/icons/deepseek-harness.svg",
             "color": "#4D6BFE",
-            "installCommand": "npm install -g @deepseek-ai/dsh",
+            "installCommand": "npm install -g @deepseek-ai/dsh@latest",
             "updateCommand": "npm update -g @deepseek-ai/dsh",
             "versionCommand": "dsh --version"
         }

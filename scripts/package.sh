@@ -292,6 +292,15 @@ echo "=== [3/4] windeployqt: pull Qt/QML dependencies ==="
 "$QT_PREFIX/bin/windeployqt.exe" --release --no-translations --no-system-d3d-compiler \
     --qmldir qml "$DIST_DIR/AgentLauncher.exe"
 
+# Pin Qt's prefix to the exe directory. Without qt.conf, Qt relocates the
+# prefix relative to Qt6Core.dll and guesses; an explicit qt.conf guarantees
+# the deployed app always resolves plugins/qml modules from its own folder,
+# never from a Qt installation on the target machine.
+cat > "$DIST_DIR/qt.conf" <<'EOF'
+[Paths]
+Prefix = .
+EOF
+
 echo ""
 echo "=== [4/4] Package as zip ==="
 # Use 7-Zip if available, otherwise fall back to PowerShell

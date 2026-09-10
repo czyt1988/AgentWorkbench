@@ -197,7 +197,8 @@ ApplicationWindow {
         AgentEditPage {}
     }
 
-    // Floating settings entry in the bottom-right corner.
+    // Floating settings entry in the bottom-right corner. Hidden on sub-pages
+    // (Settings / Edit) so it doesn't overlap their bottom-right buttons.
     Button {
         id: settingsButton
         anchors.right: parent.right
@@ -205,6 +206,7 @@ ApplicationWindow {
         anchors.margins: 20
         width: 44
         height: 44
+        visible: stack.depth === 1
 
         ToolTip.visible: hovered
         ToolTip.delay: 300

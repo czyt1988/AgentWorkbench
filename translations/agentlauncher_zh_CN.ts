@@ -447,8 +447,8 @@
     </message>
     <message>
         <location filename="../src/AgentLauncher.cpp" line="802"/>
-        <location filename="../src/AgentLauncher.cpp" line="1067"/>
-        <location filename="../src/AgentLauncher.cpp" line="1154"/>
+        <location filename="../src/AgentLauncher.cpp" line="1069"/>
+        <location filename="../src/AgentLauncher.cpp" line="1156"/>
         <source>(no output)</source>
         <translation>（无输出）</translation>
     </message>
@@ -477,42 +477,42 @@ Command: %2
         <translation>启动设置命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1006"/>
-        <location filename="../src/AgentLauncher.cpp" line="1103"/>
+        <location filename="../src/AgentLauncher.cpp" line="1008"/>
+        <location filename="../src/AgentLauncher.cpp" line="1105"/>
         <source>Please close %1 before installing/updating.</source>
         <translation>请先关闭 %1 后再进行安装/更新。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1011"/>
+        <location filename="../src/AgentLauncher.cpp" line="1013"/>
         <source>No install command configured for %1.</source>
         <translation>%1 未配置安装命令。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1069"/>
+        <location filename="../src/AgentLauncher.cpp" line="1071"/>
         <source>Install failed (exit code %1):
 %2</source>
         <translation>安装失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1088"/>
+        <location filename="../src/AgentLauncher.cpp" line="1090"/>
         <source>Failed to start install command.</source>
         <translation>启动安装命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1108"/>
+        <location filename="../src/AgentLauncher.cpp" line="1110"/>
         <source>No update command configured for %1.</source>
         <translation>%1 未配置更新命令。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1156"/>
+        <location filename="../src/AgentLauncher.cpp" line="1158"/>
         <source>Update failed (exit code %1):
 %2</source>
         <translation>更新失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1172"/>
+        <location filename="../src/AgentLauncher.cpp" line="1174"/>
         <source>Failed to start update command.</source>
         <translation>启动更新命令失败。</translation>
     </message>
@@ -624,42 +624,42 @@ Command: %2
         <translation>启动 AI 编程代理并打开其 Web 界面</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="211"/>
+        <location filename="../qml/main.qml" line="213"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="249"/>
+        <location filename="../qml/main.qml" line="251"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="256"/>
+        <location filename="../qml/main.qml" line="258"/>
         <source>Background terminals were launched via AgentLauncher this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentLauncher 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="267"/>
+        <location filename="../qml/main.qml" line="269"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="279"/>
+        <location filename="../qml/main.qml" line="281"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="290"/>
+        <location filename="../qml/main.qml" line="292"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="325"/>
+        <location filename="../qml/main.qml" line="327"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../qml/main.qml" line="347"/>
+        <location filename="../qml/main.qml" line="349"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -682,6 +682,21 @@ Command: %2
         <location filename="../qml/main.qml" line="161"/>
         <source>Node.js is not installed or not in PATH. Agents requiring Node.js may not work.</source>
         <translation>未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
+    </message>
+    <message>
+        <location filename="../src/main.cpp" line="81"/>
+        <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
+
+Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
+
+Details were written to:
+%1</source>
+        <translation>界面加载失败。随应用附带的 Qt 运行时文件似乎缺失或不完整。
+
+请从 zip 压缩包重新解压整个应用目录（尤其是 “qml” 子目录），并确认杀毒软件没有隔离任何文件。
+
+详细信息已写入：
+%1</translation>
     </message>
 </context>
 </TS>
