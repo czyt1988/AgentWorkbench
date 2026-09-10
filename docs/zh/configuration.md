@@ -1,13 +1,18 @@
 # 配置
 
 AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents.json` 文件中，首次
-运行时拷贝到你的用户配置目录：
+运行时拷贝到 `~/.AgentLauncher/`：
 
 | 系统 | 路径 |
 |---|---|
-| Windows | `%LOCALAPPDATA%\AgentLauncher\agents.json` |
-| Linux | `~/.config/AgentLauncher/agents.json` |
-| macOS | `~/Library/Preferences/AgentLauncher/agents.json` |
+| Windows | `%USERPROFILE%\.AgentLauncher\agents.json` |
+| Linux | `~/.AgentLauncher/agents.json` |
+| macOS | `~/.AgentLauncher/agents.json` |
+
+所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）
+以及 `log/agentlauncher.log`。0.3.0 之前的版本把配置存放在
+`%LOCALAPPDATA%\AgentLauncher\` / `~/.config/AgentLauncher/`；新版本首次启动时会把这些
+文件复制到 `~/.AgentLauncher/`（旧文件保留在原处），若新目录中已存在配置则不会覆盖。
 
 应用内置了一份默认配置（来自 `config/default_agents.json`）。
 
@@ -182,8 +187,8 @@ agent 的主强调色，用于：
 `setupCommand` 字段可选。它持有首次启动前运行的一次性命令（例如为
 `qwen serve` 生成 bearer token）。
 
-- 如果 `setupCommand` 以退出码 0 结束，结果会持久化到配置目录下的
-  `agent_state.json`，之后不再重复运行，除非用户从卡片右键菜单选择
+- 如果 `setupCommand` 以退出码 0 结束，结果会持久化到
+  `~/.AgentLauncher/agent_state.json`，之后不再重复运行，除非用户从卡片右键菜单选择
   **重新初始化**。
 - 如果 `setupCommand` 以非零退出码结束，会触发 `launchFailed` 并显示捕获
   的输出，agent 不会启动。
@@ -217,7 +222,7 @@ agent 的主强调色，用于：
 
 ## 新增 agent
 
-1. 打开配置目录下的 `agents.json`。
+1. 打开 `~/.AgentLauncher/agents.json`。
 2. 在 `agents` 数组中追加一个至少填好 `id`、`name`、`command`、`webUrl`、`color`
    的对象。
 3. 重启 AgentLauncher（或下次启动时自动加载）。

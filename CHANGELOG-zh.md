@@ -4,6 +4,30 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，本项目遵循[语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
 
+## [0.3.0] - 2026-09-10
+
+本次发布加入了应用内的启动器管理，让便携版构建自包含，并把所有用户数据集中到一个目录。
+
+### 新增
+
+- **设置页与应用内启动器管理**：右下角齿轮按钮打开设置页，列出所有启动器及其运行状态。可直接在其中新增、编辑、删除启动器（含内置项），并提供**恢复默认启动器**操作，无需再手工编辑 `agents.json`。
+- **启动器编辑器**（`AgentEditPage.qml`，取代 `ConfigPage.qml`）：覆盖全部字段的新增/编辑表单，含必填标记、逐字段提示、图标与颜色实时预览以及输入校验。
+- **删除的内置项不再复活**：`agents.json` 新增可选的根级 `removed` 数组，记录在设置页删除的内置 agent id，默认配置合并迁移不会再将其恢复。
+- **界面加载失败诊断**：QML 界面无法加载时，记录 import 搜索路径以及随包部署的 QML 模块是否存在于磁盘，并弹出原生对话框指明日志文件位置，不再静默退出。
+
+### 变更
+
+- **用户数据迁移到 `~/.AgentLauncher/`**（Windows：`%USERPROFILE%\.AgentLauncher\`）：`agents.json`、`agent_state.json` 与日志目录现在集中存放，不再分散于平台配置目录与用户主目录两处。
+- **便携版构建自包含**：`scripts/package.sh` 生成 `qt.conf`，把 Qt 前缀固定到可执行文件所在目录；应用优先使用随 exe 部署的 QML 模块，而非机器上已有的 Qt 安装。修复了在自带 Qt 的机器上出现「module … is not installed」的问题。
+- **打包脚本**：版本号从 `CMakeLists.txt` 读取（仍可用 `VERSION` 覆盖），压缩包命名为 `AgentLauncher-<版本>-win64-Portable.zip`；项目目录被移动或改名后遗留的 CMake 缓存会被自动识别并清理。
+- **agent 安装命令**：Kimi Code 改为安装 `@moonshot-ai/kimi-code`（原为 `@kimi-code/cli`）；其余内置 agent 的安装命令固定为 `@latest`。
+
+### 修复
+
+- **旧配置自动迁移**：首次启动时，遗留在旧平台配置目录中的配置或状态文件会被复制到 `~/.AgentLauncher/`，用户自建的启动器与删除记录不会因升级而丢失。新目录中已存在的文件优先，且旧文件保留在原处，便于降级回退。
+- **单元测试不再触碰真实用户配置**：Qt 的测试模式不会重定向 `HomeLocation`，因此在数据目录迁移后，测试套件会读写开发者真实的 `agents.json`，并留下测试用的启动器。现在数据目录会遵循测试模式。
+- **图标往返一致**：`file://` 图标 URL 会原样通过 `resolveIcon()`，本地解析出的图标在保存并重新加载后不再退化为默认图标。
+
 ## [0.2.0] - 2026-08-17
 
 AgentLauncher 的首个正式版本化发布——一个基于 Qt6/QML + C++ 的桌面应用，可从一个卡片网格中启动各类 AI 编码助手的 Web UI。全部配置驱动：agent 定义存放在 `agents.json` 中，而非硬编码在 C++ 里。
@@ -47,4 +71,5 @@ AgentLauncher 的首个正式版本化发布——一个基于 Qt6/QML + C++ 的
 - **安装/更新状态卡死**：移除了安装/更新命令末尾的 `& pause`（它会等待按键，导致 `QProcess::finished` 永不触发，卡片停留在「安装中…」）；增加了运行保护（agent 运行时拒绝执行），并修正了成功/失败两种情况下 `installFinished` 信号的发射。
 - **停止按钮状态**：`stop()` 失败时现在会复位 `stopping` 状态，按钮不再卡住。
 
+[0.3.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.3.0
 [0.2.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.2.0

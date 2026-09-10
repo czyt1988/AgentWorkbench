@@ -4,6 +4,31 @@ All notable changes to **AgentLauncher** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-10
+
+This release adds in-app launcher management, makes the portable build
+self-contained, and puts all user data in one directory.
+
+### Added
+
+- **Settings page with in-app launcher management**: the bottom-right gear button opens a Settings page listing every launcher with its running state. Launchers can be added, edited, and deleted there — built-ins included — with a **Restore default launchers** action, so `agents.json` no longer has to be hand-edited.
+- **Launcher editor** (`AgentEditPage.qml`, replacing `ConfigPage.qml`): a full add/edit form covering every field, with required-field markers, per-field tooltips, live icon and color previews, and validation.
+- **Deleted built-ins stay deleted**: `agents.json` gained an optional root `removed` array recording the ids of built-in agents deleted in the Settings page, so the default-merge migration does not resurrect them.
+- **UI-failure diagnostics**: when the QML interface cannot be loaded, the app logs the import search paths and whether the bundled QML modules are present on disk, and shows a native message box naming the log file instead of exiting silently.
+
+### Changed
+
+- **User data moved to `~/.AgentLauncher/`** (Windows: `%USERPROFILE%\.AgentLauncher\`): `agents.json`, `agent_state.json`, and the log directory now live together, instead of being split between the platform config directory and the home directory.
+- **Self-contained portable build**: `scripts/package.sh` writes a `qt.conf` pinning Qt's prefix to the executable's own folder, and the app prefers the QML modules deployed next to the executable over any Qt installation found on the machine. This fixes "module … is not installed" failures on machines that have their own Qt.
+- **Packaging script**: the archive version is read from `CMakeLists.txt` (still overridable via `VERSION`), the zip is named `AgentLauncher-<version>-win64-Portable.zip`, and a stale CMake cache left behind by a moved or renamed project folder is detected and cleared automatically.
+- **Agent install commands**: Kimi Code now installs `@moonshot-ai/kimi-code` (was `@kimi-code/cli`); the other bundled agents' install commands are pinned to `@latest`.
+
+### Fixed
+
+- **Existing configs migrate automatically**: a config or state file left in the old platform config directory is copied to `~/.AgentLauncher/` on first start, so user-added launchers and deletion records survive the upgrade. A file already present in the new location wins, and the old copies stay in place in case you downgrade.
+- **Unit tests no longer touch the real user profile**: Qt's test mode does not redirect `HomeLocation`, so after the data-directory move the test suite read and rewrote the developer's real `agents.json`, leaving test launchers behind. The data directory now honours test mode.
+- **Icon round-trip**: `file://` icon URLs pass through `resolveIcon()` unchanged, so a locally resolved icon no longer degrades to the default icon after a save and reload.
+
 ## [0.2.0] - 2026-08-17
 
 The first formally versioned release of AgentLauncher — a Qt6/QML + C++ desktop app that launches the web UI of AI coding agents from a single card grid. Everything is config-driven: agent definitions live in `agents.json`, never in C++.
@@ -47,4 +72,5 @@ The first formally versioned release of AgentLauncher — a Qt6/QML + C++ deskto
 - **Install/update state stuck**: removed the trailing `& pause` from install/update commands (it waited for a keypress so `QProcess::finished` never fired, leaving the card stuck on "Installing…"); added running-protection (reject while the agent is running) and correct `installFinished` signal emission for both success and failure.
 - **Stop button state**: the `stopping` state now resets when `stop()` fails, so the button no longer stays stuck.
 
+[0.3.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.3.0
 [0.2.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.2.0

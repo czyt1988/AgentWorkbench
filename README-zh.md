@@ -50,11 +50,14 @@ cmake --build build
 
 ## 配置
 
-首次运行时，AgentLauncher 会把内置默认配置拷贝到你的用户配置目录：
+首次运行时，AgentLauncher 会把内置默认配置拷贝到 `~/.AgentLauncher/`：
 
-- Windows：`%LOCALAPPDATA%\AgentLauncher\agents.json`
-- Linux：`~/.config/AgentLauncher/agents.json`
-- macOS：`~/Library/Preferences/AgentLauncher/agents.json`
+- Windows：`%USERPROFILE%\.AgentLauncher\agents.json`
+- Linux：`~/.AgentLauncher/agents.json`
+- macOS：`~/.AgentLauncher/agents.json`
+
+该目录同时存放 `agent_state.json` 与 `log/agentlauncher.log`。从 0.3.0
+之前的版本升级时，旧配置会自动迁移过来。
 
 每条 agent 配置形如：
 

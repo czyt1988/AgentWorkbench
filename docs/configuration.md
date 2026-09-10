@@ -1,13 +1,19 @@
 # Configuration
 
 AgentLauncher is config-driven. All agent definitions live in a single
-`agents.json` file, copied into your user config directory on first run:
+`agents.json` file, copied into `~/.AgentLauncher/` on first run:
 
 | OS | Path |
 |---|---|
-| Windows | `%LOCALAPPDATA%\AgentLauncher\agents.json` |
-| Linux | `~/.config/AgentLauncher/agents.json` |
-| macOS | `~/Library/Preferences/AgentLauncher/agents.json` |
+| Windows | `%USERPROFILE%\.AgentLauncher\agents.json` |
+| Linux | `~/.AgentLauncher/agents.json` |
+| macOS | `~/.AgentLauncher/agents.json` |
+
+All user data lives in that one directory: `agents.json`, `agent_state.json`
+(the one-time setup state) and `log/agentlauncher.log`. Builds before 0.3.0
+stored the config under `%LOCALAPPDATA%\AgentLauncher\` / `~/.config/AgentLauncher/`;
+on its first start a newer build copies those files into `~/.AgentLauncher/`
+(leaving the old copies in place) unless a config is already there.
 
 A bundled default is shipped inside the app (from `config/default_agents.json`).
 
@@ -187,8 +193,8 @@ before the first launch of an agent (e.g. generating a bearer token for
 `qwen serve`).
 
 - If `setupCommand` exits with code 0, the result is persisted to
-  `agent_state.json` in the config directory and the command is never re-run
-  unless the user picks **重新初始化** from the card's context menu.
+  `~/.AgentLauncher/agent_state.json` and the command is never re-run
+  unless the user picks **Re-initialize** from the card's context menu.
 - If `setupCommand` exits with a non-zero code, `launchFailed` is emitted with
   the captured output and the agent does not launch.
 - An empty `setupCommand` means no prerequisite — the agent launches directly.
@@ -225,7 +231,7 @@ back to disk if anything changed.
 
 ## Adding a new agent
 
-1. Open `agents.json` in your config directory.
+1. Open `~/.AgentLauncher/agents.json`.
 2. Append a new object to the `agents` array with at least `id`, `name`,
    `command`, `webUrl`, and `color` filled in.
 3. Restart AgentLauncher (or it will pick up changes on next launch).
