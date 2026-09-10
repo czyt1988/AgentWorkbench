@@ -1,5 +1,6 @@
 #include "AgentConfig.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -13,6 +14,10 @@
 
 void AgentConfig::load()
 {
+    // Older builds kept the config under AppConfigLocation; bring those files
+    // across before anything reads or seeds the new location.
+    migrateLegacyUserData();
+
     const QString path = configFilePath();
     QFile file(path);
 
@@ -92,13 +97,51 @@ bool AgentConfig::save()
     return true;
 }
 
+QString AgentConfig::userDataDir()
+{
+    // QStandardPaths test mode only redirects the App* locations (see
+    // QStandardPaths::setTestModeEnabled), never HomeLocation, so unit tests
+    // would otherwise read and rewrite the developer's real config. Keep them
+    // on the redirected location.
+    if (QStandardPaths::isTestModeEnabled())
+        return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+
+    return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+           + QStringLiteral("/.AgentLauncher");
+}
+
+void AgentConfig::migrateLegacyUserData(const QString &legacyDir)
+{
+    const QString newDir = userDataDir();
+    const QString oldDir = legacyDir.isEmpty()
+        ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
+        : legacyDir;
+    // In test mode both resolve to the same redirected directory.
+    if (oldDir.isEmpty() || oldDir == newDir)
+        return;
+
+    for (const QString &name : {QStringLiteral("agents.json"),
+                                QStringLiteral("agent_state.json")}) {
+        const QString legacyPath = oldDir + QLatin1Char('/') + name;
+        const QString newPath = newDir + QLatin1Char('/') + name;
+
+        // Never overwrite what this build already wrote.
+        if (QFile::exists(newPath) || !QFile::exists(legacyPath))
+            continue;
+
+        QDir().mkpath(newDir);
+        // Copy rather than move: the old file stays behind as a safety net,
+        // so downgrading to a build that reads AppConfigLocation still works.
+        if (QFile::copy(legacyPath, newPath))
+            qInfo() << "Migrated" << legacyPath << "->" << newPath;
+        else
+            qWarning() << "Could not migrate" << legacyPath << "->" << newPath;
+    }
+}
+
 QString AgentConfig::configFilePath()
 {
-    // Co-locate with logs under ~/.AgentLauncher/ so all user data lives in
-    // one place (Logger uses the same directory).
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-                        + QStringLiteral("/.AgentLauncher");
-    return dir + QStringLiteral("/agents.json");
+    return userDataDir() + QStringLiteral("/agents.json");
 }
 
 QList<Agent> AgentConfig::parse(const QByteArray &data, QString &outTitle)

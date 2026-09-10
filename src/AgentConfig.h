@@ -75,6 +75,20 @@ public:
     // anything else (including empty) falls back to qrc:/icons/default.svg.
     static QString resolveIcon(const QString &raw);
 
+    // Directory holding the per-user data files: agents.json and
+    // agent_state.json, co-located with the log directory (~/.AgentLauncher)
+    // so everything the app writes lives in one place.
+    static QString userDataDir();
+
+    // Copy agents.json / agent_state.json left behind by builds that stored
+    // them under QStandardPaths::AppConfigLocation into userDataDir(). Files
+    // that already exist in the new location win, so running this on every
+    // start is harmless. Called by load() before anything reads the config.
+    // legacyDir overrides the source directory; unit tests pass a temporary
+    // directory because test mode cannot redirect AppConfigLocation away from
+    // userDataDir()'s own test-mode location.
+    static void migrateLegacyUserData(const QString &legacyDir = QString());
+
     static QString configFilePath();
 
 private:

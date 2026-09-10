@@ -16,6 +16,10 @@ public:
     // message handler. Call once at startup, before any qWarning/etc.
     static void install();
 
+    // Absolute path of the current log file, for messages that point the
+    // user at the log. Empty when install() has not run yet.
+    static QString logFilePath();
+
 private:
     static void messageHandler(QtMsgType type,
                                const QMessageLogContext &context,

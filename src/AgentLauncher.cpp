@@ -833,10 +833,9 @@ void AgentLauncher::runSetup(const QString &id)
 
 QString AgentLauncher::stateFilePath() const
 {
-    // Co-locate with agents.json under ~/.AgentLauncher/.
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-                        + QStringLiteral("/.AgentLauncher");
-    return dir + QStringLiteral("/agent_state.json");
+    // Co-located with agents.json; AgentConfig::load() migrates files left
+    // behind by older builds at startup.
+    return AgentConfig::userDataDir() + QStringLiteral("/agent_state.json");
 }
 
 void AgentLauncher::loadSetupState()

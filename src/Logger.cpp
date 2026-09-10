@@ -27,6 +27,13 @@ void Logger::install()
             << (s_logPath + QStringLiteral("/agentlauncher.log"));
 }
 
+QString Logger::logFilePath()
+{
+    if (s_logPath.isEmpty())
+        return {};
+    return s_logPath + QStringLiteral("/agentlauncher.log");
+}
+
 void Logger::messageHandler(QtMsgType type,
                              const QMessageLogContext &context,
                              const QString &msg)

@@ -1,5 +1,9 @@
 #include <QtTest>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTemporaryFile>
 
 #include "AgentConfig.h"
@@ -93,6 +97,78 @@ private slots:
         const QStringList ids = AgentConfig::defaultAgentIds();
         QVERIFY(ids.contains(QStringLiteral("kimi-code")));
         QVERIFY(ids.contains(QStringLiteral("opencode")));
+    }
+
+    // Regression: the data directory must stay inside the test-mode sandbox.
+    // Test mode does not redirect HomeLocation, so a data directory derived
+    // from it made every test read and rewrite the real user config — which is
+    // how test agents ended up in ~/.AgentLauncher/agents.json.
+    void testUserDataDirStaysInTestSandbox()
+    {
+        const QString realDir =
+            QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+            + QStringLiteral("/.AgentLauncher");
+        QVERIFY(!AgentConfig::userDataDir().startsWith(realDir));
+        QVERIFY(AgentConfig::configFilePath().startsWith(AgentConfig::userDataDir()));
+    }
+
+    // Older builds kept agents.json / agent_state.json under AppConfigLocation;
+    // those files must survive the move to the data directory.
+    void testMigrateLegacyUserData()
+    {
+        QTemporaryDir legacyDir;
+        QVERIFY(legacyDir.isValid());
+
+        const QString legacyConfig = legacyDir.path() + QStringLiteral("/agents.json");
+        QJsonObject agent;
+        agent[QStringLiteral("id")] = QStringLiteral("legacy-agent");
+        agent[QStringLiteral("name")] = QStringLiteral("Legacy Agent");
+        agent[QStringLiteral("command")] = QStringLiteral("legacy.cmd");
+        agent[QStringLiteral("webUrl")] = QStringLiteral("http://127.0.0.1:9");
+        QJsonObject root;
+        root[QStringLiteral("title")] = QStringLiteral("Legacy Title");
+        root[QStringLiteral("agents")] = QJsonArray{agent};
+        {
+            QFile f(legacyConfig);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(QJsonDocument(root).toJson());
+        }
+        {
+            QFile f(legacyDir.path() + QStringLiteral("/agent_state.json"));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("{\"legacy-agent\":{\"setupDone\":true}}");
+        }
+
+        AgentConfig::migrateLegacyUserData(legacyDir.path());
+
+        // Both files were copied to the current location...
+        QVERIFY(QFile::exists(AgentConfig::configFilePath()));
+        QVERIFY(QFile::exists(AgentConfig::userDataDir()
+                              + QStringLiteral("/agent_state.json")));
+        // ...while the originals stay behind as a fallback for older builds.
+        QVERIFY(QFile::exists(legacyConfig));
+
+        AgentConfig migrated;
+        migrated.load();
+        QCOMPARE(migrated.title(), QStringLiteral("Legacy Title"));
+        bool found = false;
+        for (const Agent &a : migrated.agents())
+            found = found || a.id == QStringLiteral("legacy-agent");
+        QVERIFY(found);
+
+        // A config already present in the new location always wins.
+        {
+            QFile f(AgentConfig::configFilePath());
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QJsonObject current;
+            current[QStringLiteral("title")] = QStringLiteral("Current Title");
+            current[QStringLiteral("agents")] = QJsonArray();
+            f.write(QJsonDocument(current).toJson());
+        }
+        AgentConfig::migrateLegacyUserData(legacyDir.path());
+        AgentConfig current;
+        current.load();
+        QCOMPARE(current.title(), QStringLiteral("Current Title"));
     }
 
     void testModelInsertRemove()

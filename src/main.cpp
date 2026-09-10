@@ -87,8 +87,7 @@ int main(int argc, char *argv[])
                     "zip archive (especially the \"qml\" subfolder) and make "
                     "sure your antivirus did not quarantine any files.\n\n"
                     "Details were written to:\n%1")
-                    .arg(QStringLiteral(
-                        "C:/Users/<you>/.AgentLauncher/log/agentlauncher.log"))
+                    .arg(Logger::logFilePath())
                     .utf16()),
             L"AgentLauncher", MB_ICONERROR | MB_OK);
 #endif

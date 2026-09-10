@@ -53,7 +53,7 @@ Agents can also be added, edited, and deleted from the Settings page
 Each agent object has: `id`, `name`, `command`, `webUrl`, `configDir`, `icon`,
 `color`, `cardColor`, `installCommand`, `updateCommand`, `versionCommand`,
 `setupCommand`. See `config/default_agents.json`. New agents are added by
-editing this file (and the on-disk copy at `AppConfigLocation/agents.json`).
+editing this file (and the on-disk copy at `~/.AgentLauncher/agents.json`).
 Do **not** hard-code agent entries in C++.
 
 The `icon` field accepts: `qrc:/icons/<name>.svg` (built-in), a local file path
@@ -73,9 +73,20 @@ position in the list. The assigned color is persisted on first run.
 The `setupCommand` field is optional — it holds a one-time command that runs
 before the first launch of an agent (e.g. generating a bearer token for
 `qwen serve`). If the command exits with code 0, the result is persisted to
-`AppConfigLocation/agent_state.json` and the command is never re-run unless
+`~/.AgentLauncher/agent_state.json` and the command is never re-run unless
 the user picks "Re-initialize" from the card's context menu. An empty
 `setupCommand` means no prerequisite — the agent launches directly.
+
+`AgentConfig::userDataDir()` is the single source of truth for the user data
+directory (`~/.AgentLauncher/`): `agents.json`, `agent_state.json` and the
+logs all live there. `AgentConfig::migrateLegacyUserData()`, called from
+`load()` before anything reads the config, copies files left behind by builds
+that used `QStandardPaths::AppConfigLocation`; a file already present in the
+new location always wins, and the old copies are left in place. Unit tests run
+under `QStandardPaths::setTestModeEnabled(true)`, and because test mode does
+not redirect `HomeLocation`, `userDataDir()` honours the test-mode location
+instead — without that, running the tests rewrites the developer's real
+config.
 
 On load, `AgentConfig::load()` merges the bundled default into the on-disk
 config: any field that is empty on disk is filled from the default, and any
