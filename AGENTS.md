@@ -87,11 +87,23 @@ Agent 也可以在设置页（右下角齿轮按钮）添加、编辑和删除�
 - 注释、标识符和日志信息也应使用英文。
 - 本地化文档（`docs/zh/`、`README-zh.md`）以及 `mkdocs.yml` 中的语言名称标签**不是**源代码——它们是正当的本地化内容，不受本规则约束。
 
+## 提交
+
+每完成一个完整任务就提交一次，不要只改不提交；提交前先跑 `bash scripts/build.sh --test`，确认能编译且测试通过。提交信息按 Conventional Commits 格式写：类型与 scope 用标准英文关键字（`feat`、`fix`、`docs`、`refactor`、`test`、`build`、`chore`；scope 用模块名，如 `launcher`、`settings`、`build`），描述与正文用中文，正文只说清楚「为什么这么改」。
+
+```text
+fix(launcher): 修正健康检查超时被当成未运行
+
+超时与连接被拒绝都算停止，导致 agent 已就绪时卡片仍显示为停止。
+```
+
+只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求，不要 `git push`。
+
 ## 不要做
 
 - 不要在 C++ 中硬编码 agent 定义。
 - 不要在 `tr()`/`qsTr()` 里写非英文的源字符串。
-- 除非明确要求，不要运行 `git commit`/`git push`。
+- 除非明确要求，不要运行 `git push`（提交规则见上一节「提交」）。
 
 ## 停止 agent
 
