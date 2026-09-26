@@ -110,6 +110,7 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/folder.svg
     ${CMAKE_SOURCE_DIR}/icons/gear.svg
     ${CMAKE_SOURCE_DIR}/icons/kimi-code.svg
+    ${CMAKE_SOURCE_DIR}/icons/menu.svg
     ${CMAKE_SOURCE_DIR}/icons/openclaw.svg
     ${CMAKE_SOURCE_DIR}/icons/opencode.svg
     ${CMAKE_SOURCE_DIR}/icons/plus.svg
