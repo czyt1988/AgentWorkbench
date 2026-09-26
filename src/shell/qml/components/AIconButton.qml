@@ -26,6 +26,9 @@ Button {
         color: control.down ? theme.alpha(theme.textMuted, 0.28)
                             : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
                                                : "transparent")
+        // Keyboard focus ring (02 §10.1/§14).
+        border.color: control.activeFocus ? theme.focusRing : "transparent"
+        border.width: control.activeFocus ? 2 : 0
     }
 
     contentItem: Image {

@@ -180,31 +180,8 @@ void AgentsFacade::forceStop(const QString &id)
     m_runtime->forceStop(id);
 }
 
-void AgentsFacade::openWeb(const QString &id)
-{
-    const int row = m_model->indexOf(id);
-    if (row < 0)
-        return;
-    const QString url = AgentUrls::finalUrl(m_model->definitions().at(row));
-    if (url.isEmpty())
-        return;
-
-    // The #token=… fragment must never reach the log, so strip it first.
-    QString loggedUrl = url;
-    const int fragment = loggedUrl.indexOf(QLatin1Char('#'));
-    if (fragment >= 0)
-        loggedUrl.truncate(fragment);
-
-    if (QDesktopServices::openUrl(QUrl(url))) {
-        appLog(QStringLiteral("openWeb"), id,
-               QStringLiteral("opened %1").arg(loggedUrl));
-    } else {
-        appLogError(QStringLiteral("openWeb"), id,
-                    QStringLiteral("failed to open %1 — no handler accepted "
-                                   "the URL")
-                        .arg(loggedUrl));
-    }
-}
+// openWeb deliberately absent: opening the web UI is the cross-domain
+// workbench intent `workbench.openWeb(id)` (01 §4.3), never a facade call.
 
 void AgentsFacade::openConfigDir(const QString &id)
 {
@@ -290,43 +267,74 @@ bool AgentsFacade::addAgent(const QVariantMap &fields)
 
     AgentDefinition a = definitionFromFields(fields, id);
     // Empty color would render a broken card until the next restart
-    // (load() assigns palette colors); assign one now.
+    // (load() assigns palette colors); assign one now — from the current
+    // theme's palette, not the static Mocha fallback.
     if (a.color.isEmpty())
-        a.color = AgentRepository::paletteColorAt(m_model->definitions().size());
+        a.color = m_repo->paletteColorFor(m_model->definitions().size());
 
     m_model->insertAgent(m_model->definitions().size(), a);
-    return saveConfig();
+    if (saveConfig())
+        return true;
+    // Save failed: undo the insert so the model keeps matching the disk
+    // (and re-sync the repository copy saveConfig() already overwrote).
+    m_model->removeAgentById(id);
+    m_repo->setDefinitions(m_model->definitions());
+    return false;
 }
 
 bool AgentsFacade::updateAgentFull(const QString &id, const QVariantMap &fields)
 {
-    if (m_model->indexOf(id) < 0)
+    const int row = m_model->indexOf(id);
+    if (row < 0)
         return false;
 
     AgentDefinition a = definitionFromFields(fields, id); // id is immutable
     if (a.color.isEmpty())
-        a.color = AgentRepository::paletteColorAt(m_model->indexOf(id));
+        a.color = m_repo->paletteColorFor(row);
 
+    const AgentDefinition previous = m_model->definitions().at(row);
     // Runtime state is keyed separately and untouched by a definition swap.
     m_model->replaceDefinition(a);
-    return saveConfig();
+    if (saveConfig())
+        return true;
+    // Save failed: put the old definition back so the form's discarded
+    // edits don't stay half-applied in memory.
+    m_model->replaceDefinition(previous);
+    m_repo->setDefinitions(m_model->definitions());
+    return false;
 }
 
 bool AgentsFacade::removeAgent(const QString &id)
 {
+    const int row = m_model->indexOf(id);
+    if (row < 0)
+        return false;
+    const AgentDefinition previous = m_model->definitions().at(row);
     if (!m_model->removeAgentById(id))
         return false;
 
     // Record deleted built-ins: built-in agents are re-applied from the
     // shipped default on every start, so the id has to be remembered here to
     // keep this one deleted.
-    if (m_repo->isDefaultAgent(id) && !m_repo->removedIds().contains(id))
-        m_repo->setRemovedIds(m_repo->removedIds() + QStringList{id});
+    const bool wasDefault = m_repo->isDefaultAgent(id);
+    const QStringList removedBefore = m_repo->removedIds();
+    if (wasDefault && !removedBefore.contains(id))
+        m_repo->setRemovedIds(removedBefore + QStringList{id});
+
+    if (!saveConfig()) {
+        // Save failed: restore the definition and the removed-ids record —
+        // the disk still has the agent, so the model must too.
+        m_model->insertAgent(row, previous);
+        if (wasDefault)
+            m_repo->setRemovedIds(removedBefore);
+        m_repo->setDefinitions(m_model->definitions());
+        return false;
+    }
 
     // The process itself keeps running on purpose (documented in the UI).
     m_runtime->forget(id);
     emit agentRemoved(id);
-    return saveConfig();
+    return true;
 }
 
 bool AgentsFacade::restoreDefaults()

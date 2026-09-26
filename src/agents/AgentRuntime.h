@@ -48,6 +48,11 @@ public:
     // an agent is removed from the configuration).
     void forget(const QString &id);
 
+    // Return the PIDs of processes listening on the given TCP port. The
+    // port→PID parsing behind forceStop(); public so the mapping can be
+    // verified directly (specs/03 S2-T4: the logic is kept AND has cases).
+    static QList<qint64> findPidsForPort(int port);
+
 signals:
     // A launch/stop attempt failed. The UI shows an at-place flash on the
     // matching card plus a detailed popup.
@@ -58,9 +63,6 @@ signals:
     void recheckRequested();
 
 private:
-    // Return the PIDs of processes listening on the given TCP port. Used by
-    // forceStop() to kill agents this launcher didn't start (no tracked PID).
-    static QList<qint64> findPidsForPort(int port);
 
     AgentModel *m_model;
 

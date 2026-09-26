@@ -2,6 +2,7 @@
 #define AWB_AGENTS_AGENTHEALTHMONITOR_H
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 
 namespace awb::core {
@@ -40,6 +41,11 @@ private:
     int m_intervalMs;
     core::HttpProbe *m_probe;
     class QTimer *m_timer;
+    // URLs with an outstanding probe. Doubles as the overlap guard: a URL
+    // is never probed again until its previous round answered, so a slow
+    // late reply can never overwrite a fresher state — and N agents that
+    // share a URL cost one request per round, not N.
+    QSet<QString> m_inflight;
 };
 
 } // namespace awb::agents

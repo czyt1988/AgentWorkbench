@@ -209,17 +209,21 @@ bool AgentRepository::assignPaletteColors()
     bool changed = false;
     for (int i = 0; i < m_definitions.size(); ++i) {
         if (m_definitions[i].color.isEmpty()) {
-            // Prefer the current theme's agentPalette; fall back to the
-            // built-in Mocha array (specs/03 S3-T1).
-            m_definitions[i].color = m_agentPalette.isEmpty()
-                ? paletteColorAt(i)
-                : m_agentPalette.at(((i % m_agentPalette.size())
-                                     + m_agentPalette.size())
-                                    % m_agentPalette.size());
+            m_definitions[i].color = paletteColorFor(i);
             changed = true;
         }
     }
     return changed;
+}
+
+QString AgentRepository::paletteColorFor(int index) const
+{
+    // Prefer the current theme's agentPalette; fall back to the built-in
+    // Mocha array (specs/03 S3-T1).
+    if (m_agentPalette.isEmpty())
+        return paletteColorAt(index);
+    const int size = m_agentPalette.size();
+    return m_agentPalette.at(((index % size) + size) % size);
 }
 
 QString AgentRepository::paletteColorAt(int index)

@@ -7,6 +7,43 @@
 
 namespace awb::core {
 
+namespace {
+
+// Length (0..3) of the incomplete UTF-8 sequence at the end of `buf` —
+// those bytes are held back until the next chunk completes them, so a
+// multi-byte character split across two readyRead() deliveries decodes
+// correctly instead of turning into replacement characters.
+int incompleteUtf8Tail(const QByteArray &buf)
+{
+    if (buf.isEmpty())
+        return 0;
+    const int n = buf.size();
+    int back = 0;
+    while (back < 3 && (n - 1 - back) >= 0
+           && (static_cast<uchar>(buf.at(n - 1 - back)) & 0xC0) == 0x80)
+        ++back;
+    if (n - 1 - back < 0)
+        return 0; // only continuation bytes — invalid, decode as-is
+    const uchar lead = static_cast<uchar>(buf.at(n - 1 - back));
+    if (back == 3 && ((lead & 0xC0) == 0x80))
+        return 0; // 4+ continuation bytes — invalid, decode as-is
+    int total;
+    if ((lead & 0x80) == 0)
+        total = 1;
+    else if ((lead & 0xE0) == 0xC0)
+        total = 2;
+    else if ((lead & 0xF0) == 0xE0)
+        total = 3;
+    else if ((lead & 0xF8) == 0xF0)
+        total = 4;
+    else
+        return 0; // not a lead byte — invalid, decode as-is
+    const int present = back + 1;
+    return present < total ? present : 0;
+}
+
+} // namespace
+
 ScriptRunner::ScriptRunner(QObject *parent)
     : QObject(parent)
 {
@@ -70,25 +107,44 @@ void ScriptRunner::run(const QString &key, const QString &program,
     slot.merged = mergeChannels;
     slot.rawOut.clear();
     slot.rawErr.clear();
+    slot.pendingOut.clear();
+    slot.pendingErr.clear();
 
     // Stream output as it arrives, so the UI can show progress live. The
     // bytes are also accumulated here — reading consumes them, and
-    // finished() has to report the complete text.
+    // finished() has to report the complete text. A chunk ending mid
+    // character is held back (pendingOut) and decoded with the next one.
     connect(proc, &QProcess::readyReadStandardOutput, this,
             [this, key, epoch, proc]() {
                 if (!isCurrent(key, epoch, proc))
                     return;
                 const QByteArray data = proc->readAllStandardOutput();
-                m_slots[key].rawOut.append(data);
-                emit outputChunk(key, ProcessRunner::decodeOutput(data));
+                Slot &slot = m_slots[key];
+                slot.rawOut.append(data);
+                slot.pendingOut.append(data);
+                const int hold = incompleteUtf8Tail(slot.pendingOut);
+                const int emitLen = slot.pendingOut.size() - hold;
+                if (emitLen > 0) {
+                    emit outputChunk(key, ProcessRunner::decodeOutput(
+                                              slot.pendingOut.left(emitLen)));
+                    slot.pendingOut.remove(0, emitLen);
+                }
             });
     connect(proc, &QProcess::readyReadStandardError, this,
             [this, key, epoch, proc]() {
                 if (!isCurrent(key, epoch, proc))
                     return;
                 const QByteArray data = proc->readAllStandardError();
-                m_slots[key].rawErr.append(data);
-                emit outputChunk(key, ProcessRunner::decodeOutput(data));
+                Slot &slot = m_slots[key];
+                slot.rawErr.append(data);
+                slot.pendingErr.append(data);
+                const int hold = incompleteUtf8Tail(slot.pendingErr);
+                const int emitLen = slot.pendingErr.size() - hold;
+                if (emitLen > 0) {
+                    emit outputChunk(key, ProcessRunner::decodeOutput(
+                                              slot.pendingErr.left(emitLen)));
+                    slot.pendingErr.remove(0, emitLen);
+                }
             });
 
     connect(proc, &QProcess::started, this, [this, key, epoch, proc]() {
@@ -105,9 +161,26 @@ void ScriptRunner::run(const QString &key, const QString &program,
                 if (!isCurrent(key, epoch, proc))
                     return;
                 Slot &slot = m_slots[key];
-                slot.rawOut.append(proc->readAllStandardOutput());
-                if (!slot.merged)
-                    slot.rawErr.append(proc->readAllStandardError());
+                const QByteArray tailOut = proc->readAllStandardOutput();
+                slot.rawOut.append(tailOut);
+                slot.pendingOut.append(tailOut);
+                if (!slot.merged) {
+                    const QByteArray tailErr = proc->readAllStandardError();
+                    slot.rawErr.append(tailErr);
+                    slot.pendingErr.append(tailErr);
+                }
+                // Flush any bytes still held back for a split character —
+                // the stream ended, so decode them as they are.
+                if (!slot.pendingOut.isEmpty()) {
+                    emit outputChunk(key,
+                                     ProcessRunner::decodeOutput(slot.pendingOut));
+                    slot.pendingOut.clear();
+                }
+                if (!slot.pendingErr.isEmpty()) {
+                    emit outputChunk(key,
+                                     ProcessRunner::decodeOutput(slot.pendingErr));
+                    slot.pendingErr.clear();
+                }
                 const QString out = ProcessRunner::decodeOutput(slot.rawOut);
                 const QString err = ProcessRunner::decodeOutput(slot.rawErr);
                 const bool timedOut = slot.timedOut;

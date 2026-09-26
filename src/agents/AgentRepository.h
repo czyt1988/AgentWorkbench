@@ -68,6 +68,10 @@ public:
     // theme palette was injected).
     static QString paletteColorAt(int index);
 
+    // Position-based color for a NEW agent: prefers the injected theme
+    // palette, falls back to the built-in Mocha array (specs/03 S3-T1).
+    QString paletteColorFor(int index) const;
+
     // Resolve an icon string for display; the application-level fallback
     // lives here, core::IconResolver never hardcodes app resources.
     static QString resolveIcon(const QString &raw);

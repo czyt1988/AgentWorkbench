@@ -18,6 +18,7 @@ AgentHealthMonitor::AgentHealthMonitor(AgentModel *model, int intervalMs,
     connect(m_timer, &QTimer::timeout, this, &AgentHealthMonitor::checkAll);
     connect(m_probe, &core::HttpProbe::finished, this,
             [this](const QString &url, bool up) {
+                m_inflight.remove(url);
                 // One probe result applies to every agent pointing at the
                 // URL (0.3.0 issued one request per agent; same outcome).
                 const QList<AgentDefinition> &definitions =
@@ -43,9 +44,17 @@ void AgentHealthMonitor::recheckNow()
 void AgentHealthMonitor::checkAll()
 {
     const QList<AgentDefinition> &definitions = m_model->definitions();
+    QSet<QString> issued; // one request per URL within this round
     for (const AgentDefinition &d : definitions) {
         if (d.webUrl.isEmpty())
             continue;
+        // In-flight from a previous round: skip — its pending answer is the
+        // freshest possible for this URL, and re-issuing would let the older
+        // reply land last and flip the card wrongly.
+        if (m_inflight.contains(d.webUrl) || issued.contains(d.webUrl))
+            continue;
+        issued.insert(d.webUrl);
+        m_inflight.insert(d.webUrl);
         m_probe->probe(d.webUrl);
     }
 }

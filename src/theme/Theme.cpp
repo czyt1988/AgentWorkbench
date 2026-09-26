@@ -74,6 +74,14 @@ void Theme::applyTheme(const QString &id)
 {
     if (id == m_settings->themeId())
         return;
+    // Validate before persisting: saving an unknown id would silently fall
+    // back to mocha-dark on every start (01 §7.2 — unknown → fallback+warn
+    // is for hand-edited settings, not for the picker).
+    if (!m_registry->theme(id).isValid()) {
+        qWarning().noquote() << QStringLiteral(
+            "Theme: refusing to apply unknown theme \"%1\"").arg(id);
+        return;
+    }
     m_settings->setThemeId(id);
     m_settings->save();
     // valueChanged fires loadCurrent() for us.

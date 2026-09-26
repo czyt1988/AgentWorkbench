@@ -112,7 +112,9 @@ Rectangle {
         // --- Activity counts ---------------------------------------------
         Label {
             // The agents badge already counts running agents (BuiltinPages).
-            readonly property string running: nav.page("agents").badgeText
+            // nav.badges is the NOTifiable map — page("agents") is a method
+            // call whose binding never re-evaluated on badge changes.
+            readonly property string running: nav.badges["agents"] || ""
             text: running.length > 0
                   ? qsTr("Running: %1").arg(running)
                   : qsTr("Running: 0")
@@ -120,9 +122,9 @@ Rectangle {
             font.pixelSize: theme.fontSizeCaption
         }
         Label {
-            visible: nav.countInSection("web") > 0
-                     && nav.page("web").badgeText.length > 0
-            text: qsTr("Tabs: %1").arg(nav.page("web").badgeText)
+            readonly property string tabs: nav.badges["web"] || ""
+            visible: nav.countInSection("web") > 0 && tabs.length > 0
+            text: qsTr("Tabs: %1").arg(tabs)
             color: theme.textSecondary
             font.pixelSize: theme.fontSizeCaption
         }

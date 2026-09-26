@@ -70,6 +70,11 @@ private:
         // finished() must report everything seen so far plus the final tail.
         QByteArray rawOut;
         QByteArray rawErr;
+        // Not yet streamed through outputChunk: a chunk ending inside a
+        // multi-byte UTF-8 sequence is held back and decoded together with
+        // the next chunk, instead of garbling the split character.
+        QByteArray pendingOut;
+        QByteArray pendingErr;
     };
 
     // True while `epoch` is still the current run for `key` (and, when a

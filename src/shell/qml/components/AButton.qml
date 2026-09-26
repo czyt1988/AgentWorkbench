@@ -37,9 +37,13 @@ Button {
                                                        : theme.surfaceAltBg)
             }
         }
-        border.color: control.variant === "secondary" ? theme.borderSubtle
-                                                      : "transparent"
-        border.width: control.variant === "secondary" ? 1 : 0
+        // Keyboard focus ring (02 §10.1/§14): 2px focusRing, drawn whenever
+        // the button has active focus — not only during keyboard navigation.
+        border.color: control.activeFocus ? theme.focusRing
+                      : (control.variant === "secondary" ? theme.borderSubtle
+                                                         : "transparent")
+        border.width: control.activeFocus ? 2
+                      : (control.variant === "secondary" ? 1 : 0)
         opacity: control.enabled ? 1 : 0.5
     }
 

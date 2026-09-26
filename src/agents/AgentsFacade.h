@@ -28,8 +28,10 @@ class AgentStateStore;
 // keeps the Q_INVOKABLE/signature names of the 0.3.0 `launcher` object so
 // the existing QML only needs its prefix renamed (`launcher.` -> `agents.`).
 //
-// Interim members that move out in S4: openWeb/openConfigDir (called through
-// workbench now); Python/Node detection moved to EnvironmentService.
+// openWeb is NOT a facade method (01 §4.3): opening the web UI is the
+// cross-domain workbench intent `workbench.openWeb(id)`. openConfigDir
+// stays — WorkbenchContext delegates to it. Python/Node detection lives
+// in EnvironmentService.
 class AgentsFacade : public QObject
 {
     Q_OBJECT
@@ -51,7 +53,6 @@ public:
     // Force-stop: kill the process listening on the agent's web port, even
     // when the launcher didn't start it (no tracked PID).
     Q_INVOKABLE void forceStop(const QString &id);
-    Q_INVOKABLE void openWeb(const QString &id);
     Q_INVOKABLE void openConfigDir(const QString &id);
     Q_INVOKABLE void install(const QString &id);
     Q_INVOKABLE void updateTool(const QString &id);

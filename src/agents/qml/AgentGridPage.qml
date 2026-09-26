@@ -136,7 +136,10 @@ Item {
             id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: page.shownCount > 0 || totalRepeater.count === 0
+            // Only when there is something to show: with zero cards both
+            // this (fillHeight) and the empty state (fillHeight) competed
+            // for the same column height.
+            visible: page.shownCount > 0
             clip: true
             contentWidth: availableWidth
 

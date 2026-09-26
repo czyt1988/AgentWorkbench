@@ -213,7 +213,7 @@ Item {
                     anchors.fill: parent
                     radius: theme.radiusPill
                     color: downloadArea.containsMouse
-                           ? Qt.rgba(137/255, 180/255, 250/255, 0.22)
+                           ? theme.alpha(theme.accent, 0.22)
                            : "transparent"
                 }
                 Image {
@@ -275,7 +275,7 @@ Item {
                         anchors.fill: parent
                         radius: theme.radiusControl
                         color: updateArea2.containsMouse
-                               ? Qt.rgba(137/255, 180/255, 250/255, 0.22)
+                               ? theme.alpha(theme.accent, 0.22)
                                : "transparent"
                     }
                     Text {
@@ -443,7 +443,7 @@ Item {
                     anchors.fill: parent
                     radius: theme.radiusControl
                     color: consoleCloseArea.containsMouse
-                           ? Qt.rgba(243/255, 139/255, 168/255, 0.22)
+                           ? theme.alpha(theme.danger, 0.22)
                            : "transparent"
                 }
                 Text {
@@ -552,7 +552,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: theme.radiusPill
-                color: stopArea.containsMouse ? Qt.rgba(243/255, 139/255, 168/255, 0.22) : "transparent"
+                color: stopArea.containsMouse ? theme.alpha(theme.danger, 0.22) : "transparent"
             }
             Text {
                 anchors.centerIn: parent

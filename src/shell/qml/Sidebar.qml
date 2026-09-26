@@ -14,7 +14,12 @@ Rectangle {
     property bool collapsed: false
 
     color: theme.sidebarBg
-    width: collapsed ? theme.sidebarCollapsedWidth : theme.sidebarWidth
+    // Expanded width: window.sidebarWidth from settings (01 §7.2/§4.7 —
+    // ShellController owns it), falling back to the theme token when the
+    // key is explicitly cleared (0). Both default to 240.
+    width: collapsed ? theme.sidebarCollapsedWidth
+                     : (shell.sidebarWidth > 0 ? shell.sidebarWidth
+                                               : theme.sidebarWidth)
 
     Behavior on width {
         NumberAnimation { duration: theme.durationNormal }

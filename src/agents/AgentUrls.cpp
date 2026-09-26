@@ -26,10 +26,14 @@ QString AgentUrls::finalUrl(const AgentDefinition &definition)
     // If a token file is configured, append the token as a URL fragment
     // (#token=<value>) so the web UI can authenticate to mutation routes
     // (e.g. POST /workspaces). The fragment is never sent to the server,
-    // keeping the token out of access logs and Referer headers.
+    // keeping the token out of access logs and Referer headers. When the
+    // webUrl already carries a fragment, join with '&' — a second '#' would
+    // make everything after it part of the first fragment's text.
     const QString token = tokenValue(definition.tokenFile);
     if (!token.isEmpty())
-        url += QStringLiteral("#token=") + token;
+        url += (url.contains(QLatin1Char('#')) ? QStringLiteral("&token=")
+                                               : QStringLiteral("#token="))
+               + token;
     return url;
 }
 
