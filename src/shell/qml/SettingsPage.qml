@@ -353,17 +353,79 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            // --- Web (placeholder until S5) ----------------------------------
+            // --- Web ---------------------------------------------------------
             ASectionHeader {
                 text: qsTr("Web")
                 Layout.leftMargin: theme.spacingL
                 Layout.rightMargin: theme.spacingL
             }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Surface")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                ComboBox {
+                    id: surfaceCombo
+                    textRole: "text"
+                    valueRole: "value"
+                    // Without WebEngine only the external surface exists
+                    // (02 §6.7).
+                    model: web.engineAvailable
+                           ? [{ text: qsTr("Embedded (in-app)"), value: "embedded" },
+                              { text: qsTr("External (system browser)"), value: "external" }]
+                           : [{ text: qsTr("External (system browser)"), value: "external" }]
+                    Component.onCompleted: currentIndex =
+                        indexOfValue(shell.webSurface)
+                    onActivated: shell.setWebSurface(currentValue)
+
+                    function indexOfValue(value) {
+                        for (let i = 0; i < count; ++i) {
+                            if (get(i).value === value)
+                                return i
+                        }
+                        return 0
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                TextField {
+                    id: flagsField
+                    Layout.fillWidth: true
+                    text: shell.webChromiumFlags
+                    placeholderText: qsTr("Chromium flags, e.g. --disable-gpu (applies after restart)")
+                    color: theme.textPrimary
+                    placeholderTextColor: theme.textMuted
+                    font.family: theme.monoFamily
+                    font.pixelSize: theme.fontSizeSmall
+                    background: Rectangle {
+                        radius: theme.radiusControl
+                        color: theme.surfaceAltBg
+                        border.color: flagsField.activeFocus ? theme.focusRing
+                                                             : theme.borderSubtle
+                        border.width: flagsField.activeFocus ? 2 : 1
+                    }
+                    onEditingFinished: shell.setWebChromiumFlags(text.trim())
+                }
+            }
             Label {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL
                 Layout.rightMargin: theme.spacingL
-                text: qsTr("Embedded/external surface options arrive with the Web page.")
+                text: qsTr("If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app 'Open in browser' action always works as a fallback.")
                 color: theme.textMuted
                 font.pixelSize: theme.fontSizeSmall
                 wrapMode: Text.WordWrap

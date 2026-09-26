@@ -91,6 +91,10 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
             &AgentsFacade::installFinished);
     connect(m_runtime, &AgentRuntime::recheckRequested, m_health,
             &AgentHealthMonitor::recheckNow);
+    // Health transitions leave the domain so BuiltinPages can apply the
+    // cross-domain rules (tab offline/online — 01 §4.8).
+    connect(m_health, &AgentHealthMonitor::runningChanged, this,
+            &AgentsFacade::runningChanged);
 
     // Health transitions: clear the launching spinner once the server is up,
     // report only real transitions in the log, and update the model.
@@ -321,6 +325,7 @@ bool AgentsFacade::removeAgent(const QString &id)
 
     // The process itself keeps running on purpose (documented in the UI).
     m_runtime->forget(id);
+    emit agentRemoved(id);
     return saveConfig();
 }
 

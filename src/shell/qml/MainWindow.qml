@@ -19,6 +19,7 @@ ApplicationWindow {
     readonly property var ui: Ui
     readonly property var toasts: Notifications
     readonly property var agents: Agents
+    readonly property var web: Web
     readonly property var workbench: Workbench
     readonly property var environment: Environment
 

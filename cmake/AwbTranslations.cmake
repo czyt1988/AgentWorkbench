@@ -43,4 +43,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentCard.qml
     ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentGridPage.qml
     ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentEditDialog.qml
+    # web QML
+    ${CMAKE_SOURCE_DIR}/src/web/qml/WebTabsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/WebEngineSurface.qml
 )

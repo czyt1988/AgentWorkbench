@@ -90,6 +90,13 @@ signals:
     // Emitted when an install/update finishes (success or failure).
     void installFinished(const QString &id, bool success, const QString &message);
 
+    // Health transition relay (BuiltinPages wires it to the web tabs —
+    // 01-architecture.md §4.8).
+    void runningChanged(const QString &id, bool running);
+    // An agent was deleted from the configuration (BuiltinPages closes its
+    // tabs).
+    void agentRemoved(const QString &id);
+
 private:
     bool saveConfig();
 

@@ -20,6 +20,10 @@ ShellController::ShellController(core::Settings *settings, QObject *parent)
                     emit windowSizeChanged();
                 else if (key == QLatin1String("window.title"))
                     emit windowTitleChanged();
+                else if (key == QLatin1String("web.surface"))
+                    emit webSurfaceChanged();
+                else if (key == QLatin1String("web.chromiumFlags"))
+                    emit webChromiumFlagsChanged();
             });
 }
 
@@ -65,6 +69,34 @@ void ShellController::saveWindowSize(int width, int height)
     m_settings->setWindowSize(width, height);
     m_settings->save();
     emit windowSizeChanged();
+}
+
+QString ShellController::webSurface() const
+{
+    return m_settings->webOptions().surface;
+}
+
+void ShellController::setWebSurface(const QString &surface)
+{
+    if (m_settings->webOptions().surface == surface)
+        return;
+    m_settings->setWebSurface(surface);
+    m_settings->save();
+    emit webSurfaceChanged();
+}
+
+QString ShellController::webChromiumFlags() const
+{
+    return m_settings->webOptions().chromiumFlags;
+}
+
+void ShellController::setWebChromiumFlags(const QString &flags)
+{
+    if (m_settings->webOptions().chromiumFlags == flags)
+        return;
+    m_settings->setWebChromiumFlags(flags);
+    m_settings->save();
+    emit webChromiumFlagsChanged();
 }
 
 QString ShellController::lastPageId() const

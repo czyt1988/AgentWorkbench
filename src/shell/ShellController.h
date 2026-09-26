@@ -24,6 +24,9 @@ class ShellController : public QObject
     Q_PROPERTY(int sidebarWidth READ sidebarWidth NOTIFY sidebarWidthChanged)
     Q_PROPERTY(int windowWidth READ windowWidth NOTIFY windowSizeChanged)
     Q_PROPERTY(int windowHeight READ windowHeight NOTIFY windowSizeChanged)
+    Q_PROPERTY(QString webSurface READ webSurface NOTIFY webSurfaceChanged)
+    Q_PROPERTY(QString webChromiumFlags READ webChromiumFlags NOTIFY
+                   webChromiumFlagsChanged)
 
 public:
     explicit ShellController(core::Settings *settings,
@@ -45,11 +48,19 @@ public:
     QString lastPageId() const;
     void setLastPageId(const QString &id);
 
+    // Web options (02 §6.7): surface policy + Chromium flags.
+    QString webSurface() const;
+    void setWebSurface(const QString &surface);
+    QString webChromiumFlags() const;
+    void setWebChromiumFlags(const QString &flags);
+
 signals:
     void windowTitleChanged();
     void sidebarCollapsedChanged();
     void sidebarWidthChanged();
     void windowSizeChanged();
+    void webSurfaceChanged();
+    void webChromiumFlagsChanged();
 
 private:
     core::Settings *m_settings;

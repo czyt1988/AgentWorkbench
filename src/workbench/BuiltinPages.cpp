@@ -3,21 +3,29 @@
 #include "agents/AgentModel.h"
 #include "agents/AgentsFacade.h"
 #include "shell/NavigationModel.h"
+#include "shell/Notifications.h"
 #include "shell/ShellController.h"
+#include "web/WebTabsFacade.h"
 
 namespace awb::workbench {
 
 BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
                            shell::ShellController *shell,
-                           agents::AgentsFacade *agents, QObject *parent)
+                           agents::AgentsFacade *agents,
+                           web::WebTabsFacade *web,
+                           shell::Notifications *notifications,
+                           QObject *parent)
     : QObject(parent)
     , m_nav(nav)
     , m_shell(shell)
     , m_agents(agents)
+    , m_web(web)
+    , m_notifications(notifications)
 {
     registerPages();
     wireBadges();
     wirePagePersistence();
+    wireWebRules();
 }
 
 void BuiltinPages::registerPages()
@@ -33,6 +41,16 @@ void BuiltinPages::registerPages()
     launcher.section = QStringLiteral("main");
     launcher.order = 10;
     m_nav->registerPage(launcher);
+
+    shell::PageDescriptor webPage;
+    webPage.id = QStringLiteral("web");
+    webPage.title = tr("Web");
+    webPage.iconSource = QStringLiteral("qrc:/icons/web.svg");
+    webPage.source =
+        QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml");
+    webPage.section = QStringLiteral("main");
+    webPage.order = 20;
+    m_nav->registerPage(webPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");
@@ -71,6 +89,41 @@ void BuiltinPages::wireBadges()
     connect(model, &awb::agents::AgentModel::rowsInserted, this, update);
     connect(model, &awb::agents::AgentModel::rowsRemoved, this, update);
     update();
+}
+
+void BuiltinPages::wireWebRules()
+{
+    // Cross-domain rules (01 §4.8): agent stopped -> tab offline; agent
+    // back -> reload; agent deleted -> close its tab. The external-surface
+    // notice becomes a toast.
+    connect(m_agents, &agents::AgentsFacade::runningChanged, this,
+            [this](const QString &id, bool running) {
+                if (running)
+                    m_web->markOnlineForAgent(id);
+                else
+                    m_web->markOfflineForAgent(id);
+            });
+    connect(m_agents, &agents::AgentsFacade::agentRemoved, this,
+            [this](const QString &id) { m_web->closeTabsForAgent(id); });
+
+    connect(m_web, &web::WebTabsFacade::externalOpened, this,
+            [this](const QString &url) {
+                m_notifications->notify(
+                    QStringLiteral("info"), tr("Opening in the browser"),
+                    url);
+            });
+
+    // Web tab count badge (02 §3.2).
+    auto updateWebBadge = [this]() {
+        const int count = m_web->model() ? m_web->model()->rowCount() : 0;
+        m_nav->setBadge(QStringLiteral("web"),
+                        count > 0 ? QString::number(count) : QString());
+    };
+    connect(m_web->model(), &QAbstractItemModel::rowsInserted, this,
+            updateWebBadge);
+    connect(m_web->model(), &QAbstractItemModel::rowsRemoved, this,
+            updateWebBadge);
+    updateWebBadge();
 }
 
 void BuiltinPages::wirePagePersistence()

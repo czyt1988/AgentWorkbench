@@ -13,6 +13,9 @@ class NavigationModel;
 class Notifications;
 class UiServices;
 } // namespace awb::shell
+namespace awb::web {
+class WebTabsFacade;
+} // namespace awb::web
 
 namespace awb::workbench {
 
@@ -32,7 +35,8 @@ class WorkbenchContext : public QObject
 public:
     WorkbenchContext(shell::NavigationModel *nav, shell::UiServices *ui,
                      shell::Notifications *notifications,
-                     agents::AgentsFacade *agents, QObject *parent = nullptr);
+                     agents::AgentsFacade *agents, web::WebTabsFacade *web,
+                     QObject *parent = nullptr);
 
     QString currentPageId() const;
     QString legacyImportNotice() const { return m_legacyImportNotice; }
@@ -47,9 +51,8 @@ public:
     // Navigation intent.
     Q_INVOKABLE void showPage(const QString &id);
 
-    // Cross-domain intents.
-    // S4: opens the system browser (S5 replaces it with an embedded tab
-    // when web.surface == "embedded").
+    // Cross-domain intents (S5): open the agent's WebUI as a tab — the
+    // surface policy (embedded/external) lives in WebTabsFacade.
     Q_INVOKABLE void openWeb(const QString &agentId);
     Q_INVOKABLE void closeWeb(const QString &agentId);
     Q_INVOKABLE void reloadWeb(const QString &agentId);
@@ -74,6 +77,7 @@ private:
     shell::UiServices *m_ui;
     shell::Notifications *m_notifications;
     agents::AgentsFacade *m_agents;
+    web::WebTabsFacade *m_web;
     QString m_legacyImportNotice;
 };
 

@@ -10,9 +10,16 @@
 #include "shell/UiServices.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
 #include "workbench/EnvironmentService.h"
 #include "workbench/WorkbenchContext.h"
+
+#ifdef AWB_ENABLE_WEBENGINE
+#include "web/webengine/WebEngineProfileStore.h"
+#include "web/webengine/WebEngineSurfaceProvider.h"
+#include <QtWebEngineQuick>
+#endif
 
 #include <QCoreApplication>
 #include <QDir>
@@ -36,6 +43,22 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationName(QStringLiteral("AgentWorkbench"));
     awb::core::Logging::install();
 
+    // Settings are read before QGuiApplication: the user's Chromium flags
+    // must be injected BEFORE QtWebEngineQuick::initialize(), which itself
+    // has to run before QGuiApplication (specs/01 §4.9).
+    awb::core::Settings settings;
+    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
+        settings.save();
+    const QByteArray chromiumFlags =
+        settings.webOptions().chromiumFlags.toUtf8();
+    if (!chromiumFlags.isEmpty())
+        qputenv("QTWEBENGINE_CHROMIUM_FLAGS", chromiumFlags);
+#ifdef AWB_ENABLE_WEBENGINE
+    // GPU/driver problems are worked around through web.chromiumFlags
+    // (02 §6.7); a hard failure logs and continues degraded.
+    QtWebEngineQuick::initialize();
+#endif
+
     QGuiApplication app(argc, argv);
     app.setApplicationVersion(QStringLiteral("0.4.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
@@ -54,13 +77,6 @@ int main(int argc, char *argv[])
     const bool legacyImported = awb::core::LegacyImport::runOnce(
         awb::core::Paths::dataRoot(), &legacyNotice);
 
-    // Typed settings.json access; written with defaults on the very first
-    // start so the file exists for the UI and the legacy-title hint in
-    // AgentRepository::load().
-    awb::core::Settings settings;
-    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
-        settings.save();
-
     // 3) Assembly, dependency order from the bottom up:
     //    core -> theme -> shell -> agents -> workbench.
     awb::theme::ThemeRegistry themeRegistry;
@@ -75,12 +91,24 @@ int main(int argc, char *argv[])
                                      &theme);
     agents.start();
 
+    awb::web::WebTabsFacade webTabs(&settings);
+
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
-                                               &agents);
+                                               &agents, &webTabs);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
-    awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents);
+    awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
+                                              &notifications);
+
+#ifdef AWB_ENABLE_WEBENGINE
+    // The embedded surface registers itself with the web domain; profiles
+    // are exposed to QML for the per-agent views (specs/01 §4.6).
+    awb::web::WebEngineSurfaceProvider webSurface(&webTabs);
+    awb::web::WebEngineProfileStore profileStore;
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebProfiles",
+                                 &profileStore);
+#endif
 
     // 4) Register the QML globals (specs/01 §8.2): uppercase type names on
     //    the AgentWorkbench.App URI; the QML-facing lowercase names are
@@ -93,6 +121,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Notifications",
                                  &notifications);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Agents", &agents);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Web", &webTabs);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",

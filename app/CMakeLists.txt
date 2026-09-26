@@ -13,8 +13,22 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AToolTip AEmptyState ASectionHeader AToastStack
                    AgentAvatar)
 set(_agents_qml AgentCard AgentGridPage AgentEditDialog)
+set(_web_qml WebTabsPage)
+set(_webengine_qml WebEngineSurface)
 
 set(AWB_QML_FILES "")
+foreach(name IN LISTS _web_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/web/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "web/${name}.qml")
+endforeach()
+foreach(name IN LISTS _webengine_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "web/${name}.qml")
+endforeach()
 foreach(name IN LISTS _shell_qml)
     set(_f ${CMAKE_SOURCE_DIR}/src/shell/qml/${name}.qml)
     list(APPEND AWB_QML_FILES ${_f})
@@ -47,6 +61,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     awb_core
     awb_shell
     awb_theme
+    awb_web
     awb_workbench
     Qt6::Core
     Qt6::Gui
@@ -55,6 +70,12 @@ target_link_libraries(AgentWorkbench PRIVATE
     Qt6::QuickControls2
     Qt6::Network
 )
+
+if (AWB_ENABLE_WEBENGINE)
+    target_compile_definitions(AgentWorkbench PRIVATE AWB_ENABLE_WEBENGINE=1)
+    target_link_libraries(AgentWorkbench PRIVATE awb_web_webengine
+                                                 Qt6::WebEngineQuick)
+endif()
 
 # The QML module shared by every page/component (specs/01 §8.1).
 qt_add_qml_module(AgentWorkbench

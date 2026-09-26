@@ -84,7 +84,7 @@ cp "$EXE" "$DIST_DIR/"
 echo ""
 echo "=== [3/4] windeployqt: pull Qt/QML dependencies ==="
 "$QT_PREFIX/bin/windeployqt.exe" --release --no-translations --no-system-d3d-compiler \
-    --qmldir qml "$DIST_DIR/AgentWorkbench.exe"
+    --qmldir src "$DIST_DIR/AgentWorkbench.exe"
 
 # Pin Qt's prefix to the exe directory. Without qt.conf, Qt relocates the
 # prefix relative to Qt6Core.dll and guesses; an explicit qt.conf guarantees

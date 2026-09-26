@@ -103,6 +103,8 @@ public:
     void setWindowSize(int width, int height);
     void setSidebarCollapsed(bool collapsed);
     void setLastPageId(const QString &pageId);
+    void setWebSurface(const QString &surface);
+    void setWebChromiumFlags(const QString &flags);
 
     // Persist the whole settings object (atomic write).
     OpResult save();

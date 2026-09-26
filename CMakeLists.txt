@@ -12,12 +12,17 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Netwo
 
 qt_standard_project_setup(REQUIRES 6.5)
 
+# Build options (specs/01 §10): AWB_ENABLE_WEBENGINE etc. Must come before
+# the subdirectories that branch on them.
+include(cmake/AwbOptions.cmake)
+
 # Layered modules, bottom-up (specs/01-architecture.md §3):
-#   core -> theme -> {shell, agents} -> workbench -> app
+#   core -> theme -> {shell, agents, web} -> workbench -> app
 add_subdirectory(src/core)      # L0 infrastructure
 add_subdirectory(src/theme)     # L1 theme engine
 add_subdirectory(src/agents)    # L2 agents domain
 add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
+add_subdirectory(src/web)       # L2 web tabs (+ webengine adapter when ON)
 add_subdirectory(src/workbench) # L3 application layer
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.

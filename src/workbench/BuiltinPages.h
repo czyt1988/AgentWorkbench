@@ -10,7 +10,11 @@ class AgentsFacade;
 namespace awb::shell {
 class NavigationModel;
 class ShellController;
+class Notifications;
 } // namespace awb::shell
+namespace awb::web {
+class WebTabsFacade;
+} // namespace awb::web
 
 namespace awb::workbench {
 
@@ -24,16 +28,22 @@ class BuiltinPages : public QObject
 
 public:
     BuiltinPages(shell::NavigationModel *nav, shell::ShellController *shell,
-                 agents::AgentsFacade *agents, QObject *parent = nullptr);
+                 agents::AgentsFacade *agents, web::WebTabsFacade *web,
+                 shell::Notifications *notifications,
+                 QObject *parent = nullptr);
 
 private:
     void registerPages();
     void wireBadges();
     void wirePagePersistence();
 
+    void wireWebRules();
+
     shell::NavigationModel *m_nav;
     shell::ShellController *m_shell;
     agents::AgentsFacade *m_agents;
+    web::WebTabsFacade *m_web;
+    shell::Notifications *m_notifications;
 };
 
 } // namespace awb::workbench

@@ -310,6 +310,18 @@ void Settings::setLastPageId(const QString &pageId)
     emit valueChanged(QStringLiteral("window.lastPageId"));
 }
 
+void Settings::setWebSurface(const QString &surface)
+{
+    m_web.surface = surface;
+    emit valueChanged(QStringLiteral("web.surface"));
+}
+
+void Settings::setWebChromiumFlags(const QString &flags)
+{
+    m_web.chromiumFlags = flags;
+    emit valueChanged(QStringLiteral("web.chromiumFlags"));
+}
+
 OpResult Settings::save()
 {
     QJsonObject window;

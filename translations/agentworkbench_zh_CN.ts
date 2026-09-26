@@ -954,14 +954,24 @@ Command: %2
 <context>
     <name>BuiltinPages</name>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="29" />
+        <location filename="../src/workbench/BuiltinPages.cpp" line="37" />
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="39" />
+        <location filename="../src/workbench/BuiltinPages.cpp" line="47" />
+        <source>Web</source>
+        <translation>Web</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="57" />
         <source>Settings</source>
         <translation>设置</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="112" />
+        <source>Opening in the browser</source>
+        <translation>正在浏览器中打开</translation>
     </message>
 </context>
 <context>
@@ -975,37 +985,37 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="126" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="127" />
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="133" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="134" />
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="145" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="146" />
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="155" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="156" />
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="164" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="165" />
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="198" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="199" />
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="212" />
+        <location filename="../src/shell/qml/MainWindow.qml" line="213" />
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1153,22 +1163,47 @@ Command: %2
         <translation>Web</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="366" />
-        <source>Embedded/external surface options arrive with the Web page.</source>
-        <translation>内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="371" />
+        <source>Surface</source>
+        <translation>表面</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="374" />
+        <location filename="../src/shell/qml/SettingsPage.qml" line="382" />
+        <source>Embedded (in-app)</source>
+        <translation>内嵌（应用内）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="383" />
+        <location filename="../src/shell/qml/SettingsPage.qml" line="384" />
+        <source>External (system browser)</source>
+        <translation>外部（系统浏览器）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="409" />
+        <source>Chromium flags, e.g. --disable-gpu (applies after restart)</source>
+        <translation>Chromium 启动参数，例如 --disable-gpu（重启后生效）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="428" />
+        <source>If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app 'Open in browser' action always works as a fallback.</source>
+        <translation>如果内嵌视图无法启动（GPU 驱动问题），在此添加 --disable-gpu。应用内的“在浏览器打开”始终可用作兜底。</translation>
+    </message>
+    <message>
+        <source>Embedded/external surface options arrive with the Web page.</source>
+        <translation type="vanished">内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="436" />
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="394" />
+        <location filename="../src/shell/qml/SettingsPage.qml" line="456" />
         <source>Open data folder</source>
         <translation>打开数据目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="410" />
+        <location filename="../src/shell/qml/SettingsPage.qml" line="472" />
         <source>Restore default launchers</source>
         <translation>恢复默认启动器</translation>
     </message>
@@ -1268,24 +1303,210 @@ Command: %2
     </message>
 </context>
 <context>
+    <name>WebEngineSurface</name>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="65" />
+        <source>Failed to load %1</source>
+        <translation>无法加载 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="75" />
+        <source>The render process was terminated (code %1)</source>
+        <translation>渲染进程已终止（代码 %1）</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="105" />
+        <source>Download started</source>
+        <translation>开始下载</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="109" />
+        <source>Download finished</source>
+        <translation>下载完成</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="113" />
+        <source>Download interrupted</source>
+        <translation>下载中断</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="128" />
+        <source>Permission denied</source>
+        <translation>权限被拒绝</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="129" />
+        <source>This page requested a browser permission; the current version does not support it.</source>
+        <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="139" />
+        <source>Developer tools</source>
+        <translation>开发者工具</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="178" />
+        <source>Loading %1...</source>
+        <translation>正在加载 %1...</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="187" />
+        <source>This agent is not running</source>
+        <translation>该 agent 未运行</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="209" />
+        <source>The page crashed</source>
+        <translation>页面崩溃了</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="219" />
+        <source>Failed to load the page</source>
+        <translation>页面加载失败</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="243" />
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="249" />
+        <source>Restart agent</source>
+        <translation>重新启动 agent</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="254" />
+        <source>Retry</source>
+        <translation>重试</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="259" />
+        <source>Reload</source>
+        <translation>重新加载</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="264" />
+        <source>Open in browser</source>
+        <translation>在浏览器打开</translation>
+    </message>
+</context>
+<context>
+    <name>WebTabsPage</name>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="182" />
+        <source>This agent is not running</source>
+        <translation>该 agent 未运行</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="184" />
+        <source>The page crashed</source>
+        <translation>页面崩溃了</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="186" />
+        <source>Failed to load the page</source>
+        <translation>页面加载失败</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="201" />
+        <source>Reload</source>
+        <translation>重新加载</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="210" />
+        <source>Open in browser</source>
+        <translation>在浏览器打开</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="233" />
+        <source>Copy URL</source>
+        <translation>复制 URL</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="242" />
+        <source>Zoom in</source>
+        <translation>放大</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="246" />
+        <source>Zoom out</source>
+        <translation>缩小</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="250" />
+        <source>Reset zoom</source>
+        <translation>重置缩放</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="256" />
+        <source>Developer tools</source>
+        <translation>开发者工具</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="264" />
+        <source>Close tab</source>
+        <translation>关闭标签</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="295" />
+        <source>No Web views open</source>
+        <translation>还没有打开的 Web 视图</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="304" />
+        <source>Open a view from a running agent's card, or from the list below.</source>
+        <translation>从运行中 agent 的卡片打开视图，或从下方列表打开。</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="305" />
+        <source>This build opens agent WebUIs in the system browser. Start an agent below to open it.</source>
+        <translation>此构建在系统浏览器中打开 agent 的 WebUI。在下方启动一个 agent 即可打开。</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="356" />
+        <source>Open</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="366" />
+        <source>No agent is running - start one from the launcher page.</source>
+        <translation>没有 agent 在运行——先到启动器页面启动一个。</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="372" />
+        <source>Go to launcher</source>
+        <translation>前往启动器</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="405" />
+        <source>View released to free memory</source>
+        <translation>视图已释放以回收内存</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="411" />
+        <source>Restore view</source>
+        <translation>恢复视图</translation>
+    </message>
+</context>
+<context>
     <name>WorkbenchContext</name>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="66" />
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="87" />
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="71" />
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="92" />
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="88" />
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="109" />
         <source>Cannot open link</source>
         <translation>无法打开链接</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="99" />
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="120" />
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
@@ -1301,6 +1522,146 @@ Command: %2
         <location filename="../src/shell/qml/Workspace.qml" line="40" />
         <source>Pick a page from the sidebar</source>
         <translation>从左侧边栏选择一个页面</translation>
+    </message>
+</context>
+<context>
+    <name>awb::agents::AgentRuntime</name>
+    <message>
+        <source>Startup command is empty.</source>
+        <translation type="vanished">启动命令为空。</translation>
+    </message>
+    <message>
+        <source>Cannot find '%1' on your PATH. Make sure it is installed and on PATH.</source>
+        <translation type="vanished">在 PATH 中找不到 '%1'，请确认已安装且在 PATH 中。</translation>
+    </message>
+    <message>
+        <source>Failed to start '%1'.</source>
+        <translation type="vanished">启动 '%1' 失败。</translation>
+    </message>
+    <message>
+        <source>This agent wasn't started from the launcher; stop it with its own command.</source>
+        <translation type="vanished">此代理不是从启动器启动的，请用其自身命令关闭。</translation>
+    </message>
+    <message>
+        <source>Failed to stop process (PID %1).</source>
+        <translation type="vanished">停止进程失败（PID %1）。</translation>
+    </message>
+    <message>
+        <source>Cannot determine port from web URL.</source>
+        <translation type="vanished">无法从 Web 地址解析出端口。</translation>
+    </message>
+    <message>
+        <source>No process found listening on port %1; the agent may already be stopped.</source>
+        <translation type="vanished">未找到监听端口 %1 的进程；该代理可能已停止。</translation>
+    </message>
+</context>
+<context>
+    <name>awb::agents::AgentScripts</name>
+    <message>
+        <source>Please close %1 before installing/updating.</source>
+        <translation type="vanished">请先关闭 %1 后再进行安装/更新。</translation>
+    </message>
+    <message>
+        <source>No install command configured for %1.</source>
+        <translation type="vanished">%1 未配置安装命令。</translation>
+    </message>
+    <message>
+        <source>No update command configured for %1.</source>
+        <translation type="vanished">%1 未配置更新命令。</translation>
+    </message>
+    <message>
+        <source>Failed to start install command.</source>
+        <translation type="vanished">启动安装命令失败。</translation>
+    </message>
+    <message>
+        <source>Failed to start update command.</source>
+        <translation type="vanished">启动更新命令失败。</translation>
+    </message>
+    <message>
+        <source>(no output)</source>
+        <translation type="vanished">（无输出）</translation>
+    </message>
+    <message>
+        <source>Install failed (exit code %1):
+%2</source>
+        <translation type="vanished">安装失败（退出码 %1）：
+%2</translation>
+    </message>
+    <message>
+        <source>Update failed (exit code %1):
+%2</source>
+        <translation type="vanished">更新失败（退出码 %1）：
+%2</translation>
+    </message>
+    <message>
+        <source>Failed to start setup command.</source>
+        <translation type="vanished">启动设置命令失败。</translation>
+    </message>
+    <message>
+        <source>Setup command failed (exit code %1).
+
+Command: %2
+
+%3</source>
+        <translation type="vanished">设置命令失败（退出码 %1）。
+
+命令：%2
+
+%3</translation>
+    </message>
+</context>
+<context>
+    <name>awb::shell::UiServices</name>
+    <message>
+        <source>Nothing to copy.</source>
+        <translation type="vanished">没有可复制的内容。</translation>
+    </message>
+    <message>
+        <source>The clipboard is not available.</source>
+        <translation type="vanished">剪贴板不可用。</translation>
+    </message>
+    <message>
+        <source>Invalid URL.</source>
+        <translation type="vanished">无效的 URL。</translation>
+    </message>
+    <message>
+        <source>No application accepted %1.</source>
+        <translation type="vanished">没有应用接受 %1。</translation>
+    </message>
+    <message>
+        <source>The path does not exist: %1</source>
+        <translation type="vanished">路径不存在：%1</translation>
+    </message>
+    <message>
+        <source>Could not open the file manager.</source>
+        <translation type="vanished">无法打开文件管理器。</translation>
+    </message>
+    <message>
+        <source>Not a directory: %1</source>
+        <translation type="vanished">不是目录：%1</translation>
+    </message>
+    <message>
+        <source>Could not open the folder: %1</source>
+        <translation type="vanished">无法打开文件夹：%1</translation>
+    </message>
+</context>
+<context>
+    <name>awb::workbench::BuiltinPages</name>
+    <message>
+        <source>Agent Launcher</source>
+        <translation type="vanished">Agent 启动器</translation>
+    </message>
+    <message>
+        <source>Web</source>
+        <translation type="vanished">Web</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="vanished">设置</translation>
+    </message>
+    <message>
+        <source>Opening in the browser</source>
+        <translation type="vanished">正在浏览器中打开</translation>
     </message>
 </context>
 <context>
@@ -1374,7 +1735,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="118" />
+        <location filename="../app/main.cpp" line="147" />
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the "qml" subfolder) and make sure your antivirus did not quarantine any files.
