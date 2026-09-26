@@ -1,21 +1,23 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AgentWorkbench
 import AgentWorkbench.App
 
-// Settings entry: launcher management. Structured as sections inside a
-// scrollable column so more settings can be added below "Launchers" later.
+// The settings page (specs/02 §5, specs/03 S4-T7): grouped sections in a
+// scrollable column. It hosts the application-level settings; the launcher
+// list stays here for continuity with 0.3.0.
 Page {
     id: page
+
     background: Rectangle { color: theme.workspaceBg }
 
     function openEditor(agentId) {
-        page.StackView.view.push(agentEditComp, { "agentId": agentId })
+        editDialog.openFor(agentId)
     }
 
-    Component {
-        id: agentEditComp
-        AgentEditPage {}
+    AgentEditDialog {
+        id: editDialog
     }
 
     // --- Delete confirmation -----------------------------------------------
@@ -29,7 +31,7 @@ Page {
         modal: true
         focus: true
         width: 420
-        padding: 20
+        padding: theme.spacingL
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -77,22 +79,19 @@ Page {
                 Layout.fillWidth: true
                 spacing: theme.spacingS
 
-                Button {
+                AButton {
                     Layout.fillWidth: true
+                    variant: "danger"
                     text: qsTr("Delete")
-                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.danger) : (parent.hovered ? theme.hover(theme.danger) : theme.danger) }
-                    contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
                         if (!agents.removeAgent(deleteConfirmPopup.pendingId))
                             errorPopup.open()
                         deleteConfirmPopup.close()
                     }
                 }
-                Button {
+                AButton {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
-                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
-                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: deleteConfirmPopup.close()
                 }
             }
@@ -106,7 +105,7 @@ Page {
         modal: true
         focus: true
         width: 420
-        padding: 20
+        padding: theme.spacingL
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
@@ -141,105 +140,84 @@ Page {
                 font.family: theme.monoFamily
                 wrapMode: Text.WrapAnywhere
             }
-            Button {
+            AButton {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("OK")
-                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
-                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: errorPopup.close()
             }
         }
     }
 
-    ColumnLayout {
+    ScrollView {
+        id: scrollView
         anchors.fill: parent
-        anchors.margins: theme.spacingXl
-        spacing: theme.spacingM
+        clip: true
+        contentWidth: availableWidth
 
-        RowLayout {
+        ColumnLayout {
+            width: scrollView.availableWidth
             spacing: theme.spacingM
 
-            Button {
-                text: qsTr("\u2190 Back")
-                background: Rectangle { color: "transparent" }
-                contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeSubtitle }
-                onClicked: page.StackView.view.pop()
+            PageHeader {
+                title: qsTr("Settings")
+                subtitle: qsTr("Appearance, launchers and application options")
             }
-            Item { Layout.fillWidth: true }
-        }
 
-        Label {
-            text: qsTr("Settings")
-            color: theme.textPrimary
-            font.pixelSize: theme.fontSizePageTitle
-            font.bold: true
-        }
-
-        // --- Appearance section ------------------------------------------
-        // Theme switch entry (specs/03 S3-T4): applies at runtime and is
-        // persisted to settings.json; theme files hot-reload through
-        // ThemeRegistry.
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: theme.spacingM
-
-            Label {
+            // --- Appearance ------------------------------------------------
+            ASectionHeader {
                 text: qsTr("Appearance")
-                color: theme.textSecondary
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
             }
-            Item { Layout.fillWidth: true }
-            ComboBox {
-                id: themeCombo
-                textRole: "name"
-                valueRole: "id"
-                model: theme.availableThemes
-                // Re-evaluates when the active theme changes (themeId
-                // notifies); the user's pick re-activates it immediately.
-                currentIndex: themeCombo.themeIdIndexOf(theme.themeId)
-                onActivated: theme.applyTheme(currentValue)
 
-                function themeIdIndexOf(id) {
-                    const themes = theme.availableThemes
-                    for (let i = 0; i < themes.length; ++i) {
-                        if (themes[i].id === id)
-                            return i
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Theme")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                ComboBox {
+                    id: themeCombo
+                    textRole: "name"
+                    valueRole: "id"
+                    model: theme.availableThemes
+                    currentIndex: themeCombo.themeIdIndexOf(theme.themeId)
+                    onActivated: theme.applyTheme(currentValue)
+
+                    function themeIdIndexOf(id) {
+                        const themes = theme.availableThemes
+                        for (let i = 0; i < themes.length; ++i) {
+                            if (themes[i].id === id)
+                                return i
+                        }
+                        return -1
                     }
-                    return -1
                 }
             }
-        }
 
-        // --- Launchers section -------------------------------------------
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: theme.spacingM
-
-            Label {
+            // --- Launchers -------------------------------------------------
+            ASectionHeader {
                 text: qsTr("Launchers")
-                color: theme.textSecondary
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                extra: [
+                    AButton {
+                        text: qsTr("Add Launcher")
+                        onClicked: page.openEditor("")
+                    }
+                ]
             }
-            Item { Layout.fillWidth: true }
-            Button {
-                text: qsTr("Add Launcher")
-                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.accent) : (parent.hovered ? theme.hover(theme.accent) : theme.accent) }
-                contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                onClicked: page.openEditor("")
-            }
-        }
-
-        ScrollView {
-            id: scrollView
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            contentWidth: availableWidth
 
             ColumnLayout {
-                width: scrollView.availableWidth
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
                 spacing: theme.spacingS
 
                 Repeater {
@@ -282,15 +260,17 @@ Page {
                                 }
                             }
 
-                            // Running-state dot with tooltip.
+                            // Running-state dot with tooltip (never
+                            // color-only, specs/02 §14).
                             Rectangle {
                                 width: 10
                                 height: 10
-                                radius: 5
+                                radius: theme.radiusPill
                                 color: model.running ? theme.success : theme.neutralOff
                                 ToolTip.visible: dotArea.containsMouse
                                 ToolTip.delay: 300
-                                ToolTip.text: model.running ? qsTr("Running") : qsTr("Stopped")
+                                ToolTip.text: model.running ? qsTr("Running")
+                                                            : qsTr("Stopped")
 
                                 MouseArea {
                                     id: dotArea
@@ -299,16 +279,13 @@ Page {
                                 }
                             }
 
-                            Button {
+                            AButton {
                                 text: qsTr("Edit")
-                                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
-                                contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeBody; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 onClicked: page.openEditor(model.agentId)
                             }
-                            Button {
+                            AButton {
+                                variant: "danger"
                                 text: qsTr("Delete")
-                                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
-                                contentItem: Label { text: parent.text; color: theme.danger; font.pixelSize: theme.fontSizeBody; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 onClicked: {
                                     deleteConfirmPopup.pendingId = model.agentId
                                     deleteConfirmPopup.pendingName = model.name
@@ -322,15 +299,120 @@ Page {
                     }
                 }
             }
-        }
 
-        Button {
-            text: qsTr("Restore default launchers")
-            background: Rectangle { color: "transparent" }
-            contentItem: Label { text: parent.text; color: theme.textMuted; font.pixelSize: theme.fontSizeBody }
-            onClicked: {
-                if (!agents.restoreDefaults())
-                    errorPopup.open()
+            // --- Environment ------------------------------------------------
+            ASectionHeader {
+                text: qsTr("Environment")
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: environment.pythonInstalled
+                          ? qsTr("Python %1").arg(environment.pythonVersion)
+                          : qsTr("Python not found")
+                    color: environment.pythonInstalled ? theme.textPrimary
+                                                       : theme.danger
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: environment.nodeInstalled
+                          ? qsTr("Node.js %1").arg(environment.nodeVersion)
+                          : qsTr("Node.js not found")
+                    color: environment.nodeInstalled ? theme.textPrimary
+                                                     : theme.danger
+                    font.pixelSize: theme.fontSizeBody
+                }
+                AButton {
+                    text: qsTr("Re-detect")
+                    onClicked: environment.refresh()
+                }
+            }
+
+            // --- Skills (placeholder until S6) -------------------------------
+            ASectionHeader {
+                text: qsTr("Skills")
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                text: qsTr("Skill root directories and scanning options arrive with the Skills page.")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+            }
+
+            // --- Web (placeholder until S5) ----------------------------------
+            ASectionHeader {
+                text: qsTr("Web")
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+            }
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                text: qsTr("Embedded/external surface options arrive with the Web page.")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+            }
+
+            // --- Advanced ----------------------------------------------------
+            ASectionHeader {
+                text: qsTr("Advanced")
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: agents.configFilePath()
+                    color: theme.textSecondary
+                    font.pixelSize: theme.fontSizeSmall
+                    font.family: theme.monoFamily
+                    elide: Text.ElideMiddle
+                }
+                AButton {
+                    text: qsTr("Open data folder")
+                    onClicked: workbench.openFolder(
+                        agents.configFilePath().replace(
+                            /[\\\\\\/]agents\\.json$/, ""))
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                Layout.bottomMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Item { Layout.fillWidth: true }
+                AButton {
+                    text: qsTr("Restore default launchers")
+                    onClicked: {
+                        if (!agents.restoreDefaults())
+                            errorPopup.open()
+                    }
+                }
             }
         }
     }

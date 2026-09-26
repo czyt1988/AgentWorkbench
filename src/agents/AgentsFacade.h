@@ -28,17 +28,13 @@ class AgentStateStore;
 // keeps the Q_INVOKABLE/signature names of the 0.3.0 `launcher` object so
 // the existing QML only needs its prefix renamed (`launcher.` -> `agents.`).
 //
-// Interim members that move out in S4: openWeb/openConfigDir (to
-// workbench/ui) and the python/node properties (to environment).
+// Interim members that move out in S4: openWeb/openConfigDir (called through
+// workbench now); Python/Node detection moved to EnvironmentService.
 class AgentsFacade : public QObject
 {
     Q_OBJECT
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
-    Q_PROPERTY(QString pythonVersion READ pythonVersion NOTIFY runtimeVersionsChanged)
-    Q_PROPERTY(bool pythonInstalled READ pythonInstalled NOTIFY runtimeVersionsChanged)
-    Q_PROPERTY(QString nodeVersion READ nodeVersion NOTIFY runtimeVersionsChanged)
-    Q_PROPERTY(bool nodeInstalled READ nodeInstalled NOTIFY runtimeVersionsChanged)
 
 public:
     // `theme` supplies the agent auto-assignment palette (specs/01 §4.3);
@@ -49,11 +45,6 @@ public:
     QAbstractItemModel *model() const;
     // Typed access for in-module callers and tests.
     AgentModel *agentModel() const { return m_model; }
-
-    QString pythonVersion() const { return m_pythonVersion; }
-    bool pythonInstalled() const { return m_pythonInstalled; }
-    QString nodeVersion() const { return m_nodeVersion; }
-    bool nodeInstalled() const { return m_nodeInstalled; }
 
     Q_INVOKABLE void launch(const QString &id);
     Q_INVOKABLE bool stop(const QString &id);
@@ -99,9 +90,6 @@ signals:
     // Emitted when an install/update finishes (success or failure).
     void installFinished(const QString &id, bool success, const QString &message);
 
-    // Emitted when Python/Node.js version detection completes.
-    void runtimeVersionsChanged();
-
 private:
     bool saveConfig();
 
@@ -111,11 +99,6 @@ private:
     AgentRuntime *m_runtime;
     AgentScripts *m_scripts;
     AgentHealthMonitor *m_health;
-
-    QString m_pythonVersion;
-    bool m_pythonInstalled = false;
-    QString m_nodeVersion;
-    bool m_nodeInstalled = false;
 };
 
 } // namespace awb::agents

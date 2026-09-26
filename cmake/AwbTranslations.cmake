@@ -7,13 +7,40 @@
 # any CMakeLists.txt in the project.
 
 set(AWB_TS_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/main.cpp
+    # executable assembly
+    ${CMAKE_SOURCE_DIR}/app/main.cpp
+    # core
     ${CMAKE_SOURCE_DIR}/src/core/LegacyImport.cpp
+    # agents domain
     ${CMAKE_SOURCE_DIR}/src/agents/AgentRuntime.cpp
     ${CMAKE_SOURCE_DIR}/src/agents/AgentScripts.cpp
     ${CMAKE_SOURCE_DIR}/src/agents/AgentsFacade.cpp
-    ${CMAKE_SOURCE_DIR}/qml/main.qml
-    ${CMAKE_SOURCE_DIR}/qml/AgentCard.qml
-    ${CMAKE_SOURCE_DIR}/qml/AgentEditPage.qml
-    ${CMAKE_SOURCE_DIR}/qml/SettingsPage.qml
+    # shell
+    ${CMAKE_SOURCE_DIR}/src/shell/UiServices.cpp
+    # application layer
+    ${CMAKE_SOURCE_DIR}/src/workbench/BuiltinPages.cpp
+    ${CMAKE_SOURCE_DIR}/src/workbench/WorkbenchContext.cpp
+    # shell QML
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/MainWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/Sidebar.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/Workspace.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/StatusBar.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/Toasts.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ACard.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AToolTip.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AToastStack.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AgentAvatar.qml
+    # agents QML
+    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentCard.qml
+    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentGridPage.qml
+    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentEditDialog.qml
 )

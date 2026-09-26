@@ -5,6 +5,7 @@
 add_subdirectory(core)
 add_subdirectory(agents)
 add_subdirectory(theme)
+add_subdirectory(shell)
 
 # Architecture rules as a test (specs/01 §5.3): a violating build fails
 # instead of relying on people remembering the rules.

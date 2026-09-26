@@ -1,0 +1,38 @@
+import QtQuick
+import QtQuick.Controls
+import AgentWorkbench.App
+import AgentWorkbench
+
+// Icon-only button (specs/02 §10.2): 28px (large 44), hover fill derived
+// from the icon color, tooltip required.
+Button {
+    id: control
+
+    property string iconSource: ""
+    property string tooltip: ""
+    // "large" grows to 44 for floating action buttons.
+    property string size: "normal"
+
+    implicitWidth: size === "large" ? 44 : 28
+    implicitHeight: size === "large" ? 44 : 28
+    padding: 0
+
+    ToolTip.visible: tooltip.length > 0 && hovered
+    ToolTip.delay: 300
+    ToolTip.text: tooltip
+
+    background: Rectangle {
+        radius: theme.radiusControl
+        color: control.down ? theme.alpha(theme.textMuted, 0.28)
+                            : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
+                                               : "transparent")
+    }
+
+    contentItem: Image {
+        source: control.iconSource
+        sourceSize: Qt.size(size === "large" ? 22 : 16,
+                            size === "large" ? 22 : 16)
+        fillMode: Image.PreserveAspectFit
+        opacity: control.enabled ? 1 : 0.5
+    }
+}

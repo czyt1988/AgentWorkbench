@@ -2,18 +2,39 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import AgentWorkbench.App
+import AgentWorkbench
 
-// Full add/edit form for one launcher. Empty agentId = add mode.
+// Full add/edit form for one launcher, as a dialog (specs/02 §8.1).
+// Empty agentId = add mode.
 // NOTE: do not name the agent map property `data` — it collides with
 // QQuickItem's built-in `data` group and silently breaks field bindings.
-Page {
+Dialog {
     id: page
 
     property string agentId: ""
     readonly property bool isAdd: agentId.length === 0
     property var agentData: agentId.length > 0 ? agents.model.agent(agentId) : ({})
 
-    background: Rectangle { color: theme.workspaceBg }
+    anchors.centerIn: parent
+    modal: true
+    focus: true
+    padding: 0
+    width: 640
+    // Bounded by the screen; the form scrolls internally (specs/02 §8.1).
+    height: Math.min(scrollView.implicitHeight, Screen.height - 120)
+    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    background: Rectangle {
+        color: theme.overlayBg
+        border.color: theme.borderSubtle
+        border.width: 1
+        radius: theme.radiusOverlay
+    }
+
+    function openFor(id) {
+        agentId = id
+        open()
+    }
 
     // --- Validation --------------------------------------------------------
     readonly property bool nameValid: nameField.text.trim().length > 0
@@ -57,7 +78,7 @@ Page {
             ok = agents.updateAgentFull(page.agentId, fields)
         }
         if (ok)
-            page.StackView.view.pop()
+            page.close()
         else
             saveErrorPopup.open()
     }
@@ -149,7 +170,7 @@ Page {
                     text: qsTr("\u2190 Back")
                     background: Rectangle { color: "transparent" }
                     contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeSubtitle }
-                    onClicked: page.StackView.view.pop()
+                    onClicked: page.close()
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -446,7 +467,7 @@ Page {
                         text: qsTr("Cancel")
                         background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
                         contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        onClicked: page.StackView.view.pop()
+                        onClicked: page.close()
                     }
                     Button {
                         id: saveButton

@@ -12,106 +12,35 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Netwo
 
 qt_standard_project_setup(REQUIRES 6.5)
 
-# L0 infrastructure library (src/core). See specs/01-architecture.md §4.1.
-add_subdirectory(src/core)
-# L1 theme engine (src/theme). See specs/01-architecture.md §4.2.
-add_subdirectory(src/theme)
-# L2 agents domain (src/agents). See specs/01-architecture.md §4.3.
-add_subdirectory(src/agents)
-
-set(APP_SOURCES
-    src/main.cpp
-)
-
-set(APP_HEADERS
-)
-
-qt_add_executable(AgentWorkbench
-    ${APP_SOURCES}
-    ${APP_HEADERS}
-    src/app.rc
-)
-
-# Include root for spec-style includes ("core/Foo.h", 01-architecture.md §6).
-target_include_directories(AgentWorkbench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-# Built-in themes (specs/02 §9.1). Resources are compiled into the
-# executable — static libraries must not carry qrc initializers.
-set(_awb_theme_files
-    ${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
-    ${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
-    PROPERTIES QT_RESOURCE_ALIAS "mocha-dark.json")
-set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json
-    PROPERTIES QT_RESOURCE_ALIAS "latte-light.json")
-
-qt_add_resources(AgentWorkbench "theme_resources"
-    PREFIX "/themes"
-    FILES
-        ${_awb_theme_files}
-)
-
-qt_add_resources(AgentWorkbench "app_resources"
-    PREFIX "/"
-    FILES
-        config/default_agents.json
-        icons/kimi-code.svg
-        icons/opencode.svg
-        icons/openclaw.svg
-        icons/deepseek-harness.svg
-        icons/qwen-code.svg
-        icons/default.svg
-        icons/terminal.svg
-        icons/cube.svg
-        icons/bot.svg
-        icons/download.svg
-        icons/download-hover.svg
-        icons/gear.svg
-        icons/app-icon.png
-        qml/main.qml
-        qml/AgentCard.qml
-        qml/AgentEditPage.qml
-        qml/SettingsPage.qml
-)
-
-target_link_libraries(AgentWorkbench PRIVATE
-    awb_agents
-    awb_core
-    awb_theme
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Qml
-    Qt6::Quick
-    Qt6::QuickControls2
-    Qt6::Network
-)
+# Layered modules, bottom-up (specs/01-architecture.md §3):
+#   core -> theme -> {shell, agents} -> workbench -> app
+add_subdirectory(src/core)      # L0 infrastructure
+add_subdirectory(src/theme)     # L1 theme engine
+add_subdirectory(src/agents)    # L2 agents domain
+add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
+add_subdirectory(src/workbench) # L3 application layer
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.
-# qt6_create_translation auto-separates .ts files from sources by extension.
-# The scan list covers every source with tr()/translate() — including the
-# core library — and lives in cmake/AwbTranslations.cmake (specs/01 §10).
+# The scan list lives in cmake/AwbTranslations.cmake (specs/01 §10).
 include(cmake/AwbTranslations.cmake)
 qt6_create_translation(QM_FILES
     ${AWB_TS_SOURCES}
     translations/agentworkbench_zh_CN.ts
 )
+# L4 executable: assembly + QML module + all embedded resources (§4.9).
+add_subdirectory(app)
 
-# Generated .qm files have absolute paths; alias them to relative names so
-# qt_add_resources can embed them under :/i18n/.
+# Compiled translations, embedded under :/i18n/. Kept in the same directory
+# as the qt6_create_translation call above: the generated .qm's custom
+# command and its resource must share a directory scope, and the alias is
+# directory-scoped as well.
 set_source_files_properties(${QM_FILES} PROPERTIES
-    QT_RESOURCE_ALIAS "agentworkbench_zh_CN.qm"
-)
+    QT_RESOURCE_ALIAS "agentworkbench_zh_CN.qm")
 
 qt_add_resources(AgentWorkbench "i18n"
     PREFIX "/i18n"
     FILES
         ${QM_FILES}
-)
-
-# Win32 GUI subsystem (no console window) on Windows.
-set_target_properties(AgentWorkbench PROPERTIES
-    WIN32_EXECUTABLE ON
-    MACOSX_BUNDLE ON
 )
 
 # --- Unit tests ---------------------------------------------------------------

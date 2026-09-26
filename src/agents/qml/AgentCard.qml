@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import AgentWorkbench.App
+import AgentWorkbench
 
 Item {
     id: root
@@ -109,7 +110,7 @@ Item {
             acceptedButtons: Qt.LeftButton
             onClicked: {
                 if (root.running_p)
-                    agents.openWeb(root.agentId_p)
+                    workbench.openWeb(root.agentId_p)
                 else if (!root.launching_p && !root.setupping_p)
                     agents.launch(root.agentId_p)
             }
@@ -164,7 +165,7 @@ Item {
             }
             MenuItem {
                 text: qsTr("Open config folder")
-                onTriggered: agents.openConfigDir(root.agentId_p)
+                onTriggered: workbench.openConfigDir(root.agentId_p)
             }
             MenuItem {
                 text: qsTr("Re-initialize")
@@ -509,7 +510,7 @@ Item {
                 }
                 onClicked: {
                     if (root.running_p)
-                        agents.openWeb(root.agentId_p)
+                        workbench.openWeb(root.agentId_p)
                     else
                         agents.launch(root.agentId_p)
                 }

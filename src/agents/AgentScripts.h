@@ -38,10 +38,6 @@ public:
     void checkVersions();
     void checkVersion(const QString &id);
 
-    // Probe the Python / Node.js runtimes for the status-bar badges
-    // (0.3.0 behaviour; moves to EnvironmentService in S4).
-    void detectRuntimeVersions();
-
 signals:
     // An install/update finished (success or failure) — relayed to QML by
     // the facade under the same name it had in 0.3.0.
@@ -58,10 +54,6 @@ signals:
     // recorded in the AgentStateStore) and the caller may launch now.
     void setupFinished(const QString &id, bool ok);
 
-    // A runtime probe (Python / Node.js) resolved.
-    void runtimeResolved(const QString &runtimeName, bool installed,
-                         const QString &version);
-
 private slots:
     void onScriptFinished(const QString &key, bool ok, int exitCode,
                           const QString &stdOut, const QString &stdErr,
@@ -69,10 +61,6 @@ private slots:
     void onScriptChunk(const QString &key, const QString &text);
 
 private:
-    // Probe one runtime: PATH check first, then `cmd /c <program> --version`.
-    void detectRuntime(const QString &program, const QString &versionArg,
-                       const QString &runtimeName);
-
     AgentModel *m_model;
     AgentStateStore *m_stateStore;
     // One runner per scripts object: operation keys stay module-private.

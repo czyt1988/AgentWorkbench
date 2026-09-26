@@ -3,7 +3,6 @@
 #include "agents/AgentModel.h"
 #include "agents/AgentStateStore.h"
 #include "core/Logging.h"
-#include "core/ProcessRunner.h"
 #include "core/ScriptRunner.h"
 #include "core/TextUtils.h"
 
@@ -242,42 +241,6 @@ void AgentScripts::checkVersion(const QString &id)
     m_runner->runShell(key, cmd, 10000, false);
 }
 
-// --- Runtime version detection (Python / Node.js) ---------------------------
-
-void AgentScripts::detectRuntimeVersions()
-{
-    detectRuntime(QStringLiteral("python"), QStringLiteral("--version"),
-                  QStringLiteral("Python"));
-    detectRuntime(QStringLiteral("node"), QStringLiteral("--version"),
-                  QStringLiteral("Node"));
-}
-
-void AgentScripts::detectRuntime(const QString &program,
-                                 const QString &versionArg,
-                                 const QString &runtimeName)
-{
-    // Quick PATH check first — if the executable isn't found, there's no
-    // point spawning a process. findExecutable applies PATHEXT on Windows.
-    if (core::ProcessRunner::findExecutable(program).isEmpty()) {
-        cmdLogError(QStringLiteral("runtime"), runtimeName,
-                    QStringLiteral("'%1' is not on PATH").arg(program));
-        emit runtimeResolved(runtimeName, false, QString());
-        return;
-    }
-
-    const QString key = scriptKey(QStringLiteral("runtime"), runtimeName);
-    m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
-    // The probe hands cmd one string ("python --version"), so it is reported
-    // the same way as the other cmd /c lines rather than as a quoted argv.
-    cmdLog(QStringLiteral("runtime"), runtimeName,
-           QStringLiteral("running: %1")
-               .arg(shellCommandLine(program + QLatin1Char(' ') + versionArg)));
-    // Separate channels (older Python prints the version to stderr);
-    // 10s safety timeout.
-    m_runner->runShell(key, program + QLatin1Char(' ') + versionArg,
-                       10000, false);
-}
-
 // --- ScriptRunner dispatch ---------------------------------------------------
 
 void AgentScripts::onScriptChunk(const QString &key, const QString &text)
@@ -435,33 +398,6 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                     if (m_versionEpoch.value(id) == epoch)
                         m_model->setCheckingVersion(id, false);
                 });
-        return;
-    }
-
-    if (operation == QLatin1String("runtime")) {
-        // `id` carries the runtime name ("Python" / "Node").
-        QString version;
-        if (error.isEmpty()) {
-            version = core::TextUtils::extractVersion(stdOut);
-            if (version.isEmpty())
-                version = core::TextUtils::extractVersion(stdErr);
-        }
-        const bool installed =
-            error.isEmpty() && (exitCode == 0 || !version.isEmpty());
-
-        if (!error.isEmpty()) {
-            cmdLogError(operation, id, error);
-        } else if (version.isEmpty()) {
-            cmdLogError(operation, id,
-                        QStringLiteral("%1, no version string in the output: %2")
-                            .arg(exitSummary(exitCode, startMs),
-                                 output.trimmed()));
-        } else {
-            cmdLog(operation, id,
-                   QStringLiteral("%1 → %2")
-                       .arg(exitSummary(exitCode, startMs), version));
-        }
-        emit runtimeResolved(id, installed, installed ? version : QString());
         return;
     }
 

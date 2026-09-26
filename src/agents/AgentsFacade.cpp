@@ -116,17 +116,6 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
                     launch(id);
             });
 
-    connect(m_scripts, &AgentScripts::runtimeResolved, this,
-            [this](const QString &name, bool installed, const QString &version) {
-                if (name == QLatin1String("Python")) {
-                    m_pythonInstalled = installed;
-                    m_pythonVersion = version;
-                } else {
-                    m_nodeInstalled = installed;
-                    m_nodeVersion = version;
-                }
-                emit runtimeVersionsChanged();
-            });
 }
 
 QAbstractItemModel *AgentsFacade::model() const
@@ -156,7 +145,6 @@ void AgentsFacade::start()
 
     m_health->start();
     m_scripts->checkVersions();
-    m_scripts->detectRuntimeVersions();
 }
 
 // --- Launch / stop -----------------------------------------------------------
