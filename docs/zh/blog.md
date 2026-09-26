@@ -28,4 +28,4 @@ AgentLauncher 使用了QML,C++开发，不依赖electron这种重架构，轻量
 
 开源地址：
 [gitee:https://gitee.com/czyt1988/start-agent](https://gitee.com/czyt1988/start-agent)
-[github:https://github.com/czyt1988/AgentLauncher](https://github.com/czyt1988/AgentLauncher)
+[github:https://github.com/czyt1988/AgentWorkbench](https://github.com/czyt1988/AgentWorkbench)

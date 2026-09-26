@@ -1,8 +1,8 @@
-site_name: AgentLauncher
+site_name: AgentWorkbench
 site_description: Launch AI coding agent web UIs from one card grid. Qt6/QML + C++.
 site_url: https://agentlauncher.dev
-repo_url: https://github.com/AgentLauncher/AgentLauncher
-repo_name: AgentLauncher/AgentLauncher
+repo_url: https://github.com/czyt1988/AgentWorkbench
+repo_name: czyt1988/AgentWorkbench
 edit_uri: edit/main/docs/
 
 theme:
@@ -65,8 +65,8 @@ markdown_extensions:
 extra:
   alternate:
     - name: English
-      link: /AgentLauncher/
+      link: /AgentWorkbench/
       lang: en
     - name: 中文
-      link: /AgentLauncher/zh/
+      link: /AgentWorkbench/zh/
       lang: zh
