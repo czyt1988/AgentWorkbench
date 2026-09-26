@@ -356,3 +356,50 @@ agents/skills/web 三个领域模块才能各自独立测试。
 | TODO-5 | Qt 6.9/6.10 升级评估（Chromium 130/134） | 调研报告 §6 | **已决策本次不升**（`01-architecture.md` §12.1）；0.4.0 发布后单独评估 |
 | TODO-6 | 无 WebEngine 的瘦身发行包 | `01-architecture.md` §10 | S5-T8 一并决定 |
 | TODO-7 | 域名 `agentlauncher.dev` 与 Gitee 镜像 `czyt1988/start-agent` 是否跟随改名 | `01-architecture.md` §12.2 | 需仓库所有者决定；S0-T7 执行前确认，否则站点的 `site_url` 只能保持现状、只改路径段 |
+
+---
+
+## 10. 验收记录（2026-09-27，0.4.0-rc）
+
+实施方式：按 S0→S8 顺序完成，每阶段 `bash scripts/build.sh --test` 全绿后提交（提交见 git log：`build:` 改名、`refactor(core)`、`refactor(agents)`、`feat(theme)`、`feat(shell)`、`feat(web)`、`feat(skills)`、`feat(plugin)`、`docs`）。当前 ctest 套件：`check_architecture`、`tst_core`（39 例）、`tst_agents`（15 例）、`tst_theme`（9 例）、`tst_shell`（6 例）、`tst_web`（6 例）、`tst_skills`（18 例）——全部通过。
+
+### §6.1 功能（自动化覆盖的部分）
+
+- [x] 旧数据目录接管：`tst_legacyimport` 覆盖复制/旧目录保留/二次启动不再导入（弹窗提示为 UI 层，见 §6.2）。
+- [x] 内置 agent 语义：`tst_agentrepository`（内置覆盖、removed、逐字节写入）、`tst_agentsfacade`（CRUD/恢复默认）。
+- [x] 健康检查语义：`tst_httpprobe` 断言 404 仍判定为运行中、拒绝连接/超时为停止。
+- [x] 一次性 setup：`tst_agents` 覆盖状态往返；重置入口在 `AgentsFacade::resetSetup`。
+- [x] 安装输出日志端到端：`tst_agentscripts::testInstallCommandIsLogged`。
+- [x] 主题：`tst_theme`（未知键、缺键回退、非法颜色、id 不符、用户覆盖内置）；切换写 `settings.json`；热重载链路 registry→Theme→QML 已接线（人工观感见 §6.2）。
+- [x] Web 标签：`tst_web`（同 agent 复用、关闭不清进程语义、离线/在线转换、表面解析、Ctrl+Tab 循环、maxLiveTabs LRU 释放与恢复）。
+- [x] Skills：`tst_skills` frontmatter 12 例 + 扫描/多版本去重/缺根容错/过滤排序（真实目录实测：53 个 skill、34 个重复版本被去重）。
+- [x] i18n：`check_architecture` 的英文源串检查通过；翻译0未完成条目。
+- [x] 构建门禁：`check_architecture` 挂进 ctest，注入 `#ff0000` 探针确认能使构建失败（S3 实施时验证）。
+
+### §6.1 功能（需人工操作验证，未执行）
+
+以下项依赖真实 GUI 交互或真实 agent 进程，自动化未覆盖，**待人工过一遍**：
+
+- [ ] 卡片右键全部动作、退出确认三选项的实际点击流程。
+- [ ] 侧边栏切页/折叠/快捷键/徽标的实际手感与徽标数字。
+- [ ] Web：真实双端口 WebUI 同开不串 cookie（S5-T3 验收）、页面崩溃恢复、`target=_blank`/下载/全屏的真实事件。
+- [ ] 打包：`bash scripts/package.sh` 在干净环境跑通并记录 zip 体积（写进 CHANGELOG）——**未执行**（本机 dist/ 可能被运行中的应用占用，见 memory；体积数字未测不填）。
+- [ ] `AWB_BUILD_PLUGIN_EXAMPLES=ON` 构建 + 设置页启用 Hello + 重启后 extensions 出现/关闭后消失（加载链路已用日志验证：`PluginHost: loaded plugin "hello"`，UI 呈现待人工确认）。
+
+### §6.2 必须人工验证（无法自动化）
+
+全部**未执行**，需要在发布前逐项给结论：
+
+- [ ] 中文输入法候选窗口、内联组合、光标跟随（Web 视图内）。
+- [ ] 分数缩放 125%/150% 的清晰度与命中区域。
+- [ ] Web 视图内与应用内的复制/粘贴互操作。
+- [ ] 从资源管理器拖文件进 Web 页面；页内拖放上传。
+- [ ] 页面全屏、打印/导出 PDF、桌面通知、摄像头/麦克风权限提示。
+- [ ] 页面缩放（Ctrl+滚轮 与 zoomFactor）与应用缩放的配合。
+- [ ] 覆盖层与 Web 视图的层叠（对话框必须能画在视图之上）。
+- [ ] 暗色/亮色两套主题全页面走查（令牌化后的逐屏对比）；`docs/pic/screenshot-main-page.png` 仍是 0.3.0 界面，**需重截 0.4.0 工作台界面**后替换（README 配图同）。
+
+### 实施期发现并已按流程处理的契约修订
+
+- `specs/01` §8.2：C++ 单例注册名必须大写（Qt ≥6 拒绝小写名），QML 契约名经根别名保持小写——已改规格并注明。
+- `specs/01` §4.5/§4.6 落地时补充：`WebTabsFacade.openDetachedTab`（同 agent 去重与 `target=_blank` 弹窗需求冲突时的出口）、`NavigationModel.currentPage` 必须是可通知属性（Q_INVOKABLE 在 QML 绑定里求值为函数引用，S4 起页面实际从未加载——S6 期间发现并修复）。

@@ -1,5 +1,5 @@
 site_name: AgentWorkbench
-site_description: Launch AI coding agent web UIs from one card grid. Qt6/QML + C++.
+site_description: Agent workbench for AI coding agents - launch, embed and manage their web UIs in one shell. Qt6/QML + C++.
 site_url: https://agentlauncher.dev
 repo_url: https://github.com/czyt1988/AgentWorkbench
 repo_name: czyt1988/AgentWorkbench

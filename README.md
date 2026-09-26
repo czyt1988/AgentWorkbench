@@ -1,40 +1,45 @@
-# AgentLauncher
+# AgentWorkbench
 
-A small Qt6/QML + C++ desktop app that lets you launch the **web UI** of
-several AI coding agents (Kimi Code, OpenCode, Qwen Code, DeepSeek Harness)
-from a single card grid, and quickly open their config directories. Everything
-is **config-driven** — new agents are added by editing a JSON file, no code
-changes required.
+A Qt6/QML + C++ desktop **workbench for AI coding agents** (formerly
+*AgentLauncher*): a sidebar + workspace shell that launches the **web UI** of
+several agents (Kimi Code, OpenCode, Qwen Code, DeepSeek Harness), embeds
+their Web interfaces as tabs, browses local Skills, and themes everything
+from JSON files. Everything is **config-driven** — new agents are added by
+editing a JSON file, no code changes required.
 
 ![Platform: Windows · Linux · macOS](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Qt6](https://img.shields.io/badge/Qt-6.5%2B-41cd52)
 
-![AgentLauncher main window](docs/pic/screenshot-main-page.png)
+![AgentWorkbench main window](docs/pic/screenshot-main-page.png)
 
-> The screenshot above shows the UI running in Chinese locale; the app follows
-> the system language automatically.
+> The screenshot shows the pre-0.4.0 launcher UI (a 0.4.0 workbench screenshot is pending refresh); the app follows the system language automatically.
 
 ## Features
 
-- **Card grid** of configured agents on the home screen.
-- Each card has a **Start** button (launches the agent's web server) and a
-  **Configure** button (opens the agent's settings page).
-- **Running state** is detected by an HTTP health check; running cards are
-  highlighted with the agent's own color and a colored border.
-- Click a **running** card (or its **Open** button) to launch the agent's web
-  UI in your default browser.
-- **Stop** button (×) on running cards for agents that were started from this
-  session.
-- **Runtime version badges** in the top-right corner show detected Python and
-  Node.js versions; missing runtimes are highlighted so you know which agents
-  may not work.
-- **Version labels** on each card show the installed agent version when the
-  `versionCommand` is configured.
-- **Configure page**: edit the startup command (e.g. change the `--port`),
-  edit the web URL, and open the agent's config directory in the file manager.
-- **Config-driven**: all agents, commands, URLs and config directories live in
-  `agents.json`. Add a new agent by adding one object to the file.
+- **Workbench shell**: sidebar navigation with badges (`Ctrl+1…9`,
+  `Ctrl+B`, `Ctrl+,`), workspace pages and a status bar with Python/Node
+  runtime badges; window size, sidebar state and the last page persist
+  across restarts.
+- **Card grid launcher** for every configured agent: start, install, update,
+  version labels, right-click actions, HTTP-detected running state with the
+  agent's own color, and per-session stop (×).
+- **Embedded Web tabs**: agent WebUIs open inside the app (Qt WebEngine),
+  one persistent profile per agent, freeze-inactive tabs, LRU release past
+  `maxLiveTabs`, crash/offline/error overlays — and **Open in browser**
+  always stays one click away. Degrades to the system browser without
+  WebEngine (`-DAWB_ENABLE_WEBENGINE=OFF`).
+- **Skill browser**: scans the usual `SKILL.md` locations (`~/.agents`,
+  `~/.claude`, `~/.codex`, ZCode plugin caches, project dirs) with search,
+  source facets, sorting, hover details and click-to-copy paths.
+- **Themes**: colors/metrics come from JSON theme files; two Catppuccin
+  variants ship built-in, custom themes hot-reload on save, and a ctest
+  gate (`check_architecture`) rejects literal colors in QML.
+- **Config-driven**: all agents, commands, URLs and config directories live
+  in `agents.json`; app settings live in `settings.json`.
+- **Experimental plugins**: an ABI-stable header + example plugin; disabled
+  by default with an explicit in-process trust notice
+  ([docs](https://agentlauncher.dev/plugins/)).
 
 ## Supported agents (defaults)
 
@@ -46,14 +51,15 @@ changes required.
 | OpenClaw | `openclaw gateway --port 18789` | `http://127.0.0.1:18789` | `%USERPROFILE%/.openclaw` |
 | DeepSeek Harness | `dsh web` | `http://127.0.0.1:3080` | `%USERPROFILE%/.dsh` |
 
-> OpenCode uses a random port by default, so AgentLauncher pins it to `4096`
+> OpenCode uses a random port by default, so AgentWorkbench pins it to `4096`
 > (both the `--port` flag and the Web URL) so that health-checking and
-> "open in browser" work reliably. Change it in the Configure page if you like.
+> "open in browser" work reliably. Change it in the edit dialog if you like.
 
 ## Build
 
 Requirements: **Qt 6.5+** (with `Core`, `Gui`, `Qml`, `Quick`, `QuickControls2`,
-`Network`), **CMake 3.16+**, and a C++17 compiler (MSVC / GCC / Clang).
+`Network`, and optionally `WebEngineQuick`), **CMake 3.16+**, and a C++17
+compiler (MSVC / GCC / Clang).
 
 On Windows, `scripts/build.sh` locates Qt and the MSVC toolchain by itself, and
 configures and compiles in one step:
@@ -70,22 +76,22 @@ cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-Then run `build/AgentLauncher` (or `build/AgentLauncher.exe` on Windows).
+Then run `build/AgentWorkbench` (or `build/AgentWorkbench.exe` on Windows).
 
 ## Configuration
 
-On first run AgentLauncher copies a bundled default config to
-`~/.AgentLauncher/`:
+On first run AgentWorkbench creates its data directory — and when upgrading
+from AgentLauncher it **copies** the old `~/.AgentLauncher` data into it first
+(the old directory is kept):
 
-- Windows: `%USERPROFILE%\.AgentLauncher\agents.json`
-- Linux: `~/.AgentLauncher/agents.json`
-- macOS: `~/.AgentLauncher/agents.json`
+- Windows: `%USERPROFILE%\.AgentWorkbench\`
+- Linux/macOS: `~/.AgentWorkbench/`
 
-That directory also holds `agent_state.json` and `log/agentlauncher.log`. The
+That directory holds `agents.json`, `settings.json`, `agent_state.json`,
+`themes/`, `plugins/`, `webprofiles/` and `log/agentworkbench.log`. The
 built-in launchers come from the bundled `config/default_agents.json` and are
-re-applied on every start, so the copy in your home directory only carries the
-launchers you added yourself (plus the built-ins you deleted from the Settings
-page).
+re-applied on every start, so your copy only carries the launchers you added
+yourself (plus the built-ins you deleted).
 
 Each agent entry looks like:
 
@@ -106,12 +112,13 @@ Each agent entry looks like:
 | `id` | Stable identifier |
 | `name` | Card title |
 | `command` | Shell command run (detached) by **Start** |
-| `webUrl` | URL health-checked and opened in the browser |
-| `configDir` | Directory opened by the **Open** button on the Configure page (supports `%VAR%`) |
+| `webUrl` | URL health-checked and opened (embedded or in the browser) |
+| `configDir` | Directory opened from the card menu (supports `%VAR%`) |
 | `icon` | Icon resource path |
 | `color` | Highlight color used when the agent is running |
 
-See the [configuration guide](https://agentlauncher.dev/configuration/) for details.
+See the [configuration guide](https://agentlauncher.dev/configuration/) for
+`settings.json`, themes, skill roots and Web options.
 
 ## Documentation
 
@@ -126,9 +133,10 @@ mkdocs serve
 ## Contributing
 
 Pull requests welcome. Keep agent definitions in `agents.json` rather than
-hard-coding them in C++. See [AGENTS.md](AGENTS.md) for build commands and
-project conventions.
+hard-coding them in C++. The refactor specifications live in [`specs/`](specs/)
+and are authoritative for module boundaries and UI contracts; see
+[AGENTS.md](AGENTS.md) for build commands and project conventions.
 
 ## License
 
-[MIT](LICENSE) © AgentLauncher Contributors
+[MIT](LICENSE) © AgentWorkbench Contributors

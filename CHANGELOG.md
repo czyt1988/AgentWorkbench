@@ -1,16 +1,73 @@
 # Changelog
 
-All notable changes to **AgentLauncher** are documented in this file.
+All notable changes to **AgentWorkbench** (called AgentLauncher up to 0.3.0) are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-27
+
+This release reworks the project from **AgentLauncher** into
+**AgentWorkbench**: a sidebar + workspace shell around the launcher, plus
+embedded Web tabs, a Skill browser, config-file-driven themes and
+experimental plugins. The design lives in the `specs/` directory.
 
 ### Added
 
-- **Command logging**: every command the launcher runs is recorded with the command line it really executed (after PATH resolution and the `cmd /c` wrapping of `.cmd`/`.bat` shims), its exit code, how long it took, and the command's own output — covering launch, stop, force-stop, install, update, version probes, runtime detection and the one-time setup. Successful calls are logged too, so the log shows what the launcher did, not only where it failed.
-- **Application-level logging**: opening a web URL or a config directory, writing `agents.json` / `agent_state.json`, and every running/stopped transition of an agent are logged as well. Failures that used to be silent (unreadable token file, unwritable config, `openUrl` refused by the shell) are now visible.
-- **Log rotation keeps three files**: the log rotates at 5 MB and keeps `agentlauncher.log` plus two backups (`agentlauncher.log.1`, `agentlauncher.log.2`), deleting the oldest — previously 10 MB keeping two files in total.
+- **Workbench shell**: sidebar navigation with badges and collapse, workspace
+  host, status bar; `Ctrl+1…9` page switching, `Ctrl+B`, `Ctrl+,`. Window
+  size, sidebar state and the last page persist in `settings.json`.
+- **Embedded Web tabs**: agent WebUIs open as in-app tabs (Qt WebEngine)
+  with per-agent persistent profiles (Chromium cookies ignore ports — a
+  shared profile would cross-contaminate local servers on different ports),
+  freeze-on-inactive, LRU release past `maxLiveTabs`, offline/crashed/error
+  overlays, and reclaimed shortcuts (`Ctrl+W`, `F5`, `Ctrl+Tab`, zoom).
+  "Open in browser" always stays available; `AWB_ENABLE_WEBENGINE=OFF` or
+  the external surface setting degrades to the system browser.
+- **Skill browser**: scans `~/.agents/skills`, `~/.claude/skills`,
+  `~/.codex/skills`, the ZCode plugin caches and project directories,
+  parsing SKILL.md frontmatter, with search, source facets, sorting, a
+  hover flyout and click-to-copy paths. Multi-version plugin caches keep
+  only the highest version.
+- **Theme engine**: colors and metrics come from JSON theme files (built-in
+  Catppuccin Mocha dark and Latte light), switchable at runtime with hot
+  reload. `scripts/check-architecture.sh` gates no-literal-colors, dependency
+  direction and English-only source strings through ctest.
+- **Experimental plugins**: `awb_plugin_api` header interface, host
+  discovery/loading and a compilable example plugin. Plugins share the built-in
+  page registration path, are disabled by default and carry an in-process
+  trust notice. See [Plugins](plugins.md).
+- **Settings sections**: Appearance, Launchers, Environment, Skill roots, Web
+  surface and Chromium flags, Plugins, Advanced.
+
+### Changed
+
+- **Renamed to AgentWorkbench**: executable, window title, log file
+  (`agentworkbench.log`) and data directory (`~/.AgentWorkbench`). The first
+  start **copies** the old `~/.AgentLauncher` data (the old directory stays)
+  and shows a one-time notice. The root `title` field of `agents.json` is
+  retired in favour of `settings.json` `window.title`.
+- **Layered codebase**: the flat `src/` is split into core/theme/agents/
+  shell/skills/web/workbench modules with an app/ assembly layer, zero
+  dependencies between domain modules, and one test target per module — all
+  15 previous test cases were migrated and still pass.
+- **settings.json**: eight key groups take defaults in place; there is no
+  migration code.
+
+### Fixed
+
+- QML singleton type names must be uppercase (Qt ≥ 6 rejects lowercase names
+  and the UI failed to load): C++ registers `Theme`, QML keeps the lowercase
+  contract name through a root alias.
+- `currentPage` is now a notifiable property — as a bare invokable it read as
+  a function reference and workspace pages never actually loaded.
+
+### Known limitations
+
+- The embedded engine is Chromium 118 (Qt 6.7.3): no H.264/MP4 playback and
+  a UA that misreports `Windows NT 6.2`; use "Open in browser" for affected
+  pages.
+- IME candidate windows, fractional-DPI sharpness and drag-and-drop need the
+  manual acceptance pass (specs/03 §6.2).
 
 ## [0.3.0] - 2026-09-10
 

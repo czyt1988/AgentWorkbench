@@ -1,34 +1,95 @@
 # Configuration
 
-AgentLauncher is config-driven. All agent definitions live in a single
-`agents.json` file, copied into `~/.AgentLauncher/` on first run:
+AgentWorkbench is config-driven. Everything the app writes lives in one data
+directory, created on first run. On the first start after upgrading the app
+**copies** the legacy `~/.AgentLauncher` data (config and logs) into the new
+directory — the old directory is never deleted:
 
 | OS | Path |
 |---|---|
-| Windows | `%USERPROFILE%\.AgentLauncher\agents.json` |
-| Linux | `~/.AgentLauncher/agents.json` |
-| macOS | `~/.AgentLauncher/agents.json` |
+| Windows | `%USERPROFILE%\.AgentWorkbench\` |
+| Linux | `~/.AgentWorkbench/` |
+| macOS | `~/.AgentWorkbench/` |
 
-All user data lives in that one directory: `agents.json`, `agent_state.json`
-(the one-time setup state) and `log/agentlauncher.log`.
+Files in the data directory:
 
-The log records what the launcher does: every command it runs — the real command
+| File | Written by | Content |
+|---|---|---|
+| `agents.json` | launcher page / settings | user agents + the `removed` list |
+| `agent_state.json` | one-time setup | which agents finished their setup |
+| `settings.json` | settings page | application settings (see below) |
+| `themes/*.json` | you | custom themes (same `id` overrides a built-in) |
+| `plugins/*/` | you | plugin manifests + libraries ([Plugins](plugins.md)) |
+| `webprofiles/<agentId>/` | Web tabs | per-agent cookies + localStorage |
+| `log/agentworkbench.log` | the app | rotating log (5 MB × 3 files) |
+
+The log records what the app does: every command it runs — the real command
 line, the exit code, how long it took and the command's own output, failures
-included — plus configuration writes, one-time setup state and agent health
-changes. It rotates at 5 MB and keeps three files (`agentlauncher.log`,
-`agentlauncher.log.1`, `agentlauncher.log.2`), deleting the oldest, so it never
-grows past 15 MB.
+included — plus configuration writes, one-time setup state, agent health
+transitions and plugin loading. It rotates at 5 MB and keeps three files
+(`agentworkbench.log`, `agentworkbench.log.1`, `agentworkbench.log.2`),
+deleting the oldest, so it never grows past 15 MB.
 
-The app ships a default configuration (`config/default_agents.json`, compiled
-into the executable). **Built-in** agents are defined by that file alone: an
-on-disk entry with the same id is replaced by it on every start, so the
-`agents.json` in your data directory only does two things — it records which
-built-ins you deleted (root `removed` array) and it stores the agents you added
-yourself, after the built-ins. Change a built-in by editing
-`config/default_agents.json` and rebuilding; change your own agents in the
-Settings page. When nothing diverges from the default (no agents of your own, no
-deletions, unchanged title), the on-disk file is a byte-for-byte copy of the
-default and can be diffed against it directly.
+
+## settings.json
+
+All application settings in one file, grouped exactly as written below.
+Missing keys take their defaults in place — there is no migration code:
+
+```json
+{
+  "window":  { "title": "", "width": 1440, "height": 900,
+               "sidebarWidth": 240, "sidebarCollapsed": false,
+               "lastPageId": "agents" },
+  "appearance": { "theme": "mocha-dark", "followSystem": false },
+  "locale":  { "override": "" },
+  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
+  "web":     { "surface": "embedded", "freezeInactiveTabs": true,
+               "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
+               "homeUrl": "" },
+  "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
+  "logging": { "maxFileSize": 5242880, "maxFiles": 3 },
+  "plugins": { "enabled": false, "disabledIds": [] }
+}
+```
+
+- `window.title` empty = the brand title `AgentWorkbench`. The old root
+  `title` field of `agents.json` is retired; a leftover value is reported
+  in the log once.
+- `appearance.theme` references a theme `id`; unknown ids fall back to
+  `mocha-dark` with a warning.
+- `web.surface` is `embedded` or `external`. Without a WebEngine build the
+  embedded surface degrades to `external` automatically. `chromiumFlags`
+  are injected before WebEngine initialization — add e.g. `--disable-gpu`
+  there if embedded views fail to start (applies after restart).
+- `web.maxLiveTabs` caps simultaneous live views (each costs roughly
+  250–350 MB); excess tabs are released to a restorable state, oldest
+  inactive first. `web.freezeInactiveTabs` freezes switched-away tabs
+  instead of destroying them.
+- `skills.roots` empty = the platform default roots (`~/.agents/skills`,
+  `~/.claude/skills`, `~/.codex/skills`, the ZCode plugin cache, the
+  project's `.agents`/`.claude` skills). A non-empty array **completely
+  replaces** the defaults; entries are
+  `{ "id", "label", "path", "kind", "enabled" }`.
+- `plugins.enabled` is the master switch; `disabledIds` lists per-plugin
+  opt-outs. Plugins load at startup, so toggles take effect after a
+  restart. See [Plugins](plugins.md).
+
+## Themes
+
+| Location | Purpose |
+|---|---|
+| `:/themes/*.json` (compiled in) | built-ins: `mocha-dark.json`, `latte-light.json` |
+| `<dataRoot>/themes/*.json` | yours; the same `id` overrides the built-in |
+
+Minimal workflow for a new theme: copy a built-in file to
+`<dataRoot>/themes/<your-id>.json`, change `id`/`name`/`variant` and the
+colors, save — the UI reloads immediately (hot reload) — then pick it in
+**Settings → Appearance**. A file whose name does not equal its `id` is
+skipped with a warning; unknown tokens are ignored; missing tokens fall
+back to the built-in theme of the same variant. The full token list lives
+in `specs/02-ui-specification.md` §9 — the QML only ever references
+`theme.<token>`.
 
 ## Agent entry
 
@@ -61,8 +122,8 @@ Each agent is a JSON object inside the `agents` array:
 | `webUrl` | Yes | URL health-checked every 3 s and opened in the browser when the card is clicked |
 | `configDir` | No | Directory opened by the **Open** button on the Configure page; supports `%VAR%` expansion |
 | `icon` | No | Icon path — see [Icon configuration](#icon-configuration) below |
-| `color` | No | Accent color: running-state border, tinted background, buttons, status text. Empty = auto-assigned from the built-in palette (see below) |
-| `cardColor` | No | Card background color when not running. Empty = default `#313244` |
+| `color` | No | Accent color: running-state border, tinted background, buttons, status text. Empty = auto-assigned from the current theme palette (see below) |
+| `cardColor` | No | Card background color when not running. Empty = the theme surface color |
 | `installCommand` | No | Command run by the **Install** menu action |
 | `updateCommand` | No | Command run by the **Update** menu action |
 | `versionCommand` | No | Command run on startup to detect if the agent is installed and parse its version |

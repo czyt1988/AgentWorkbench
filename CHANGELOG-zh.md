@@ -1,16 +1,71 @@
 # 变更日志
 
-本文档记录 **AgentLauncher** 的所有重要变更。
+本文档记录 **AgentWorkbench**（0.3.0 及以前为 AgentLauncher）的所有重要变更。
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，本项目遵循[语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
 
-## [未发布]
+## [0.4.0] - 2026-09-27
+
+本次版本把 AgentLauncher 重构为 **AgentWorkbench**：从单页卡片网格升级为
+「侧边栏 + 工作区」的工作台外壳，并新增内嵌 Web 标签页、Skill 浏览、配置
+文件驱动的主题与实验性插件支持。规格见仓库 `specs/` 目录。
 
 ### 新增
 
-- **命令日志**：启动器执行的每条命令都会记录它真实运行的命令行（经过 PATH 解析以及 `.cmd`/`.bat` 垫片的 `cmd /c` 包装之后）、退出码、耗时和命令自身的输出，覆盖启动、停止、强制停止、安装、更新、版本探测、运行时检测与一次性初始化。成功调用同样记录，因此日志能说明启动器做了什么，而不只是哪里出错。
-- **应用层日志**：打开 Web 地址或配置目录、写入 `agents.json` / `agent_state.json`、以及 agent 运行/停止状态的变化都会记录；过去静默失败的场景（token 文件读不到、配置写不进去、系统拒绝打开 URL）现在都能看到。
-- **日志轮转保留三个文件**：改为每 5 MB 轮转，保留 `agentlauncher.log` 加两个备份（`agentlauncher.log.1`、`agentlauncher.log.2`），删除最旧的一个；此前是 10 MB 轮转、总共只保留两个文件。
+- **工作台外壳**：左侧边栏（页面导航、徽标、折叠）+ 右侧工作区 + 状态栏。
+  `Ctrl+1…9` 按序切页、`Ctrl+B` 折叠侧边栏、`Ctrl+,` 打开设置；窗口尺寸、
+  侧边栏状态与上次页面写入 `settings.json`，重启后恢复。
+- **内嵌 Web 标签页**：agent 的 Web 界面可以在应用内以标签页打开（Qt
+  WebEngine），支持多 agent 并存、失活冻结、超出 `maxLiveTabs` 后按 LRU
+  释放视图（标签保留、点击恢复）、崩溃/加载失败/离线三态覆盖层与
+  `Ctrl+W`/`F5`/`Ctrl+Tab`/缩放快捷键。**每个 agent 一个持久 profile**——
+  Chromium 的 cookie 按主机索引并忽略端口，共用 profile 会让不同端口的本地
+  服务互相串会话。「在浏览器打开」在任何情况下都是一等公民；构建开关
+  `AWB_ENABLE_WEBENGINE=OFF` 或设置中的外部表面会整体降级为系统浏览器。
+- **Skill 浏览**：扫描 `~/.agents/skills`、`~/.claude/skills`、
+  `~/.codex/skills`、ZCode 插件缓存与项目目录，解析 `SKILL.md` 的
+  frontmatter；卡片支持搜索、来源分面、排序、悬停详情、点击复制路径。
+  插件缓存的多版本只保留最高版本。
+- **主题引擎**：颜色与度量全部来自 JSON 主题文件（内置
+  Catppuccin Mocha 深色与 Latte 浅色两套），运行时可切换，保存主题文件
+  即时热重载；`scripts/check-architecture.sh` 把「QML 不得出现字面颜色、
+  依赖方向、英文源串」等规则挂进 ctest，违反即构建失败。
+- **实验性插件**：`awb_plugin_api` 头文件接口 + 宿主发现/加载 + 示例插件。
+  插件与内置功能走同一条页面注册路径；默认禁用，设置页有总开关与逐项开关
+  及进程内运行的信任警示，重启生效。详见 [插件](plugins.md)。
+- **设置页分组**：外观（主题）、启动器、环境（Python/Node 检测）、Skill
+  根目录管理、Web 表面与 Chromium 参数、插件、高级（数据目录、恢复默认）。
+
+### 变更
+
+- **产品改名为 AgentWorkbench**：可执行文件、窗口标题、日志文件名
+  （`agentworkbench.log`）、数据目录（`~/.AgentWorkbench`）全部换新；
+  首次启动会把旧 `~/.AgentLauncher` 的配置**复制**过来（旧目录保留），
+  并弹一次提示。`agents.json` 根级 `title` 字段停用，窗口标题改由
+  设置页的 `settings.json` `window.title` 控制。
+- **代码分层**：扁平的 `src/` 拆为 `core` / `theme` / `agents` / `shell` /
+  `skills` / `web` / `workbench` 模块与 `app/` 组装层，领域模块之间零依赖，
+  跨域行为集中在应用层；每个模块有独立的测试目标（tst_core、tst_agents、
+  tst_theme、tst_shell、tst_web、tst_skills），15 个旧用例全部迁移保留。
+- **设置文件 `settings.json`**：窗口、外观、locale、启动器健康检查、Web、
+  Skill、日志、插件八组键位就地取默认值，没有迁移代码。
+- **打包**：`scripts/package.sh` 的 windeployqt 扫描 `src/`（旧 `qml/`
+  目录已删除），随包 QML 全部编入可执行文件。
+
+### 修复
+
+- QML 单例类型名必须大写（Qt ≥ 6 拒绝小写名导致界面加载失败）：C++ 注册
+  名大写、QML 契约名经窗口根别名保持小写。
+- 导航的 `currentPage` 由可通知属性暴露：此前它是 Q_INVOKABLE，QML 绑定
+  求值为函数引用，工作区页面实际从未加载。
+
+### 已知限制
+
+- 内嵌引擎为 Qt 6.7.3 自带的 Chromium 118：不支持 H.264/MP4 播放，UA 误报
+  `Windows NT 6.2`；受影响页面用「在浏览器打开」绕行（升级评估见
+  `specs/01` §12.2）。
+- 中文输入法候选框、分数缩放清晰度、拖放等体验项需要人工验收
+  （`specs/03` §6.2 清单）。
 
 ## [0.3.0] - 2026-09-10
 

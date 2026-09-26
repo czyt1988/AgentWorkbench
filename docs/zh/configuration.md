@@ -1,17 +1,17 @@
 # 配置
 
 AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents.json` 文件中，首次
-运行时拷贝到 `~/.AgentLauncher/`：
+运行时拷贝到 `~/.AgentWorkbench/`：
 
 | 系统 | 路径 |
 |---|---|
-| Windows | `%USERPROFILE%\.AgentLauncher\agents.json` |
-| Linux | `~/.AgentLauncher/agents.json` |
-| macOS | `~/.AgentLauncher/agents.json` |
+| Windows | `%USERPROFILE%\.AgentWorkbench\agents.json` |
+| Linux | `~/.AgentWorkbench/agents.json` |
+| macOS | `~/.AgentWorkbench/agents.json` |
 
-所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）以及 `log/agentlauncher.log`。
+所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）以及 `log/agentworkbench.log`。
 
-日志记录启动器做过的事情：它执行的每条命令（真实命令行、退出码、耗时，以及命令自身的输出，失败时同样记录），以及配置写入、一次性设置状态和 agent 运行状态的变化。日志按 5 MB 轮转，最多保留三个文件（`agentlauncher.log`、`agentlauncher.log.1`、`agentlauncher.log.2`），最旧的一个会被删除，因此日志总量不会超过 15 MB。
+日志记录启动器做过的事情：它执行的每条命令（真实命令行、退出码、耗时，以及命令自身的输出，失败时同样记录），以及配置写入、一次性设置状态和 agent 运行状态的变化。日志按 5 MB 轮转，最多保留三个文件（`agentworkbench.log`、`agentworkbench.log.1`、`agentworkbench.log.2`），最旧的一个会被删除，因此日志总量不会超过 15 MB。
 
 应用内置了默认配置（`config/default_agents.json`，编译进可执行文件）。**内置** agent
 的定义只来自这份文件：磁盘上的同名 id 条目会在每次启动时被它整体覆盖，所以磁盘里的
@@ -19,6 +19,55 @@ AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents
 你自己新增的 agent（排在内置项之后）。改内置项要改 `config/default_agents.json` 并
 重新编译，改自己新增的项在设置页里改即可。若配置与默认值完全一致（没有自建 agent、
 没有删除记录、标题未改），磁盘文件就是默认配置的逐字节副本，可直接 diff。
+
+## settings.json
+
+应用的全部设置集中在一个文件里，键位与分组如下。缺失的键就地取默认值——**没有
+迁移代码**：
+
+```json
+{
+  "window":  { "title": "", "width": 1440, "height": 900,
+               "sidebarWidth": 240, "sidebarCollapsed": false,
+               "lastPageId": "agents" },
+  "appearance": { "theme": "mocha-dark", "followSystem": false },
+  "locale":  { "override": "" },
+  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
+  "web":     { "surface": "embedded", "freezeInactiveTabs": true,
+               "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
+               "homeUrl": "" },
+  "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
+  "logging": { "maxFileSize": 5242880, "maxFiles": 3 },
+  "plugins": { "enabled": false, "disabledIds": [] }
+}
+```
+
+- `window.title` 为空表示使用品牌标题 `AgentWorkbench`；`agents.json` 根级
+  的 `title` 字段已停用，残留值会在日志中提示一次。
+- `appearance.theme` 指向主题 `id`，找不到时回退 `mocha-dark` 并记警告。
+- `web.surface` 取 `embedded` 或 `external`；未编译 WebEngine 时自动降级为
+  `external`。`chromiumFlags` 在 WebEngine 初始化前注入——内嵌视图无法启动
+  （GPU 驱动问题）时可在此添加 `--disable-gpu`，重启后生效。
+- `web.maxLiveTabs` 限制同时存活的视图数（每个约 250–350 MB），超出后按
+  最久未用释放为可恢复状态；`web.freezeInactiveTabs` 让切走的标签冻结而非
+  销毁。
+- `skills.roots` 为空 = 平台默认根目录；非空即**完全取代**默认，条目为
+  `{ "id", "label", "path", "kind", "enabled" }`。
+- `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
+  加载，开关重启后生效。参见[插件](plugins.md)。
+
+## 主题
+
+| 位置 | 用途 |
+|---|---|
+| `:/themes/*.json`（随包编译） | 内置主题：`mocha-dark.json`、`latte-light.json` |
+| `<数据目录>/themes/*.json` | 你的主题；`id` 相同则覆盖内置 |
+
+新建主题的最小流程：把内置主题复制到 `<数据目录>/themes/<你的 id>.json`，
+改 `id`/`name`/`variant` 与颜色，保存——界面立即热重载——然后在
+**设置 → 外观** 中选择它。文件名与 `id` 不符会跳过并记警告；未知令牌忽略；
+缺失令牌回退同 variant 的内置主题。全部令牌见
+`specs/02-ui-specification.md` §9——QML 只引用 `theme.<令牌>`。
 
 ## agent 条目
 
@@ -192,7 +241,7 @@ agent 的主强调色，用于：
 `qwen serve` 生成 bearer token）。
 
 - 如果 `setupCommand` 以退出码 0 结束，结果会持久化到
-  `~/.AgentLauncher/agent_state.json`，之后不再重复运行，除非用户从卡片右键菜单选择
+  `~/.AgentWorkbench/agent_state.json`，之后不再重复运行，除非用户从卡片右键菜单选择
   **重新初始化**。
 - 如果 `setupCommand` 以非零退出码结束，会触发 `launchFailed` 并显示捕获
   的输出，agent 不会启动。
@@ -232,7 +281,7 @@ agent 的主强调色，用于：
 
 ## 新增 agent
 
-1. 打开 `~/.AgentLauncher/agents.json`。
+1. 打开 `~/.AgentWorkbench/agents.json`。
 2. 在 `agents` 数组中追加一个至少填好 `id`、`name`、`command`、`webUrl`、`color`
    的对象。
 3. 重启 AgentLauncher（或下次启动时自动加载）。

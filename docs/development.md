@@ -26,7 +26,7 @@ On Windows with MSVC, driving the compiler from Git Bash needs a `.bat` wrapper
 that loads `vcvars64.bat`: importing that environment into Git Bash with
 `eval "$(cmd /c ... set)"` does not work, because `cmd` receives the escaped
 quotes literally and `cl.exe` never reaches `PATH`. The script generates the
-wrapper for you (`build/.build-agentlauncher.bat`).
+wrapper for you (`build/.build-agentworkbench.bat`).
 
 Building by hand still works, but you have to set up the MSVC environment
 yourself first — for example from an "x64 Native Tools Command Prompt":
@@ -37,38 +37,86 @@ cmake --build build
 ```
 
 `bash scripts/package.sh` builds the release binary, deploys it with
-`windeployqt` and produces `dist/AgentLauncher-<version>-win64-Portable.zip`.
+`windeployqt` and produces `dist/AgentWorkbench-<version>-win64-Portable.zip`.
 
 ## Project layout
 
 ```
-src/         C++ backend
-  main.cpp            registers model + launcher, loads QML
-  AgentConfig         loads/saves agents.json (built-ins come from the bundled default)
-  AgentModel          QAbstractListModel exposed to QML
-  AgentLauncher       launch (QProcess), health-check (HTTP), open browser/dir
-qml/         QML UI
-  main.qml            home card grid + StackView
-  AgentCard.qml       single card (start/configure + running highlight)
-  AgentEditPage.qml   per-agent settings (command, web URL, config dir)
-  SettingsPage.qml    launcher management (add/edit/delete launchers)
-config/      default_agents.json (bundled as Qt resource)
-icons/       SVG icons (bundled as Qt resources)
-docs/        MkDocs site (English + zh/)
+app/          executable: assembly only (main.cpp, QML module, resources)
+src/
+  core/         L0 infrastructure: Paths, JsonStore, Settings, Logging,
+                ProcessRunner, ScriptRunner, HttpProbe, PluginHost, LegacyImport
+  plugin_api/   L0 plugin ABI (header-only; external repos link this)
+  theme/        L1 theme engine: JSON themes -> semantic tokens -> QML
+  agents/       L2: definitions, persistence, processes, health, CRUD + QML
+  shell/        L2 UI framework: navigation, window skeleton, toasts, A* components
+  skills/       L2: SKILL.md frontmatter, scanner, model, facade + QML
+  web/          L2: tabs, surfaces, memory policy + QML
+    webengine/  L2 adapter (the only target linking Qt WebEngine)
+  workbench/    L3: cross-domain intents, built-in pages, environment, plugin services
+cmake/        shared build options (AwbOptions.cmake, AwbTranslations.cmake)
+resources/    built-in theme JSON files
+config/       default_agents.json (bundled as a Qt resource)
+icons/        SVG icons (bundled as a Qt resource)
+examples/     example plugin (AWB_BUILD_PLUGIN_EXAMPLES)
+tests/        one test target per module + check_architecture
+scripts/      build.sh, package.sh, check-architecture.sh
+docs/         MkDocs site (English + zh/)
+specs/        refactor specifications (architecture / UI / migration plan)
 ```
+
+## Build options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `AWB_ENABLE_WEBENGINE` | `ON` | embedded Web views (MSVC only; MinGW + ON fails at configure time with a readable error) |
+| `BUILD_TESTING` | `ON` | unit test targets (needs the Qt Test module) |
+| `AWB_BUILD_PLUGIN_EXAMPLES` | `OFF` | build `examples/plugins/hello` and install it into the dev data directory |
+
+Pass extra configure arguments after `--`, e.g.:
+
+```bash
+bash scripts/build.sh -- -DAWB_ENABLE_WEBENGINE=OFF
+```
+
+## Running the tests
+
+```bash
+bash scripts/build.sh --test
+```
+
+ctest runs one executable per module plus the architecture gate:
+
+| Test | Covers |
+|---|---|
+| `check_architecture` | no literal colors in QML, no reverse/sideways module includes, English-only source strings, core/theme stay UI-free |
+| `tst_core` | paths, JSON store, settings, logging, process runner, script runner, HTTP probe, frontmatter of plugins, legacy import |
+| `tst_agents` | repository sync semantics, model roles, facade CRUD, script logging, URLs |
+| `tst_theme` | loader validation rules, registry override behaviour |
+| `tst_shell` | navigation registration, badges, window persistence, clipboard results |
+| `tst_web` | tab reuse, close semantics, offline/online transitions, LRU release (no WebEngine needed) |
+| `tst_skills` | frontmatter parsing, scanning, plugin version dedup, filtering |
+
+A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 
 ## Architecture
 
-- **Config-driven**: `AgentConfig` owns the list of agents; the UI never
-  hard-codes agent entries.
-- **Model**: `AgentModel` (a `QAbstractListModel`) exposes agent fields as QML
-  roles (`agentId`, `name`, `command`, `webUrl`, `configDir`, `icon`, `color`,
-  `running`).
-- **Launcher**: `AgentLauncher` handles launching (`QProcess::startDetached`),
-  periodic HTTP health checks (`QNetworkAccessManager`), and opening the web UI
-  / config directory (`QDesktopServices`).
-- **Running state** is pushed back into the model via `dataChanged`, which the
-  card reacts to with a color animation.
+The layering and dependency rules are specified in
+`specs/01-architecture.md` — the short version:
+
+- **Layers**: `app → workbench → {shell, agents, skills, web, theme} → core`.
+  Domain modules never depend on each other; cross-domain behaviour lives in
+  `awb_workbench`.
+- **Config-driven**: `agents.json` and `settings.json` own the state; the UI
+  never hard-codes entries and never writes files itself.
+- **QML contract**: pages use semantic tokens only (`theme.surfaceBg`, …) —
+  literal colors are rejected by `check_architecture`. C++ globals are
+  registered on the `AgentWorkbench.App` URI with uppercase type names and
+  exposed to QML through lowercase root aliases (`theme`, `nav`, `agents`, …).
+- **Health**: running state comes from an HTTP probe of `webUrl` (any HTTP
+  response = running). Do not add process sniffing.
+- **Logging**: `core::Logging` rotates at 5 MB × 3 files; commands are logged
+  with the command line actually executed.
 
 ## Documentation site
 
@@ -83,7 +131,10 @@ Open `http://127.0.0.1:8000`. The site is bilingual (English default, 中文 und
 ## Conventions
 
 - Add new agents via `agents.json`, never by hard-coding in C++.
-- Keep the dark theme palette (Catppuccin Mocha) when editing QML.
+- QML uses theme tokens only (`theme.*`) — never a literal color; the
+  `check_architecture` test rejects them.
+- Domain modules never include each other (or shell/workbench); cross-domain
+  behaviour goes through `awb_workbench`.
 - Running state is detected via HTTP health check to `webUrl`; do not add
   process-sniffing logic.
 - The stop button terminates only the process tree that this launcher started
