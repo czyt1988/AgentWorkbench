@@ -38,8 +38,15 @@ AI 编码 agent 的 **Web 端**（Kimi Code、OpenCode、Qwen Code、DeepSeek Ha
 
 ## 构建
 
-依赖：**Qt 6.5+**（含 `Core`、`Gui`、`Qml`、`Quick`、`Network`）、**CMake 3.16+**、
-C++17 编译器（MSVC / GCC / Clang）。
+依赖：**Qt 6.5+**（含 `Core`、`Gui`、`Qml`、`Quick`、`QuickControls2`、`Network`）、**CMake 3.16+**、C++17 编译器（MSVC / GCC / Clang）。
+
+Windows 下推荐直接运行 `scripts/build.sh`，它会自行定位 Qt 与 MSVC 工具链，一条命令完成配置与编译：
+
+```bash
+bash scripts/build.sh --test       # Debug 构建到 build/，随后运行单元测试
+```
+
+也可以手工执行 CMake 命令（需自行准备 MSVC 环境，例如在「x64 本机工具命令提示符」中运行）：
 
 ```bash
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"

@@ -52,8 +52,18 @@ changes required.
 
 ## Build
 
-Requirements: **Qt 6.5+** (with `Core`, `Gui`, `Qml`, `Quick`, `Network`),
-**CMake 3.16+**, and a C++17 compiler (MSVC / GCC / Clang).
+Requirements: **Qt 6.5+** (with `Core`, `Gui`, `Qml`, `Quick`, `QuickControls2`,
+`Network`), **CMake 3.16+**, and a C++17 compiler (MSVC / GCC / Clang).
+
+On Windows, `scripts/build.sh` locates Qt and the MSVC toolchain by itself, and
+configures and compiles in one step:
+
+```bash
+bash scripts/build.sh --test       # Debug build in build/, then run the tests
+```
+
+The plain CMake commands work too (set up the MSVC environment first, e.g. from
+an "x64 Native Tools Command Prompt"):
 
 ```bash
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"

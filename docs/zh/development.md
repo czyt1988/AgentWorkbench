@@ -2,20 +2,32 @@
 
 ## 前置依赖
 
-- **Qt 6.5+**，模块：`Core`、`Gui`、`Qml`、`Quick`、`Network`。
+- **Qt 6.5+**，模块：`Core`、`Gui`、`Qml`、`Quick`、`QuickControls2`、`Network`。
 - **CMake 3.16+**
 - **C++17** 编译器（MSVC 2019+、GCC 9+ 或 Clang 10+）
 - （可选）**Ninja** 生成器，构建更快。
 
 ## 构建
 
+`scripts/build.sh` 一条命令完成配置与编译：它会自动探测 Qt 与 MSVC 工具链、复用已有构建目录的生成器与 Qt 前缀、在项目目录被移动后清理陈旧的 CMake 缓存，并生成供编辑器索引使用的 `compile_commands.json`。
+
+```bash
+bash scripts/build.sh              # Debug 构建到 build/
+bash scripts/build.sh --test       # 构建后运行单元测试
+bash scripts/build.sh --release    # Release 构建到 build-release/
+bash scripts/build.sh --help       # 查看全部选项
+```
+
+Windows + MSVC 下，从 Git Bash 调用编译器需要一个加载 `vcvars64.bat` 的 `.bat` 包装：用 `eval "$(cmd /c ... set)"` 把该环境导入 Git Bash 是行不通的，cmd 收到的是转义后的引号，`cl.exe` 始终进不了 `PATH`。脚本会自动生成这个包装脚本（`build/.build-agentlauncher.bat`）。
+
+手工构建依然可行，但需要自己先准备好 MSVC 环境（例如在「x64 本机工具命令提示符」中运行）：
+
 ```bash
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-Windows + MSVC 时，请在「x64 本机工具命令提示符」中运行，或先调用
-`vcvars64.bat`，使 `cl.exe` 与 MSVC 环境位于 `PATH`。
+`bash scripts/package.sh` 会构建 Release 产物、用 `windeployqt` 部署依赖，并打包成 `dist/AgentLauncher-<版本>-win64-Portable.zip`。
 
 ## 项目结构
 

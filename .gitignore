@@ -3,7 +3,8 @@ build/
 out/
 site/
 dist/
-build*
+# Anchored to the repo root: an unanchored build* also hides scripts/build.sh
+/build*
 
 # Qt Creator / user-specific
 *.user

@@ -9,13 +9,25 @@ AgentLauncher 是一个用 Qt6/QML + C++ 开发的桌面应用，通过卡片网
 ## 构建
 
 ```bash
+bash scripts/build.sh              # Debug 构建到 build/
+bash scripts/build.sh --test       # 构建后运行单元测试
+bash scripts/build.sh --release    # Release 构建到 build-release/
+bash scripts/build.sh --help       # 全部选项
+```
+
+日常编译请用 `scripts/build.sh`，不要直接手写 cmake 命令：它自动探测 Qt 与 MSVC、复用构建目录里已有的生成器与 Qt 前缀、在构建目录属于旧路径时清掉陈旧的 CMake 缓存，并生成 `compile_commands.json`。Git Bash 下无法用 `eval "$(cmd //c ... set)"` 把 vcvars64 环境导入当前 shell（cmd 收到的是转义后的引号，`cl.exe` 不会出现在 PATH 里），所以脚本改为生成一个 `.bat` 把 vcvars + cmake 包起来执行——这是在本仓库里从 Git Bash 驱动 MSVC 唯一可靠的做法，不要在其它写法上反复试错。构建目录、生成器与 Qt 前缀的解析顺序都写在脚本头部的注释里，需要手工排查时可直接读 `build/.build-agentlauncher.bat` 看实际执行的命令。
+
+需要手工执行时的等价命令（前提是自己已经准备好 MSVC 环境，例如在「x64 本机工具命令提示符」中运行）：
+
+```bash
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-- 需要 Qt 6.5+（模块：Core、Gui、Qml、Quick、Network、LinguistTools）。
+- 需要 Qt 6.5+（模块：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools）。
 - 需要 CMake 3.16+，C++17。
-- 生成器：Ninja（推荐）或 MSBuild。在 Windows + MSVC 下，请从开发者命令提示符运行，或先调用 `vcvars64.bat`。
+- 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器（例如 `build-release/` 目前是 Visual Studio 16 2019），因此 `--release` 不需要 MSVC 环境也能跑。
+- 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建，然后 windeployqt + zip。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
 
 ## 目录结构
 
@@ -27,6 +39,7 @@ icons/         SVG 图标（打包为 Qt 资源）
 translations/  .ts 翻译源文件（构建时编译为 .qm，以 :/i18n/ 嵌入为资源）
 docs/          MkDocs 站点（英文 + zh/）
 tests/         QtTest 单元测试（tst_core.cpp）
+scripts/       构建与打包：build.sh（配置 + 编译 + 可选测试）、package.sh（Release + windeployqt + zip）
 ```
 
 ## 配置结构（agents.json）

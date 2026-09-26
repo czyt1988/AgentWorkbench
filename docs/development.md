@@ -2,20 +2,42 @@
 
 ## Prerequisites
 
-- **Qt 6.5+** with modules: `Core`, `Gui`, `Qml`, `Quick`, `Network`.
+- **Qt 6.5+** with modules: `Core`, `Gui`, `Qml`, `Quick`, `QuickControls2`,
+  `Network`.
 - **CMake 3.16+**
 - **C++17** compiler (MSVC 2019+, GCC 9+, or Clang 10+)
 - (Optional) **Ninja** generator for faster builds.
 
 ## Build
 
+`scripts/build.sh` configures and compiles in one step. It auto-detects Qt and
+the MSVC toolchain, reuses the generator and Qt prefix of an existing build
+directory, clears a stale CMake cache left behind by a moved project folder,
+and writes `compile_commands.json` for editor tooling:
+
+```bash
+bash scripts/build.sh              # Debug build in build/
+bash scripts/build.sh --test       # build, then run the unit tests
+bash scripts/build.sh --release    # Release build in build-release/
+bash scripts/build.sh --help       # all options
+```
+
+On Windows with MSVC, driving the compiler from Git Bash needs a `.bat` wrapper
+that loads `vcvars64.bat`: importing that environment into Git Bash with
+`eval "$(cmd /c ... set)"` does not work, because `cmd` receives the escaped
+quotes literally and `cl.exe` never reaches `PATH`. The script generates the
+wrapper for you (`build/.build-agentlauncher.bat`).
+
+Building by hand still works, but you have to set up the MSVC environment
+yourself first — for example from an "x64 Native Tools Command Prompt":
+
 ```bash
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-On Windows with MSVC, run from a "x64 Native Tools Command Prompt" or call
-`vcvars64.bat` beforehand so `cl.exe` and the MSVC environment are on `PATH`.
+`bash scripts/package.sh` builds the release binary, deploys it with
+`windeployqt` and produces `dist/AgentLauncher-<version>-win64-Portable.zip`.
 
 ## Project layout
 
