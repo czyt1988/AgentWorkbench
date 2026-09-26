@@ -5,6 +5,7 @@
 
 #include <QAbstractListModel>
 #include <QList>
+#include <QVariantMap>
 
 namespace awb::shell {
 
@@ -17,6 +18,10 @@ class NavigationModel : public QAbstractListModel
 
     Q_PROPERTY(QString currentPageId READ currentPageId WRITE setCurrentPageId
                NOTIFY currentPageChanged)
+    // Property (not just the invokable) so QML bindings like
+    // Workspace's `nav.currentPage.source` evaluate AND re-evaluate when
+    // the page changes — a bare invokable reads as a function reference.
+    Q_PROPERTY(QVariantMap currentPage READ currentPage NOTIFY currentPageChanged)
 
 public:
     enum Roles {

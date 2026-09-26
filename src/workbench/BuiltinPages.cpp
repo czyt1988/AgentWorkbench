@@ -5,6 +5,7 @@
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
+#include "skills/SkillsFacade.h"
 #include "web/WebTabsFacade.h"
 
 namespace awb::workbench {
@@ -14,13 +15,14 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
                            agents::AgentsFacade *agents,
                            web::WebTabsFacade *web,
                            shell::Notifications *notifications,
-                           QObject *parent)
+                           skills::SkillsFacade *skills, QObject *parent)
     : QObject(parent)
     , m_nav(nav)
     , m_shell(shell)
     , m_agents(agents)
     , m_web(web)
     , m_notifications(notifications)
+    , m_skills(skills)
 {
     registerPages();
     wireBadges();
@@ -51,6 +53,16 @@ void BuiltinPages::registerPages()
     webPage.section = QStringLiteral("main");
     webPage.order = 20;
     m_nav->registerPage(webPage);
+
+    shell::PageDescriptor skillsPage;
+    skillsPage.id = QStringLiteral("skills");
+    skillsPage.title = tr("Skills");
+    skillsPage.iconSource = QStringLiteral("qrc:/icons/skills.svg");
+    skillsPage.source =
+        QStringLiteral("qrc:/qt/qml/AgentWorkbench/skills/SkillGridPage.qml");
+    skillsPage.section = QStringLiteral("main");
+    skillsPage.order = 30;
+    m_nav->registerPage(skillsPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");

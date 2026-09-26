@@ -15,8 +15,7 @@ Rectangle {
     Loader {
         id: pageLoader
         anchors.fill: parent
-        source: nav.currentPage.source !== undefined
-                && nav.currentPage.source.length > 0
+        source: nav.currentPage.source.length > 0
                 ? nav.currentPage.source : ""
         onStatusChanged: {
             if (status === Loader.Error) {

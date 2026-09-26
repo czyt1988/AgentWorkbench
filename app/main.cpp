@@ -5,6 +5,7 @@
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "shell/NavigationModel.h"
+#include "skills/SkillsFacade.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
 #include "shell/UiServices.h"
@@ -92,6 +93,7 @@ int main(int argc, char *argv[])
     agents.start();
 
     awb::web::WebTabsFacade webTabs(&settings);
+    awb::skills::SkillsFacade skills(&settings);
 
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
@@ -99,7 +101,7 @@ int main(int argc, char *argv[])
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
     awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
-                                              &notifications);
+                                              &notifications, &skills);
 
 #ifdef AWB_ENABLE_WEBENGINE
     // The embedded surface registers itself with the web domain; profiles
@@ -122,6 +124,15 @@ int main(int argc, char *argv[])
                                  &notifications);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Agents", &agents);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Web", &webTabs);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Skills", &skills);
+    // First visit scans once the page opens (async-shaped refresh()).
+    QObject::connect(&nav, &awb::shell::NavigationModel::pagesChanged,
+                     &skills, [&skills, &nav]() {
+                         if (nav.currentPageId() == QLatin1String("skills")
+                             && skills.model()->rowCount() == 0
+                             && !skills.scanning())
+                             skills.refresh();
+                     });
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",

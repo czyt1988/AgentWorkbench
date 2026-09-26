@@ -15,6 +15,9 @@ class Notifications;
 namespace awb::web {
 class WebTabsFacade;
 } // namespace awb::web
+namespace awb::skills {
+class SkillsFacade;
+} // namespace awb::skills
 
 namespace awb::workbench {
 
@@ -30,7 +33,7 @@ public:
     BuiltinPages(shell::NavigationModel *nav, shell::ShellController *shell,
                  agents::AgentsFacade *agents, web::WebTabsFacade *web,
                  shell::Notifications *notifications,
-                 QObject *parent = nullptr);
+                 skills::SkillsFacade *skills, QObject *parent = nullptr);
 
 private:
     void registerPages();
@@ -44,6 +47,7 @@ private:
     agents::AgentsFacade *m_agents;
     web::WebTabsFacade *m_web;
     shell::Notifications *m_notifications;
+    skills::SkillsFacade *m_skills;
 };
 
 } // namespace awb::workbench

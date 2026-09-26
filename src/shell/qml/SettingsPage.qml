@@ -187,17 +187,9 @@ Page {
                     textRole: "name"
                     valueRole: "id"
                     model: theme.availableThemes
-                    currentIndex: themeCombo.themeIdIndexOf(theme.themeId)
+                    // ComboBox.indexOfValue understands valueRole (Qt 6).
+                    currentIndex: indexOfValue(theme.themeId)
                     onActivated: theme.applyTheme(currentValue)
-
-                    function themeIdIndexOf(id) {
-                        const themes = theme.availableThemes
-                        for (let i = 0; i < themes.length; ++i) {
-                            if (themes[i].id === id)
-                                return i
-                        }
-                        return -1
-                    }
                 }
             }
 
@@ -337,20 +329,130 @@ Page {
                 }
             }
 
-            // --- Skills (placeholder until S6) -------------------------------
+            // --- Skills (specs/03 S6-T6) ------------------------------------
             ASectionHeader {
                 text: qsTr("Skills")
                 Layout.leftMargin: theme.spacingL
                 Layout.rightMargin: theme.spacingL
+                extra: [
+                    AButton {
+                        text: qsTr("Rescan")
+                        onClicked: skills.refresh()
+                    }
+                ]
             }
-            Label {
+
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL
                 Layout.rightMargin: theme.spacingL
-                text: qsTr("Skill root directories and scanning options arrive with the Skills page.")
-                color: theme.textMuted
-                font.pixelSize: theme.fontSizeSmall
-                wrapMode: Text.WordWrap
+                spacing: theme.spacingS
+
+                Repeater {
+                    model: skills.roots()
+                    delegate: Rectangle {
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        height: 44
+                        radius: theme.radiusControl
+                        color: theme.surfaceBg
+                        border.color: theme.borderSubtle
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: theme.spacingM
+                            anchors.rightMargin: theme.spacingS
+                            spacing: theme.spacingM
+
+                            ColumnLayout {
+                                spacing: 0
+                                Layout.fillWidth: true
+                                Label {
+                                    text: modelData.label
+                                    color: theme.textPrimary
+                                    font.pixelSize: theme.fontSizeBody
+                                    font.bold: true
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.path
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeCaption
+                                    font.family: theme.monoFamily
+                                    elide: Text.ElideMiddle
+                                }
+                            }
+                            Label {
+                                text: modelData.kind
+                                color: theme.textSecondary
+                                font.pixelSize: theme.fontSizeCaption
+                            }
+                            Switch {
+                                checked: modelData.enabled
+                                onToggled: skills.setRootEnabled(
+                                    modelData.id, checked)
+                            }
+                            AIconButton {
+                                iconSource: "qrc:/icons/close.svg"
+                                tooltip: qsTr("Remove this root")
+                                onClicked: skills.removeRoot(modelData.id)
+                            }
+                        }
+                    }
+                }
+
+                // Add a custom root.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: theme.spacingS
+
+                    TextField {
+                        id: newRootField
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("Add a skill root directory...")
+                        color: theme.textPrimary
+                        placeholderTextColor: theme.textMuted
+                        font.family: theme.monoFamily
+                        font.pixelSize: theme.fontSizeSmall
+                        background: Rectangle {
+                            radius: theme.radiusControl
+                            color: theme.surfaceAltBg
+                            border.color: newRootField.activeFocus
+                                          ? theme.focusRing : theme.borderSubtle
+                            border.width: newRootField.activeFocus ? 2 : 1
+                        }
+                        onAccepted: {
+                            if (skills.addRoot(text.trim()))
+                                text = ""
+                        }
+                    }
+                    AButton {
+                        text: qsTr("Add")
+                        enabled: newRootField.text.trim().length > 0
+                        onClicked: {
+                            if (skills.addRoot(newRootField.text.trim()))
+                                newRootField.text = ""
+                        }
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: skills.statsText
+                    color: skills.partialFailure ? theme.warning
+                                                 : theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                    elide: Text.ElideRight
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Plugin caches keep several versions of the same plugin; only the highest is listed.")
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                    wrapMode: Text.WordWrap
+                }
             }
 
             // --- Web ---------------------------------------------------------
@@ -385,14 +487,6 @@ Page {
                     Component.onCompleted: currentIndex =
                         indexOfValue(shell.webSurface)
                     onActivated: shell.setWebSurface(currentValue)
-
-                    function indexOfValue(value) {
-                        for (let i = 0; i < count; ++i) {
-                            if (get(i).value === value)
-                                return i
-                        }
-                        return 0
-                    }
                 }
             }
 

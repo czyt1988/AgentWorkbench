@@ -46,4 +46,9 @@ set(AWB_TS_SOURCES
     # web QML
     ${CMAKE_SOURCE_DIR}/src/web/qml/WebTabsPage.qml
     ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/WebEngineSurface.qml
+    # skills domain + QML
+    ${CMAKE_SOURCE_DIR}/src/skills/SkillsFacade.cpp
+    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillGridPage.qml
+    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillCard.qml
+    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillDetailFlyout.qml
 )

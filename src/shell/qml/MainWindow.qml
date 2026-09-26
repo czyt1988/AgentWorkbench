@@ -20,6 +20,7 @@ ApplicationWindow {
     readonly property var toasts: Notifications
     readonly property var agents: Agents
     readonly property var web: Web
+    readonly property var skills: Skills
     readonly property var workbench: Workbench
     readonly property var environment: Environment
 

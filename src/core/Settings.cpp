@@ -322,6 +322,12 @@ void Settings::setWebChromiumFlags(const QString &flags)
     emit valueChanged(QStringLiteral("web.chromiumFlags"));
 }
 
+void Settings::setSkillRoots(const QJsonArray &roots)
+{
+    m_skills.roots = roots;
+    emit valueChanged(QStringLiteral("skills.roots"));
+}
+
 OpResult Settings::save()
 {
     QJsonObject window;

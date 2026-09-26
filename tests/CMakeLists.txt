@@ -7,6 +7,7 @@ add_subdirectory(agents)
 add_subdirectory(theme)
 add_subdirectory(shell)
 add_subdirectory(web)
+add_subdirectory(skills)
 
 # Architecture rules as a test (specs/01 §5.3): a violating build fails
 # instead of relying on people remembering the rules.

@@ -105,6 +105,7 @@ public:
     void setLastPageId(const QString &pageId);
     void setWebSurface(const QString &surface);
     void setWebChromiumFlags(const QString &flags);
+    void setSkillRoots(const QJsonArray &roots);
 
     // Persist the whole settings object (atomic write).
     OpResult save();

@@ -16,6 +16,7 @@ target_link_libraries(awb_workbench
         awb_agents
         awb_core
         awb_shell
+        awb_skills
         awb_theme
         awb_web
         Qt6::Core

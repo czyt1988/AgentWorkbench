@@ -23,6 +23,7 @@ add_subdirectory(src/theme)     # L1 theme engine
 add_subdirectory(src/agents)    # L2 agents domain
 add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
 add_subdirectory(src/web)       # L2 web tabs (+ webengine adapter when ON)
+add_subdirectory(src/skills)    # L2 skills browser
 add_subdirectory(src/workbench) # L3 application layer
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.
