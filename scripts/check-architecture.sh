@@ -7,13 +7,15 @@
 # Checks:
 #   1. Reverse/sideways includes: domain modules must not include shell/,
 #      workbench/ or each other.
-#   2. Visual literals: QML must not hardcode #rrggbb / #rgb colors
-#      ("transparent" and theme.* are allowed). Matched case-sensitively in
-#      lowercase form — the documented hex notation; uppercase sequences in
-#      user-facing documentation strings are not color usages.
+#   2. Visual literals: QML must not hardcode #rrggbb / #rgb colors or
+#      Qt.rgba(<number>, …) built from numeric literals ("transparent",
+#      theme.* and Qt.rgba(expr, …) function calls are allowed). Hex is
+#      matched case-sensitively in lowercase form — the documented notation;
+#      uppercase sequences in user-facing documentation strings are not
+#      color usages.
 #   3. i18n: tr()/qsTr() source strings must be ASCII.
-#   4. core purity: src/core/ and src/theme/ must not pull in Qt Quick or
-#      WebEngine.
+#   4. core purity: src/core/ and src/theme/ must not pull in Qt Quick,
+#      QML or WebEngine (QQuick*, QQml*, QtQuick, Qt6::Quick, QtWebEngine).
 
 set -u
 
@@ -57,6 +59,13 @@ while IFS= read -r file; do
         hits="$(grep -nE '#[0-9a-f]{6}|#[0-9a-f]{3}([^0-9a-f]|$)' "$file" | grep -vE '#RRGGBB|#RGB')"
         fail "hardcoded color literal in $file:"$'\n'"$hits"
     fi
+    # Qt.rgba built from numeric literals (137/255, 0.22, …) — a color
+    # literal in disguise; use theme.alpha(color, a) instead. Qt.rgba with
+    # an expression first (tintRed(x), theme.accent, …) is allowed.
+    if grep -nE 'Qt\.rgba\([[:space:]]*[0-9]' "$file" > /dev/null 2>&1; then
+        hits="$(grep -nE 'Qt\.rgba\([[:space:]]*[0-9]' "$file")"
+        fail "numeric Qt.rgba() color literal in $file (use theme.alpha):"$'\n'"$hits"
+    fi
 done < <(find qml src -name '*.qml' 2>/dev/null)
 
 # --- 3. English-only source strings -----------------------------------------
@@ -69,10 +78,12 @@ while IFS= read -r file; do
 done < <(find src qml -name '*.cpp' -o -name '*.h' -o -name '*.qml' 2>/dev/null)
 
 # --- 4. core purity ----------------------------------------------------------
+# QQuick*/QQml* are included as <QQuickItem> etc. — "QtQuick" alone misses
+# them, which is how a QML-engine include slipped through review.
 for dir in src/core src/theme; do
     while IFS= read -r file; do
-        if grep -nE 'QtQuick|Qt6::Quick|QtWebEngine' "$file" >/dev/null 2>&1; then
-            hits="$(grep -nE 'QtQuick|Qt6::Quick|QtWebEngine' "$file")"
+        if grep -nE 'QtQuick|QQuick|QQml|Qt6::Quick|QtWebEngine' "$file" >/dev/null 2>&1; then
+            hits="$(grep -nE 'QtQuick|QQuick|QQml|Qt6::Quick|QtWebEngine' "$file")"
             fail "UI framework reference in $file (core/theme must stay UI-free):"$'\n'"$hits"
         fi
     done < <(find "$dir" -name '*.h' -o -name '*.cpp' 2>/dev/null)
