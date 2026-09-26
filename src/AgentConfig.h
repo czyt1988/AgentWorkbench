@@ -49,7 +49,9 @@ public:
     void setTitle(const QString &title) { m_title = title; }
 
     // Ids of built-in agents the user deleted (Settings page). Persisted as
-    // the root "removed" array so migrate() does not resurrect them.
+    // the root "removed" array: built-in agents always come from the shipped
+    // default, so without this list a deleted launcher would be back on the
+    // next start.
     QStringList removedIds() const { return m_removedIds; }
     void setRemovedIds(const QStringList &ids) { m_removedIds = ids; }
 
@@ -60,9 +62,14 @@ public:
     // Ids of the bundled default agents.
     static QStringList defaultAgentIds();
 
-    // Append bundled defaults whose id is not yet in the list. Returns true
-    // when the list changed. Used by "Restore default launchers".
-    static bool appendMissingDefaults(QList<Agent> &agents);
+    // Apply the shipped default to a user list: every built-in agent in the
+    // bundled order with the bundled values, skipping ids listed in
+    // removedIds, followed by the user's own agents in their existing order.
+    // Built-in agents are therefore defined by config/default_agents.json
+    // alone — an edit there reaches every install on the next start, while
+    // agents the user added themselves are preserved untouched.
+    static QList<Agent> withBuiltinDefaults(const QList<Agent> &current,
+                                            const QStringList &removedIds);
 
     // Turn a display name into a config id: "Kimi Code" -> "kimi-code".
     static QString slugFromName(const QString &name);
@@ -80,15 +87,6 @@ public:
     // so everything the app writes lives in one place.
     static QString userDataDir();
 
-    // Copy agents.json / agent_state.json left behind by builds that stored
-    // them under QStandardPaths::AppConfigLocation into userDataDir(). Files
-    // that already exist in the new location win, so running this on every
-    // start is harmless. Called by load() before anything reads the config.
-    // legacyDir overrides the source directory; unit tests pass a temporary
-    // directory because test mode cannot redirect AppConfigLocation away from
-    // userDataDir()'s own test-mode location.
-    static void migrateLegacyUserData(const QString &legacyDir = QString());
-
     static QString configFilePath();
 
 private:
@@ -98,15 +96,10 @@ private:
 
     QList<Agent> parse(const QByteArray &data, QString &outTitle);
 
-    // Fill in empty fields from the bundled default config and add missing
-    // agents (skipping removed ids). Called after load() so on-disk configs
-    // created from older defaults get the new fields populated automatically.
-    void migrate(const QList<Agent> &defaults, const QString &defaultTitle);
-
     // Assign a color from the built-in palette to every agent whose `color`
-    // is still empty after migration. Colors are assigned by cycling through
-    // the palette based on the agent's position in the list. Returns true if
-    // any color was assigned (so the caller can persist).
+    // is still empty. Colors are assigned by cycling through the palette based
+    // on the agent's position in the list. Returns true if any color was
+    // assigned (so the caller can persist).
     bool assignPaletteColors();
 
     // Expand %VAR% environment variables and ~ in a path.

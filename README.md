@@ -71,8 +71,11 @@ On first run AgentLauncher copies a bundled default config to
 - Linux: `~/.AgentLauncher/agents.json`
 - macOS: `~/.AgentLauncher/agents.json`
 
-That directory also holds `agent_state.json` and `log/agentlauncher.log`.
-Upgrading from a build before 0.3.0 migrates the old config automatically.
+That directory also holds `agent_state.json` and `log/agentlauncher.log`. The
+built-in launchers come from the bundled `config/default_agents.json` and are
+re-applied on every start, so the copy in your home directory only carries the
+launchers you added yourself (plus the built-ins you deleted from the Settings
+page).
 
 Each agent entry looks like:
 

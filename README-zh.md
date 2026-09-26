@@ -56,8 +56,9 @@ cmake --build build
 - Linux：`~/.AgentLauncher/agents.json`
 - macOS：`~/.AgentLauncher/agents.json`
 
-该目录同时存放 `agent_state.json` 与 `log/agentlauncher.log`。从 0.3.0
-之前的版本升级时，旧配置会自动迁移过来。
+该目录同时存放 `agent_state.json` 与 `log/agentlauncher.log`。内置启动器的定义来自
+随包内置的 `config/default_agents.json`，每次启动都会重新应用，因此主目录下的副本只
+承载你自己新增的启动器（以及你在设置页里删掉的内置项）。
 
 每条 agent 配置形如：
 

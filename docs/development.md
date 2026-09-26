@@ -22,7 +22,7 @@ On Windows with MSVC, run from a "x64 Native Tools Command Prompt" or call
 ```
 src/         C++ backend
   main.cpp            registers model + launcher, loads QML
-  AgentConfig         loads/saves agents.json (seeds default on first run)
+  AgentConfig         loads/saves agents.json (built-ins come from the bundled default)
   AgentModel          QAbstractListModel exposed to QML
   AgentLauncher       launch (QProcess), health-check (HTTP), open browser/dir
 qml/         QML UI

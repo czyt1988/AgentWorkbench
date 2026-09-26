@@ -41,6 +41,7 @@ plugins:
             - Home: index.md
             - Configuration: configuration.md
             - Development: development.md
+            - WebEngine embedding (research): research/webengine-embedding.md
         - locale: zh
           name: 中文
           build: true
@@ -49,6 +50,7 @@ plugins:
             - 博客: blog.md
             - 配置: configuration.md
             - 开发: development.md
+            - WebEngine 内嵌调研: research/webengine-embedding.md
 
 markdown_extensions:
   - admonition

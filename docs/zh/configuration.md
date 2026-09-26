@@ -10,11 +10,14 @@ AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents
 | macOS | `~/.AgentLauncher/agents.json` |
 
 所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）
-以及 `log/agentlauncher.log`。0.3.0 之前的版本把配置存放在
-`%LOCALAPPDATA%\AgentLauncher\` / `~/.config/AgentLauncher/`；新版本首次启动时会把这些
-文件复制到 `~/.AgentLauncher/`（旧文件保留在原处），若新目录中已存在配置则不会覆盖。
+以及 `log/agentlauncher.log`。
 
-应用内置了一份默认配置（来自 `config/default_agents.json`）。
+应用内置了默认配置（`config/default_agents.json`，编译进可执行文件）。**内置** agent
+的定义只来自这份文件：磁盘上的同名 id 条目会在每次启动时被它整体覆盖，所以磁盘里的
+`agents.json` 只负责两件事——记录你删掉了哪些内置项（根级 `removed` 数组），以及保存
+你自己新增的 agent（排在内置项之后）。改内置项要改 `config/default_agents.json` 并
+重新编译，改自己新增的项在设置页里改即可。若配置与默认值完全一致（没有自建 agent、
+没有删除记录、标题未改），磁盘文件就是默认配置的逐字节副本，可直接 diff。
 
 ## agent 条目
 
@@ -199,11 +202,17 @@ agent 的主强调色，用于：
 每个 `webUrl` 每 3 秒做一次 HTTP 探测。**任意** HTTP 响应（哪怕是 `401`/`404`）
 都视为服务已起 → 卡片标记为**运行中**。连接被拒或超时则视为**已停止**。
 
-## 迁移
+## 内置 agent 与默认配置
 
-加载时，`AgentConfig::load()` 会将内置默认配置与磁盘配置合并：磁盘上为空的
-字段会被默认值填充，默认配置中存在但磁盘上缺失的 agent 会被追加。这确保了旧
-配置能自动获得新字段。如有变化，更新后的配置会写回磁盘。
+加载时，`AgentConfig::load()` 会把默认配置里的每个内置 agent 应用到配置中：磁盘上
+同 id 的条目被整体替换为 `config/default_agents.json` 里的定义（`removed` 数组中的 id
+除外），你自己新增的 agent 原样保留并排在内置项之后。因此不存在「旧配置兼容」一说，
+也不需要对用户数据做迁移：调整内置启动器只需要改 `config/default_agents.json` 并
+重新编译。内容发生变化时更新后的配置会写回磁盘。
+
+注意由此带来的取舍：在设置页里编辑一个**内置** agent（例如改端口）只对本次运行有效，
+下次启动会被默认配置覆盖。要让改动长期生效，就把它写进
+`config/default_agents.json`。
 
 ## 默认 agent
 
@@ -228,6 +237,11 @@ agent 的主强调色，用于：
 3. 重启 AgentLauncher（或下次启动时自动加载）。
 
 无需重新编译。
+
+!!! note "只对新的 id 生效"
+    这里手写或删除的条目必须使用不属于内置项的 `id`。同 id 的条目会在每次启动时被
+    `config/default_agents.json` 覆盖（见上一节）；要改内置项，请改那份默认配置并
+    重新编译。若要删除内置项，用设置页的「删除」，它会把 id 记进 `removed` 数组。
 
 ### 完整示例
 

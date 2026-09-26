@@ -22,7 +22,7 @@ Windows + MSVC 时，请在「x64 本机工具命令提示符」中运行，或�
 ```
 src/         C++ 后端
   main.cpp            注册 model + launcher，加载 QML
-  AgentConfig         加载/保存 agents.json（首次运行种子默认配置）
+  AgentConfig         加载/保存 agents.json（内置项来自随包默认配置）
   AgentModel          暴露给 QML 的 QAbstractListModel
   AgentLauncher       启动(QProcess)、健康检查(HTTP)、打开浏览器/目录
 qml/         QML 界面

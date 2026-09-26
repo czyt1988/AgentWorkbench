@@ -393,43 +393,43 @@
 <context>
     <name>AgentLauncher</name>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="104"/>
+        <location filename="../src/AgentLauncher.cpp" line="122"/>
         <source>Startup command is empty.</source>
         <translation>启动命令为空。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="117"/>
+        <location filename="../src/AgentLauncher.cpp" line="135"/>
         <source>Cannot find &apos;%1&apos; on your PATH. Make sure it is installed and on PATH.</source>
         <translation>在 PATH 中找不到 &apos;%1&apos;，请确认已安装且在 PATH 中。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="165"/>
+        <location filename="../src/AgentLauncher.cpp" line="183"/>
         <source>Failed to start &apos;%1&apos;.</source>
         <translation>启动 &apos;%1&apos; 失败。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="193"/>
+        <location filename="../src/AgentLauncher.cpp" line="211"/>
         <source>This agent wasn&apos;t started from the launcher; stop it with its own command.</source>
         <translation>此代理不是从启动器启动的，请用其自身命令关闭。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="216"/>
-        <location filename="../src/AgentLauncher.cpp" line="273"/>
+        <location filename="../src/AgentLauncher.cpp" line="234"/>
+        <location filename="../src/AgentLauncher.cpp" line="291"/>
         <source>Failed to stop process (PID %1).</source>
         <translation>停止进程失败（PID %1）。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="236"/>
+        <location filename="../src/AgentLauncher.cpp" line="254"/>
         <source>Cannot determine port from web URL.</source>
         <translation>无法从 Web 地址解析出端口。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="244"/>
+        <location filename="../src/AgentLauncher.cpp" line="262"/>
         <source>No process found listening on port %1; the agent may already be stopped.</source>
         <translation>未找到监听端口 %1 的进程；该代理可能已停止。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="761"/>
+        <location filename="../src/AgentLauncher.cpp" line="781"/>
         <source>Failed to create a temporary batch file for setup.</source>
         <translation>无法为设置命令创建临时批处理文件。</translation>
     </message>
@@ -446,14 +446,14 @@
 %1</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="802"/>
-        <location filename="../src/AgentLauncher.cpp" line="1068"/>
-        <location filename="../src/AgentLauncher.cpp" line="1155"/>
+        <location filename="../src/AgentLauncher.cpp" line="822"/>
+        <location filename="../src/AgentLauncher.cpp" line="1087"/>
+        <location filename="../src/AgentLauncher.cpp" line="1174"/>
         <source>(no output)</source>
         <translation>（无输出）</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="804"/>
+        <location filename="../src/AgentLauncher.cpp" line="824"/>
         <source>Setup command failed (exit code %1).
 
 Command: %2
@@ -472,47 +472,47 @@ Command: %2
 %2</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="818"/>
+        <location filename="../src/AgentLauncher.cpp" line="838"/>
         <source>Failed to start setup command.</source>
         <translation>启动设置命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1007"/>
-        <location filename="../src/AgentLauncher.cpp" line="1104"/>
+        <location filename="../src/AgentLauncher.cpp" line="1026"/>
+        <location filename="../src/AgentLauncher.cpp" line="1123"/>
         <source>Please close %1 before installing/updating.</source>
         <translation>请先关闭 %1 后再进行安装/更新。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1012"/>
+        <location filename="../src/AgentLauncher.cpp" line="1031"/>
         <source>No install command configured for %1.</source>
         <translation>%1 未配置安装命令。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1070"/>
+        <location filename="../src/AgentLauncher.cpp" line="1089"/>
         <source>Install failed (exit code %1):
 %2</source>
         <translation>安装失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1089"/>
+        <location filename="../src/AgentLauncher.cpp" line="1108"/>
         <source>Failed to start install command.</source>
         <translation>启动安装命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1109"/>
+        <location filename="../src/AgentLauncher.cpp" line="1128"/>
         <source>No update command configured for %1.</source>
         <translation>%1 未配置更新命令。</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1157"/>
+        <location filename="../src/AgentLauncher.cpp" line="1176"/>
         <source>Update failed (exit code %1):
 %2</source>
         <translation>更新失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/AgentLauncher.cpp" line="1173"/>
+        <location filename="../src/AgentLauncher.cpp" line="1192"/>
         <source>Failed to start update command.</source>
         <translation>启动更新命令失败。</translation>
     </message>
@@ -684,7 +684,7 @@ Command: %2
         <translation>未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../src/main.cpp" line="81"/>
+        <location filename="../src/main.cpp" line="82"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

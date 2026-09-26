@@ -1,6 +1,5 @@
 #include "AgentConfig.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -12,86 +11,107 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+namespace {
+
+// Persisted form of one agent — the single place that decides which fields
+// reach agents.json.
+QJsonObject agentObject(const Agent &a)
+{
+    QJsonObject o;
+    o[QStringLiteral("id")] = a.id;
+    o[QStringLiteral("name")] = a.name;
+    o[QStringLiteral("command")] = a.command;
+    o[QStringLiteral("webUrl")] = a.webUrl;
+    o[QStringLiteral("configDir")] = a.configDir;
+    o[QStringLiteral("icon")] = a.icon;
+    o[QStringLiteral("color")] = a.color;
+    o[QStringLiteral("cardColor")] = a.cardColor;
+    o[QStringLiteral("installCommand")] = a.installCommand;
+    o[QStringLiteral("updateCommand")] = a.updateCommand;
+    o[QStringLiteral("versionCommand")] = a.versionCommand;
+    o[QStringLiteral("setupCommand")] = a.setupCommand;
+    o[QStringLiteral("tokenFile")] = a.tokenFile;
+    return o;
+}
+
+QJsonArray agentsArray(const QList<Agent> &agents)
+{
+    QJsonArray arr;
+    for (const Agent &a : agents)
+        arr.append(agentObject(a));
+    return arr;
+}
+
+} // namespace
+
 void AgentConfig::load()
 {
-    // Older builds kept the config under AppConfigLocation; bring those files
-    // across before anything reads or seeds the new location.
-    migrateLegacyUserData();
-
-    const QString path = configFilePath();
-    QFile file(path);
-
-    // Seed the user config from the bundled default on first run.
-    if (!file.exists()) {
-        QFile seed(QStringLiteral(":/config/default_agents.json"));
-        if (seed.open(QIODevice::ReadOnly)) {
-            const QByteArray data = seed.readAll();
-            seed.close();
-
-            QDir().mkpath(QFileInfo(path).absolutePath());
-            QFile out(path);
-            if (out.open(QIODevice::WriteOnly))
-                out.write(data);
-        }
-    }
-
-    // Load the bundled default config for migration fallback.
     QString defaultTitle;
-    const QList<Agent> defaults = loadDefaults(&defaultTitle);
+    loadDefaults(&defaultTitle);
 
-    if (!file.open(QIODevice::ReadOnly)) {
-        // Fall back to the bundled default directly.
-        m_agents = defaults;
-        m_title = defaultTitle;
-        return;
+    m_agents.clear();
+    m_removedIds.clear();
+    m_title.clear();
+
+    QByteArray data;
+    {
+        QFile file(configFilePath());
+        if (file.open(QIODevice::ReadOnly))
+            data = file.readAll();
     }
+    if (!data.isEmpty())
+        m_agents = parse(data, m_title);
 
-    m_agents = parse(file.readAll(), m_title);
+    // An empty root title means "use the shipped one".
+    if (m_title.isEmpty())
+        m_title = defaultTitle;
 
-    // Merge in any fields missing from an older on-disk config.
-    if (!defaults.isEmpty())
-        migrate(defaults, defaultTitle);
+    // Built-in agents always come from the bundled default, so the on-disk
+    // file only decides which of them the user deleted, plus the agents the
+    // user added on top.
+    const QList<Agent> synced = withBuiltinDefaults(m_agents, m_removedIds);
+    const bool changed = agentsArray(synced) != agentsArray(m_agents);
+    m_agents = synced;
 
-    // Assign palette colors to agents that still have no color.
-    if (assignPaletteColors())
+    // Give agents the user added without a color one, so the card renders;
+    // either change is persisted, which keeps the on-disk file matching what
+    // the UI shows.
+    const bool colorsAssigned = assignPaletteColors();
+    if (changed || colorsAssigned)
         save();
 }
 
 bool AgentConfig::save()
 {
-    QJsonArray arr;
-    for (const Agent &a : m_agents) {
-        QJsonObject o;
-        o[QStringLiteral("id")] = a.id;
-        o[QStringLiteral("name")] = a.name;
-        o[QStringLiteral("command")] = a.command;
-        o[QStringLiteral("webUrl")] = a.webUrl;
-        o[QStringLiteral("configDir")] = a.configDir;
-        o[QStringLiteral("icon")] = a.icon;
-        o[QStringLiteral("color")] = a.color;
-        o[QStringLiteral("cardColor")] = a.cardColor;
-        o[QStringLiteral("installCommand")] = a.installCommand;
-        o[QStringLiteral("updateCommand")] = a.updateCommand;
-        o[QStringLiteral("versionCommand")] = a.versionCommand;
-        o[QStringLiteral("setupCommand")] = a.setupCommand;
-        o[QStringLiteral("tokenFile")] = a.tokenFile;
-        arr.append(o);
+    const QString path = configFilePath();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+
+    // A config that never diverged from the shipped default is written as the
+    // bundled file byte for byte: with no user-added agents and no deletions,
+    // ~/.AgentLauncher/agents.json stays an exact copy of
+    // config/default_agents.json, which keeps the two diffable while working
+    // on the default launcher list.
+    QString defaultTitle;
+    const QList<Agent> defaults = loadDefaults(&defaultTitle);
+    if (m_removedIds.isEmpty() && m_title == defaultTitle
+        && agentsArray(m_agents) == agentsArray(defaults)) {
+        QFile bundled(QStringLiteral(":/config/default_agents.json"));
+        if (bundled.open(QIODevice::ReadOnly))
+            return file.write(bundled.readAll()) > 0;
     }
+
     QJsonObject root;
     root[QStringLiteral("title")] = m_title;
-    root[QStringLiteral("agents")] = arr;
+    root[QStringLiteral("agents")] = agentsArray(m_agents);
     if (!m_removedIds.isEmpty()) {
         QJsonArray removed;
         for (const QString &id : m_removedIds)
             removed.append(id);
         root[QStringLiteral("removed")] = removed;
     }
-
-    const QString path = configFilePath();
-    QDir().mkpath(QFileInfo(path).absolutePath());
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly))
-        return false;
 
     file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
     return true;
@@ -108,35 +128,6 @@ QString AgentConfig::userDataDir()
 
     return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
            + QStringLiteral("/.AgentLauncher");
-}
-
-void AgentConfig::migrateLegacyUserData(const QString &legacyDir)
-{
-    const QString newDir = userDataDir();
-    const QString oldDir = legacyDir.isEmpty()
-        ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
-        : legacyDir;
-    // In test mode both resolve to the same redirected directory.
-    if (oldDir.isEmpty() || oldDir == newDir)
-        return;
-
-    for (const QString &name : {QStringLiteral("agents.json"),
-                                QStringLiteral("agent_state.json")}) {
-        const QString legacyPath = oldDir + QLatin1Char('/') + name;
-        const QString newPath = newDir + QLatin1Char('/') + name;
-
-        // Never overwrite what this build already wrote.
-        if (QFile::exists(newPath) || !QFile::exists(legacyPath))
-            continue;
-
-        QDir().mkpath(newDir);
-        // Copy rather than move: the old file stays behind as a safety net,
-        // so downgrading to a build that reads AppConfigLocation still works.
-        if (QFile::copy(legacyPath, newPath))
-            qInfo() << "Migrated" << legacyPath << "->" << newPath;
-        else
-            qWarning() << "Could not migrate" << legacyPath << "->" << newPath;
-    }
 }
 
 QString AgentConfig::configFilePath()
@@ -177,50 +168,28 @@ QList<Agent> AgentConfig::parse(const QByteArray &data, QString &outTitle)
     return result;
 }
 
-void AgentConfig::migrate(const QList<Agent> &defaults, const QString &defaultTitle)
+QList<Agent> AgentConfig::withBuiltinDefaults(const QList<Agent> &current,
+                                              const QStringList &removedIds)
 {
-    bool changed = false;
+    const QList<Agent> defaults = loadDefaults();
 
-    // Fill in an empty on-disk title from the default.
-    if (m_title.isEmpty() && !defaultTitle.isEmpty()) {
-        m_title = defaultTitle;
-        changed = true;
-    }
-
+    QList<Agent> result;
+    result.reserve(defaults.size() + current.size());
     for (const Agent &def : defaults) {
-        // User deleted this built-in agent — do not resurrect it.
-        if (m_removedIds.contains(def.id))
+        // Deleted in the Settings page — stays deleted.
+        if (removedIds.contains(def.id))
             continue;
-        auto it = std::find_if(m_agents.begin(), m_agents.end(),
-            [&](const Agent &a) { return a.id == def.id; });
-        if (it == m_agents.end()) {
-            // Agent in default but not on disk — add it.
-            m_agents.append(def);
-            changed = true;
-        } else {
-            // Fill in any empty fields from the default.
-            auto fill = [&](QString &field, const QString &defVal) {
-                if (field.isEmpty() && !defVal.isEmpty()) {
-                    field = defVal;
-                    changed = true;
-                }
-            };
-            fill(it->name, def.name);
-            fill(it->command, def.command);
-            fill(it->webUrl, def.webUrl);
-            fill(it->configDir, def.configDir);
-            fill(it->icon, def.icon);
-            fill(it->color, def.color);
-            fill(it->cardColor, def.cardColor);
-            fill(it->installCommand, def.installCommand);
-            fill(it->updateCommand, def.updateCommand);
-            fill(it->versionCommand, def.versionCommand);
-            fill(it->setupCommand, def.setupCommand);
-            fill(it->tokenFile, def.tokenFile);
-        }
+        result.append(def);
     }
-    if (changed)
-        save();
+
+    // Whatever the user added on top keeps its own definition and order.
+    for (const Agent &a : current) {
+        const bool builtin = std::any_of(defaults.cbegin(), defaults.cend(),
+            [&](const Agent &def) { return def.id == a.id; });
+        if (!builtin)
+            result.append(a);
+    }
+    return result;
 }
 
 // --- Palette color assignment -----------------------------------------------
@@ -327,21 +296,6 @@ QStringList AgentConfig::defaultAgentIds()
     for (const Agent &a : defaults)
         ids.append(a.id);
     return ids;
-}
-
-bool AgentConfig::appendMissingDefaults(QList<Agent> &agents)
-{
-    bool changed = false;
-    const QList<Agent> defaults = loadDefaults();
-    for (const Agent &def : defaults) {
-        const bool exists = std::any_of(agents.cbegin(), agents.cend(),
-            [&](const Agent &a) { return a.id == def.id; });
-        if (!exists) {
-            agents.append(def);
-            changed = true;
-        }
-    }
-    return changed;
 }
 
 QString AgentConfig::slugFromName(const QString &name)

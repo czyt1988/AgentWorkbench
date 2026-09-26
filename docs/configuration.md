@@ -10,12 +10,18 @@ AgentLauncher is config-driven. All agent definitions live in a single
 | macOS | `~/.AgentLauncher/agents.json` |
 
 All user data lives in that one directory: `agents.json`, `agent_state.json`
-(the one-time setup state) and `log/agentlauncher.log`. Builds before 0.3.0
-stored the config under `%LOCALAPPDATA%\AgentLauncher\` / `~/.config/AgentLauncher/`;
-on its first start a newer build copies those files into `~/.AgentLauncher/`
-(leaving the old copies in place) unless a config is already there.
+(the one-time setup state) and `log/agentlauncher.log`.
 
-A bundled default is shipped inside the app (from `config/default_agents.json`).
+The app ships a default configuration (`config/default_agents.json`, compiled
+into the executable). **Built-in** agents are defined by that file alone: an
+on-disk entry with the same id is replaced by it on every start, so the
+`agents.json` in your data directory only does two things — it records which
+built-ins you deleted (root `removed` array) and it stores the agents you added
+yourself, after the built-ins. Change a built-in by editing
+`config/default_agents.json` and rebuilding; change your own agents in the
+Settings page. When nothing diverges from the default (no agents of your own, no
+deletions, unchanged title), the on-disk file is a byte-for-byte copy of the
+default and can be diffed against it directly.
 
 ## Agent entry
 
@@ -205,13 +211,20 @@ Each `webUrl` is polled via HTTP every 3 seconds. **Any** HTTP response (even a
 `401`/`404`) means the server is up → the card is marked **Running**. A
 connection refusal or timeout means it is **Stopped**.
 
-## Migration
+## Built-in agents and the bundled default
 
-On load, `AgentConfig::load()` merges the bundled default into the on-disk
-config: any field that is empty on disk is filled from the default, and any
-agent present in the default but missing on disk is appended. This ensures older
-configs automatically get new fields populated. The updated config is persisted
-back to disk if anything changed.
+On load, `AgentConfig::load()` applies the bundled default to every built-in
+agent: an entry sharing a built-in id is replaced wholesale by the definition in
+`config/default_agents.json` (unless its id is in the `removed` array), and
+agents you added yourself are kept as they are, after the built-ins. There is
+therefore no compatibility layer for older configs and no user-data migration:
+changing a built-in launcher means editing `config/default_agents.json` and
+rebuilding. The updated config is written back to disk when anything changed.
+
+That comes with one trade-off: editing a **built-in** agent in the Settings page
+(a port, say) only lasts for the current run — the next start overwrites it with
+the bundled definition. Make the change in `config/default_agents.json` instead
+if it should stick.
 
 ## Default agents
 
@@ -237,6 +250,15 @@ back to disk if anything changed.
 3. Restart AgentLauncher (or it will pick up changes on next launch).
 
 No recompilation needed.
+
+!!! note "New ids only"
+    Entries added or removed by hand here must use an `id` that is not a
+    built-in. An entry sharing a built-in id is overwritten by
+    `config/default_agents.json` on every start (see
+    [Built-in agents and the bundled default](#built-in-agents-and-the-bundled-default));
+    to change a built-in, edit that default file and rebuild. To delete a
+    built-in, use **Delete** in the Settings page — it records the id in the
+    `removed` array.
 
 ### Full example
 

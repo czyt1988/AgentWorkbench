@@ -23,6 +23,8 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <algorithm>
+
 namespace {
 
 // Decode bytes captured from a child process (npm/node/PowerShell etc.).
@@ -38,6 +40,22 @@ QString decodeProcessOutput(const QByteArray &data)
     if (!decoder.hasError())
         return result;
     return QString::fromLocal8Bit(data);
+}
+
+// Copy the runtime-only state (health check, version probe, setup progress)
+// from one agent entry to another; only the persisted fields differ between
+// the two, so a config change must not blank the card.
+void carryRuntimeState(const Agent &from, Agent &to)
+{
+    to.running = from.running;
+    to.launching = from.launching;
+    to.installed = from.installed;
+    to.version = from.version;
+    to.installing = from.installing;
+    to.setupDone = from.setupDone;
+    to.setupping = from.setupping;
+    to.checkingVersion = from.checkingVersion;
+    to.consoleOutput = from.consoleOutput;
 }
 
 } // namespace
@@ -494,16 +512,7 @@ bool AgentLauncher::updateAgentFull(const QString &id, const QVariantMap &fields
         a.color = AgentConfig::paletteColorAt(row);
 
     // Preserve runtime state flags; only the persisted fields change.
-    const Agent &old = m_model->agents().at(row);
-    a.running = old.running;
-    a.launching = old.launching;
-    a.installed = old.installed;
-    a.version = old.version;
-    a.installing = old.installing;
-    a.setupDone = old.setupDone;
-    a.setupping = old.setupping;
-    a.checkingVersion = old.checkingVersion;
-    a.consoleOutput = old.consoleOutput;
+    carryRuntimeState(m_model->agents().at(row), a);
 
     m_model->agents()[row] = a;
     const QModelIndex idx = m_model->index(row, 0);
@@ -517,7 +526,9 @@ bool AgentLauncher::removeAgent(const QString &id)
     if (!m_model->removeAgentById(id))
         return false;
 
-    // Record deleted built-ins so migrate() does not resurrect them.
+    // Record deleted built-ins: built-in agents are re-applied from the
+    // shipped default on every start, so the id has to be remembered here to
+    // keep this one deleted.
     if (AgentConfig::defaultAgentIds().contains(id) && !m_removedIds.contains(id))
         m_removedIds.append(id);
 
@@ -530,10 +541,19 @@ bool AgentLauncher::removeAgent(const QString &id)
 
 bool AgentLauncher::restoreDefaults()
 {
+    // Forget the deletions and re-apply the shipped built-in list; agents the
+    // user added themselves are kept.
     m_removedIds.clear();
-    QList<Agent> agents = m_model->agents();
-    AgentConfig::appendMissingDefaults(agents);
-    m_model->setAgents(agents); // beginResetModel/endResetModel inside
+    const QList<Agent> previous = m_model->agents();
+    QList<Agent> restored =
+        AgentConfig::withBuiltinDefaults(previous, QStringList());
+    for (Agent &a : restored) {
+        const auto it = std::find_if(previous.cbegin(), previous.cend(),
+            [&](const Agent &old) { return old.id == a.id; });
+        if (it != previous.cend())
+            carryRuntimeState(*it, a);
+    }
+    m_model->setAgents(restored);
     return saveConfig();
 }
 
@@ -833,8 +853,7 @@ void AgentLauncher::runSetup(const QString &id)
 
 QString AgentLauncher::stateFilePath() const
 {
-    // Co-located with agents.json; AgentConfig::load() migrates files left
-    // behind by older builds at startup.
+    // Co-located with agents.json in the user data directory.
     return AgentConfig::userDataDir() + QStringLiteral("/agent_state.json");
 }
 

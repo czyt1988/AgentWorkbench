@@ -1,9 +1,9 @@
 #include <QtTest>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
-#include <QTemporaryDir>
 #include <QTemporaryFile>
 
 #include "AgentConfig.h"
@@ -57,7 +57,7 @@ private slots:
     {
         {
             AgentConfig cfg;
-            cfg.load(); // seed the test-mode file from the bundled defaults
+            cfg.load(); // write the bundled defaults into the test-mode file
             cfg.setRemovedIds({"agent-one", "agent-two"});
             QVERIFY(cfg.save());
         }
@@ -67,29 +67,77 @@ private slots:
                  QStringList({"agent-one", "agent-two"}));
     }
 
-    void testMigrateSkipsRemovedDefaults()
+    // A fresh install writes the bundled default through unchanged, so
+    // ~/.AgentLauncher/agents.json and config/default_agents.json stay
+    // diffable while the shipped launcher list is being edited.
+    void testFirstRunCopiesBundledDefaultVerbatim()
     {
-        {
-            AgentConfig cfg;
-            cfg.load(); // seed defaults into the test-mode location
+        QVERIFY(!QFile::exists(AgentConfig::configFilePath()));
+        AgentConfig cfg;
+        cfg.load();
 
-            // Simulate a Settings-page deletion: drop the agent from the
-            // list AND record its id, then persist (same sequence
-            // AgentLauncher::removeAgent() produces).
-            QList<Agent> remaining;
-            for (const Agent &a : cfg.agents()) {
-                if (a.id != QStringLiteral("kimi-code"))
-                    remaining.append(a);
+        QFile bundled(QStringLiteral(":/config/default_agents.json"));
+        QVERIFY(bundled.open(QIODevice::ReadOnly));
+        QFile onDisk(AgentConfig::configFilePath());
+        QVERIFY(onDisk.open(QIODevice::ReadOnly));
+        QCOMPARE(onDisk.readAll(), bundled.readAll());
+
+        QCOMPARE(idsOf(cfg.agents()), AgentConfig::defaultAgentIds());
+    }
+
+    // Built-in agents are defined by the bundled default alone: an edit there
+    // reaches an existing config file, while agents the user added themselves
+    // keep their values.
+    void testBuiltinAgentsFollowBundledDefault()
+    {
+        QJsonObject stale;
+        stale[QStringLiteral("id")] = QStringLiteral("kimi-code");
+        stale[QStringLiteral("name")] = QStringLiteral("Stale Name");
+        stale[QStringLiteral("command")] = QStringLiteral("stale-command");
+        stale[QStringLiteral("webUrl")] = QStringLiteral("http://127.0.0.1:1");
+        stale[QStringLiteral("color")] = QStringLiteral("#123456");
+        QJsonObject mine;
+        mine[QStringLiteral("id")] = QStringLiteral("my-agent");
+        mine[QStringLiteral("name")] = QStringLiteral("My Agent");
+        mine[QStringLiteral("command")] = QStringLiteral("myagent web");
+        mine[QStringLiteral("webUrl")] = QStringLiteral("http://127.0.0.1:9999");
+        mine[QStringLiteral("color")] = QStringLiteral("#00d4aa");
+        QJsonObject root;
+        root[QStringLiteral("agents")] = QJsonArray{stale, mine};
+        writeConfig(root);
+
+        AgentConfig cfg;
+        cfg.load();
+
+        // Built-ins first, in the shipped order, then the user's own agent.
+        const QStringList ids = idsOf(cfg.agents());
+        QCOMPARE(ids, AgentConfig::defaultAgentIds()
+                          + QStringList{QStringLiteral("my-agent")});
+
+        const Agent shipped = bundledAgent(QStringLiteral("kimi-code"));
+        int staleFields = 0;
+        for (const Agent &a : cfg.agents()) {
+            if (a.id == QStringLiteral("kimi-code")) {
+                QCOMPARE(a.name, shipped.name);
+                QCOMPARE(a.command, shipped.command);
+                QCOMPARE(a.webUrl, shipped.webUrl);
+                QCOMPARE(a.color, shipped.color);
+                ++staleFields;
+            } else if (a.id == QStringLiteral("my-agent")) {
+                QCOMPARE(a.name, QStringLiteral("My Agent"));
+                QCOMPARE(a.command, QStringLiteral("myagent web"));
+                QCOMPARE(a.color, QStringLiteral("#00d4aa"));
+                ++staleFields;
             }
-            cfg.setAgents(remaining);
-            cfg.setRemovedIds({QStringLiteral("kimi-code")});
-            QVERIFY(cfg.save());
         }
+        QCOMPARE(staleFields, 2);
+
+        // The refresh is on disk, not just in memory.
         AgentConfig reloaded;
         reloaded.load();
-        QVERIFY(reloaded.removedIds().contains(QStringLiteral("kimi-code")));
-        for (const Agent &a : reloaded.agents())
-            QVERIFY2(a.id != "kimi-code", "removed default must not resurrect");
+        QCOMPARE(idsOf(reloaded.agents()), ids);
+        QCOMPARE(reloaded.agents().at(AgentConfig::defaultAgentIds().size()).name,
+                 QStringLiteral("My Agent"));
     }
 
     void testDefaultAgentIds()
@@ -112,63 +160,32 @@ private slots:
         QVERIFY(AgentConfig::configFilePath().startsWith(AgentConfig::userDataDir()));
     }
 
-    // Older builds kept agents.json / agent_state.json under AppConfigLocation;
-    // those files must survive the move to the data directory.
-    void testMigrateLegacyUserData()
+    // A built-in deleted in the Settings page stays deleted, even though load()
+    // re-applies the shipped definition of every other built-in.
+    void testDeletedBuiltinStaysDeleted()
     {
-        QTemporaryDir legacyDir;
-        QVERIFY(legacyDir.isValid());
-
-        const QString legacyConfig = legacyDir.path() + QStringLiteral("/agents.json");
-        QJsonObject agent;
-        agent[QStringLiteral("id")] = QStringLiteral("legacy-agent");
-        agent[QStringLiteral("name")] = QStringLiteral("Legacy Agent");
-        agent[QStringLiteral("command")] = QStringLiteral("legacy.cmd");
-        agent[QStringLiteral("webUrl")] = QStringLiteral("http://127.0.0.1:9");
-        QJsonObject root;
-        root[QStringLiteral("title")] = QStringLiteral("Legacy Title");
-        root[QStringLiteral("agents")] = QJsonArray{agent};
         {
-            QFile f(legacyConfig);
-            QVERIFY(f.open(QIODevice::WriteOnly));
-            f.write(QJsonDocument(root).toJson());
+            AgentConfig cfg;
+            cfg.load();
+
+            // Same sequence AgentLauncher::removeAgent() produces: drop the
+            // agent from the list and record its id.
+            QList<Agent> remaining;
+            for (const Agent &a : cfg.agents()) {
+                if (a.id != QStringLiteral("kimi-code"))
+                    remaining.append(a);
+            }
+            cfg.setAgents(remaining);
+            cfg.setRemovedIds({QStringLiteral("kimi-code")});
+            QVERIFY(cfg.save());
         }
-        {
-            QFile f(legacyDir.path() + QStringLiteral("/agent_state.json"));
-            QVERIFY(f.open(QIODevice::WriteOnly));
-            f.write("{\"legacy-agent\":{\"setupDone\":true}}");
-        }
-
-        AgentConfig::migrateLegacyUserData(legacyDir.path());
-
-        // Both files were copied to the current location...
-        QVERIFY(QFile::exists(AgentConfig::configFilePath()));
-        QVERIFY(QFile::exists(AgentConfig::userDataDir()
-                              + QStringLiteral("/agent_state.json")));
-        // ...while the originals stay behind as a fallback for older builds.
-        QVERIFY(QFile::exists(legacyConfig));
-
-        AgentConfig migrated;
-        migrated.load();
-        QCOMPARE(migrated.title(), QStringLiteral("Legacy Title"));
-        bool found = false;
-        for (const Agent &a : migrated.agents())
-            found = found || a.id == QStringLiteral("legacy-agent");
-        QVERIFY(found);
-
-        // A config already present in the new location always wins.
-        {
-            QFile f(AgentConfig::configFilePath());
-            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
-            QJsonObject current;
-            current[QStringLiteral("title")] = QStringLiteral("Current Title");
-            current[QStringLiteral("agents")] = QJsonArray();
-            f.write(QJsonDocument(current).toJson());
-        }
-        AgentConfig::migrateLegacyUserData(legacyDir.path());
-        AgentConfig current;
-        current.load();
-        QCOMPARE(current.title(), QStringLiteral("Current Title"));
+        AgentConfig reloaded;
+        reloaded.load();
+        QVERIFY(reloaded.removedIds().contains(QStringLiteral("kimi-code")));
+        for (const Agent &a : reloaded.agents())
+            QVERIFY2(a.id != "kimi-code", "deleted built-in must not come back");
+        // The other built-ins are all there.
+        QCOMPARE(reloaded.agents().size(), AgentConfig::defaultAgentIds().size() - 1);
     }
 
     void testModelInsertRemove()
@@ -269,6 +286,34 @@ private slots:
         QVERIFY(launcher.isDefaultAgent(QStringLiteral("opencode")));
         QVERIFY(!launcher.isDefaultAgent(QStringLiteral("my-agent")));
         QVERIFY(launcher.configFilePath().endsWith(QStringLiteral("agents.json")));
+    }
+
+private:
+    // Write an agents.json into the test-mode data directory.
+    static void writeConfig(const QJsonObject &root)
+    {
+        QDir().mkpath(AgentConfig::userDataDir());
+        QFile f(AgentConfig::configFilePath());
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write(QJsonDocument(root).toJson());
+    }
+
+    // The shipped definition of a built-in agent.
+    static Agent bundledAgent(const QString &id)
+    {
+        for (const Agent &a : AgentConfig::loadDefaults()) {
+            if (a.id == id)
+                return a;
+        }
+        return {};
+    }
+
+    static QStringList idsOf(const QList<Agent> &agents)
+    {
+        QStringList ids;
+        for (const Agent &a : agents)
+            ids.append(a.id);
+        return ids;
     }
 };
 

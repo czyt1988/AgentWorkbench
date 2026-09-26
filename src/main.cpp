@@ -33,13 +33,14 @@ int main(int argc, char *argv[])
         app.installTranslator(&translator);
 
     AgentConfig config;
-    config.load(); // loads or seeds default agents.json
+    config.load(); // reads agents.json, re-applying the bundled default launchers
 
     AgentModel model;
     model.setAgents(config.agents());
 
     AgentLauncher launcher(&model);
-    // Deletion records for built-in agents, persisted in agents.json.
+    // Deletion records for built-in agents, persisted in agents.json so the
+    // shipped definition is not re-applied to them on the next start.
     launcher.setRemovedIds(config.removedIds());
     // Root window title, preserved by the launcher across config saves.
     launcher.setTitle(config.title());
