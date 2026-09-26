@@ -14,18 +14,14 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 # L0 infrastructure library (src/core). See specs/01-architecture.md §4.1.
 add_subdirectory(src/core)
+# L2 agents domain (src/agents). See specs/01-architecture.md §4.3.
+add_subdirectory(src/agents)
 
 set(APP_SOURCES
     src/main.cpp
-    src/AgentConfig.cpp
-    src/AgentModel.cpp
-    src/AgentLauncher.cpp
 )
 
 set(APP_HEADERS
-    src/AgentConfig.h
-    src/AgentModel.h
-    src/AgentLauncher.h
 )
 
 qt_add_executable(AgentWorkbench
@@ -61,6 +57,7 @@ qt_add_resources(AgentWorkbench "app_resources"
 )
 
 target_link_libraries(AgentWorkbench PRIVATE
+    awb_agents
     awb_core
     Qt6::Core
     Qt6::Gui

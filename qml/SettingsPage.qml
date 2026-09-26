@@ -82,7 +82,7 @@ Page {
                     background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#f38ba8", 1.3) : (parent.hovered ? Qt.darker("#f38ba8", 1.15) : "#f38ba8") }
                     contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
-                        if (!launcher.removeAgent(deleteConfirmPopup.pendingId))
+                        if (!agents.removeAgent(deleteConfirmPopup.pendingId))
                             errorPopup.open()
                         deleteConfirmPopup.close()
                     }
@@ -134,7 +134,7 @@ Page {
             }
             Label {
                 Layout.fillWidth: true
-                text: launcher.configFilePath()
+                text: agents.configFilePath()
                 color: "#89b4fa"
                 font.pixelSize: 12
                 font.family: "Consolas, Monaco, monospace"
@@ -206,7 +206,7 @@ Page {
                 spacing: 8
 
                 Repeater {
-                    model: agentModel
+                    model: agents.model
 
                     delegate: Rectangle {
                         Layout.fillWidth: true
@@ -277,7 +277,7 @@ Page {
                                     deleteConfirmPopup.pendingName = model.name
                                     deleteConfirmPopup.pendingRunning = model.running
                                     deleteConfirmPopup.pendingBuiltin =
-                                        launcher.isDefaultAgent(model.agentId)
+                                        agents.isDefaultAgent(model.agentId)
                                     deleteConfirmPopup.open()
                                 }
                             }
@@ -292,7 +292,7 @@ Page {
             background: Rectangle { color: "transparent" }
             contentItem: Label { text: parent.text; color: "#7f849c"; font.pixelSize: 12 }
             onClicked: {
-                if (!launcher.restoreDefaults())
+                if (!agents.restoreDefaults())
                     errorPopup.open()
             }
         }

@@ -40,7 +40,7 @@ Item {
         onTriggered: { root.flashing = false; root.flashMessage = "" }
     }
     Connections {
-        target: launcher
+        target: agents
         function onLaunchFailed(id, message) {
             if (id === root.agentId_p) {
                 root.flashMessage = message
@@ -70,7 +70,7 @@ Item {
     onInstalling_pChanged: if (installing_p) { consoleVisible = true; consoleHideTimer.stop() }
     onSetupping_pChanged: if (setupping_p) { consoleVisible = true; consoleHideTimer.stop() }
     Connections {
-        target: launcher
+        target: agents
         function onInstallFinished(id, success, message) {
             if (id !== root.agentId_p)
                 return
@@ -108,9 +108,9 @@ Item {
             acceptedButtons: Qt.LeftButton
             onClicked: {
                 if (root.running_p)
-                    launcher.openWeb(root.agentId_p)
+                    agents.openWeb(root.agentId_p)
                 else if (!root.launching_p && !root.setupping_p)
-                    launcher.launch(root.agentId_p)
+                    agents.launch(root.agentId_p)
             }
         }
 
@@ -128,9 +128,9 @@ Item {
                 text: root.running_p ? qsTr("Close") : qsTr("Start")
                 onTriggered: {
                     if (root.running_p)
-                        launcher.stop(root.agentId_p)
+                        agents.stop(root.agentId_p)
                     else
-                        launcher.launch(root.agentId_p)
+                        agents.launch(root.agentId_p)
                 }
             }
             MenuItem {
@@ -143,9 +143,9 @@ Item {
                 enabled: !root.installing_p && !root.running_p && root.installCommand_p.length > 0
                 onTriggered: {
                     if (root.installed_p)
-                        launcher.updateTool(root.agentId_p)
+                        agents.updateTool(root.agentId_p)
                     else
-                        launcher.install(root.agentId_p)
+                        agents.install(root.agentId_p)
                 }
             }
             MenuItem {
@@ -163,12 +163,12 @@ Item {
             }
             MenuItem {
                 text: qsTr("Open config folder")
-                onTriggered: launcher.openConfigDir(root.agentId_p)
+                onTriggered: agents.openConfigDir(root.agentId_p)
             }
             MenuItem {
                 text: qsTr("Re-initialize")
                 enabled: root.setupCommand_p.length > 0
-                onTriggered: launcher.resetSetup(root.agentId_p)
+                onTriggered: agents.resetSetup(root.agentId_p)
             }
         }
 
@@ -239,7 +239,7 @@ Item {
                             flashTimer.restart()
                             return
                         }
-                        launcher.install(root.agentId_p)
+                        agents.install(root.agentId_p)
                     }
                 }
             }
@@ -297,7 +297,7 @@ Item {
                             flashTimer.restart()
                             return
                         }
-                        launcher.updateTool(root.agentId_p)
+                        agents.updateTool(root.agentId_p)
                     }
                     }
                 }
@@ -508,9 +508,9 @@ Item {
                 }
                 onClicked: {
                     if (root.running_p)
-                        launcher.openWeb(root.agentId_p)
+                        agents.openWeb(root.agentId_p)
                     else
-                        launcher.launch(root.agentId_p)
+                        agents.launch(root.agentId_p)
                 }
             }
 
@@ -577,7 +577,7 @@ Item {
                 ToolTip.delay: 300
                 onClicked: {
                     root.stopping = true
-                    if (!launcher.stop(root.agentId_p))
+                    if (!agents.stop(root.agentId_p))
                         root.stopping = false
                 }
             }
@@ -635,7 +635,7 @@ Item {
                     onClicked: {
                         forceStopConfirm.close()
                         root.stopping = true
-                        launcher.forceStop(root.agentId_p)
+                        agents.forceStop(root.agentId_p)
                     }
                 }
                 Button {

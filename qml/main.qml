@@ -21,7 +21,7 @@ ApplicationWindow {
     onClosing: function(close) {
         if (exitConfirmed)
             return
-        if (launcher.hasLaunchedAgents()) {
+        if (agents.hasLaunchedAgents()) {
             close.accepted = false
             exitConfirmPopup.open()
         }
@@ -84,8 +84,8 @@ ApplicationWindow {
                         // Python badge
                         Rectangle {
                             id: pythonBadge
-                            readonly property bool installed: launcher.pythonInstalled
-                            readonly property string version: launcher.pythonVersion
+                            readonly property bool installed: agents.pythonInstalled
+                            readonly property string version: agents.pythonVersion
                             radius: 11
                             implicitWidth: pyBadgeLayout.implicitWidth + 20
                             implicitHeight: 24
@@ -126,8 +126,8 @@ ApplicationWindow {
                         // Node.js badge
                         Rectangle {
                             id: nodeBadge
-                            readonly property bool installed: launcher.nodeInstalled
-                            readonly property string version: launcher.nodeVersion
+                            readonly property bool installed: agents.nodeInstalled
+                            readonly property string version: agents.nodeVersion
                             radius: 11
                             implicitWidth: nodeBadgeLayout.implicitWidth + 20
                             implicitHeight: 24
@@ -175,7 +175,7 @@ ApplicationWindow {
                     spacing: 20
 
                     Repeater {
-                        model: agentModel
+                        model: agents.model
                         delegate: AgentCard {
                             width: 260
                             onConfigureRequested: function(id) {
@@ -321,7 +321,7 @@ ApplicationWindow {
                     background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#89b4fa", 1.3) : (parent.hovered ? Qt.darker("#89b4fa", 1.15) : "#89b4fa") }
                     contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
-                        launcher.stopAll()
+                        agents.stopAll()
                         exitConfirmPopup.close()
                         window.exitConfirmed = true
                         window.close()
@@ -406,7 +406,7 @@ ApplicationWindow {
     }
 
     Connections {
-        target: launcher
+        target: agents
         function onLaunchFailed(id, message) {
             errorPopup.message = message
             errorPopup.open()

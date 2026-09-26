@@ -10,7 +10,7 @@ Page {
 
     property string agentId: ""
     readonly property bool isAdd: agentId.length === 0
-    property var agentData: agentId.length > 0 ? agentModel.agent(agentId) : ({})
+    property var agentData: agentId.length > 0 ? agents.model.agent(agentId) : ({})
 
     background: Rectangle { color: "#1e1e2e" }
 
@@ -28,7 +28,7 @@ Page {
         const t = idField.text.trim()
         if (t.length === 0)
             return true
-        return /^[A-Za-z0-9_-]+$/.test(t) && agentModel.indexOf(t) < 0
+        return /^[A-Za-z0-9_-]+$/.test(t) && agents.model.indexOf(t) < 0
     }
     readonly property bool formValid: nameValid && commandValid && webUrlValid
                                       && colorValid && cardColorValid && idValid
@@ -51,9 +51,9 @@ Page {
         let ok = false
         if (isAdd) {
             fields["id"] = idField.text.trim()
-            ok = launcher.addAgent(fields)
+            ok = agents.addAgent(fields)
         } else {
-            ok = launcher.updateAgentFull(page.agentId, fields)
+            ok = agents.updateAgentFull(page.agentId, fields)
         }
         if (ok)
             page.StackView.view.pop()
@@ -503,7 +503,7 @@ Page {
             }
             Label {
                 Layout.fillWidth: true
-                text: launcher.configFilePath()
+                text: agents.configFilePath()
                 color: "#89b4fa"
                 font.pixelSize: 12
                 font.family: "Consolas, Monaco, monospace"

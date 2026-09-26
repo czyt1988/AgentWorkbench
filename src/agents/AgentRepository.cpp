@@ -1,26 +1,23 @@
-#include "AgentConfig.h"
+#include "agents/AgentRepository.h"
 
 #include "core/IconResolver.h"
 #include "core/JsonStore.h"
-#include "core/OpResult.h"
-#include "core/Paths.h"
 
-#include <QDir>
 #include <QFile>
-#include <QFileInfo>
-#include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
-#include <QStandardPaths>
-#include <QUrl>
+
+#include <algorithm>
+
+namespace awb::agents {
 
 namespace {
 
-// Persisted form of one agent — the single place that decides which fields
-// reach agents.json.
-QJsonObject agentObject(const Agent &a)
+// Persisted form of one definition — the single place that decides which
+// fields reach agents.json.
+QJsonObject definitionObject(const AgentDefinition &a)
 {
     QJsonObject o;
     o[QStringLiteral("id")] = a.id;
@@ -39,19 +36,29 @@ QJsonObject agentObject(const Agent &a)
     return o;
 }
 
-QJsonArray agentsArray(const QList<Agent> &agents)
+QJsonArray definitionsArray(const QList<AgentDefinition> &agents)
 {
     QJsonArray arr;
-    for (const Agent &a : agents)
-        arr.append(agentObject(a));
+    for (const AgentDefinition &a : agents)
+        arr.append(definitionObject(a));
     return arr;
 }
 
 } // namespace
 
-void AgentConfig::load()
+AgentRepository::AgentRepository(const QString &dataRoot)
+    : m_dataRoot(dataRoot)
 {
-    m_agents.clear();
+}
+
+QString AgentRepository::configFilePath() const
+{
+    return m_dataRoot + QStringLiteral("/agents.json");
+}
+
+void AgentRepository::load()
+{
+    m_definitions.clear();
     m_removedIds.clear();
 
     QByteArray data;
@@ -61,7 +68,7 @@ void AgentConfig::load()
             data = file.readAll();
     }
     if (!data.isEmpty()) {
-        m_agents = parse(data);
+        m_definitions = parse(data);
 
         //0.4.0: the root "title" field no longer drives the window title —
         // that lives in settings.json now. Hint users who still have one,
@@ -72,7 +79,7 @@ void AgentConfig::load()
                                         .value(QStringLiteral("title"))
                                         .toString();
         if (!legacyTitle.isEmpty()
-            && QFile::exists(userDataDir() + QStringLiteral("/settings.json"))) {
+            && QFile::exists(m_dataRoot + QStringLiteral("/settings.json"))) {
             qInfo().noquote() << QStringLiteral(
                 "agents.json: the root \"title\" field is ignored; set the "
                 "window title in Settings (settings.json window.title) "
@@ -83,9 +90,10 @@ void AgentConfig::load()
     // Built-in agents always come from the bundled default, so the on-disk
     // file only decides which of them the user deleted, plus the agents the
     // user added on top.
-    const QList<Agent> synced = withBuiltinDefaults(m_agents, m_removedIds);
-    const bool changed = agentsArray(synced) != agentsArray(m_agents);
-    m_agents = synced;
+    const QList<AgentDefinition> synced =
+        withBuiltinDefaults(m_definitions, m_removedIds);
+    const bool changed = definitionsArray(synced) != definitionsArray(m_definitions);
+    m_definitions = synced;
 
     // Give agents the user added without a color one, so the card renders;
     // either change is persisted, which keeps the on-disk file matching what
@@ -95,24 +103,25 @@ void AgentConfig::load()
         save();
 }
 
-bool AgentConfig::save()
+bool AgentRepository::save()
 {
     const QString path = configFilePath();
 
     // A config that never diverged from the shipped default is written as the
     // bundled file byte for byte: with no user-added agents and no deletions,
-    // ~/.AgentWorkbench/agents.json stays an exact copy of
+    // <dataRoot>/agents.json stays an exact copy of
     // config/default_agents.json, which keeps the two diffable while working
     // on the default launcher list.
-    const QList<Agent> defaults = loadDefaults();
-    if (m_removedIds.isEmpty() && agentsArray(m_agents) == agentsArray(defaults)) {
+    const QList<AgentDefinition> defaults = loadDefaults();
+    if (m_removedIds.isEmpty()
+        && definitionsArray(m_definitions) == definitionsArray(defaults)) {
         QFile bundled(QStringLiteral(":/config/default_agents.json"));
         if (bundled.open(QIODevice::ReadOnly))
-            return awb::core::JsonStore::writeBytes(path, bundled.readAll()).ok;
+            return core::JsonStore::writeBytes(path, bundled.readAll()).ok;
     }
 
     QJsonObject root;
-    root[QStringLiteral("agents")] = agentsArray(m_agents);
+    root[QStringLiteral("agents")] = definitionsArray(m_definitions);
     if (!m_removedIds.isEmpty()) {
         QJsonArray removed;
         for (const QString &id : m_removedIds)
@@ -122,33 +131,33 @@ bool AgentConfig::save()
 
     // Atomic, consistently indented (core::JsonStore is the only writer of
     // configuration files).
-    return awb::core::JsonStore::writeFile(path, root).ok;
+    return core::JsonStore::writeFile(path, root).ok;
 }
 
-QString AgentConfig::userDataDir()
+bool AgentRepository::restoreDefaults(const QList<AgentDefinition> &current)
 {
-    // The data root lives in core::Paths (test-mode aware, single source).
-    return awb::core::Paths::dataRoot();
+    m_removedIds.clear();
+    m_definitions = withBuiltinDefaults(current, QStringList());
+    return save();
 }
 
-QString AgentConfig::configFilePath()
+bool AgentRepository::isDefaultAgent(const QString &id) const
 {
-    return userDataDir() + QStringLiteral("/agents.json");
+    return defaultAgentIds().contains(id);
 }
 
-QList<Agent> AgentConfig::parse(const QByteArray &data)
+QList<AgentDefinition> AgentRepository::parse(const QByteArray &data)
 {
-    QList<Agent> result;
+    QList<AgentDefinition> result;
     const QJsonDocument doc = QJsonDocument::fromJson(data);
     const QJsonObject root = doc.object();
-    m_removedIds.clear();
     const QJsonArray removed = root.value(QStringLiteral("removed")).toArray();
     for (const QJsonValue &v : removed)
         m_removedIds.append(v.toString());
     const QJsonArray arr = root.value(QStringLiteral("agents")).toArray();
     for (const QJsonValue &v : arr) {
         const QJsonObject o = v.toObject();
-        Agent a;
+        AgentDefinition a;
         a.id = o.value(QStringLiteral("id")).toString();
         a.name = o.value(QStringLiteral("name")).toString();
         a.command = o.value(QStringLiteral("command")).toString();
@@ -168,14 +177,14 @@ QList<Agent> AgentConfig::parse(const QByteArray &data)
     return result;
 }
 
-QList<Agent> AgentConfig::withBuiltinDefaults(const QList<Agent> &current,
-                                              const QStringList &removedIds)
+QList<AgentDefinition> AgentRepository::withBuiltinDefaults(
+    const QList<AgentDefinition> &current, const QStringList &removedIds)
 {
-    const QList<Agent> defaults = loadDefaults();
+    const QList<AgentDefinition> defaults = loadDefaults();
 
-    QList<Agent> result;
+    QList<AgentDefinition> result;
     result.reserve(defaults.size() + current.size());
-    for (const Agent &def : defaults) {
+    for (const AgentDefinition &def : defaults) {
         // Deleted in the Settings page — stays deleted.
         if (removedIds.contains(def.id))
             continue;
@@ -183,9 +192,10 @@ QList<Agent> AgentConfig::withBuiltinDefaults(const QList<Agent> &current,
     }
 
     // Whatever the user added on top keeps its own definition and order.
-    for (const Agent &a : current) {
-        const bool builtin = std::any_of(defaults.cbegin(), defaults.cend(),
-            [&](const Agent &def) { return def.id == a.id; });
+    for (const AgentDefinition &a : current) {
+        const bool builtin = std::any_of(
+            defaults.cbegin(), defaults.cend(),
+            [&](const AgentDefinition &def) { return def.id == a.id; });
         if (!builtin)
             result.append(a);
     }
@@ -194,22 +204,23 @@ QList<Agent> AgentConfig::withBuiltinDefaults(const QList<Agent> &current,
 
 // --- Palette color assignment -----------------------------------------------
 
-bool AgentConfig::assignPaletteColors()
+bool AgentRepository::assignPaletteColors()
 {
     bool changed = false;
-    for (int i = 0; i < m_agents.size(); ++i) {
-        if (m_agents[i].color.isEmpty()) {
-            m_agents[i].color = paletteColorAt(i);
+    for (int i = 0; i < m_definitions.size(); ++i) {
+        if (m_definitions[i].color.isEmpty()) {
+            m_definitions[i].color = paletteColorAt(i);
             changed = true;
         }
     }
     return changed;
 }
 
-QString AgentConfig::paletteColorAt(int index)
+QString AgentRepository::paletteColorAt(int index)
 {
     // Catppuccin Mocha palette — vibrant colors that read well on the dark
-    // card background (#313244).
+    // card background (#313244). S3 replaces this with the current theme's
+    // agentPalette (specs/03 S2-T2).
     static const QStringList palette = {
         QStringLiteral("#f38ba8"), // Red
         QStringLiteral("#fab387"), // Peach
@@ -225,34 +236,34 @@ QString AgentConfig::paletteColorAt(int index)
 
 // --- Icon resolution --------------------------------------------------------
 
-QString AgentConfig::resolveIcon(const QString &raw)
+QString AgentRepository::resolveIcon(const QString &raw)
 {
     // The application-level fallback lives here; core never hardcodes an
     // app resource path (01-architecture.md §4.1).
-    return awb::core::IconResolver::resolve(
-        raw, QStringLiteral("qrc:/icons/default.svg"));
+    return core::IconResolver::resolve(raw,
+                                       QStringLiteral("qrc:/icons/default.svg"));
 }
 
 // --- Default config helpers ---------------------------------------------------
 
-QList<Agent> AgentConfig::loadDefaults()
+QList<AgentDefinition> AgentRepository::loadDefaults()
 {
     QFile def(QStringLiteral(":/config/default_agents.json"));
     if (!def.open(QIODevice::ReadOnly))
         return {};
-    return AgentConfig().parse(def.readAll());
+    return AgentRepository(QString()).parse(def.readAll());
 }
 
-QStringList AgentConfig::defaultAgentIds()
+QStringList AgentRepository::defaultAgentIds()
 {
     QStringList ids;
-    const QList<Agent> defaults = loadDefaults();
-    for (const Agent &a : defaults)
+    const QList<AgentDefinition> defaults = loadDefaults();
+    for (const AgentDefinition &a : defaults)
         ids.append(a.id);
     return ids;
 }
 
-QString AgentConfig::slugFromName(const QString &name)
+QString AgentRepository::slugFromName(const QString &name)
 {
     QString s = name.toLower().trimmed();
     s.remove(QRegularExpression(QStringLiteral("[^a-z0-9\\s_-]")));
@@ -266,3 +277,5 @@ QString AgentConfig::slugFromName(const QString &name)
         s = QStringLiteral("agent");
     return s;
 }
+
+} // namespace awb::agents

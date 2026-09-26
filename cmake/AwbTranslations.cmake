@@ -8,10 +8,10 @@
 
 set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
-    ${CMAKE_SOURCE_DIR}/src/AgentConfig.cpp
-    ${CMAKE_SOURCE_DIR}/src/AgentModel.cpp
-    ${CMAKE_SOURCE_DIR}/src/AgentLauncher.cpp
     ${CMAKE_SOURCE_DIR}/src/core/LegacyImport.cpp
+    ${CMAKE_SOURCE_DIR}/src/agents/AgentRuntime.cpp
+    ${CMAKE_SOURCE_DIR}/src/agents/AgentScripts.cpp
+    ${CMAKE_SOURCE_DIR}/src/agents/AgentsFacade.cpp
     ${CMAKE_SOURCE_DIR}/qml/main.qml
     ${CMAKE_SOURCE_DIR}/qml/AgentCard.qml
     ${CMAKE_SOURCE_DIR}/qml/AgentEditPage.qml

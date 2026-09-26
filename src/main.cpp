@@ -1,8 +1,7 @@
-#include "AgentConfig.h"
-#include "AgentLauncher.h"
-#include "AgentModel.h"
+#include "agents/AgentsFacade.h"
 #include "core/LegacyImport.h"
 #include "core/Logging.h"
+#include "core/Paths.h"
 #include "core/Settings.h"
 
 #include <QCoreApplication>
@@ -42,26 +41,19 @@ int main(int argc, char *argv[])
     // once by the UI below.
     QString legacyNotice;
     const bool legacyImported = awb::core::LegacyImport::runOnce(
-        AgentConfig::userDataDir(), &legacyNotice);
+        awb::core::Paths::dataRoot(), &legacyNotice);
 
     // Typed settings.json access; written with defaults on the very first
     // start so the file exists for the UI and for the legacy-title hint in
-    // AgentConfig::load().
+    // AgentRepository::load().
     awb::core::Settings settings;
     if (!QFile::exists(awb::core::Settings::settingsFilePath()))
         settings.save();
 
-    AgentConfig config;
-    config.load(); // reads agents.json, re-applying the bundled default launchers
-
-    AgentModel model;
-    model.setAgents(config.agents());
-
-    AgentLauncher launcher(&model);
-    // Deletion records for built-in agents, persisted in agents.json so the
-    // shipped definition is not re-applied to them on the next start.
-    launcher.setRemovedIds(config.removedIds());
-    launcher.start();
+    // The agents feature: repository (agents.json), model, runtime, health
+    // monitor — everything QML reaches through the `agents` global.
+    awb::agents::AgentsFacade agents(&settings, awb::core::Paths::dataRoot());
+    agents.start();
 
     QQmlApplicationEngine engine;
     // Prefer the QML modules deployed next to the executable. Without this,
@@ -71,8 +63,7 @@ int main(int argc, char *argv[])
     // "module ... is not installed".
     engine.addImportPath(QCoreApplication::applicationDirPath()
                          + QStringLiteral("/qml"));
-    engine.rootContext()->setContextProperty(QStringLiteral("agentModel"), &model);
-    engine.rootContext()->setContextProperty(QStringLiteral("launcher"), &launcher);
+    engine.rootContext()->setContextProperty(QStringLiteral("agents"), &agents);
     // One-shot notice: non-empty only on the first start after adopting the
     // legacy AgentLauncher data directory.
     engine.rootContext()->setContextProperty(

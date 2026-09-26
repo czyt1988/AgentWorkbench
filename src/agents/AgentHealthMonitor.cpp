@@ -1,0 +1,53 @@
+#include "agents/AgentHealthMonitor.h"
+
+#include "agents/AgentModel.h"
+#include "core/HttpProbe.h"
+
+#include <QTimer>
+
+namespace awb::agents {
+
+AgentHealthMonitor::AgentHealthMonitor(AgentModel *model, int intervalMs,
+                                       QObject *parent)
+    : QObject(parent)
+    , m_model(model)
+    , m_intervalMs(intervalMs)
+    , m_probe(new core::HttpProbe(this))
+    , m_timer(new QTimer(this))
+{
+    connect(m_timer, &QTimer::timeout, this, &AgentHealthMonitor::checkAll);
+    connect(m_probe, &core::HttpProbe::finished, this,
+            [this](const QString &url, bool up) {
+                // One probe result applies to every agent pointing at the
+                // URL (0.3.0 issued one request per agent; same outcome).
+                const QList<AgentDefinition> &definitions =
+                    m_model->definitions();
+                for (const AgentDefinition &d : definitions) {
+                    if (d.webUrl == url)
+                        emit runningChanged(d.id, up);
+                }
+            });
+}
+
+void AgentHealthMonitor::start()
+{
+    checkAll();
+    m_timer->start(m_intervalMs);
+}
+
+void AgentHealthMonitor::recheckNow()
+{
+    checkAll();
+}
+
+void AgentHealthMonitor::checkAll()
+{
+    const QList<AgentDefinition> &definitions = m_model->definitions();
+    for (const AgentDefinition &d : definitions) {
+        if (d.webUrl.isEmpty())
+            continue;
+        m_probe->probe(d.webUrl);
+    }
+}
+
+} // namespace awb::agents
