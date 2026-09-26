@@ -19,6 +19,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/UiServices.cpp
     # application layer
     ${CMAKE_SOURCE_DIR}/src/workbench/BuiltinPages.cpp
+    ${CMAKE_SOURCE_DIR}/src/workbench/PluginServices.cpp
     ${CMAKE_SOURCE_DIR}/src/workbench/WorkbenchContext.cpp
     # shell QML
     ${CMAKE_SOURCE_DIR}/src/shell/qml/MainWindow.qml

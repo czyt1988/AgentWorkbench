@@ -1,5 +1,6 @@
 #include "agents/AgentsFacade.h"
 #include "core/LegacyImport.h"
+#include "core/PluginHost.h"
 #include "core/Logging.h"
 #include "core/OpResult.h"
 #include "core/Paths.h"
@@ -13,6 +14,7 @@
 #include "theme/ThemeRegistry.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
+#include "workbench/PluginServices.h"
 #include "workbench/EnvironmentService.h"
 #include "workbench/WorkbenchContext.h"
 
@@ -97,11 +99,52 @@ int main(int argc, char *argv[])
 
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
-                                               &agents, &webTabs);
+                                               &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
     awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
                                               &notifications, &skills);
+
+    // Plugins (specs/01 §9): discover manifests always (for the settings
+    // list), load libraries only when the user opted in — failures log and
+    // never block startup. (workbench is constructed before this block —
+    // see below; setDiscoveredPlugins runs after it.)
+    awb::core::PluginHost pluginHost;
+    const QList<awb::core::PluginHost::Manifest> manifests =
+        pluginHost.discover();
+    QVariantList pluginEntries;
+    QStringList enabledIds;
+    const bool pluginsOn = settings.pluginsOptions().enabled;
+    for (const awb::core::PluginHost::Manifest &manifest : manifests) {
+        const bool enabled = pluginsOn
+            && !settings.pluginsOptions().disabledIds.contains(manifest.id);
+        QVariantMap entry;
+        entry[QStringLiteral("id")] = manifest.id;
+        entry[QStringLiteral("name")] = manifest.name;
+        entry[QStringLiteral("version")] = manifest.version;
+        entry[QStringLiteral("description")] = manifest.description;
+        entry[QStringLiteral("enabled")] = enabled;
+        pluginEntries.append(entry);
+        if (enabled)
+            enabledIds.append(manifest.id);
+    }
+    workbench.setDiscoveredPlugins(pluginEntries);
+
+    awb::workbench::PluginServices pluginServices(
+        &nav, &ui, &notifications, &theme, &webTabs, &settings);
+    if (pluginsOn) {
+        QList<awb::core::PluginHost::Manifest> enabled;
+        for (const awb::core::PluginHost::Manifest &manifest : manifests) {
+            if (!enabledIds.contains(manifest.id))
+                continue;
+            // resolve() flips the flag loadEnabled() filters on — discover()
+            // leaves it false (specs/01 §9: disabled until the user opts in).
+            awb::core::PluginHost::Manifest copy = manifest;
+            copy.enabled = true;
+            enabled.append(copy);
+        }
+        pluginHost.loadEnabled(enabled, &pluginServices);
+    }
 
 #ifdef AWB_ENABLE_WEBENGINE
     // The embedded surface registers itself with the web domain; profiles

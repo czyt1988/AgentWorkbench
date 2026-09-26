@@ -525,6 +525,106 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
+            // --- Plugins (experimental, specs/01 §9) --------------------------
+            ASectionHeader {
+                text: qsTr("Plugins")
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+            }
+
+            // Trust notice — required by specs/01 §9.3.
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                text: workbench.pluginTrustNotice()
+                color: theme.warning
+                font.pixelSize: theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Enable plugins (experimental)")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: workbench.pluginsEnabled()
+                    onToggled: workbench.setPluginsEnabled(checked)
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                visible: workbench.pluginList().length === 0
+                text: qsTr("No plugins found. Drop one into the plugins folder (Settings -> data directory).")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingS
+
+                Repeater {
+                    model: workbench.pluginList()
+                    delegate: Rectangle {
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        height: 56
+                        radius: theme.radiusControl
+                        color: theme.surfaceBg
+                        border.color: theme.borderSubtle
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: theme.spacingM
+                            anchors.rightMargin: theme.spacingS
+                            spacing: theme.spacingM
+
+                            ColumnLayout {
+                                spacing: 0
+                                Layout.fillWidth: true
+                                Label {
+                                    text: (modelData.name || modelData.id)
+                                          + "  v" + (modelData.version || "?")
+                                    color: theme.textPrimary
+                                    font.pixelSize: theme.fontSizeBody
+                                    font.bold: true
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.description || ""
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeCaption
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            // Effective on the next start (§9.3).
+                            Switch {
+                                checked: modelData.enabled
+                                onToggled: workbench.setPluginEnabled(
+                                    modelData.id, checked)
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- Advanced ----------------------------------------------------
             ASectionHeader {
                 text: qsTr("Advanced")

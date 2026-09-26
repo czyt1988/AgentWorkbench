@@ -1,6 +1,7 @@
 #include "workbench/WorkbenchContext.h"
 
 #include "agents/AgentModel.h"
+#include "core/Settings.h"
 #include "agents/AgentsFacade.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
@@ -15,13 +16,15 @@ WorkbenchContext::WorkbenchContext(shell::NavigationModel *nav,
                                    shell::UiServices *ui,
                                    shell::Notifications *notifications,
                                    agents::AgentsFacade *agents,
-                                   web::WebTabsFacade *web, QObject *parent)
+                                   web::WebTabsFacade *web,
+                                   core::Settings *settings, QObject *parent)
     : QObject(parent)
     , m_nav(nav)
     , m_ui(ui)
     , m_notifications(notifications)
     , m_agents(agents)
     , m_web(web)
+    , m_settings(settings)
 {
     connect(m_nav, &shell::NavigationModel::currentPageChanged, this,
             &WorkbenchContext::currentPageChanged);
@@ -126,6 +129,58 @@ void WorkbenchContext::openFolder(const QString &path)
 void WorkbenchContext::openConfigDir(const QString &agentId)
 {
     m_agents->openConfigDir(agentId);
+}
+
+QVariantList WorkbenchContext::pluginList() const
+{
+    return m_discoveredPlugins;
+}
+
+void WorkbenchContext::setDiscoveredPlugins(const QVariantList &plugins)
+{
+    m_discoveredPlugins = plugins;
+}
+
+void WorkbenchContext::setPluginEnabled(const QString &id, bool enabled)
+{
+    QStringList disabled = m_settings->pluginsOptions().disabledIds;
+    if (enabled)
+        disabled.removeAll(id);
+    else if (!disabled.contains(id))
+        disabled.append(id);
+
+    // Persist through the settings object (typed access stays in core).
+    m_settings->setPluginsDisabledIds(disabled);
+    m_settings->save();
+
+    // Keep the snapshot handed to the settings page consistent.
+    for (QVariant &entry : m_discoveredPlugins) {
+        QVariantMap map = entry.toMap();
+        if (map.value(QStringLiteral("id")).toString() == id) {
+            map[QStringLiteral("enabled")] = enabled;
+            entry = map;
+        }
+    }
+}
+
+bool WorkbenchContext::pluginsEnabled() const
+{
+    return m_settings->pluginsOptions().enabled;
+}
+
+void WorkbenchContext::setPluginsEnabled(bool enabled)
+{
+    if (m_settings->pluginsOptions().enabled == enabled)
+        return;
+    m_settings->setPluginsGloballyEnabled(enabled);
+    m_settings->save();
+}
+
+QString WorkbenchContext::pluginTrustNotice() const
+{
+    return tr("Plugins run inside this application's process. Their trust "
+              "level is the same as the application itself — only enable "
+              "plugins you trust. Changes take effect after a restart.");
 }
 
 void WorkbenchContext::quit()

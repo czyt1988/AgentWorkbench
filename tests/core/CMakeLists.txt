@@ -9,6 +9,7 @@ qt_add_executable(tst_core
     tst_legacyimport.cpp
     tst_logging.cpp
     tst_paths.cpp
+    tst_pluginhost.cpp
     tst_processrunner.cpp
     tst_scrptrunner.cpp
     tst_settings.cpp

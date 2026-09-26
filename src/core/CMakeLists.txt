@@ -18,6 +18,8 @@ qt_add_library(awb_core STATIC
     OpResult.h
     Paths.cpp
     Paths.h
+    PluginHost.cpp
+    PluginHost.h
     ProcessRunner.cpp
     ProcessRunner.h
     ScriptRunner.cpp
@@ -29,6 +31,8 @@ qt_add_library(awb_core STATIC
 )
 
 target_include_directories(awb_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
+
+target_link_libraries(awb_core PUBLIC awb_plugin_api)
 
 target_link_libraries(awb_core
     PUBLIC

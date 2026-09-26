@@ -40,6 +40,7 @@ plugins:
           nav:
             - Home: index.md
             - Configuration: configuration.md
+            - Plugins: plugins.md
             - Development: development.md
             - WebEngine embedding (research): research/webengine-embedding.md
         - locale: zh
@@ -49,6 +50,7 @@ plugins:
             - 首页: index.md
             - 博客: blog.md
             - 配置: configuration.md
+            - 插件: plugins.md
             - 开发: development.md
             - WebEngine 内嵌调研: research/webengine-embedding.md
 

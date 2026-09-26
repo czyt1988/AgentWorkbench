@@ -328,6 +328,18 @@ void Settings::setSkillRoots(const QJsonArray &roots)
     emit valueChanged(QStringLiteral("skills.roots"));
 }
 
+void Settings::setPluginsDisabledIds(const QStringList &ids)
+{
+    m_plugins.disabledIds = ids;
+    emit valueChanged(QStringLiteral("plugins.disabledIds"));
+}
+
+void Settings::setPluginsGloballyEnabled(bool enabled)
+{
+    m_plugins.enabled = enabled;
+    emit valueChanged(QStringLiteral("plugins.enabled"));
+}
+
 OpResult Settings::save()
 {
     QJsonObject window;

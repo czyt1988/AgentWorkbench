@@ -106,6 +106,8 @@ public:
     void setWebSurface(const QString &surface);
     void setWebChromiumFlags(const QString &flags);
     void setSkillRoots(const QJsonArray &roots);
+    void setPluginsDisabledIds(const QStringList &ids);
+    void setPluginsGloballyEnabled(bool enabled);
 
     // Persist the whole settings object (atomic write).
     OpResult save();

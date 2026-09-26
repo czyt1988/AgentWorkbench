@@ -1,0 +1,19 @@
+{
+  "id": "hello",
+  "name": "Hello",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "description": "The smallest example plugin: adds a Hello page to the sidebar.",
+  "author": "AgentWorkbench",
+  "entry": "hello.dll",
+  "pages": [
+    {
+      "id": "hello",
+      "title": "Hello",
+      "icon": "qrc:/icons/bot.svg",
+      "source": "qrc:/hello/HelloPage.qml",
+      "section": "extensions",
+      "order": 50
+    }
+  ]
+}

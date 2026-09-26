@@ -18,6 +18,7 @@ include(cmake/AwbOptions.cmake)
 
 # Layered modules, bottom-up (specs/01-architecture.md §3):
 #   core -> theme -> {shell, agents, web} -> workbench -> app
+add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)
 add_subdirectory(src/core)      # L0 infrastructure
 add_subdirectory(src/theme)     # L1 theme engine
 add_subdirectory(src/agents)    # L2 agents domain
@@ -33,6 +34,13 @@ qt6_create_translation(QM_FILES
     ${AWB_TS_SOURCES}
     translations/agentworkbench_zh_CN.ts
 )
+# Example plugin (specs/01 §9.4): compiled only on demand; a POST_BUILD
+# step installs it into the developer's plugins directory so it can be
+# enabled in Settings -> Plugins.
+if (AWB_BUILD_PLUGIN_EXAMPLES)
+    add_subdirectory(examples/plugins/hello)
+endif()
+
 # L4 executable: assembly + QML module + all embedded resources (§4.9).
 add_subdirectory(app)
 

@@ -5,6 +5,8 @@ qt_add_library(awb_workbench STATIC
     BuiltinPages.h
     EnvironmentService.cpp
     EnvironmentService.h
+    PluginServices.cpp
+    PluginServices.h
     WorkbenchContext.cpp
     WorkbenchContext.h
 )

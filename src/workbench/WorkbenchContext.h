@@ -4,7 +4,11 @@
 #include <QObject>
 #include <QString>
 #include <QUrl>
+#include <QVariantList>
 
+namespace awb::core {
+class Settings;
+} // namespace awb::core
 namespace awb::agents {
 class AgentsFacade;
 } // namespace awb::agents
@@ -36,7 +40,7 @@ public:
     WorkbenchContext(shell::NavigationModel *nav, shell::UiServices *ui,
                      shell::Notifications *notifications,
                      agents::AgentsFacade *agents, web::WebTabsFacade *web,
-                     QObject *parent = nullptr);
+                     core::Settings *settings, QObject *parent = nullptr);
 
     QString currentPageId() const;
     QString legacyImportNotice() const { return m_legacyImportNotice; }
@@ -68,6 +72,19 @@ public:
     Q_INVOKABLE void openConfigDir(const QString &agentId);
     Q_INVOKABLE void quit();
 
+    // --- Plugins (experimental, specs/01 §9) -------------------------------
+    // Discovered plugins for the settings list:
+    // [{id,name,version,description,enabled}]. Effective on the NEXT start —
+    // libraries are loaded once at boot (specs/03 S7-T3).
+    Q_INVOKABLE QVariantList pluginList() const;
+    Q_INVOKABLE void setPluginEnabled(const QString &id, bool enabled);
+    // Master switch in Settings -> Plugins (default off, §9.3).
+    Q_INVOKABLE bool pluginsEnabled() const;
+    Q_INVOKABLE void setPluginsEnabled(bool enabled);
+    // The trust notice the settings page must show (§9.3).
+    Q_INVOKABLE QString pluginTrustNotice() const;
+    void setDiscoveredPlugins(const QVariantList &plugins);
+
 signals:
     void currentPageChanged();
     void legacyImportNoticeChanged();
@@ -78,7 +95,9 @@ private:
     shell::Notifications *m_notifications;
     agents::AgentsFacade *m_agents;
     web::WebTabsFacade *m_web;
+    core::Settings *m_settings;
     QString m_legacyImportNotice;
+    QVariantList m_discoveredPlugins;
 };
 
 } // namespace awb::workbench
