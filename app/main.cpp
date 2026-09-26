@@ -29,6 +29,7 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QLocale>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -48,10 +49,20 @@ int main(int argc, char *argv[])
 
     // Settings are read before QGuiApplication: the user's Chromium flags
     // must be injected BEFORE QtWebEngineQuick::initialize(), which itself
-    // has to run before QGuiApplication (specs/01 §4.9).
+    // has to run before QGuiApplication (specs/01 §4.9). The first-run save
+    // is deferred until after LegacyImport::runOnce — writing settings.json
+    // early would make its untouched-check (data root holds nothing but
+    // log/) fail forever.
     awb::core::Settings settings;
-    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
-        settings.save();
+    // Apply the configured rotation policy (logging.maxFileSize/maxFiles).
+    // The install() above must run first with the defaults — Settings may
+    // warn and those warnings belong on disk — so re-install only when the
+    // user actually customized the policy.
+    const awb::core::LoggingSettings logOpts = settings.loggingOptions();
+    if (logOpts.maxFileSize != awb::core::Logging::DEFAULT_MAX_FILE_SIZE
+        || logOpts.maxFiles != awb::core::Logging::DEFAULT_MAX_FILES)
+        awb::core::Logging::install(QString(), logOpts.maxFileSize,
+                                    logOpts.maxFiles);
     const QByteArray chromiumFlags =
         settings.webOptions().chromiumFlags.toUtf8();
     if (!chromiumFlags.isEmpty())
@@ -68,8 +79,12 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     // Load locale-appropriate translation from embedded :/i18n/ resources.
+    // locale.override forces a locale; empty follows the system (01 §7.2).
     QTranslator translator;
-    if (translator.load(QLocale(), QStringLiteral("agentworkbench"),
+    const QString forcedLocale = settings.locale().overrideName;
+    const QLocale locale = forcedLocale.isEmpty() ? QLocale()
+                                                  : QLocale(forcedLocale);
+    if (translator.load(locale, QStringLiteral("agentworkbench"),
                         QStringLiteral("_"), QStringLiteral(":/i18n")))
         app.installTranslator(&translator);
 
@@ -79,6 +94,11 @@ int main(int argc, char *argv[])
     QString legacyNotice;
     const bool legacyImported = awb::core::LegacyImport::runOnce(
         awb::core::Paths::dataRoot(), &legacyNotice);
+    // First run: materialize default settings.json only now — before this,
+    // the data root had to stay empty (except log/) for the legacy adoption
+    // check above (specs/01 §7.3).
+    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
+        settings.save();
 
     // 3) Assembly, dependency order from the bottom up:
     //    core -> theme -> shell -> agents -> workbench.
