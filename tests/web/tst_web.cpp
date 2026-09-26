@@ -143,6 +143,37 @@ private slots:
         QCOMPARE(web.activeTabId(), idB);
     }
 
+    // Closing a tab LEFT of the active one keeps the active tab pointing at
+    // the same tab (rows shift down) — the review's activeIndex regression.
+    void testCloseLeftOfActiveKeepsActiveTab()
+    {
+        Settings settings;
+        WebTabsFacade web(&settings);
+        web.registerSurface(QStringLiteral("embedded"),
+                            QStringLiteral("qrc:/fake/Surface.qml"));
+
+        QStringList ids;
+        for (int i = 0; i < 3; ++i) {
+            QVariantMap fields;
+            fields[QStringLiteral("agentId")] = QStringLiteral("agent-%1").arg(i);
+            fields[QStringLiteral("url")] =
+                QStringLiteral("http://127.0.0.1:%1").arg(6000 + i);
+            ids.append(web.openTab(fields));
+        }
+        // The last opened tab is active.
+        QCOMPARE(web.activeTabId(), ids.at(2));
+
+        // Close the FIRST tab: the active one must stay ids[2], not slip
+        // onto a neighbour.
+        web.closeTab(ids.at(0));
+        QCOMPARE(web.tabs()->rowCount(), 2);
+        QCOMPARE(web.activeTabId(), ids.at(2));
+
+        // Closing the active tab itself activates its right neighbour.
+        web.closeTab(ids.at(2));
+        QCOMPARE(web.activeTabId(), ids.at(1));
+    }
+
     // Past maxLiveTabs the least recently used inactive view is released
     // (tab kept, state "released" — 02 §6.5).
     void testLruRelease()

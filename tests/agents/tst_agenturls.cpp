@@ -42,6 +42,12 @@ private slots:
         def.tokenFile = tokenPath;
         QCOMPARE(AgentUrls::finalUrl(def),
                  QStringLiteral("http://127.0.0.1:4096#token=s3cret-value"));
+
+        // A webUrl that already carries a fragment joins with '&' — a
+        // second '#' would silently truncate the token (review regression).
+        def.webUrl = QStringLiteral("http://127.0.0.1:4096/#/console");
+        QCOMPARE(AgentUrls::finalUrl(def),
+                 QStringLiteral("http://127.0.0.1:4096/#/console&token=s3cret-value"));
     }
 
     void testTokenValueEdgeCases()

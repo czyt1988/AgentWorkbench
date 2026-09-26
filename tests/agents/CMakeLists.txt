@@ -1,11 +1,13 @@
 # tst_agents — the agents domain suite (specs/01 §11): repository sync
-# semantics, model roles, facade CRUD, script logging, URL/token handling.
+# semantics, model roles, facade CRUD, script logging, URL/token handling,
+# runtime launch/stop/force-stop (S2-T4).
 qt_add_executable(tst_agents
     tst_agents_main.cpp
     tst_agentmodel.cpp
     tst_agentrepository.cpp
     tst_agentscripts.cpp
     tst_agentsfacade.cpp
+    tst_agentruntime.cpp
     tst_agenturls.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
 )

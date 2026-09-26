@@ -7,6 +7,8 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
+#include <algorithm>
+
 #include "core/Settings.h"
 #include "skills/SkillModel.h"
 #include "skills/SkillScanner.h"
@@ -112,6 +114,46 @@ private slots:
                 docxFound = true;
         }
         QVERIFY(docxFound);
+    }
+
+    // One plugin ships SEVERAL skills: the dedup key includes the skill
+    // name, so a second skill is not mistaken for a version-duplicate of
+    // the first (review regression: only 1 of 2 skills survived).
+    void testMultiSkillPluginKeepsAllSkills()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString cache = tmp.path() + QStringLiteral("/cache");
+        writeSkill(cache + QStringLiteral("/bundle/0.5.1/skills/alpha"),
+                   "---\nname: alpha\n---\nx");
+        writeSkill(cache + QStringLiteral("/bundle/0.5.1/skills/beta"),
+                   "---\nname: beta\n---\ny");
+        // Older copy of the same bundle: its two skills must drop.
+        writeSkill(cache + QStringLiteral("/bundle/0.4.0/skills/alpha"),
+                   "---\nname: alpha\n---\nx");
+        writeSkill(cache + QStringLiteral("/bundle/0.4.0/skills/beta"),
+                   "---\nname: beta\n---\ny");
+
+        Settings settings;
+        SkillRoot root;
+        root.id = QStringLiteral("plugins");
+        root.label = QStringLiteral("Plugins");
+        root.path = cache + QStringLiteral("/*/*/skills");
+        root.kind = QStringLiteral("plugin");
+        root.dedupeScope = QStringLiteral("marketplace-plugin");
+        setRoots(&settings, { root });
+
+        SkillScanner scanner(&settings);
+        scanner.refresh();
+
+        // Both 0.5.1 skills survive; the two 0.4.0 copies drop.
+        QCOMPARE(scanner.lastStats().duplicatesDropped, 2);
+        QStringList names;
+        for (const SkillDefinition &skill : scanner.definitions())
+            names.append(skill.name);
+        std::sort(names.begin(), names.end());
+        QCOMPARE(names, QStringList({QStringLiteral("alpha"),
+                                     QStringLiteral("beta")}));
     }
 
     // A missing root is skipped with a warning — the scan still succeeds.
