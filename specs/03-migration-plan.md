@@ -21,7 +21,7 @@
 
 | 阶段 | 目标 | 关键交付 | 规模 | 依赖 |
 | --- | --- | --- | --- | --- |
-| **S0** | 改名为 AgentWorkbench，接管旧数据目录 | 新项目名/目标名/数据目录/翻译前缀；`LegacyImport`；构建脚本文案 | S | — |
+| **S0** | 改名为 AgentWorkbench，接管旧数据目录 | 新项目名/目标名/数据目录/翻译前缀；`LegacyImport`；GitHub 仓库与站点标识改名；构建脚本文案 | S | — |
 | **S1** | 抽出 `awb_core` | 7 个基础类型 + `tst_core`；构建脚本目标名同步 | M | S0 |
 | **S2** | 抽出 `awb_agents` | 定义/状态分离、6 个服务 + 门面、15 个旧用例各自归位；旧 UI 不变 | L | S1 |
 | **S3** | 主题引擎 + 现有 QML 令牌化 | `awb_theme` + 两套内置主题 + QML 零硬编码色 | M | S1 |
@@ -51,8 +51,21 @@
 | S0-T4 | 构建脚本与命令文案同步：`--target` 合法值、`--print-exe`、包装 bat 名、`--help` 文本 | `scripts/build.sh`、`scripts/package.sh` | `bash scripts/build.sh --clean --test` 一次通过（改名后 CMake 缓存必须清） |
 | S0-T5 | 默认标题、窗口默认尺寸（1440×900）与最小尺寸（1024×640）落到 QML | `qml/main.qml` | 窗口按新尺寸打开 |
 | S0-T6 | `agents.json` 根级 `title` 停用：读到有值时记 INFO 提示改到设置页（`settings.json` 尚未存在时忽略该提示） | `src/AgentConfig.cpp` | 测试 `testTitleIsIgnored` 新增并通过 |
+| S0-T7 | 仓库与站点标识改名（GitHub 端 + 本地远端 + 文档站点元数据） | `mkdocs.yml`、`README.md`、`README-zh.md`、`docs/*.md`、`docs/zh/*.md` | 见下方步骤清单 |
+| S0-T8 | 本地工作目录改名（可选，人工执行） | `C:\src\Qt\AgentLauncher` → `C:\src\Qt\AgentWorkbench` 及其构建目录 | 改名后 `bash scripts/build.sh --clean --test` 通过 |
 
-**提交**：`build: 项目改名为 AgentWorkbench 并接管旧数据目录`（S0-T1/T2/T4 可合一次，S0-T3 单独一次 `feat(core): 首次启动接管旧版 AgentLauncher 数据目录`）。
+**S0-T7 步骤清单**（GitHub 改名不可逆性低但影响外部链接，执行前确认 §9 TODO-7）：
+
+1. GitHub 端改名：`gh repo rename AgentWorkbench --repo czyt1988/AgentLauncher`（或在仓库设置页改）。GitHub 会把旧仓库 URL 永久重定向到新地址。
+2. 本地远端：`git remote set-url github https://github.com/czyt1988/AgentWorkbench.git`。**注意** `origin` 指向 Gitee 镜像 `gitee.com/czyt1988/start-agent`，不要改错那个。
+3. `mkdocs.yml`：
+   - `repo_url: https://github.com/czyt1988/AgentWorkbench`、`repo_name: czyt1988/AgentWorkbench`——现值 `https://github.com/AgentLauncher/AgentLauncher` 指向一个不存在的 owner，属既存错误，本次一并修正。
+   - `site_name: AgentWorkbench`。
+   - 若站点发布在 GitHub Pages 的项目路径下：`site_url` 与 `extra.alternate[].link` 的路径段从 `/AgentLauncher/` 改为 `/AgentWorkbench/`（现值为 `https://agentlauncher.dev` + `/AgentLauncher/`，两者互相矛盾，说明至少有一项过期；以实际发布方式为准，无法确认时保持域名、只改路径段，并在提交信息里说明）。
+4. 文档里的仓库 URL：`docs/zh/blog.md` 里的 `github.com/czyt1988/AgentLauncher` 等硬编码链接改为新地址；README 里的相对图片路径不受影响。
+5. 验收：`git remote -v` 指向新地址；浏览器访问旧仓库 URL 自动跳转；本地 `mkdocs build` 无死链（未装 mkdocs 就人工核对全部 `github.com` 出现处）。
+
+**S0 提交**：`build: 项目改名为 AgentWorkbench 并接管旧数据目录`（S0-T1/T2/T4 可合一次，S0-T3 单独一次 `feat(core): 首次启动接管旧版 AgentLauncher 数据目录`，S0-T7 单独一次 `docs: 仓库与文档站点改名`）。
 
 **风险**：改名后 `build/` 缓存属于旧项目，必须清；`.ts` 改名会让既有译文条目按新文件名重排，提交时确认中文译文未丢失（`lrelease` 无警告）。
 
@@ -191,7 +204,7 @@
 | --- | --- | --- | --- |
 | S8-T1 | 用户文档更新：`docs/configuration.md`、`docs/zh/configuration.md`（settings.json、主题文件、Skill 根目录、Web 选项） | `docs/` | 文档中的键名与 `Settings` 实现一致 |
 | S8-T2 | `docs/development.md`（+ zh）：模块图、构建选项、测试怎么跑、架构检查脚本 | `docs/` | 新加入的 agent 能只看这两页完成一次构建 |
-| S8-T3 | `CHANGELOG.md` / `CHANGELOG-zh.md` 写 0.4.0；`README.md` / `README-zh.md` 更新定位与截图 | 仓库根 | 截图与当前界面一致 |
+| S8-T3 | `CHANGELOG.md` / `CHANGELOG-zh.md` 写 0.4.0；`README.md` / `README-zh.md` 更新定位（从「启动器」到「工作台」）、功能列表与截图；`mkdocs.yml` 的 `site_description` 与 nav 补上主题 / 设置 / 插件等新页面 | 仓库根、`mkdocs.yml`、`docs/pic/` | 截图与当前界面一致；site 导航覆盖全部新功能 |
 | S8-T4 | `AGENTS.md` 更新：模块表、构建选项、约定（零字面色值、依赖规则、`specs/` 指向） | `AGENTS.md` | 文档与 `specs/` 不矛盾 |
 | S8-T5 | 人工验收清单签字（§6） | 本文 | 每项有结论 |
 
@@ -292,6 +305,8 @@
 | 非 ASCII 用户路径（`C:\Users\陈宗衍\…`） | 窄字符 API 打开文件失败 | 一律用 `QFile`/`QDir`/`QFileInfo`（core 层已封装），禁止 `std::ifstream`/`fopen` |
 | 工作区有其它在途改动 | 提交夹带无关文件 | 只 `git add` 本阶段涉及的文件，禁止 `git add -A` |
 | 改名后旧构建目录缓存 | 配置期报错或用了旧目标名 | S0 强制 `bash scripts/build.sh --clean` 一次，并在脚本里对项目名变化给出提示 |
+| 仓库改名导致外部链接、Pages 路径失效 | 从旧链接进来的人打不开、语言切换链接错位 | GitHub 会永久重定向旧仓库 URL；S0-T7 显式核对 `site_url` 与 `extra.alternate.link`；本地目录改名（S0-T8）后必须 `--clean` |
+| Gitee 镜像落后于 GitHub | 从 Gitee 拉代码的人拿到旧版本 | 本次不自动推远端（仓库约定：不 `git push`）；镜像同步由仓库所有者决定，见 TODO-7 |
 
 ---
 
@@ -326,5 +341,6 @@ agents/skills/web 三个领域模块才能各自独立测试。
 | TODO-2 | QML 查找栏（`findText`）未在 v1 提供 | 本文 §6.6 | S5 之后按需补 |
 | TODO-3 | 日志页（`logs`）未实现 | `02-ui-specification.md` §5 | P2 |
 | TODO-4 | 主题编辑器 UI、对比度检查工具 | `02-ui-specification.md` §9.5 | P2 |
-| TODO-5 | 是否升级 Qt 6.9/6.10 以缩小 Chromium 版本差 | `01-architecture.md` §12 | S5 验收后单独评估 |
+| TODO-5 | Qt 6.9/6.10 升级评估（Chromium 130/134） | 调研报告 §6 | **已决策本次不升**（`01-architecture.md` §12.1）；0.4.0 发布后单独评估 |
 | TODO-6 | 无 WebEngine 的瘦身发行包 | `01-architecture.md` §10 | S5-T8 一并决定 |
+| TODO-7 | 域名 `agentlauncher.dev` 与 Gitee 镜像 `czyt1988/start-agent` 是否跟随改名 | `01-architecture.md` §12.2 | 需仓库所有者决定；S0-T7 执行前确认，否则站点的 `site_url` 只能保持现状、只改路径段 |

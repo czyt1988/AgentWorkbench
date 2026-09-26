@@ -227,6 +227,7 @@ Web 视图获得焦点后，F5 / Esc / Ctrl+W / Ctrl+F 默认归 Chromium。需�
 | 构建时 `AWB_ENABLE_WEBENGINE=OFF` | `embedded` 表面不存在；`web.surface` 强制为 `external` |
 | 用户把 `web.surface` 设为 `external` | `openTab` 不建标签，直接系统浏览器打开 + 一条 info toast |
 | WebEngine 初始化失败（GPU 驱动等） | 启动时记 ERROR；打开标签时 toast 提示「内嵌视图不可用，已改用系统浏览器」，并在设置页给出 `chromiumFlags` 的建议填法（如 `--disable-gpu`） |
+| 页面用到了内嵌引擎不支持的能力（MP4/H.264 无法播放、页面按 Chrome 版本号判浏览器而拒绝工作） | 不做特殊处理、不伪装 UA；这些是 Qt 6.7.3 内嵌 Chromium 118 的已知限制（决策见 `01-architecture.md` §12.1）。工具栏的「在浏览器打开」是标准应对路径，用户文档里要写明这两条限制 |
 
 「在浏览器打开」在任何情况下都必须是可用的一等公民，不能藏在只有内嵌成功时才出现的菜单里。
 

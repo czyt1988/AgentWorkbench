@@ -497,12 +497,23 @@ WebEngine 部分（渲染、IME、DPI、剪贴板、拖放、全屏、通知、�
 
 ---
 
-## 12. 未决问题与当前建议
+## 12. 决策记录
 
-| 问题 | 建议 | 影响 |
+### 12.1 已定（实施时不要再重新讨论）
+
+| 决策 | 结论 | 理由与后果 |
 | --- | --- | --- |
-| 是否升级 Qt（6.7.3 → 6.9/6.10，Chromium 118 → 130/134） | **本次重构不升**（不引入额外变量），Web 功能稳定后单独评估再升 | 只影响 Chromium 版本与缺失的 H.264，见调研报告 §4.1 |
-| 是否需要「无 WebEngine」的瘦身发行包 | 保留 `AWB_ENABLE_WEBENGINE=OFF` 构建路径，但默认只发一个包 | 打包脚本增加 `--lean` 开关 |
-| 标签页释放策略默认值 | 关闭 = 销毁视图（profile 持久化，会话不丢）；失活 = `Frozen`；超 `maxLiveTabs` 时按 LRU 释放最久未用的冻结标签 | 内存 250–350 MB/视图，见调研 §4.2 |
-| QML 是否需要 `qmlcachegen` 全量编译 | 用 `qt_add_qml_module` 的默认行为即可，不做额外配置 | 构建期能更早发现 QML 语法问题 |
-| 仓库目录/远程名是否同步改为 AgentWorkbench | 本次只改 CMake 项目名、目标名、数据目录、翻译前缀；仓库目录与 GitHub 仓库名由人类另行决定 | 影响文档链接与 `docs/` 站点 URL |
+| Qt 版本 | **本次重构保持 Qt 6.7.3，不升级**（2026-09-26 决定） | 重构本身已经同时改动模块边界、UI 骨架和渲染方式，再叠加引擎版本变化，出问题无法归因。代价是内嵌引擎固定为 Chromium 118：无 H.264/MP4 播放、UA 误报 `Windows NT 6.2`。因此「在浏览器打开」必须始终可见可用（`02-ui-specification.md` §6.7），这些限制必须写进用户文档。升级评估见 §12.2。 |
+| 仓库与站点标识 | **GitHub 仓库改名为 AgentWorkbench**（2026-09-26 决定） | 与产品改名一致。落地步骤在 `03-migration-plan.md` S0-T7/T8；连带要改 `mkdocs.yml` 的 `repo_url`/`repo_name`（现值 `https://github.com/AgentLauncher/AgentLauncher` 与真实远端 `github.com/czyt1988/AgentLauncher` 不符，属既存错误，一并修正）、GitHub Pages 路径与 `extra.alternate.link`。 |
+| 主题文件格式 | 只支持 JSON | 见 §1.2：两种格式并存会让校验面翻倍，而 `ThemeLoader` 是独立一层，以后要加 XML 不必动调用方。 |
+| 标签页释放策略 | 关闭标签 = 销毁视图；失活 = `Frozen`；超 `maxLiveTabs` 按 LRU 释放为可恢复的 `released` | 会话靠每 agent 的持久 profile 保住，内存靠冻结回收（见 §12.2 调研数据）。 |
+| 无 WebEngine 的构建路径 | 保留 `AWB_ENABLE_WEBENGINE=OFF`，但默认只发布一个包（含 WebEngine） | 降低打包与用户认知成本；瘦身包等有人真的需要时再说。 |
+
+### 12.2 0.4.0 之后评估
+
+| 议题 | 现在的状态 |
+| --- | --- |
+| Qt 6.9 / 6.10 升级（Chromium 130 / 134） | 本次不做。内嵌 Web 功能稳定后单独评估，届时可把版本差从 35 个大版本缩到约 20 个，代价接近零代码改动（调研报告 §6）。 |
+| 域名 `agentlauncher.dev` 是否跟随改名 | 未定，取决于该域名是否真的在用；若站点实际发布在 GitHub Pages，`site_url` 与 `extra.alternate.link` 的路径段必须随仓库名同步。 |
+| Gitee 镜像 `gitee.com/czyt1988/start-agent` | 不在本次改名范围（它的名字本来就不是 AgentLauncher）；是否同步改名由仓库所有者决定，但**推送前必须确认两个远端的默认分支与提交内容一致**，避免镜像落后于重构。 |
+| 插件沙箱、插件市场、独立进程 | 见 §9.4，不在本次范围。 |
