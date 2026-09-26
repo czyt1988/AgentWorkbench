@@ -6,6 +6,18 @@
 
 AgentLauncher 是一个用 Qt6/QML + C++ 开发的桌面应用，通过卡片网格启动 AI 编码 agent 的 Web 界面。它**配置化驱动**：agent 的定义（命令、Web 地址、配置目录、颜色）都在 `agents.json` 里，而不是写在 C++ 中。
 
+## 重构中（必读）
+
+项目正在从「Agent 启动器」重构为「Agent 工作台 AgentWorkbench」：左侧边栏 + 右侧工作区的外壳、内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题，并把扁平 `src/` 拆成有依赖边界的模块。
+
+重构规格在 `specs/` 下，**动手改代码前先读**：
+
+- `specs/01-architecture.md` — 分层、模块划分、依赖规则、配置与数据文件、插件化基础
+- `specs/02-ui-specification.md` — 窗口骨架、侧边栏、各页面、主题文件与令牌规格
+- `specs/03-migration-plan.md` — 分阶段实施计划、文件与测试迁移映射、验收清单
+
+规格里的模块名、目标名、路径、公开类型名、配置键名、主题令牌名是契约：实现要与规格一致；确需改动时先改规格并写清理由。规格与代码冲突时以规格为准。
+
 ## 构建
 
 ```bash
@@ -38,6 +50,7 @@ config/        default_agents.json（打包为 Qt 资源）
 icons/         SVG 图标（打包为 Qt 资源）
 translations/  .ts 翻译源文件（构建时编译为 .qm，以 :/i18n/ 嵌入为资源）
 docs/          MkDocs 站点（英文 + zh/）
+specs/         重构规格（架构 / 界面 / 实施计划，见上文「重构中」）
 tests/         QtTest 单元测试（tst_core.cpp）
 scripts/       构建与打包：build.sh（配置 + 编译 + 可选测试）、package.sh（Release + windeployqt + zip）
 ```
@@ -91,13 +104,9 @@ Agent 也可以在设置页（右下角齿轮按钮）添加、编辑和删除�
 
 每完成一个完整任务就提交一次，不要只改不提交；提交前先跑 `bash scripts/build.sh --test`，确认能编译且测试通过。提交信息按 Conventional Commits 格式写：类型与 scope 用标准英文关键字（`feat`、`fix`、`docs`、`refactor`、`test`、`build`、`chore`；scope 用模块名，如 `launcher`、`settings`、`build`），描述与正文用中文，正文只说清楚「为什么这么改」。
 
-```text
-fix(launcher): 修正健康检查超时被当成未运行
+只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求。
 
-超时与连接被拒绝都算停止，导致 agent 已就绪时卡片仍显示为停止。
-```
-
-只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求，不要 `git push`。
+在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率
 
 ## 不要做
 
