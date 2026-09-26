@@ -89,9 +89,9 @@ ctest runs one executable per module plus the architecture gate:
 
 | Test | Covers |
 |---|---|
-| `check_architecture` | no literal colors in QML, no reverse/sideways module includes, English-only source strings, core/theme stay UI-free |
+| `check_architecture` | no literal colors in QML (hex or numeric `Qt.rgba`), no reverse/sideways module includes, English-only source strings, core/theme stay UI-free |
 | `tst_core` | paths, JSON store, settings, logging, process runner, script runner, HTTP probe, frontmatter of plugins, legacy import |
-| `tst_agents` | repository sync semantics, model roles, facade CRUD, script logging, URLs |
+| `tst_agents` | repository sync semantics, model roles, facade CRUD, script logging, URLs, runtime launch/stop/force-stop |
 | `tst_theme` | loader validation rules, registry override behaviour |
 | `tst_shell` | navigation registration, badges, window persistence, clipboard results |
 | `tst_web` | tab reuse, close semantics, offline/online transitions, LRU release (no WebEngine needed) |

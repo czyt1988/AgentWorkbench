@@ -60,6 +60,20 @@ experimental plugins. The design lives in the `specs/` directory.
   contract name through a root alias.
 - `currentPage` is now a notifiable property — as a bare invokable it read as
   a function reference and workspace pages never actually loaded.
+- Quality-review round (5 P0 + ~25 P1): the first-start `settings.json` write
+  no longer runs before the legacy-directory adoption check (which made the
+  one-time `~/.AgentLauncher` import dead code); `workbench.openWeb` keeps the
+  `#token=` fragment (mutation routes 401'd) while logs/toasts strip it; the
+  Skills card description renders (its height was clamped to ~4 px); the Web
+  empty state and zoom shortcuts work again (`tabCount`/`tabObject` are now
+  real notifiable API); plugin-skill dedup keeps *all* skills of the winning
+  version; closing a tab left of the active one no longer moves the active
+  tab; the status bar's running/tabs badges rebind on change; the tab bar
+  gains its icon, middle-click close, bottom separator, a reload/stop toggle
+  and an `⋯` menu icon; buttons show the keyboard focus ring; `F12` opens
+  devtools (Debug builds); the Skills flyout opens on keyboard focus, flips at
+  window edges and closes on scroll; facet/kind labels are translatable;
+  startup writes honour `logging.*` and `locale.override`.
 
 ### Packaging
 

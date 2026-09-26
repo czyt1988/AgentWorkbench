@@ -1,7 +1,8 @@
 # 配置
 
-AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents.json` 文件中，首次
-运行时拷贝到 `~/.AgentWorkbench/`：
+AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同一个数据目录中，该目录在
+首次运行时创建。升级后的首次启动会先把旧 `~/.AgentLauncher` 的数据（配置和日志）
+**复制**过来——旧目录不会被删除：
 
 | 系统 | 路径 |
 |---|---|
@@ -254,7 +255,7 @@ agent 的主强调色，用于：
 
 ## 内置 agent 与默认配置
 
-加载时，`AgentConfig::load()` 会把默认配置里的每个内置 agent 应用到配置中：磁盘上
+加载时，`AgentRepository::load()` 会把默认配置里的每个内置 agent 应用到配置中：磁盘上
 同 id 的条目被整体替换为 `config/default_agents.json` 里的定义（`removed` 数组中的 id
 除外），你自己新增的 agent 原样保留并排在内置项之后。因此不存在「旧配置兼容」一说，
 也不需要对用户数据做迁移：调整内置启动器只需要改 `config/default_agents.json` 并
@@ -284,7 +285,7 @@ agent 的主强调色，用于：
 1. 打开 `~/.AgentWorkbench/agents.json`。
 2. 在 `agents` 数组中追加一个至少填好 `id`、`name`、`command`、`webUrl`、`color`
    的对象。
-3. 重启 AgentLauncher（或下次启动时自动加载）。
+3. 重启 AgentWorkbench（或下次启动时自动加载）。
 
 无需重新编译。
 

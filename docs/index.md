@@ -4,7 +4,7 @@ A Qt6/QML + C++ desktop **workbench for AI coding agents** (formerly *AgentLaunc
 
 ![AgentWorkbench main window](pic/screenshot-main-page.png)
 
-> The screenshot shows the pre-0.4.0 launcher UI (a 0.4.0 workbench screenshot is pending refresh); the app follows the system language automatically.
+> The app follows the system language automatically.
 
 ## Why
 

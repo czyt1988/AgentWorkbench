@@ -267,7 +267,7 @@ before the first launch of an agent (e.g. generating a bearer token for
 `qwen serve`).
 
 - If `setupCommand` exits with code 0, the result is persisted to
-  `~/.AgentLauncher/agent_state.json` and the command is never re-run
+  `~/.AgentWorkbench/agent_state.json` and the command is never re-run
   unless the user picks **Re-initialize** from the card's context menu.
 - If `setupCommand` exits with a non-zero code, `launchFailed` is emitted with
   the captured output and the agent does not launch.
@@ -281,7 +281,7 @@ connection refusal or timeout means it is **Stopped**.
 
 ## Built-in agents and the bundled default
 
-On load, `AgentConfig::load()` applies the bundled default to every built-in
+On load, `AgentRepository::load()` applies the bundled default to every built-in
 agent: an entry sharing a built-in id is replaced wholesale by the definition in
 `config/default_agents.json` (unless its id is in the `removed` array), and
 agents you added yourself are kept as they are, after the built-ins. There is
@@ -312,10 +312,10 @@ if it should stick.
 
 ## Adding a new agent
 
-1. Open `~/.AgentLauncher/agents.json`.
+1. Open `~/.AgentWorkbench/agents.json`.
 2. Append a new object to the `agents` array with at least `id`, `name`,
    `command`, `webUrl`, and `color` filled in.
-3. Restart AgentLauncher (or it will pick up changes on next launch).
+3. Restart AgentWorkbench (or it will pick up changes on next launch).
 
 No recompilation needed.
 

@@ -8,7 +8,7 @@
 
 ![AgentWorkbench 主界面](docs/pic/screenshot-main-page.png)
 
-> 截图为 0.3.0 启动器界面（0.4.0 工作台界面的截图待更新）；应用自动跟随系统语言。
+> 应用自动跟随系统语言。
 
 ## 功能
 

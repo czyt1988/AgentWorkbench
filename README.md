@@ -13,7 +13,7 @@ editing a JSON file, no code changes required.
 
 ![AgentWorkbench main window](docs/pic/screenshot-main-page.png)
 
-> The screenshot shows the pre-0.4.0 launcher UI (a 0.4.0 workbench screenshot is pending refresh); the app follows the system language automatically.
+> The app follows the system language automatically.
 
 ## Features
 

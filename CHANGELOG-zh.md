@@ -58,6 +58,7 @@
   名大写、QML 契约名经窗口根别名保持小写。
 - 导航的 `currentPage` 由可通知属性暴露：此前它是 Q_INVOKABLE，QML 绑定
   求值为函数引用，工作区页面实际从未加载。
+- 质量审查轮（5 项 P0 + 约 25 项 P1）：首启写 `settings.json` 不再先于旧目录接管检查（否则一次性接管 `~/.AgentLauncher` 永远不会发生）；`workbench.openWeb` 保留 `#token=` 片段（否则内嵌视图对 mutation 路由 401），日志与 toast 一律脱敏；Skills 卡片描述不再被钳到约 4px 高而不可见；Web 空态与缩放快捷键恢复工作（`tabCount`/`tabObject` 成为真实的可通知 API）；插件 skill 去重保留胜出版本的**全部** skill；关闭活动标签左侧的标签不再使活动标签漂移；状态栏运行数/标签数徽标随变化重绑；标签栏补齐图标、中键关闭、下边框分隔线、⟳/停止加载切换与 `⋯` 菜单图标；按钮显示键盘焦点环；`F12` 打开开发者工具（仅 Debug 构建）；Skills 悬停卡支持键盘聚焦打开、窗口边界翻转、滚动即关；分面/kind 标签可翻译；启动时接线 `logging.*` 与 `locale.override`。
 
 ### 打包
 
