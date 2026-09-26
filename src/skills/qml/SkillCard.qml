@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
@@ -26,7 +27,25 @@ Item {
     Timer {
         id: hoverTimer
         interval: 400
-        onTriggered: flyout.open()
+        onTriggered: card.openFlyout()
+    }
+
+    // Open with edge-aware placement: sit right of the card, flip left/up
+    // when the window edge would clip it (02 §7.4).
+    function openFlyout() {
+        const pos = card.mapToItem(null, 0, 0)
+        const win = card.Window.window
+        if (!win)
+            return
+        const gap = theme.spacingM
+        // height is 0 before the first open — assume the 320 max for the
+        // flip test so the first open still avoids the edge.
+        const fh = flyout.height > 1 ? flyout.height : 320
+        flyout.x = (pos.x + card.width + gap + flyout.width > win.width)
+                   ? -(flyout.width + gap) : card.width + gap
+        flyout.y = (pos.y + fh > win.height)
+                   ? -(fh - card.height) : 0
+        flyout.open()
     }
 
     Rectangle {
@@ -64,11 +83,12 @@ Item {
                 }
             }
 
-            // Description, up to three lines (02 §7.3).
+            // Description, up to three lines (02 §7.3). maximumLineCount
+            // already elides after the third line, so implicitHeight is the
+            // right height — no extra clamp (lineHeight is a multiplier, not
+            // pixels; using it as a pixel cap collapsed this to ~4 px).
             Label {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(implicitHeight,
-                                                  3 * lineHeight * 1.3)
                 text: card.description.length > 0 ? card.description
                                                   : qsTr("No description.")
                 color: theme.textMuted
@@ -128,6 +148,17 @@ Item {
         }
     }
 
+    // Scrolling the grid closes the flyout immediately (02 §7.4) — the
+    // wheel gesture over THIS card; scrolling elsewhere is covered by the
+    // hover-out path above.
+    WheelHandler {
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: function(event) {
+            if (flyout.opened)
+                flyout.close()
+        }
+    }
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent
@@ -142,11 +173,26 @@ Item {
         }
     }
 
-    // Keyboard: Enter copies the path, Ctrl+Enter opens the folder (02 §7.3).
-    focus: true
+    // Keyboard: Tab reaches the card (02 §7.4 — focus also shows the
+    // flyout), Enter copies the path, Ctrl+Enter opens the folder.
+    // activeFocusOnTab, NOT focus: true — every delegate setting focus
+    // would make the last-created card steal the page's initial focus.
+    activeFocusOnTab: true
+    onActiveFocusChanged: {
+        if (activeFocus)
+            card.openFlyout()
+        else
+            flyout.tryCloseLater()
+    }
     Keys.onReturnPressed: copyPath()
     Keys.onEnterPressed: copyPath()
     Keys.onPressed: function(event) {
+        // Any key closes the flyout first (02 §7.4); the NEXT press acts.
+        if (flyout.opened) {
+            flyout.close()
+            event.accepted = true
+            return
+        }
         if ((event.modifiers & Qt.ControlModifier)
             && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
             skills.openFolder(card.skillFilePath)
