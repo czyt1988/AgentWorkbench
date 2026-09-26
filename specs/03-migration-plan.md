@@ -376,30 +376,38 @@ agents/skills/web 三个领域模块才能各自独立测试。
 - [x] i18n：`check_architecture` 的英文源串检查通过；翻译0未完成条目。
 - [x] 构建门禁：`check_architecture` 挂进 ctest，注入 `#ff0000` 探针确认能使构建失败（S3 实施时验证）。
 
-### §6.1 功能（需人工操作验证，未执行）
+### §6.1 功能（第二轮验收补充，2026-09-27）
 
-以下项依赖真实 GUI 交互或真实 agent 进程，自动化未覆盖，**待人工过一遍**：
+- [x] **打包（S5-T8）**：`DIST_DIR=dist-awb-verify bash scripts/package.sh` 跑通；最终干净包（无冒烟钩子）`dist/AgentWorkbench-0.4.0-win64-Portable.zip` = **121,303,277 字节（约 115.7 MiB）**，落在规格预期的 110–130 MB 区间；体积已写入 CHANGELOG/CHANGELOG-zh。
+- [x] **干净环境启动部署目录**：以不含 Qt 的 PATH 启动 dist-awb-verify/AgentWorkbench.exe，界面加载 0 错误（QML 资源全部随包）。
+- [x] **打开内嵌视图**：`AWB_SMOKE_OPEN_TAB` 临时钩子（验收后已移除、未提交）自动打开 kimi 的标签——日志 `WebTabs: opened tab tab-1 for agent kimi-code (… surface=embedded)`，`QtWebEngineProcess.exe` ×2 随之启动（48 MB + 86 MB 工作集），宿主退出后辅助进程一并回收；页面截图见 `build/screenshot-web-tabs.png`。
+- [x] **Hello 插件 UI（S7-T3）**：`plugins.enabled=true` + `AWB_BUILD_PLUGIN_EXAMPLES=ON` 下，日志 `PluginHost: loaded plugin "hello" 0.1.0`；以 `lastPageId=hello` 重启，`unknown page id` 0 次（注册先于页面恢复）、`failed to load page` 0 次——插件 qrc 页面经同一条注册路径渲染成功。
+- [x] **内嵌验收顺带抓出并修复的 4 个真实缺陷**（均为 S5 期间冒烟未能覆盖的 API 漂移/作用域问题）：Qt 6.7 Basic 样式无 `MenuButton`；Qt 6 已把 `downloadRequested` 移到 profile、移除视图的 `loadFinished`/`errorOccurred`、`lifeCycleState` 更名为 `lifecycleState`；`Loader` 无 `onUnloaded`；标签标题 Label 缺 id。
+- [ ] 卡片右键菜单的实际点击流、退出确认三选项的交互手感——**仍需人工**（无法无头点击 QML 控件）。
+- [ ] 双端口 WebUI 同开不串 cookie——本轮只启动了单一 kimi 实例；profile 隔离机制已由 `WebProfilePaths`（每 agent 一目录 + `awb-<id>` storageName）与 `tst_web` 覆盖，**真实双端口对照仍需两个同时运行的 agent，留待人工**。
 
-- [ ] 卡片右键全部动作、退出确认三选项的实际点击流程。
-- [ ] 侧边栏切页/折叠/快捷键/徽标的实际手感与徽标数字。
-- [ ] Web：真实双端口 WebUI 同开不串 cookie（S5-T3 验收）、页面崩溃恢复、`target=_blank`/下载/全屏的真实事件。
-- [ ] 打包：`bash scripts/package.sh` 在干净环境跑通并记录 zip 体积（写进 CHANGELOG）——**未执行**（本机 dist/ 可能被运行中的应用占用，见 memory；体积数字未测不填）。
-- [ ] `AWB_BUILD_PLUGIN_EXAMPLES=ON` 构建 + 设置页启用 Hello + 重启后 extensions 出现/关闭后消失（加载链路已用日志验证：`PluginHost: loaded plugin "hello"`，UI 呈现待人工确认）。
+### §6.2 必须人工验证——逐项结论（2026-09-27）
 
-### §6.2 必须人工验证（无法自动化）
+可自动化的项已用程序化手段给出结论；其余项无法在无头环境中执行，如实标注：
 
-全部**未执行**，需要在发布前逐项给结论：
-
-- [ ] 中文输入法候选窗口、内联组合、光标跟随（Web 视图内）。
-- [ ] 分数缩放 125%/150% 的清晰度与命中区域。
-- [ ] Web 视图内与应用内的复制/粘贴互操作。
-- [ ] 从资源管理器拖文件进 Web 页面；页内拖放上传。
-- [ ] 页面全屏、打印/导出 PDF、桌面通知、摄像头/麦克风权限提示。
-- [ ] 页面缩放（Ctrl+滚轮 与 zoomFactor）与应用缩放的配合。
-- [ ] 覆盖层与 Web 视图的层叠（对话框必须能画在视图之上）。
-- [ ] 暗色/亮色两套主题全页面走查（令牌化后的逐屏对比）；`docs/pic/screenshot-main-page.png` 仍是 0.3.0 界面，**需重截 0.4.0 工作台界面**后替换（README 配图同）。
+- [x] **主题可读性走查（量化替代肉眼）**：对两套内置主题按 §9.5 规则计算 WCAG 对比度——`textPrimary` 对 window/surface/overlay/surfaceAlt 全部 ≥ 4.5:1（暗 6.31–11.34、亮 5.17–7.99），`textSecondary`/`textMuted` 对相应背景全部 ≥ 3.0:1（暗 3.40–7.37、亮 4.05–6.25）：**0 违规**。观察项（§9.5 未覆盖的强调色作正文用）：暗色 `textOnAccent` #ffffff 对 `accent` #89b4fa 仅 2.11:1——这是 §9.3 固定值的固有属性，按「值可微调」条款建议将暗色 textOnAccent 调为深色（与 0.3.0 按钮的深字一致），**留待所有者决策，本轮未擅改规格值**；亮色 success/warning 作状态文字约 2.3–3.0:1，同上记录为建议项。
+- [x] **亮色主题实际渲染**：`appearance.theme=latte-light` 启动后截图 `build/screenshot-light-theme.png`，近白像素占比 96%（793/828）——主题经 settings → 引擎 → QML 重绑定全链路生效，页面 0 错误。
+- [x] **0.4.0 截图替换（S8-T3）**：`docs/pic/screenshot-main-page.png` 已用当前 0.4.0 启动器页重截（1456×939、采样 34 色非空白、0 页面错误）；新增 `docs/pic/screenshot-web-tabs.png`（内嵌标签页）并在双语 README 中引用。像素多样性检查替代肉眼确认非空白；**逐像素的版式审美仍建议人工过目**。
+- [ ] 中文输入法候选窗口、内联组合、光标跟随（Web 视图内）——无法自动化，需人工。
+- [ ] 分数缩放 125%/150% 清晰度与命中区域——需人工（多 DPI 环境）。
+- [ ] Web 视图内与应用内复制/粘贴互操作——需人工。
+- [ ] 拖放（资源管理器 → 页面、页内上传）——需人工。
+- [ ] 页面全屏、打印/导出 PDF、桌面通知、摄像头/麦克风权限提示——权限流已按 §6.4 实现（全部拒绝 + toast）并有单例注册确证，真实页面触发需人工。
+- [ ] Ctrl+滚轮缩放与 zoomFactor 配合——滚轮缩放未与 tab.zoom 同步（已知缺口，规格未强制），快捷键缩放路径由代码覆盖；配合体验需人工。
+- [ ] 覆盖层与 Web 视图层叠（对话框画在视图之上）——实现为视图上方的同级覆盖层，真实 Chromium 合成表现需人工。
 
 ### 实施期发现并已按流程处理的契约修订
 
 - `specs/01` §8.2：C++ 单例注册名必须大写（Qt ≥6 拒绝小写名），QML 契约名经根别名保持小写——已改规格并注明。
 - `specs/01` §4.5/§4.6 落地时补充：`WebTabsFacade.openDetachedTab`（同 agent 去重与 `target=_blank` 弹窗需求冲突时的出口）、`NavigationModel.currentPage` 必须是可通知属性（Q_INVOKABLE 在 QML 绑定里求值为函数引用，S4 起页面实际从未加载——S6 期间发现并修复）。
+
+### S0-T7 GitHub 端步骤的执行状态
+
+- [x] `mkdocs.yml` 的 `repo_url`/`repo_name`/`site_name`/语言切换路径本地修正（指向 `czyt1988/AgentWorkbench`）。
+- [ ] **`gh repo rename` 与 `git remote set-url github …` 未执行：本机没有 `gh` CLI（`command not found`），也没有可用的 API 凭据。** 需要仓库所有者在有 gh/凭据的机器上执行 `gh repo rename AgentWorkbench --repo czyt1988/AgentLauncher` 后再改本地 remote；在此之前本地 `github` remote 仍指向旧 URL（GitHub 会在改名后提供重定向，先改 remote 反而会 404，故有意保持原样）。
+- [ ] Gitee 镜像与域名（TODO-7）按规格保持「所有者决定」，未动。

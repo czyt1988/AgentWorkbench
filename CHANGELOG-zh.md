@@ -59,6 +59,11 @@
 - 导航的 `currentPage` 由可通知属性暴露：此前它是 Q_INVOKABLE，QML 绑定
   求值为函数引用，工作区页面实际从未加载。
 
+### 打包
+
+- `scripts/package.sh` 产出 `dist/AgentWorkbench-0.4.0-win64-Portable.zip`，**实测体积 121,303,277 字节（约 115.7 MiB / 121.3 MB）**，在预期的 110–130 MB 区间内（含 Qt WebEngine 的 Chromium 运行时）。
+- 部署目录已在「PATH 不含 Qt」的干净环境下启动验证：界面加载 0 错误；自动打开一个内嵌标签后 `QtWebEngineProcess` 辅助进程随之启动、标签日志记录 `opened tab … surface=embedded`，宿主退出时辅助进程一并回收。
+
 ### 已知限制
 
 - 内嵌引擎为 Qt 6.7.3 自带的 Chromium 118：不支持 H.264/MP4 播放，UA 误报

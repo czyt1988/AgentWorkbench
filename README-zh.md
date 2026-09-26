@@ -15,6 +15,8 @@
 - **工作台外壳**：侧边栏页面导航带徽标（`Ctrl+1…9` 切页、`Ctrl+B` 折叠、`Ctrl+,` 打开设置），工作区页面承载内容，状态栏显示 Python/Node 运行时徽标；窗口尺寸、侧边栏状态与上次页面跨重启恢复。
 - **卡片网格启动器**：启动、安装、更新、版本号、右键菜单、HTTP 健康检查的运行态高亮，以及会话内停止（×）。
 - **内嵌 Web 标签页**：agent 的 Web 界面在应用内打开（Qt WebEngine），每个 agent 独立持久 profile、失活冻结、超出 `maxLiveTabs` 按 LRU 释放、崩溃/离线/加载失败覆盖层——「在浏览器打开」始终一键可达；无 WebEngine 构建（`-DAWB_ENABLE_WEBENGINE=OFF`）自动降级为系统浏览器。
+
+  ![内嵌 Web 标签页](docs/pic/screenshot-web-tabs.png)
 - **Skill 浏览**：扫描常见 `SKILL.md` 目录（`~/.agents`、`~/.claude`、`~/.codex`、ZCode 插件缓存、项目目录），支持搜索、来源分面、排序、悬停详情与点击复制路径。
 - **主题**：颜色与度量来自 JSON 主题文件；内置两套 Catppuccin 变体，自定义主题保存即热重载；ctest 中的 `check_architecture` 会拒绝 QML 里的字面颜色。
 - **配置化驱动**：所有 agent、命令、URL、配置目录写在 `agents.json`，应用设置写在 `settings.json`。

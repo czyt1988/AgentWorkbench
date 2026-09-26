@@ -61,6 +61,11 @@ experimental plugins. The design lives in the `specs/` directory.
 - `currentPage` is now a notifiable property — as a bare invokable it read as
   a function reference and workspace pages never actually loaded.
 
+### Packaging
+
+- `scripts/package.sh` produces `dist/AgentWorkbench-0.4.0-win64-Portable.zip`, **measured at 121,303,277 bytes (≈115.7 MiB / 121.3 MB)** — inside the expected 110–130 MB band (including the WebEngine Chromium runtime).
+- The deployed directory was verified to launch in a clean environment (no Qt on PATH) with zero UI errors; opening an embedded tab spawned the `QtWebEngineProcess` helper (log: `opened tab … surface=embedded`) which exited with the host.
+
 ### Known limitations
 
 - The embedded engine is Chromium 118 (Qt 6.7.3): no H.264/MP4 playback and

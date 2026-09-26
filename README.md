@@ -29,6 +29,8 @@ editing a JSON file, no code changes required.
   `maxLiveTabs`, crash/offline/error overlays — and **Open in browser**
   always stays one click away. Degrades to the system browser without
   WebEngine (`-DAWB_ENABLE_WEBENGINE=OFF`).
+
+  ![Embedded Web tab](docs/pic/screenshot-web-tabs.png)
 - **Skill browser**: scans the usual `SKILL.md` locations (`~/.agents`,
   `~/.claude`, `~/.codex`, ZCode plugin caches, project dirs) with search,
   source facets, sorting, hover details and click-to-copy paths.
