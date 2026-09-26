@@ -81,7 +81,7 @@
 
 | 行为 | 规格 |
 | --- | --- |
-| 点击条目 | `nav.setCurrentPage(id)`，工作区 `Loader` 切换页面；当前页高亮 |
+| 点击条目 | `nav.setCurrentPageId(id)`（`currentPageId` 属性的写入器），工作区 `Loader` 切换页面；当前页高亮 |
 | 高亮样式 | 背景 `theme.surfaceBg`，左侧 3px `theme.accent` 竖条，文字 `theme.textPrimary` |
 | 悬停样式 | 背景 `theme.surfaceHoverBg`（`Behavior on color { ColorAnimation { duration: theme.durationFast } }`） |
 | 徽标 | `nav` 的 `badgeText`；胶囊底色 `theme.badgeBg`，文字 `theme.textSecondary`，`fontSizeCaption`。启动器页徽标 = 运行中的 agent 数（0 时不显示），Web 页 = 打开的标签数 |
@@ -125,7 +125,7 @@
 | `settings` | `Settings` | `qrc:/icons/gear.svg` | system | 100 | — | P0 |
 | `logs` | `Logs` | `qrc:/icons/scroll.svg` | system | 110 | — | P2（后续） |
 
-需要新增的 SVG 图标（放进 `icons/`，以 `/icons` 前缀编进资源）：`web.svg`（地球/窗口）、`skills.svg`（书/魔杖）、`copy.svg`、`refresh.svg`、`plus.svg`、`close.svg`、`chevron-left.svg`、`chevron-right.svg`、`external-link.svg`、`folder.svg`、`search.svg`、`scroll.svg`（P2）。风格与既有的 `terminal.svg`、`gear.svg` 保持一致：单色线性、`currentColor` 不可用，因此每个图标提供两种色值版本的做法**不采用**，改为统一用 `theme.textMuted` 色调、通过 `Image` 的 `layer.enabled + ColorOverlay` 或直接内置中性灰 `#7f849c` 绘制。
+需要新增的 SVG 图标（放进 `icons/`，以 `/icons` 前缀编进资源）：`web.svg`（地球/窗口）、`skills.svg`（书/魔杖）、`copy.svg`、`refresh.svg`、`plus.svg`、`menu.svg`（⋯，标签栏菜单）、`close.svg`、`chevron-left.svg`、`chevron-right.svg`、`external-link.svg`、`folder.svg`、`search.svg`、`scroll.svg`（P2）。风格与既有的 `terminal.svg`、`gear.svg` 保持一致：单色线性、`currentColor` 不可用，因此每个图标提供两种色值版本的做法**不采用**，改为统一用 `theme.textMuted` 色调、通过 `Image` 的 `layer.enabled + ColorOverlay` 或直接内置中性灰 `#7f849c` 绘制。
 
 ---
 
@@ -488,6 +488,8 @@ Web 视图获得焦点后，F5 / Esc / Ctrl+W / Ctrl+F 默认归 Chromium。需�
 | `AgentAvatar.qml` | agent 图标 + 状态点 | 由启动器卡片与 Web 标签复用 |
 
 **不许**在没有复用价值时抽组件；也不许直接写裸 `Rectangle` 拼按钮——同一视觉元素出现第三次就抽组件。
+
+> 状态备注（0.4.0 质量审查）：`ACard`、`ADialog`、`AToolTip` 是组件库骨架，当前内置页面尚未出现第三次复用（对话框只有设置页的删除确认/错误提示两处、卡片与 tooltip 都是页面定制形态）。**保留**它们作为插件与后续页面的可用原语，避免各页回退成裸 `Rectangle`；一旦出现复用点必须优先使用，而不是新写一份。
 
 ---
 

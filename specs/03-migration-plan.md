@@ -406,6 +406,26 @@ agents/skills/web 三个领域模块才能各自独立测试。
 - `specs/01` §8.2：C++ 单例注册名必须大写（Qt ≥6 拒绝小写名），QML 契约名经根别名保持小写——已改规格并注明。
 - `specs/01` §4.5/§4.6 落地时补充：`WebTabsFacade.openDetachedTab`（同 agent 去重与 `target=_blank` 弹窗需求冲突时的出口）、`NavigationModel.currentPage` 必须是可通知属性（Q_INVOKABLE 在 QML 绑定里求值为函数引用，S4 起页面实际从未加载——S6 期间发现并修复）。
 
+### 质量审查修复记录（2026-09-27 第四轮）
+
+两个并行审查 Agent（C++/架构一路，QML/规格/文档一路）对重构全量走查，发现的问题已全部修复并验证（7/7 ctest、5 页 smoke 0 错误、`unfinished=0`）。按严重度：
+
+**P0（5 项，全部修复）**
+
+1. `main.cpp` 首启先写 `settings.json` 再跑 `LegacyImport::runOnce`，`isUntouched()` 永远为假——旧目录接管成了死代码。已把首启落盘移到接管之后（§4.9 代码块同步改写）。
+2. `WorkbenchContext::openWeb` 用裸 `def.webUrl`，丢掉 `#token=` 片段——内嵌视图对 mutation 路由 401。改用 `AgentUrls::finalUrl(def)`；同时 `WebTabsFacade` 的外部打开日志/toast 一律走去掉 token 的 `redactedUrl()`。
+3. `SkillCard` 描述高度用 `lineHeight`（倍率）当像素钳制 → 3.9px 不可见。移除错误绑定（`maximumLineCount: 3` 已封顶）。
+4. `WebTabsPage` 空态绑定 `web.model.rowCount()`（无 NOTIFY，永不重算）。facade 新增 `tabCount` Q_PROPERTY（rowsInserted/rowsRemoved 驱动）。
+5. `web.tabObject(id)` 在 QML 里被调用但 facade 没有该方法 → 缩放快捷键 TypeError。新增 `tabObject(id)` 返回 live `QObject*`，`stepZoom` 加空指针防护。
+
+**P1（要点，全部修复）**：skill 版本去重键加入 skill 名（一个插件多 skill 只留其一的回归，附 `testMultiSkillPluginKeepsAllSkills`）；`WebTabsModel::removeTab` 关闭左侧 tab 时活动索引不漂移（附回归用例）；`EnvironmentService` pending 计数器改按 key 的 `QSet`（重复 refresh 不再卡死 `detecting`）；删除死代码 `AgentsFacade::openWeb`（规格明确它不是门面方法）；CRUD 三方法写盘失败回滚内存模型；`NavigationModel.badges` / `SkillsFacade.roots` 改为可通知属性（StatusBar、设置页根列表的死绑定）；标签栏补 tab 图标 16px、中键 `acceptedButtons`、下边框分隔线、⟳/✕ 停止加载切换（`activeState` 属性 + surface `stopLoading()` + `LoadStoppedStatus` 落状态）、`⋯` 菜单图标（新增 `icons/menu.svg`，替下 plus.svg）；`AButton`/`AIconButton` 焦点环（2px `focusRing`）；F12 开发者工具（仅 Debug）；SkillCard 键盘聚焦开 flyout、边界翻转、滚动即关（`activeFocusOnTab` 替代 `focus: true` 抢焦点）；分面/kind 标签补 `qsTr` 映射（`qsTr(modelData)` 对 lupdate 不可见）；AgentCard 四处 `Qt.rgba` 字面量换 `theme.alpha(theme.accent/danger, 0.22)`。
+
+**P2（要点）**：`AgentRuntime` 补 6 个用例（S2-T4：空命令/不可解析程序/无 PID 停止/stopAll/无端口强停/端口→PID 列举 + 真实启动+taskkill——`findPidsForPort` 提为 public 供直测）；`applyTheme` 拒绝未知 id；LRU 上限把活动视图也计入且 `maxLiveTabs` 变更立即重跑；`AgentUrls` 已带 fragment 的 webUrl 用 `&token=` 拼接（附回归用例）；`SkillRoots` 路径原样存取、只在扫描时展开（不再把机器绝对路径固化进 settings.json）；`ScriptRunner` 分块解码持有不完整 UTF-8 尾序列；`AgentHealthMonitor` 同 URL 每轮一请求 + 在途跳过（迟到旧答复不能覆盖新状态）；`logging.*`/`locale.override` 接线到 `Logging::install`/`QTranslator`；`appearance.followSystem`、`launcher.startupVersionCheck`、`web.homeUrl` 标注为**预留键**（有默认值、无行为定义——加行为前先改规格）；`window.sidebarWidth` 接到侧边栏宽度；`check-architecture` 增补数字 `Qt.rgba` 与 `QQuick*`/`QQml*` 规则；剪贴板三连提取 `copyToClipboard` helper；主题调色板回退走 `paletteColorFor`。
+
+**误报（核对后不改）**：`revealSkillFile` 非 Windows 分支传的是 `skillFilePath` 而非审查所称的 `info.absolutePath()`——`openFolder` 内部自己取父目录，行为正确。
+
+**规格同步**：`specs/01` §4.4（SkillScanner 去重键 + SkillsFacade 实际 API）、§4.5（WebTabsFacade 全量成员 + token 脱敏）、§4.7（setCurrentPageId 命名 + badges）、§4.8（PluginServices + EnvironmentService QSet + main.cpp 顺序）、§5.1 矩阵（core→plugin_api ✅）、§7.2（预留键 + 路径原样存取）、§11（tst_agents 覆盖）、`specs/02` §5（menu.svg）/§7.4（WheelHandler 滚动关闭）/§10.2（ACard/ADialog/AToolTip 保留备注）。
+
 ### S0-T7 GitHub 端步骤的执行状态
 
 - [x] `mkdocs.yml` 的 `repo_url`/`repo_name`/`site_name`/语言切换路径本地修正（指向 `czyt1988/AgentWorkbench`）。

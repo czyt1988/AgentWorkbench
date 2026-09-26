@@ -172,10 +172,10 @@ L0  基础层             ┌─────────────────
 | `agents::AgentModel` | QAbstractListModel 适配器：合并 `QList<AgentDefinition>` + `QHash<QString,AgentState>`，角色的**名字与顺序保持 0.3.0 不变**（这样卡片 QML 可以近乎原样复用）。只做映射与 `dataChanged`，无业务逻辑。 |
 | `agents::AgentRuntime` | agent 自身的长驻进程：`launch(def, tokenValue)` 走 `ProcessRunner::startDetached`（`cmd /c` 跑命令、无可见窗口、展开 configDir）、记录 PID（内存内、会话级）、`stop(id)`、`forceStop(id)`、`hasLaunchedAgents()`、`stopAll()`。`tokenFile` 存在时把内容作为环境变量 `QWEN_SERVER_TOKEN` 传给子进程。 |
 | `agents::AgentScripts` | 一次性命令（install / update / version / setup）；每条命令经 `core::ScriptRunner` 执行，输出经 `setConsoleOutput` 送到模型；install/update 完成发 `installFinished(id, ok, message)`；version 解析后发 `versionResolved(id, version)`；setup 成功写 `AgentStateStore`。 |
-| `agents::AgentHealthMonitor` | 按 settings 的间隔（默认 3000 ms）对所有有 `webUrl` 的 agent 做 HTTP 探测，发 `runningChanged(id, bool)`。 |
+| `agents::AgentHealthMonitor` | 按 settings 的间隔（默认 3000 ms）对所有有 `webUrl` 的 agent 做 HTTP 探测，发 `runningChanged(id, bool)`。同 URL 每轮只发一次请求，且上一轮未回的 URL 跳过本轮——迟到的旧答复不能覆盖新状态。 |
 | `agents::AgentStateStore` | `agent_state.json`（`setupDone` 记录），原子写，加载一次。 |
-| `agents::AgentUrls` | 打开用的 URL 解析：`webUrl` + `tokenFile` → 追加 `#token=<value>` 的最终 URL（内嵌视图和外部浏览器共用同一份逻辑）。 |
-| `agents::AgentsFacade` | QML 门面，聚合以上所有。**保留 0.3.0 的 Q_INVOKABLE 与信号名**（见 `03-migration-plan.md` §4 的 API 映射表），其中 `openWeb(id)` 不再是门面方法——它变成 `workbench` 层的意图 `workbench.openWeb(id)`。 |
+| `agents::AgentUrls` | 打开用的 URL 解析：`webUrl` + `tokenFile` → 追加 `#token=<value>` 的最终 URL（内嵌视图和外部浏览器共用同一份逻辑）；`webUrl` 自带 fragment 时用 `&token=` 拼接，避免第二个 `#` 截断。 |
+| `agents::AgentsFacade` | QML 门面，聚合以上所有。**保留 0.3.0 的 Q_INVOKABLE 与信号名**（见 `03-migration-plan.md` §4 的 API 映射表），其中 `openWeb(id)` 不是门面方法——它是 `workbench` 层的意图 `workbench.openWeb(id)`。CRUD（add/update/remove）写盘失败必须回滚内存模型与 `removedIds`，模型与磁盘永远一致。 |
 
 ### 4.4 `awb_skills`（L2 领域）
 
@@ -186,9 +186,9 @@ L0  基础层             ┌─────────────────
 | `skills::SkillRoot` | 一个扫描根：`id`、`label`、`path`、`kind`（`agents` / `claude` / `codex` / `plugin` / `project` / `custom`）、`enabled`、`recursive`、`dedupeScope`。默认根清单见 `02-ui-specification.md` §7。 |
 | `skills::SkillDefinition` | 一个 skill：`name`（frontmatter `name`，缺失时用目录名）、`description`、`skillFilePath`、`dirPath`、`rootId`、`rootLabel`、`kind`、`pluginId`、`pluginVersion`、`lastModified`、`sizeBytes`、`extras`（frontmatter 其余键）。 |
 | `skills::SkillFrontmatter` | 极小的 YAML 子集解析器：只处理 `SKILL.md` 开头的 `---` 块；支持 `key: value`、双/单引号、`>`/`|` 折叠标量与多行缩进续行；不支持嵌套结构（`metadata:` 下属的标量键拍平成 `metadata.key`）。带 BOM/CRLF 容忍。这是**必须单元测试**的一块。 |
-| `skills::SkillScanner` | 遍历根目录：任一含 `SKILL.md` 的目录算一个 skill，不再深入该目录；插件缓存按「同一 marketplace + 插件」去重，只保留最高版本；单个根无权限/不存在 → 记警告并继续，绝不让整次扫描失败。`refresh()` 立即返回，完成后发 `scanFinished(Stats)`（当前实现可以同步，但接口按异步设计，以后移到工作线程不改调用方）。 |
+| `skills::SkillScanner` | 遍历根目录：任一含 `SKILL.md` 的目录算一个 skill，不再深入该目录；插件缓存按「同一 marketplace + 插件 + skill 名」去重（一个插件带多个 skill 时同名才互相竞争），只保留最高版本；单个根无权限/不存在 → 记警告并继续，绝不让整次扫描失败。`refresh()` 立即返回，`scanStarted()`/`scanFinished()` 前后夹一次扫描，统计经 `lastStats()` 读取（当前实现同步，但接口按异步设计，以后移到工作线程不改调用方）。 |
 | `skills::SkillModel` | skill 列表模型 + 过滤（名称/描述/路径）+ 来源分面 + 排序（名称/最近修改/来源）。 |
-| `skills::SkillsFacade` | QML 门面：`refresh()`、`roots()`、`setRootEnabled(id, bool)`、`copyPath(id)`（返回 `OpResult`，由 shell 弹 toast）、`openFolder(id)`、`revealSkillFile(id)`、`stats()`。 |
+| `skills::SkillsFacade` | QML 门面：`refresh()`、`roots`（Q_PROPERTY，NOTIFY `rootsChanged`——设置页的根列表要随增删开关重绑）、`setRootEnabled(id, bool)`、`addRoot(path)`、`removeRoot(id)`、`copyPath(id)`/`copySkillFile(id)`/`copyName(id)`（返回 `OpResult`，由 shell 弹 toast）、`openFolder(id)`、`revealSkillFile(id)`、`skill(path)`（flyout 详情）、`statsText`（Q_PROPERTY）、`partialFailure`（Q_PROPERTY）。 |
 
 ### 4.5 `awb_web`（L2 领域）
 
@@ -199,7 +199,7 @@ L0  基础层             ┌─────────────────
 | `web::WebTab` | 一个标签页的 QObject：`id`、`agentId`、`url`、`title`、`iconSource`、`color`、`surfaceKind`、`state`（`loading`/`ready`/`offline`/`crashed`/`error`/`released`）、`loadProgress`、`lastError`、`zoom`。属性均可 NOTIFY。 |
 | `web::WebTabsModel` | 标签页列表模型；额外暴露 `activeTab`、`activeIndex`、`tabById(id)`、`tabForAgent(agentId)`；桥接表面的状态回写。 |
 | `web::WebSurfaceRegistry` | `kind → QML 组件 URL` 的注册表。`embedded` 由 `awb_web_webengine` 注册，`external` 由本模块注册（永远存在）。 |
-| `web::WebTabsFacade` | QML 门面：`openTab({agentId,url,title,icon,color})`（同 agent 已存在则激活）、`closeTab(id)`、`activateTab(id)`、`reloadTab(id)`、`openExternal(id)`、`reopen(id)`、`tabForAgent(...)`、`surfaceUrl(kind)`、`setTabState(...)`、`markOfflineForAgent(agentId)`。策略来自 `Settings::webOptions()`：`freezeInactiveTabs`、`maxLiveTabs`、`downloadDir`、`chromiumFlags`。 |
+| `web::WebTabsFacade` | QML 门面：`openTab({agentId,url,title,icon,color})`（同 agent 已存在则激活）、`openDetachedTab(...)`（loopback 弹窗，绕过同 agent 去重）、`closeTab(id)`、`activateTab(id)`、`stepActiveTab(delta)`、`reloadTab(id)`、`openExternal(id)`、`reopen(id)`、`tabForAgent(...)`、`tabObject(id)`（live `QObject*`，QML 直读 `.zoom` 等属性）、`surfaceUrl(kind)`、`setTabState(...)` 等表面回写、`markOfflineForAgent(agentId)`、`markOnlineForAgent(agentId)`、`closeTabsForAgent(agentId)`。Q_PROPERTY：`model`、`activeTabId`、`tabCount`（NOTIFY——空态绑定不能用 `rowCount()`）、`activeState`（活动标签状态，驱动工具栏 ⟳/✕ 切换）、`devToolsEnabled`、`freezeInactiveTabs`、`downloadDir`、`engineAvailable`。策略来自 `Settings::webOptions()`：`freezeInactiveTabs`、`maxLiveTabs`（值变更立即重跑释放）、`downloadDir`、`chromiumFlags`。日志与 toast 一律使用去掉 `#token=` 片段的 URL。 |
 | `web::WebProfilePaths` | 每个 agent 一个持久 profile 目录：`<dataRoot>/webprofiles/<agentId>`（Cookies + localStorage 落盘）。**必须**一 agent 一 profile：Chromium 的 cookie 按 host 索引、**忽略端口**，共用 profile 会导致 `127.0.0.1:58627` 与 `127.0.0.1:4096` 互相污染（详见 `docs/research/webengine-embedding.md` §3.1）。 |
 
 ### 4.6 `awb_web_webengine`（L2 领域适配）
@@ -221,7 +221,7 @@ L0  基础层             ┌─────────────────
 | 类型 | 职责 |
 | --- | --- |
 | `shell::PageDescriptor` | 页面描述：`id`、`title`（英文源串）、`iconSource`、`source`（QML URL）、`section`（`main` / `extensions` / `system`）、`order`、`badgeText`、`enabled`。 |
-| `shell::NavigationModel` | 页面注册表 + 列表模型。`registerPage(PageDescriptor)`（id 重复则拒绝并记警告）、`unregisterPage(id)`、`page(id)`、`setBadge(id, text)`、`setCurrentPage(id)`、`currentPageId`。侧边栏与工作区都绑它。 |
+| `shell::NavigationModel` | 页面注册表 + 列表模型。`registerPage(PageDescriptor)`（id 重复则拒绝并记警告）、`unregisterPage(id)`、`page(id)`、`setBadge(id, text)`、`setCurrentPageId(id)`（即 `currentPageId` 属性的写入器；规格旧称 `setCurrentPage(id)`，以属性写入器命名为准）、`currentPageId`、`currentPage`（Q_PROPERTY）、`badges`（Q_PROPERTY，`{id: badgeText}` NOTIFY——StatusBar 绑徽标必须走它，`page(id)` 是方法调用不会重算）。侧边栏与工作区都绑它。 |
 | `shell::ShellController` | 窗口级状态：侧边栏折叠/宽度、窗口尺寸、上次页面、全屏表面，全部读写 `Settings`。 |
 | `shell::UiServices` | 剪贴板（`copyText(text)` → `OpResult`）、打开外部 URL、在资源管理器里定位文件、打开文件夹。 |
 | `shell::Notifications` | 统一的非阻塞提示（toast）队列：`notify(level, title, text)`，level ∈ `info/success/warning/error`；自动消失时长按级别；最多同屏 3 条。 |
@@ -237,7 +237,8 @@ L0  基础层             ┌─────────────────
 | --- | --- |
 | `workbench::WorkbenchContext` | QML 全局 `workbench`。导航意图：`showPage(id)`、`currentPageId`；跨域意图：`openWeb(agentId)`（查 agent → 取 `AgentUrls` 的最终 URL → 让 `WebTabsFacade` 开标签）、`closeWeb(agentId)`、`reloadWeb(agentId)`；通用：`copyText(text)`、`notify(...)`、`openExternalUrl(url)`、`openFolder(path)`、`openConfigDir(agentId)`、`quit()`。 |
 | `workbench::BuiltinPages` | 注册内置页面（Agents / Web / Skills / Settings），顺序与元数据见 `02-ui-specification.md` §5。同时把「agent 停止 → 标签页转 offline」「agent 删除 → 关闭其标签页」这两条跨域规则接到一起。 |
-| `workbench::EnvironmentService` | Python / Node 探测（`python --version`、`node --version`，经 `cmd /c`），Q_PROPERTY：`pythonVersion`、`pythonInstalled`、`nodeVersion`、`nodeInstalled`、`detecting`、`refresh()`。QML 全局名 `environment`，显示在状态栏。 |
+| `workbench::EnvironmentService` | Python / Node 探测（`python --version`、`node --version`，经 `cmd /c`），Q_PROPERTY：`pythonVersion`、`pythonInstalled`、`nodeVersion`、`nodeInstalled`、`detecting`、`refresh()`。在途探测按 key 计入 `QSet`（重复 refresh 幂等，epoch 丢弃旧回调也不会让 `detecting` 卡死）。QML 全局名 `environment`，显示在状态栏。 |
+| `workbench::PluginServices` | `plugin::Services` 的宿主实现（页面注册、表面注册、dataDir、日志、toast、主题色、设置读取），由 `main.cpp` 构造后交给 `PluginHost::loadEnabled`。 |
 
 ### 4.9 `AgentWorkbench`（L4 可执行，`app/`）
 
@@ -246,17 +247,26 @@ L0  基础层             ┌─────────────────
 `app/main.cpp` 的顺序是硬约束：
 
 ```cpp
-// 1) 日志最早安装（任何后续失败都要有日志）
+// 1) 日志最早安装（任何后续失败都要有日志）；settings.json 的
+//    logging.* 若被自定义，立即按其值重装（默认值不重装）
 core::Logging::install();
-// 2) WebEngine 必须在 QGuiApplication 之前初始化（Qt 文档要求），
+// 2) 读设置：WebEngine 必须在 QGuiApplication 之前初始化（Qt 文档要求），
 //    且要先按用户设置注入 GPU 回退开关
+awb::core::Settings settings;
 qputenv("QTWEBENGINE_CHROMIUM_FLAGS", settings.webOptions().chromiumFlags);
 #if AWB_ENABLE_WEBENGINE
 QtWebEngineQuick::initialize();
 #endif
 QGuiApplication app(argc, argv);
-// 3) 组装：core → theme → 各领域 → shell → workbench（依赖方向从上到下）
-// 4) 注册 QML 全局（见 §8.2），加载 QML 模块，起事件循环
+// 2b) locale.override 强制翻译语言（空 = 跟随系统）
+// 3) 旧目录接管必须在「首启写 settings.json」之前：isUntouched() 要求
+//    数据根只有 log/，先写盘会让接管永远失效（01 §7.3）
+core::LegacyImport::runOnce(Paths::dataRoot(), &notice);
+if (!QFile::exists(Settings::settingsFilePath()))
+    settings.save(); // 首启落盘默认 settings.json（接管检查之后！）
+// 4) 组装：core → theme → 各领域 → shell → workbench（依赖方向从上到下），
+//    插件加载必须在 BuiltinPages 之前（lastPageId 恢复才能命中插件页 id）
+// 5) 注册 QML 全局（见 §8.2），加载 QML 模块，起事件循环
 ```
 
 `app/` 同时是 QML 模块 `AgentWorkbench` 的宿主（`qt_add_qml_module`），所有模块的 `.qml` 在这里以资源别名编进可执行文件——**静态库里不放资源**，避免静态库的 qrc 初始化器被链接器丢掉这一类隐蔽故障。
@@ -269,7 +279,7 @@ QGuiApplication app(argc, argv);
 
 | ↓依赖 / →被依赖 | core | plugin_api | theme | shell | agents | skills | web | web·engine | workbench |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| **core** | — | — | — | — | — | — | — | — | — |
+| **core** | — | ✅ | — | — | — | — | — | — | — |
 | **plugin_api** | — | — | — | — | — | — | — | — | — |
 | **theme** | ✅ | — | — | — | — | — | — | — | — |
 | **shell** | ✅ | — | ✅ | — | — | — | — | — | — |
@@ -366,9 +376,11 @@ QGuiApplication app(argc, argv);
 ```
 
 - `window.title` 为空 = 用应用默认标题 `AgentWorkbench`。
-- `skills.roots` 为空 = 用平台默认根清单（`02-ui-specification.md` §7.2）。非空即完全取代默认（不是追加）。
+- `skills.roots` 为空 = 用平台默认根清单（`02-ui-specification.md` §7.2）。非空即完全取代默认（不是追加）。**路径以原样存取**（`~`、`%PWD%`、通配符都保持字面量），只在扫描时展开——落盘展开值会把某台机器的 home/工作目录固化进 settings.json。
 - `web.surface` ∈ `embedded` | `external`；`embedded` 在未编译 WebEngine 时自动降级为 `external` 并记警告。
-- `appearance.theme` 指向主题 `id`；不存在时回退 `mocha-dark` 并记警告。
+- `appearance.theme` 指向主题 `id`；不存在时回退 `mocha-dark` 并记警告。设置页的 `applyTheme(id)` 对未知 id 拒绝写入（手改文件才走回退+警告路径）。
+- `locale.override` 非空时翻译强制用该 locale；`logging.maxFileSize`/`maxFiles` 在启动时接 `Logging::install`。
+- **预留键**（解析、有默认值，但当前版本没有行为定义——加行为前先改本规格）：`appearance.followSystem`、`launcher.startupVersionCheck`、`web.homeUrl`。
 - 旧 `agents.json` 根级的 `title` 字段**不再使用**：若检测到有值而 `settings.json` 没有，记一条 INFO 提示迁移到设置页。不做双源读取。
 
 ### 7.3 旧数据目录接管（唯一的一次性迁移）
@@ -413,7 +425,7 @@ qmlcachegen 对 `AgentWorkbench.App` 这种「只在 C++ 里注册」的 URI 无
 ### 8.3 页面挂载协议
 
 1. 每个功能在 `workbench::BuiltinPages`（或未来插件的注册回调）里向 `NavigationModel` 注册 `PageDescriptor`。
-2. `Sidebar.qml` 用 `Repeater` / `ListView` 渲染 `nav`（按 `section` 分组），点击调 `nav.setCurrentPage(id)`。
+2. `Sidebar.qml` 用 `Repeater` / `ListView` 渲染 `nav`（按 `section` 分组），点击调 `nav.setCurrentPageId(id)`。
 3. `Workspace.qml` 用一个 `Loader`：`source = nav.currentPage.source`，并把该页面的标题与操作区交给页面自己渲染（页面根元素用 shell 的 `PageHeader`）。
 4. 页面**不要**互相 push/pop（0.3.0 的 `StackView` 模式废弃）。需要二级视图时，在工作区内用 `Loader`、`Dialog` 或该页面自己的内部导航。
 5. 页面销毁即释放：页面 QML 不该在 `Component.onDestruction` 之外持有必须存活的资源；需要跨页面存活的状态一律放 C++ 侧（模型/服务）。
@@ -488,7 +500,7 @@ extern "C" {
 | 目标 | 覆盖 | 说明 |
 | --- | --- | --- |
 | `tst_core` | `Paths`、`JsonStore`、`Settings`、`EnvExpander`、`IconResolver`、`TextUtils`、`Logging` | 日志滚动、`formatCommandLine`、`clampOutput` 用现有用例；`Paths` 用 `QTemporaryDir` 注入 |
-| `tst_agents` | `AgentRepository`（内置同步、removed、调色板、逐字节写内置文件）、`AgentModel`（插入/删除/角色）、`AgentsFacade`（CRUD）、`AgentScripts`（install 日志端到端）、`AgentUrls`（token 拼接） | 现有 15 个用例全部有归属（映射表见 `03-migration-plan.md` §5） |
+| `tst_agents` | `AgentRepository`（内置同步、removed、调色板、逐字节写内置文件）、`AgentModel`（插入/删除/角色）、`AgentsFacade`（CRUD + 写盘失败回滚）、`AgentScripts`（install 日志端到端）、`AgentUrls`（token 拼接）、`AgentRuntime`（启动失败信号、未跟踪 PID 的停止、端口→PID 列举、真实启动+停止） | 现有 15 个用例全部有归属（映射表见 `03-migration-plan.md` §5） |
 | `tst_skills` | `SkillFrontmatter`（引号/折叠标量/BOM/CRLF/缺失 frontmatter）、`SkillScanner`（多根、插件多版本去重、无权限目录） | 用固定文本样本，不依赖本机真实目录 |
 | `tst_theme` | `ThemeLoader`（未知键、缺失键回退、非法颜色、id 不匹配）、`ThemeRegistry`（用户主题覆盖内置） | 用 `QTemporaryDir` 写主题文件 |
 | `tst_web` | `WebTabsModel`、`WebTabsFacade`（同 agent 复用、关闭不影响进程、offline 转换）、`WebSurfaceRegistry` | 不加载 Qt WebEngine，因此可在任意配置下跑 |
