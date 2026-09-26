@@ -10,6 +10,10 @@ namespace awb::core {
 class Settings;
 } // namespace awb::core
 
+namespace awb::theme {
+class Theme;
+} // namespace awb::theme
+
 namespace awb::agents {
 
 class AgentHealthMonitor;
@@ -37,8 +41,10 @@ class AgentsFacade : public QObject
     Q_PROPERTY(bool nodeInstalled READ nodeInstalled NOTIFY runtimeVersionsChanged)
 
 public:
+    // `theme` supplies the agent auto-assignment palette (specs/01 §4.3);
+    // nullptr uses the built-in palette (unit tests).
     AgentsFacade(core::Settings *settings, const QString &dataRoot,
-                  QObject *parent = nullptr);
+                 theme::Theme *theme = nullptr, QObject *parent = nullptr);
 
     QAbstractItemModel *model() const;
     // Typed access for in-module callers and tests.

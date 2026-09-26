@@ -1,9 +1,16 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AgentWorkbench.App
 
 ApplicationWindow {
     id: window
+
+    // QML-facing name for the registered Theme singleton: Qt only accepts
+    // uppercase singleton type names, the token contract stays `theme.*`
+    // (specs/01 §8.2). Children resolve `theme` through this root alias.
+    readonly property var theme: Theme
+
     width: 1440
     height: 900
     minimumWidth: 1024
@@ -12,7 +19,7 @@ ApplicationWindow {
     // Brand name, deliberately not translated (see 02-ui-specification.md §13).
     title: "AgentWorkbench"
 
-    color: "#1e1e2e"
+    color: theme.windowBg
 
     // Set to true when the user has already confirmed the exit dialog, so
     // onClosing lets the window close without re-prompting.
@@ -44,33 +51,33 @@ ApplicationWindow {
 
             ColumnLayout {
                 width: scrollView.availableWidth
-                spacing: 8
+                spacing: theme.spacingS
 
                 // Header row: title + subtitle on the left, runtime version
                 // badges (Python / Node.js) on the right.
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    Layout.topMargin: 24
-                    spacing: 12
+                    Layout.leftMargin: theme.spacingXl
+                    Layout.rightMargin: theme.spacingXl
+                    Layout.topMargin: theme.spacingXl
+                    spacing: theme.spacingM
 
                     ColumnLayout {
                         spacing: 0
 
                         Label {
                             text: qsTr("Agent Launcher")
-                            color: "#cdd6f4"
-                            font.pixelSize: 26
+                            color: theme.textPrimary
+                            font.pixelSize: theme.fontSizePageTitle
                             font.bold: true
-                            Layout.bottomMargin: 8
+                            Layout.bottomMargin: theme.spacingS
                         }
 
                         Label {
                             text: qsTr("Launch AI coding agents and open their web UI")
-                            color: "#7f849c"
-                            font.pixelSize: 13
-                            Layout.bottomMargin: 8
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeBody
+                            Layout.bottomMargin: theme.spacingS
                         }
                     }
 
@@ -78,7 +85,7 @@ ApplicationWindow {
 
                     // Runtime version badges
                     Row {
-                        spacing: 8
+                        spacing: theme.spacingS
                         Layout.alignment: Qt.AlignTop | Qt.AlignRight
 
                         // Python badge
@@ -86,28 +93,28 @@ ApplicationWindow {
                             id: pythonBadge
                             readonly property bool installed: agents.pythonInstalled
                             readonly property string version: agents.pythonVersion
-                            radius: 11
+                            radius: theme.radiusPill
                             implicitWidth: pyBadgeLayout.implicitWidth + 20
                             implicitHeight: 24
-                            color: "#313244"
-                            border.color: installed ? "#45475a" : "#f38ba8"
+                            color: theme.badgeBg
+                            border.color: installed ? theme.borderSubtle : theme.danger
                             border.width: 1
 
                             RowLayout {
                                 id: pyBadgeLayout
                                 anchors.centerIn: parent
-                                spacing: 4
+                                spacing: theme.spacingXs
 
                                 Text {
                                     text: "Python"
-                                    color: "#7f849c"
-                                    font.pixelSize: 11
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeSmall
                                     font.bold: true
                                 }
                                 Text {
                                     text: pythonBadge.installed ? pythonBadge.version : "\u00D7"
-                                    color: pythonBadge.installed ? "#a6e3a1" : "#f38ba8"
-                                    font.pixelSize: 11
+                                    color: pythonBadge.installed ? theme.success : theme.danger
+                                    font.pixelSize: theme.fontSizeSmall
                                     font.bold: true
                                 }
                             }
@@ -128,28 +135,28 @@ ApplicationWindow {
                             id: nodeBadge
                             readonly property bool installed: agents.nodeInstalled
                             readonly property string version: agents.nodeVersion
-                            radius: 11
+                            radius: theme.radiusPill
                             implicitWidth: nodeBadgeLayout.implicitWidth + 20
                             implicitHeight: 24
-                            color: "#313244"
-                            border.color: installed ? "#45475a" : "#f38ba8"
+                            color: theme.badgeBg
+                            border.color: installed ? theme.borderSubtle : theme.danger
                             border.width: 1
 
                             RowLayout {
                                 id: nodeBadgeLayout
                                 anchors.centerIn: parent
-                                spacing: 4
+                                spacing: theme.spacingXs
 
                                 Text {
                                     text: "Node"
-                                    color: "#7f849c"
-                                    font.pixelSize: 11
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeSmall
                                     font.bold: true
                                 }
                                 Text {
                                     text: nodeBadge.installed ? nodeBadge.version : "\u00D7"
-                                    color: nodeBadge.installed ? "#a6e3a1" : "#f38ba8"
-                                    font.pixelSize: 11
+                                    color: nodeBadge.installed ? theme.success : theme.danger
+                                    font.pixelSize: theme.fontSizeSmall
                                     font.bold: true
                                 }
                             }
@@ -169,15 +176,15 @@ ApplicationWindow {
 
                 Flow {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 16
-                    Layout.rightMargin: 16
-                    Layout.bottomMargin: 24
-                    spacing: 20
+                    Layout.leftMargin: theme.spacingL
+                    Layout.rightMargin: theme.spacingL
+                    Layout.bottomMargin: theme.spacingXl
+                    spacing: theme.spacingL
 
                     Repeater {
                         model: agents.model
                         delegate: AgentCard {
-                            width: 260
+                            width: theme.cardMinWidth
                             onConfigureRequested: function(id) {
                                 stack.push(agentEditPageComp, { "agentId": id })
                             }
@@ -204,7 +211,7 @@ ApplicationWindow {
         id: settingsButton
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 20
+        anchors.margins: theme.spacingL
         width: 44
         height: 44
         visible: stack.depth === 1
@@ -214,9 +221,9 @@ ApplicationWindow {
         ToolTip.text: qsTr("Settings")
 
         background: Rectangle {
-            radius: 12
-            color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244")
-            border.color: "#45475a"
+            radius: theme.radiusOverlay
+            color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg)
+            border.color: theme.borderSubtle
         }
         contentItem: Image {
             source: "qrc:/icons/gear.svg"
@@ -238,10 +245,10 @@ ApplicationWindow {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#89b4fa"
+            color: theme.overlayBg
+            border.color: theme.accent
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         Component.onCompleted: {
@@ -251,26 +258,26 @@ ApplicationWindow {
 
         ColumnLayout {
             width: legacyImportPopup.availableWidth
-            spacing: 14
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Configuration imported")
-                color: "#89b4fa"
-                font.pixelSize: 16
+                color: theme.accent
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: legacyImportNotice
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             Button {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("OK")
-                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
-                contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
+                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: legacyImportPopup.close()
             }
         }
@@ -288,38 +295,38 @@ ApplicationWindow {
         closePolicy: Popup.NoAutoClose
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#89b4fa"
+            color: theme.overlayBg
+            border.color: theme.accent
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             width: exitConfirmPopup.availableWidth
-            spacing: 14
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Confirm Exit")
-                color: "#89b4fa"
-                font.pixelSize: 16
+                color: theme.accent
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Background terminals were launched via AgentWorkbench this session. Close them before exiting?")
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: theme.spacingS
 
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Yes, close background terminals")
-                    background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#89b4fa", 1.3) : (parent.hovered ? Qt.darker("#89b4fa", 1.15) : "#89b4fa") }
-                    contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.accent) : (parent.hovered ? theme.hover(theme.accent) : theme.accent) }
+                    contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
                         agents.stopAll()
                         exitConfirmPopup.close()
@@ -330,8 +337,8 @@ ApplicationWindow {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("No, just exit")
-                    background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244") }
-                    contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg) }
+                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
                         exitConfirmPopup.close()
                         window.exitConfirmed = true
@@ -341,8 +348,8 @@ ApplicationWindow {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
-                    background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244") }
-                    contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg) }
+                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: exitConfirmPopup.close()
                 }
             }
@@ -363,21 +370,21 @@ ApplicationWindow {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#f38ba8"
+            color: theme.overlayBg
+            border.color: theme.danger
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             id: errorColumn
             width: errorPopup.availableWidth
-            spacing: 14
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Launch failed")
-                color: "#f38ba8"
-                font.pixelSize: 16
+                color: theme.danger
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             ScrollView {
@@ -388,9 +395,9 @@ ApplicationWindow {
                 Label {
                     Layout.fillWidth: true
                     text: errorPopup.message
-                    color: "#cdd6f4"
-                    font.pixelSize: 12
-                    font.family: "Consolas, Monaco, monospace"
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                    font.family: theme.monoFamily
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                 }
@@ -398,8 +405,8 @@ ApplicationWindow {
             Button {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("OK")
-                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
-                contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
+                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: errorPopup.close()
             }
         }

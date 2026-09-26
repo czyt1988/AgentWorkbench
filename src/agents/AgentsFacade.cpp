@@ -9,6 +9,7 @@
 #include "agents/AgentUrls.h"
 #include "core/EnvExpander.h"
 #include "core/Settings.h"
+#include "theme/Theme.h"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -66,7 +67,7 @@ AgentDefinition definitionFromFields(const QVariantMap &f, const QString &id)
 } // namespace
 
 AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
-                           QObject *parent)
+                           theme::Theme *theme, QObject *parent)
     : QObject(parent)
     , m_repo(new AgentRepository(dataRoot))
     , m_stateStore(new AgentStateStore(dataRoot))
@@ -77,6 +78,9 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
           m_model, settings->launcherOptions().healthCheckIntervalMs, this))
 {
     // Configuration: built-ins from the shipped default, user agents on top.
+    // Auto-assignment colors come from the current theme (specs/03 S3-T1).
+    if (theme)
+        m_repo->setAgentPalette(theme->agentPalette());
     m_repo->load();
     m_model->setDefinitions(m_repo->definitions());
 

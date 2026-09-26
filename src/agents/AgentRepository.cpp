@@ -209,7 +209,13 @@ bool AgentRepository::assignPaletteColors()
     bool changed = false;
     for (int i = 0; i < m_definitions.size(); ++i) {
         if (m_definitions[i].color.isEmpty()) {
-            m_definitions[i].color = paletteColorAt(i);
+            // Prefer the current theme's agentPalette; fall back to the
+            // built-in Mocha array (specs/03 S3-T1).
+            m_definitions[i].color = m_agentPalette.isEmpty()
+                ? paletteColorAt(i)
+                : m_agentPalette.at(((i % m_agentPalette.size())
+                                     + m_agentPalette.size())
+                                    % m_agentPalette.size());
             changed = true;
         }
     }

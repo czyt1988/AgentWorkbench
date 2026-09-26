@@ -27,6 +27,7 @@ target_include_directories(awb_agents PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(awb_agents
     PUBLIC
         awb_core
+        awb_theme
         Qt6::Core
         Qt6::Gui
 )

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AgentWorkbench.App
 
 // Full add/edit form for one launcher. Empty agentId = add mode.
 // NOTE: do not name the agent map property `data` — it collides with
@@ -12,7 +13,7 @@ Page {
     readonly property bool isAdd: agentId.length === 0
     property var agentData: agentId.length > 0 ? agents.model.agent(agentId) : ({})
 
-    background: Rectangle { color: "#1e1e2e" }
+    background: Rectangle { color: theme.workspaceBg }
 
     // --- Validation --------------------------------------------------------
     readonly property bool nameValid: nameField.text.trim().length > 0
@@ -69,12 +70,12 @@ Page {
         property string labelText: ""
         property bool isRequired: false
         property string tip: ""
-        spacing: 2
+        spacing: theme.spacingXs
 
         Label {
             text: labelRow.labelText
-            color: "#a6adc8"
-            font.pixelSize: 13
+            color: theme.textSecondary
+            font.pixelSize: theme.fontSizeBody
 
             MouseArea {
                 anchors.fill: parent
@@ -86,14 +87,14 @@ Page {
         }
         Label {
             text: "*"
-            color: "#f38ba8"
-            font.pixelSize: 13
+            color: theme.danger
+            font.pixelSize: theme.fontSizeBody
             visible: labelRow.isRequired
         }
         Label {
             text: "\u2139"
-            color: "#6c7086"
-            font.pixelSize: 12
+            color: theme.textDisabled
+            font.pixelSize: theme.fontSizeBody
             visible: labelRow.tip.length > 0
 
             MouseArea {
@@ -112,19 +113,19 @@ Page {
         id: input
         property bool invalid: false
         Layout.fillWidth: true
-        color: "#cdd6f4"
+        color: theme.textPrimary
         background: Rectangle {
-            radius: 8
-            color: "#313244"
-            border.color: input.invalid ? "#f38ba8" : "#45475a"
+            radius: theme.radiusControl
+            color: theme.surfaceAltBg
+            border.color: input.invalid ? theme.danger : theme.borderSubtle
         }
     }
 
     component SectionLabel: Label {
-        color: "#89b4fa"
-        font.pixelSize: 15
+        color: theme.accent
+        font.pixelSize: theme.fontSizeSubtitle
         font.bold: true
-        Layout.topMargin: 14
+        Layout.topMargin: theme.spacingM
         Layout.fillWidth: true
     }
 
@@ -136,32 +137,32 @@ Page {
 
         ColumnLayout {
             width: scrollView.availableWidth
-            spacing: 12
+            spacing: theme.spacingM
 
             RowLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                Layout.topMargin: 24
-                spacing: 12
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                Layout.topMargin: theme.spacingXl
+                spacing: theme.spacingM
 
                 Button {
                     text: qsTr("\u2190 Back")
                     background: Rectangle { color: "transparent" }
-                    contentItem: Label { text: parent.text; color: "#89b4fa"; font.pixelSize: 16 }
+                    contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeSubtitle }
                     onClicked: page.StackView.view.pop()
                 }
                 Item { Layout.fillWidth: true }
             }
 
             ColumnLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                spacing: 4
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                spacing: theme.spacingXs
 
                 Label {
                     text: page.isAdd ? qsTr("Add Launcher") : qsTr("Edit Launcher")
-                    color: "#cdd6f4"
-                    font.pixelSize: 24
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizePageTitle
                     font.bold: true
                 }
                 Label {
@@ -169,16 +170,16 @@ Page {
                     text: page.agentData.running
                           ? qsTr("This agent is running. Changes take effect on the next launch.")
                           : qsTr("Changes are saved to the configuration file.")
-                    color: "#6c7086"
-                    font.pixelSize: 12
+                    color: theme.textDisabled
+                    font.pixelSize: theme.fontSizeBody
                 }
             }
 
             // --- Basics ---------------------------------------------------
             ColumnLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                spacing: 10
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                spacing: theme.spacingS
                 Layout.fillWidth: true
 
                 SectionLabel { text: qsTr("Basics") }
@@ -221,8 +222,8 @@ Page {
                 Label {
                     visible: !page.webUrlValid && webUrlField.text.trim().length > 0
                     text: qsTr("Must be a valid http:// or https:// URL.")
-                    color: "#f38ba8"
-                    font.pixelSize: 11
+                    color: theme.danger
+                    font.pixelSize: theme.fontSizeSmall
                 }
 
                 FormLabel {
@@ -234,7 +235,7 @@ Page {
                     text: page.isAdd ? "" : page.agentId
                     placeholderText: qsTr("auto-generated from name")
                     readOnly: !page.isAdd
-                    color: page.isAdd ? "#cdd6f4" : "#7f849c"
+                    color: page.isAdd ? theme.textPrimary : theme.textMuted
                     invalid: !page.idValid
                 }
 
@@ -251,9 +252,9 @@ Page {
 
             // --- Appearance -----------------------------------------------
             ColumnLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                spacing: 10
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                spacing: theme.spacingS
                 Layout.fillWidth: true
 
                 SectionLabel { text: qsTr("Appearance") }
@@ -264,7 +265,7 @@ Page {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: theme.spacingS
 
                     FormTextField {
                         id: iconField
@@ -287,7 +288,7 @@ Page {
                 }
                 // Built-in icon quick picks.
                 Row {
-                    spacing: 6
+                    spacing: theme.spacingS
 
                     Repeater {
                         model: ["default", "terminal", "cube", "bot"]
@@ -298,9 +299,9 @@ Page {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: 8
-                                color: pickArea.containsMouse ? "#45475a" : "#313244"
-                                border.color: "#45475a"
+                                radius: theme.radiusControl
+                                color: pickArea.containsMouse ? theme.surfaceAltBg : theme.surfaceBg
+                                border.color: theme.borderSubtle
                             }
                             Image {
                                 anchors.centerIn: parent
@@ -321,11 +322,11 @@ Page {
 
                 FormLabel {
                     labelText: qsTr("Color")
-                    tip: qsTr("Accent color of the card in #RRGGBB form, e.g. \"#89b4fa\". Leave empty to auto-assign a color from the built-in palette.")
+                    tip: qsTr("Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: theme.spacingS
                     FormTextField {
                         id: colorField
                         text: page.agentData.color || ""
@@ -335,42 +336,42 @@ Page {
                     Rectangle {
                         width: 30
                         height: 30
-                        radius: 8
+                        radius: theme.radiusControl
                         color: page.colorValid && colorField.text.trim().length > 0
                                ? colorField.text.trim() : "transparent"
-                        border.color: "#45475a"
+                        border.color: theme.borderSubtle
                     }
                 }
 
                 FormLabel {
                     labelText: qsTr("Card color")
-                    tip: qsTr("Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default (#313244).")
+                    tip: qsTr("Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: theme.spacingS
                     FormTextField {
                         id: cardColorField
                         text: page.agentData.cardColor || ""
-                        placeholderText: qsTr("default (#313244)")
+                        placeholderText: qsTr("default: surface background")
                         invalid: !page.cardColorValid
                     }
                     Rectangle {
                         width: 30
                         height: 30
-                        radius: 8
+                        radius: theme.radiusControl
                         color: page.cardColorValid && cardColorField.text.trim().length > 0
                                ? cardColorField.text.trim() : "transparent"
-                        border.color: "#45475a"
+                        border.color: theme.borderSubtle
                     }
                 }
             }
 
             // --- Install & maintenance ------------------------------------
             ColumnLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                spacing: 10
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                spacing: theme.spacingS
                 Layout.fillWidth: true
 
                 SectionLabel { text: qsTr("Install & Maintenance") }
@@ -408,10 +409,10 @@ Page {
 
             // --- Advanced -------------------------------------------------
             ColumnLayout {
-                Layout.leftMargin: 28
-                Layout.rightMargin: 28
-                spacing: 10
-                Layout.bottomMargin: 24
+                Layout.leftMargin: theme.spacingXl
+                Layout.rightMargin: theme.spacingXl
+                spacing: theme.spacingS
+                Layout.bottomMargin: theme.spacingXl
                 Layout.fillWidth: true
 
                 SectionLabel { text: qsTr("Advanced") }
@@ -437,29 +438,29 @@ Page {
                 }
 
                 Row {
-                    spacing: 12
-                    Layout.topMargin: 16
+                    spacing: theme.spacingM
+                    Layout.topMargin: theme.spacingL
                     Layout.alignment: Qt.AlignRight
 
                     Button {
                         text: qsTr("Cancel")
-                        background: Rectangle { radius: 8; color: parent.down ? "#45475a" : "#313244"; border.color: "#45475a" }
-                        contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
+                        contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: page.StackView.view.pop()
                     }
                     Button {
                         id: saveButton
-                        readonly property color accent: page.agentData.color || "#89b4fa"
+                        readonly property color accent: page.agentData.color || theme.accent
                         enabled: page.formValid
                         text: qsTr("Save")
                         background: Rectangle {
-                            radius: 8
+                            radius: theme.radiusControl
                             color: saveButton.enabled
-                                   ? (saveButton.down ? Qt.darker(saveButton.accent, 1.3) : saveButton.accent)
-                                   : "#313244"
-                            border.color: "#45475a"
+                                   ? (saveButton.down ? theme.pressed(saveButton.accent) : saveButton.accent)
+                                   : theme.surfaceBg
+                            border.color: theme.borderSubtle
                         }
-                        contentItem: Label { text: parent.text; color: "#ffffff"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        contentItem: Label { text: parent.text; color: theme.textOnAccent; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: page.save()
                     }
                 }
@@ -478,42 +479,42 @@ Page {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#f38ba8"
+            color: theme.overlayBg
+            border.color: theme.danger
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             width: saveErrorPopup.availableWidth
-            spacing: 12
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Save failed")
-                color: "#f38ba8"
-                font.pixelSize: 16
+                color: theme.danger
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Could not write the configuration file:")
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             Label {
                 Layout.fillWidth: true
                 text: agents.configFilePath()
-                color: "#89b4fa"
-                font.pixelSize: 12
-                font.family: "Consolas, Monaco, monospace"
+                color: theme.accent
+                font.pixelSize: theme.fontSizeBody
+                font.family: theme.monoFamily
                 wrapMode: Text.WrapAnywhere
             }
             Button {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("OK")
-                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : "#313244"; border.color: "#45475a" }
-                contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
+                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: saveErrorPopup.close()
             }
         }

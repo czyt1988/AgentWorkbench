@@ -3,6 +3,8 @@
 #include "core/Logging.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
+#include "theme/Theme.h"
+#include "theme/ThemeRegistry.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -11,6 +13,7 @@
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQuickStyle>
 #include <QTranslator>
 
@@ -50,9 +53,20 @@ int main(int argc, char *argv[])
     if (!QFile::exists(awb::core::Settings::settingsFilePath()))
         settings.save();
 
+    // Semantic tokens as the QML global `theme` (specs/01 §8.2: C++
+    // globals live on the AgentWorkbench.App URI, never on the qml_module
+    // URI itself). Qt requires singleton type names to start uppercase, so
+    // the C++ registration uses "Theme" and the QML-facing name stays
+    // lowercase through the root alias in main.qml (spec amendment noted in
+    // 01 §8.2).
+    awb::theme::ThemeRegistry themeRegistry;
+    awb::theme::Theme theme(&settings, &themeRegistry);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &theme);
+
     // The agents feature: repository (agents.json), model, runtime, health
     // monitor — everything QML reaches through the `agents` global.
-    awb::agents::AgentsFacade agents(&settings, awb::core::Paths::dataRoot());
+    awb::agents::AgentsFacade agents(&settings, awb::core::Paths::dataRoot(),
+                                     &theme);
     agents.start();
 
     QQmlApplicationEngine engine;

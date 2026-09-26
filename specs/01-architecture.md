@@ -393,17 +393,20 @@ QGuiApplication app(argc, argv);
 
 ### 8.2 C++ 与 QML 的绑定方式（已踩过的坑，照做）
 
-| 对象 | 注册方式 | QML 里的名字 |
+| 对象 | 注册方式（类型名） | QML 里的名字 |
 | --- | --- | --- |
 | 共享 QML 组件（`components/`） | `qt_add_qml_module` 的 `QML_FILES` | `import AgentWorkbench` |
-| `Theme` | `qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "theme", &theme)` | `theme`（`import AgentWorkbench.App`） |
-| `NavigationModel`、`ShellController`、`UiServices`、`Notifications` | 同上，URI `AgentWorkbench.App` | `nav`、`shell`、`ui`、`toasts` |
-| `AgentsFacade`、`SkillsFacade`、`WebTabsFacade`、`WorkbenchContext`、`EnvironmentService` | 同上，URI `AgentWorkbench.App` | `agents`、`skills`、`web`、`workbench`、`environment` |
+| `Theme` | `qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &theme)` | `theme`（根别名，见下） |
+| `NavigationModel`、`ShellController`、`UiServices`、`Notifications` | 同上，注册名 `Nav`、`Shell`、`Ui`、`Toasts` | `nav`、`shell`、`ui`、`toasts`（根别名） |
+| `AgentsFacade`、`SkillsFacade`、`WebTabsFacade`、`WorkbenchContext`、`EnvironmentService` | 同上，注册名 `Agents`、`Skills`、`Web`、`Workbench`、`Environment` | `agents`、`skills`、`web`、`workbench`、`environment`（根别名） |
 
-两条硬约束：
+**单例注册名必须大写**（2026-09-27 修订）：Qt ≥ 6.x 拒绝小写单例类型名（`Invalid QML singleton type name "theme"; type names must begin with an uppercase letter`，直接导致 `failed to load component`）。QML 侧的契约名保持小写不变：在窗口根 QML 里声明一行根别名 `readonly property var theme: Theme`，其作用域内的所有组件通过创建上下文链解析 `theme.*`（已在 0.4.0 冒烟验证）。S4 起的 `nav`/`ui`/`agents` 等照此办理。
+
+三条硬约束：
 
 1. **不要**往 `AgentWorkbench` 这个 URI 里手工注册 C++ 单例——它已经是 `qt_add_qml_module` 生成的（有 qmldir 的）模块，会报 `Cannot install element ... into protected module`。C++ 全局统一放在 `AgentWorkbench.App` 这个纯 C++ URI 下。
 2. **不要**用 `engine.rootContext()->setContextProperty()`：qmlcachegen 无法分析未限定访问，会一直报 warning，且性能与可测性都更差。
+3. C++ 单例的**注册名**大写（Qt 硬性要求），QML **契约名**小写（根别名桥接）；两者都在上表中列出。
 
 qmlcachegen 对 `AgentWorkbench.App` 这种「只在 C++ 里注册」的 URI 无法在编译期解析，构建日志会出现 unresolved-import 类警告，属于**预期现象**，不要为了消除它改设计（除非同时引入 `.qmltypes` 生成）。
 

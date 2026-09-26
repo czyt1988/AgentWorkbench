@@ -1,10 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AgentWorkbench.App
 
 Item {
     id: root
-    height: 230
+    height: theme.cardHeight
 
     // Alias model roles to distinct local properties (avoids shadowing by
     // Rectangle.color etc.).
@@ -90,17 +91,17 @@ Item {
     Rectangle {
         id: card
         anchors.fill: parent
-        radius: 16
+        radius: theme.radiusCard
 
         // Visual state: running => tinted background with colored border.
         color: root.running_p
               ? Qt.rgba(tintRed(root.agentColor), tintGreen(root.agentColor), tintBlue(root.agentColor), 0.16)
-              : (root.cardColor_p.length > 0 ? root.cardColor_p : "#313244")
+              : (root.cardColor_p.length > 0 ? root.cardColor_p : theme.surfaceBg)
         border.width: root.running_p ? 2.5 : 1
-        border.color: root.flashing ? "#f38ba8"
-                                    : (root.running_p ? root.agentColor : "#45475a")
-        Behavior on color { ColorAnimation { duration: 180 } }
-        Behavior on border.color { ColorAnimation { duration: 180 } }
+        border.color: root.flashing ? theme.danger
+                                    : (root.running_p ? root.agentColor : theme.borderSubtle)
+        Behavior on color { ColorAnimation { duration: theme.durationNormal } }
+        Behavior on border.color { ColorAnimation { duration: theme.durationNormal } }
 
         // Click the card body: open web UI when running, otherwise launch.
         MouseArea {
@@ -179,8 +180,8 @@ Item {
             id: versionIndicator
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.topMargin: 8
-            anchors.leftMargin: 8
+            anchors.topMargin: theme.spacingS
+            anchors.leftMargin: theme.spacingS
             width: 60
             height: 22
 
@@ -209,7 +210,7 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 11
+                    radius: theme.radiusPill
                     color: downloadArea.containsMouse
                            ? Qt.rgba(137/255, 180/255, 250/255, 0.22)
                            : "transparent"
@@ -252,8 +253,8 @@ Item {
                 Label {
                     id: versionLabel
                     text: root.version_p.length > 0 ? root.version_p : qsTr("Installed")
-                    color: "#7f849c"
-                    font.pixelSize: 10
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
@@ -271,7 +272,7 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: 8
+                        radius: theme.radiusControl
                         color: updateArea2.containsMouse
                                ? Qt.rgba(137/255, 180/255, 250/255, 0.22)
                                : "transparent"
@@ -279,8 +280,8 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "\u21BB"
-                        color: updateArea2.containsMouse ? "#89b4fa" : "#7f849c"
-                        font.pixelSize: 14
+                        color: updateArea2.containsMouse ? theme.accent : theme.textMuted
+                        font.pixelSize: theme.fontSizeBody
                         font.bold: true
                     }
                     MouseArea {
@@ -312,9 +313,9 @@ Item {
         Row {
             id: iconRow
             anchors.top: parent.top
-            anchors.topMargin: 18
+            anchors.topMargin: theme.spacingL
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 12
+            spacing: theme.spacingM
 
             Image {
                 source: root.icon_p
@@ -330,43 +331,43 @@ Item {
                 width: 12
                 height: 12
                 radius: 6
-                color: root.running_p ? root.agentColor : "#585b70"
-                Behavior on color { ColorAnimation { duration: 180 } }
+                color: root.running_p ? root.agentColor : theme.neutralOff
+                Behavior on color { ColorAnimation { duration: theme.durationNormal } }
             }
         }
 
         Label {
             id: nameLabel
             text: root.name_p
-            color: "#cdd6f4"
-            font.pixelSize: 18
+            color: theme.textPrimary
+            font.pixelSize: theme.fontSizeCardTitle
             font.bold: true
             anchors.top: iconRow.bottom
-            anchors.topMargin: 10
+            anchors.topMargin: theme.spacingS
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
+            anchors.leftMargin: theme.spacingL
+            anchors.rightMargin: theme.spacingL
             horizontalAlignment: Text.AlignHCenter
         }
 
         Label {
             id: statusLabel
             text: root.flashing ? root.flashMessage
-                                : (root.setupping_p ? qsTr("Setting up…")
-                                                      : (root.installing_p ? qsTr("Installing…")
-                                                      : (root.launching_p ? qsTr("Starting…")
-                                                                          : (root.stopping ? qsTr("Stopping…")
+                                : (root.setupping_p ? qsTr("Setting up...")
+                                                      : (root.installing_p ? qsTr("Installing...")
+                                                      : (root.launching_p ? qsTr("Starting...")
+                                                                          : (root.stopping ? qsTr("Stopping...")
                                                                                             : (root.running_p ? qsTr("Running") : qsTr("Stopped"))))))
-            color: root.flashing ? "#f38ba8"
-                                 : ((root.setupping_p || root.installing_p || root.launching_p || root.stopping || root.running_p) ? root.agentColor : "#7f849c")
-            font.pixelSize: 12
+            color: root.flashing ? theme.danger
+                                 : ((root.setupping_p || root.installing_p || root.launching_p || root.stopping || root.running_p) ? root.agentColor : theme.textMuted)
+            font.pixelSize: theme.fontSizeBody
             anchors.top: nameLabel.bottom
-            anchors.topMargin: 10
+            anchors.topMargin: theme.spacingS
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
+            anchors.leftMargin: theme.spacingL
+            anchors.rightMargin: theme.spacingL
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }
@@ -381,25 +382,25 @@ Item {
         Rectangle {
             id: consolePanel
             anchors.top: statusLabel.bottom
-            anchors.topMargin: 6
+            anchors.topMargin: theme.spacingS
             anchors.bottom: buttonRow.top
-            anchors.bottomMargin: 6
+            anchors.bottomMargin: theme.spacingS
             anchors.left: parent.left
-            anchors.leftMargin: 18
+            anchors.leftMargin: theme.spacingL
             anchors.right: parent.right
-            anchors.rightMargin: 18
+            anchors.rightMargin: theme.spacingL
             visible: root.consoleOutput_p.length > 0 && root.consoleVisible
-            color: "#11111b"
+            color: theme.consoleBg
             radius: 6
-            border.color: "#45475a"
+            border.color: theme.borderSubtle
             border.width: 1
             clip: true
 
             Flickable {
                 id: consoleFlick
                 anchors.fill: parent
-                anchors.margins: 4
-                anchors.rightMargin: 20 // leave room for the × button
+                anchors.margins: theme.spacingXs
+                anchors.rightMargin: theme.spacingL // leave room for the × button
                 clip: true
                 contentWidth: width
                 contentHeight: consoleText.implicitHeight
@@ -410,9 +411,9 @@ Item {
                     id: consoleText
                     width: consoleFlick.width
                     text: root.consoleOutput_p
-                    color: "#a6adc8"
-                    font.family: "Consolas, Monaco, Courier New, monospace"
-                    font.pixelSize: 9
+                    color: theme.textSecondary
+                    font.family: theme.monoFamily
+                    font.pixelSize: theme.fontSizeCaption
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                 }
@@ -432,14 +433,14 @@ Item {
                 id: consoleCloseButton
                 anchors.top: parent.top
                 anchors.right: parent.right
-                anchors.topMargin: 2
-                anchors.rightMargin: 2
+                anchors.topMargin: theme.spacingXs
+                anchors.rightMargin: theme.spacingXs
                 width: 16
                 height: 16
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8
+                    radius: theme.radiusControl
                     color: consoleCloseArea.containsMouse
                            ? Qt.rgba(243/255, 139/255, 168/255, 0.22)
                            : "transparent"
@@ -447,8 +448,8 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "\u00D7"
-                    color: consoleCloseArea.containsMouse ? "#f38ba8" : "#7f849c"
-                    font.pixelSize: 13
+                    color: consoleCloseArea.containsMouse ? theme.danger : theme.textMuted
+                    font.pixelSize: theme.fontSizeBody
                     font.bold: true
                 }
                 MouseArea {
@@ -473,8 +474,8 @@ Item {
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.margins: 18
-            spacing: 10
+            anchors.margins: theme.spacingL
+            spacing: theme.spacingS
 
             Button {
                 id: actionButton
@@ -487,14 +488,14 @@ Item {
                 text: root.launching_p ? "" : (root.running_p ? qsTr("Open") : qsTr("Start"))
 
                 background: Rectangle {
-                    radius: 8
-                    color: parent.down ? Qt.darker(root.agentColor, 1.3)
-                                       : (parent.hovered ? Qt.darker(root.agentColor, 1.15) : root.agentColor)
+                    radius: theme.radiusControl
+                    color: parent.down ? theme.pressed(root.agentColor)
+                                       : (parent.hovered ? theme.hover(root.agentColor) : root.agentColor)
                     opacity: (root.launching_p || root.setupping_p) ? 0.6 : 1.0
                 }
                 contentItem: Label {
                     text: parent.text
-                    color: "#ffffff"
+                    color: theme.textOnAccent
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -519,13 +520,13 @@ Item {
                 width: (parent.width - 10) / 2
 
                 background: Rectangle {
-                    radius: 8
-                    color: parent.down ? "#45475a"
-                                       : (parent.hovered ? "#4a4d62" : "#45475a")
+                    radius: theme.radiusControl
+                    color: parent.down ? theme.surfaceAltBg
+                                       : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceAltBg)
                 }
                 contentItem: Label {
                     text: parent.text
-                    color: "#cdd6f4"
+                    color: theme.textPrimary
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -541,22 +542,22 @@ Item {
             id: stopButton
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 8
-            anchors.rightMargin: 8
+            anchors.topMargin: theme.spacingS
+            anchors.rightMargin: theme.spacingS
             width: 22
             height: 22
             visible: root.running_p
 
             Rectangle {
                 anchors.fill: parent
-                radius: 11
+                radius: theme.radiusPill
                 color: stopArea.containsMouse ? Qt.rgba(243/255, 139/255, 168/255, 0.22) : "transparent"
             }
             Text {
                 anchors.centerIn: parent
                 text: "\u00D7"
-                color: stopArea.containsMouse ? "#f38ba8" : "#7f849c"
-                font.pixelSize: 15
+                color: stopArea.containsMouse ? theme.danger : theme.textMuted
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
                 visible: !root.stopping
             }
@@ -599,39 +600,39 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#f38ba8"
+            color: theme.overlayBg
+            border.color: theme.danger
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             width: forceStopConfirm.availableWidth
-            spacing: 14
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Force Stop")
-                color: "#f38ba8"
-                font.pixelSize: 16
+                color: theme.danger
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Force stop %1? This will terminate the process serving %2.")
                     .arg(root.name_p).arg(root.webUrl_p)
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: theme.spacingS
 
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Force Stop")
-                    background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#f38ba8", 1.3) : (parent.hovered ? Qt.darker("#f38ba8", 1.15) : "#f38ba8") }
-                    contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.danger) : (parent.hovered ? theme.hover(theme.danger) : theme.danger) }
+                    contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
                         forceStopConfirm.close()
                         root.stopping = true
@@ -641,8 +642,8 @@ Item {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
-                    background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244") }
-                    contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg) }
+                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: forceStopConfirm.close()
                 }
             }

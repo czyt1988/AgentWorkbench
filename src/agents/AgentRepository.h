@@ -59,9 +59,13 @@ public:
     // Turn a display name into a config id: "Kimi Code" -> "kimi-code".
     static QString slugFromName(const QString &name);
 
-    // Catppuccin Mocha palette color by position (auto color assignment).
-    // Until S3 the palette is the built-in array; the theme's agentPalette
-    // takes over then (specs/03 S2-T2).
+    // The palette used for auto-assigning colors to agents without one.
+    // Injected from the current theme's agentPalette (specs/03 S3-T1);
+    // when empty, the built-in Mocha array is used.
+    void setAgentPalette(const QStringList &palette) { m_agentPalette = palette; }
+
+    // Built-in Catppuccin Mocha palette color by position (fallback when no
+    // theme palette was injected).
     static QString paletteColorAt(int index);
 
     // Resolve an icon string for display; the application-level fallback
@@ -84,6 +88,7 @@ private:
     QString m_dataRoot;
     QList<AgentDefinition> m_definitions;
     QStringList m_removedIds;
+    QStringList m_agentPalette;
 };
 
 } // namespace awb::agents

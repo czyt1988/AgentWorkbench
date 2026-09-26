@@ -14,6 +14,8 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 # L0 infrastructure library (src/core). See specs/01-architecture.md §4.1.
 add_subdirectory(src/core)
+# L1 theme engine (src/theme). See specs/01-architecture.md §4.2.
+add_subdirectory(src/theme)
 # L2 agents domain (src/agents). See specs/01-architecture.md §4.3.
 add_subdirectory(src/agents)
 
@@ -32,6 +34,22 @@ qt_add_executable(AgentWorkbench
 
 # Include root for spec-style includes ("core/Foo.h", 01-architecture.md §6).
 target_include_directories(AgentWorkbench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# Built-in themes (specs/02 §9.1). Resources are compiled into the
+# executable — static libraries must not carry qrc initializers.
+set(_awb_theme_files
+    ${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
+    ${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json)
+set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
+    PROPERTIES QT_RESOURCE_ALIAS "mocha-dark.json")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json
+    PROPERTIES QT_RESOURCE_ALIAS "latte-light.json")
+
+qt_add_resources(AgentWorkbench "theme_resources"
+    PREFIX "/themes"
+    FILES
+        ${_awb_theme_files}
+)
 
 qt_add_resources(AgentWorkbench "app_resources"
     PREFIX "/"
@@ -59,6 +77,7 @@ qt_add_resources(AgentWorkbench "app_resources"
 target_link_libraries(AgentWorkbench PRIVATE
     awb_agents
     awb_core
+    awb_theme
     Qt6::Core
     Qt6::Gui
     Qt6::Qml

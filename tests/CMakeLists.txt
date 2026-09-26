@@ -4,3 +4,10 @@
 # BUILD_TESTING and Qt6::Test come from the top-level CMakeLists.txt.
 add_subdirectory(core)
 add_subdirectory(agents)
+add_subdirectory(theme)
+
+# Architecture rules as a test (specs/01 §5.3): a violating build fails
+# instead of relying on people remembering the rules.
+add_test(NAME check_architecture
+         COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check-architecture.sh
+         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

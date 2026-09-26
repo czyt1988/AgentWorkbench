@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AgentWorkbench.App
 
 // Settings entry: launcher management. Structured as sections inside a
 // scrollable column so more settings can be added below "Launchers" later.
 Page {
     id: page
-    background: Rectangle { color: "#1e1e2e" }
+    background: Rectangle { color: theme.workspaceBg }
 
     function openEditor(agentId) {
         page.StackView.view.push(agentEditComp, { "agentId": agentId })
@@ -32,55 +33,55 @@ Page {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#f38ba8"
+            color: theme.overlayBg
+            border.color: theme.danger
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             width: deleteConfirmPopup.availableWidth
-            spacing: 12
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Delete Launcher")
-                color: "#f38ba8"
-                font.pixelSize: 16
+                color: theme.danger
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Remove \"%1\" from the launcher list?")
                       .arg(deleteConfirmPopup.pendingName)
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             Label {
                 Layout.fillWidth: true
                 visible: deleteConfirmPopup.pendingRunning
                 text: qsTr("The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.")
-                color: "#f9e2af"
-                font.pixelSize: 12
+                color: theme.warning
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             Label {
                 Layout.fillWidth: true
                 visible: deleteConfirmPopup.pendingBuiltin
                 text: qsTr("This is a built-in launcher. You can bring it back later with \"Restore default launchers\".")
-                color: "#7f849c"
-                font.pixelSize: 12
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: theme.spacingS
 
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Delete")
-                    background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#f38ba8", 1.3) : (parent.hovered ? Qt.darker("#f38ba8", 1.15) : "#f38ba8") }
-                    contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.danger) : (parent.hovered ? theme.hover(theme.danger) : theme.danger) }
+                    contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: {
                         if (!agents.removeAgent(deleteConfirmPopup.pendingId))
                             errorPopup.open()
@@ -90,8 +91,8 @@ Page {
                 Button {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
-                    background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
-                    contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
+                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     onClicked: deleteConfirmPopup.close()
                 }
             }
@@ -109,42 +110,42 @@ Page {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1e1e2e"
-            border.color: "#f38ba8"
+            color: theme.overlayBg
+            border.color: theme.danger
             border.width: 1
-            radius: 12
+            radius: theme.radiusOverlay
         }
 
         ColumnLayout {
             width: errorPopup.availableWidth
-            spacing: 12
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Save failed")
-                color: "#f38ba8"
-                font.pixelSize: 16
+                color: theme.danger
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Could not write the configuration file:")
-                color: "#cdd6f4"
-                font.pixelSize: 13
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
             }
             Label {
                 Layout.fillWidth: true
                 text: agents.configFilePath()
-                color: "#89b4fa"
-                font.pixelSize: 12
-                font.family: "Consolas, Monaco, monospace"
+                color: theme.accent
+                font.pixelSize: theme.fontSizeBody
+                font.family: theme.monoFamily
                 wrapMode: Text.WrapAnywhere
             }
             Button {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("OK")
-                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : "#313244"; border.color: "#45475a" }
-                contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
+                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: errorPopup.close()
             }
         }
@@ -152,16 +153,16 @@ Page {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 28
-        spacing: 12
+        anchors.margins: theme.spacingXl
+        spacing: theme.spacingM
 
         RowLayout {
-            spacing: 12
+            spacing: theme.spacingM
 
             Button {
                 text: qsTr("\u2190 Back")
                 background: Rectangle { color: "transparent" }
-                contentItem: Label { text: parent.text; color: "#89b4fa"; font.pixelSize: 16 }
+                contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeSubtitle }
                 onClicked: page.StackView.view.pop()
             }
             Item { Layout.fillWidth: true }
@@ -169,27 +170,63 @@ Page {
 
         Label {
             text: qsTr("Settings")
-            color: "#cdd6f4"
-            font.pixelSize: 24
+            color: theme.textPrimary
+            font.pixelSize: theme.fontSizePageTitle
             font.bold: true
+        }
+
+        // --- Appearance section ------------------------------------------
+        // Theme switch entry (specs/03 S3-T4): applies at runtime and is
+        // persisted to settings.json; theme files hot-reload through
+        // ThemeRegistry.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: theme.spacingM
+
+            Label {
+                text: qsTr("Appearance")
+                color: theme.textSecondary
+                font.pixelSize: theme.fontSizeSubtitle
+                font.bold: true
+            }
+            Item { Layout.fillWidth: true }
+            ComboBox {
+                id: themeCombo
+                textRole: "name"
+                valueRole: "id"
+                model: theme.availableThemes
+                // Re-evaluates when the active theme changes (themeId
+                // notifies); the user's pick re-activates it immediately.
+                currentIndex: themeCombo.themeIdIndexOf(theme.themeId)
+                onActivated: theme.applyTheme(currentValue)
+
+                function themeIdIndexOf(id) {
+                    const themes = theme.availableThemes
+                    for (let i = 0; i < themes.length; ++i) {
+                        if (themes[i].id === id)
+                            return i
+                    }
+                    return -1
+                }
+            }
         }
 
         // --- Launchers section -------------------------------------------
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: theme.spacingM
 
             Label {
                 text: qsTr("Launchers")
-                color: "#a6adc8"
-                font.pixelSize: 16
+                color: theme.textSecondary
+                font.pixelSize: theme.fontSizeSubtitle
                 font.bold: true
             }
             Item { Layout.fillWidth: true }
             Button {
                 text: qsTr("Add Launcher")
-                background: Rectangle { radius: 8; color: parent.down ? Qt.darker("#89b4fa", 1.3) : (parent.hovered ? Qt.darker("#89b4fa", 1.15) : "#89b4fa") }
-                contentItem: Label { text: parent.text; color: "#1e1e2e"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.accent) : (parent.hovered ? theme.hover(theme.accent) : theme.accent) }
+                contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: page.openEditor("")
             }
         }
@@ -203,7 +240,7 @@ Page {
 
             ColumnLayout {
                 width: scrollView.availableWidth
-                spacing: 8
+                spacing: theme.spacingS
 
                 Repeater {
                     model: agents.model
@@ -211,14 +248,14 @@ Page {
                     delegate: Rectangle {
                         Layout.fillWidth: true
                         height: 60
-                        radius: 10
-                        color: "#313244"
+                        radius: theme.radiusControl
+                        color: theme.surfaceBg
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 14
-                            anchors.rightMargin: 10
-                            spacing: 12
+                            anchors.leftMargin: theme.spacingM
+                            anchors.rightMargin: theme.spacingS
+                            spacing: theme.spacingM
 
                             Image {
                                 source: model.icon
@@ -227,20 +264,20 @@ Page {
                             }
 
                             ColumnLayout {
-                                spacing: 2
+                                spacing: theme.spacingXs
                                 Layout.fillWidth: true
 
                                 Label {
                                     text: model.name
-                                    color: "#cdd6f4"
-                                    font.pixelSize: 14
+                                    color: theme.textPrimary
+                                    font.pixelSize: theme.fontSizeBody
                                     font.bold: true
                                 }
                                 Label {
                                     Layout.fillWidth: true
                                     text: model.command
-                                    color: "#7f849c"
-                                    font.pixelSize: 11
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeSmall
                                     elide: Text.ElideMiddle
                                 }
                             }
@@ -250,7 +287,7 @@ Page {
                                 width: 10
                                 height: 10
                                 radius: 5
-                                color: model.running ? "#a6e3a1" : "#585b70"
+                                color: model.running ? theme.success : theme.neutralOff
                                 ToolTip.visible: dotArea.containsMouse
                                 ToolTip.delay: 300
                                 ToolTip.text: model.running ? qsTr("Running") : qsTr("Stopped")
@@ -264,14 +301,14 @@ Page {
 
                             Button {
                                 text: qsTr("Edit")
-                                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
-                                contentItem: Label { text: parent.text; color: "#89b4fa"; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
+                                contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeBody; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 onClicked: page.openEditor(model.agentId)
                             }
                             Button {
                                 text: qsTr("Delete")
-                                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
-                                contentItem: Label { text: parent.text; color: "#f38ba8"; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg); border.color: theme.borderSubtle }
+                                contentItem: Label { text: parent.text; color: theme.danger; font.pixelSize: theme.fontSizeBody; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                 onClicked: {
                                     deleteConfirmPopup.pendingId = model.agentId
                                     deleteConfirmPopup.pendingName = model.name
@@ -290,7 +327,7 @@ Page {
         Button {
             text: qsTr("Restore default launchers")
             background: Rectangle { color: "transparent" }
-            contentItem: Label { text: parent.text; color: "#7f849c"; font.pixelSize: 12 }
+            contentItem: Label { text: parent.text; color: theme.textMuted; font.pixelSize: theme.fontSizeBody }
             onClicked: {
                 if (!agents.restoreDefaults())
                     errorPopup.open()
