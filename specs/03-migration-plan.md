@@ -151,6 +151,18 @@
 
 **目标**：启动 agent 后可在应用内以标签页使用其 Web 界面；多 agent 并存；内存与崩溃可管理。
 
+**相关计划（细节来源，但有冲突）**：仓库里已有一份更细的 WebEngine 实施计划 `2026-09-26-webengine-embedding-integration.md`（调研会话的产物；`docs/research/webengine-embedding.md` §7 把它引用为 `docs/superpowers/plans/…` 下的同名文件，实际当前位于仓库根目录且未纳入版本控制）。它的十个任务（初始化顺序、每 agent profile、弹窗/下载/全屏接管、快捷键与查找、视图生命周期、打包与体积、能力兜底、人工验证矩阵、OpenCode 端口冲突、文档）与本节 S5-T1…T9 一一对应，**可以直接当作 S5 各任务的细节参考**。但注意它的架构与命名写在重构之前，与 `specs/` 冲突处一律以 `specs/` 为准：
+
+| 它的写法 | 本项目规格的写法 |
+| --- | --- |
+| `WebUiPage.qml` 推入现有 `StackView` | `src/web/qml/WebTabsPage.qml`，由侧边栏工作区宿主加载 |
+| `src/WebProfiles.{h,cpp}` 由 `AgentConfig` 提供路径 | `awb_web_engine` 的 `WebEngineProfileStore` + `awb_web` 的 `WebProfilePaths` |
+| `~/.AgentLauncher/webengine/<id>` | `<dataRoot>/webprofiles/<agentId>`（`dataRoot` = `~/.AgentWorkbench`） |
+| `option(ENABLE_WEBVIEW)` | `AWB_ENABLE_WEBENGINE` |
+| D1 建议先升 Qt 到 6.9/6.10 | 已决策：本次不升（`01-architecture.md` §12.1） |
+
+建议顺手把这份文件移进 `docs/` 或 `specs/` 并纳入版本控制，不要让一份重要计划长期以未跟踪文件的形式停在仓库根目录。
+
 | 编号 | 任务 | 涉及文件 | 验收 |
 | --- | --- | --- | --- |
 | S5-T1 | `awb_web`：`WebTab`、`WebTabsModel`、`WebSurfaceRegistry`、`WebTabsFacade`、`WebProfilePaths`；注册 `external` 表面 | `src/web/*` | `tst_web`：同 agent 复用标签、关闭标签不清进程、`markOfflineForAgent` 转换、表面 URL 解析 |
