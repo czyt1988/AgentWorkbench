@@ -24,6 +24,10 @@ class SkillsFacade : public QObject
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
+    // Roots for the settings UI: [{id,label,path,kind,enabled}]. A property
+    // (not only the roots() invokable) so the list re-binds after
+    // addRoot/removeRoot/setRootEnabled — a bare method call never did.
+    Q_PROPERTY(QVariantList roots READ roots NOTIFY rootsChanged)
     // "%n skill(s) found" style stats for the page footer (02 §7.5).
     Q_PROPERTY(QString statsText READ statsText NOTIFY statsChanged)
     // True when the last scan had unreadable/missing roots (02 §7.5).
@@ -43,8 +47,8 @@ public:
     // interface — 01 §6).
     Q_INVOKABLE void refresh();
 
-    // Roots for the settings UI: [{id,label,path,kind,enabled}].
-    Q_INVOKABLE QVariantList roots() const;
+    // Roots for the settings UI (Q_PROPERTY READ — see above).
+    QVariantList roots() const;
     Q_INVOKABLE void setRootEnabled(const QString &id, bool enabled);
     // Add a custom root (path from the settings UI).
     Q_INVOKABLE bool addRoot(const QString &path);
@@ -65,12 +69,15 @@ public:
 signals:
     void scanningChanged();
     void statsChanged();
+    void rootsChanged();
     void scanStarted();
     void scanFinished();
 
 private:
     const SkillDefinition *find(const QString &skillFilePath) const;
     static QString parentDir(const QString &skillFilePath);
+    // Shared tail of copyPath/copySkillFile/copyName.
+    core::OpResult copyToClipboard(const QString &text);
 
     core::Settings *m_settings;
     SkillModel *m_model;

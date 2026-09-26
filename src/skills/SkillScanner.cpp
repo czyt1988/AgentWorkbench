@@ -1,5 +1,6 @@
 #include "skills/SkillScanner.h"
 
+#include "core/EnvExpander.h"
 #include "core/JsonStore.h"
 #include "core/Settings.h"
 #include "skills/SkillFrontmatter.h"
@@ -192,9 +193,14 @@ void SkillScanner::refresh()
 
 SkillRoot SkillScanner::effectiveRoot(const SkillRoot &configured) const
 {
+    // The one place placeholders become real paths: settings store paths
+    // RAW ("~", "%PWD%", wildcards) so persisting them back never bakes in
+    // an expansion (02 §7.2). Wildcards are expanded further downstream
+    // by expandWildcards().
     SkillRoot root = configured;
-    // Wildcards in paths are expanded by the scanner itself; strip the
-    // depth cap onto the scan call instead.
+    root.path.replace(QStringLiteral("%PWD%"),
+                       QDir::toNativeSeparators(QDir::currentPath()));
+    root.path = core::EnvExpander::expand(root.path);
     return root;
 }
 
@@ -327,7 +333,7 @@ void SkillScanner::scanDirectory(const QString &dirPath, const SkillRoot &root,
 // same-named skills from different roots all stay (02 §7.2 dedup rule).
 void SkillScanner::dedupePluginVersions(Stats &stats)
 {
-    QHash<QString, int> bestIndex; // "<rootId>|<pluginId>" -> index
+    QHash<QString, int> bestIndex; // "<rootId>|<pluginId>|<skill name>"
     QList<SkillDefinition> kept;
     kept.reserve(m_definitions.size());
 
@@ -337,16 +343,19 @@ void SkillScanner::dedupePluginVersions(Stats &stats)
             kept.append(skill);
             continue;
         }
-        const QString key = skill.rootId + QLatin1Char('|') + skill.pluginId;
+        // The skill name is part of the key: one plugin ships several
+        // skills, and only the SAME skill competes across cached versions.
+        const QString key = skill.rootId + QLatin1Char('|') + skill.pluginId
+                            + QLatin1Char('|') + skill.name;
         const auto it = bestIndex.constFind(key);
         if (it == bestIndex.constEnd()) {
             bestIndex.insert(key, kept.size());
             kept.append(skill);
             continue;
         }
-        // Same plugin: the winner stays at its slot; every later duplicate
-        // of a LOWER version is dropped (any duplicate of the same version
-        // is dropped too — the first one wins).
+        // Same plugin skill: the winner stays at its slot; every later
+        // duplicate of a LOWER version is dropped (any duplicate of the
+        // same version is dropped too — the first one wins).
         const SkillDefinition &current = kept.at(it.value());
         if (versionLess(current.pluginVersion, skill.pluginVersion)) {
             kept[it.value()] = skill;

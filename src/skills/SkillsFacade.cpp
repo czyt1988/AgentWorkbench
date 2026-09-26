@@ -4,6 +4,7 @@
 #include "skills/SkillModel.h"
 
 #include <QClipboard>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -87,6 +88,7 @@ QVariantList SkillsFacade::roots() const
 void SkillsFacade::setRootEnabled(const QString &id, bool enabled)
 {
     m_scanner->setRootEnabled(id, enabled);
+    emit rootsChanged();
     emit statsChanged();
 }
 
@@ -117,8 +119,12 @@ bool SkillsFacade::addRoot(const QString &path)
     write(custom);
 
     m_settings->setSkillRoots(array);
-    m_settings->save();
+    const core::OpResult saved = m_settings->save();
+    if (!saved.ok)
+        qWarning().noquote() << QStringLiteral(
+            "SkillsFacade: could not persist skill roots: %1").arg(saved.error);
     refresh();
+    emit rootsChanged();
     return true;
 }
 
@@ -142,8 +148,12 @@ bool SkillsFacade::removeRoot(const QString &id)
     if (!removed)
         return false;
     m_settings->setSkillRoots(array);
-    m_settings->save();
+    const core::OpResult saved = m_settings->save();
+    if (!saved.ok)
+        qWarning().noquote() << QStringLiteral(
+            "SkillsFacade: could not persist skill roots: %1").arg(saved.error);
     refresh();
+    emit rootsChanged();
     return true;
 }
 
@@ -152,27 +162,28 @@ QString SkillsFacade::parentDir(const QString &skillFilePath)
     return QFileInfo(skillFilePath).absolutePath();
 }
 
+core::OpResult SkillsFacade::copyToClipboard(const QString &text)
+{
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (!clipboard)
+        return core::OpResult::failure(tr("The clipboard is not available."));
+    clipboard->setText(text);
+    return core::OpResult::success();
+}
+
 core::OpResult SkillsFacade::copyPath(const QString &skillFilePath)
 {
     const QString dir = parentDir(skillFilePath);
     if (dir.isEmpty())
         return core::OpResult::failure(tr("Unknown skill."));
-    QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard)
-        return core::OpResult::failure(tr("The clipboard is not available."));
-    clipboard->setText(dir);
-    return core::OpResult::success();
+    return copyToClipboard(dir);
 }
 
 core::OpResult SkillsFacade::copySkillFile(const QString &skillFilePath)
 {
     if (!QFile::exists(skillFilePath))
         return core::OpResult::failure(tr("Unknown skill."));
-    QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard)
-        return core::OpResult::failure(tr("The clipboard is not available."));
-    clipboard->setText(skillFilePath);
-    return core::OpResult::success();
+    return copyToClipboard(skillFilePath);
 }
 
 core::OpResult SkillsFacade::copyName(const QString &skillFilePath)
@@ -180,11 +191,7 @@ core::OpResult SkillsFacade::copyName(const QString &skillFilePath)
     const SkillDefinition *found = find(skillFilePath);
     if (!found)
         return core::OpResult::failure(tr("Unknown skill."));
-    QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard)
-        return core::OpResult::failure(tr("The clipboard is not available."));
-    clipboard->setText(found->name);
-    return core::OpResult::success();
+    return copyToClipboard(found->name);
 }
 
 core::OpResult SkillsFacade::openFolder(const QString &skillFilePath)

@@ -1,9 +1,5 @@
 #include "skills/SkillRoot.h"
 
-#include "core/EnvExpander.h"
-
-#include <QDir>
-
 namespace awb::skills {
 
 QList<SkillRoot> SkillRoots::defaults()
@@ -58,14 +54,11 @@ QList<SkillRoot> SkillRoots::defaults()
     projectClaude.kind = QStringLiteral("project");
     roots.append(projectClaude);
 
-    for (SkillRoot &root : roots) {
-        // Project roots anchor at the process working directory (there is
-        // no cwd concept in the app model yet — 02 §7.2).
-        root.path.replace(QStringLiteral("%PWD%"),
-                           QDir::toNativeSeparators(QDir::currentPath()));
-        root.path = core::EnvExpander::expand(root.path);
-    }
-
+    // Paths stay RAW here on purpose: `~`, `%PWD%` and wildcards are
+    // placeholders expanded at SCAN time (SkillScanner::effectiveRoot).
+    // Expanding at load would get the expanded form persisted back by
+    // setRootEnabled/addRoot — baking one machine's home directory or cwd
+    // into settings.json.
     return roots;
 }
 
@@ -77,7 +70,9 @@ QList<SkillRoot> SkillRoots::fromJson(const QJsonArray &entries)
             continue;
         const QJsonObject o = value.toObject();
         SkillRoot root;
-        root.path = core::EnvExpander::expand(o.value(QStringLiteral("path")).toString());
+        // RAW on purpose — expansion happens at scan time so a persisted
+        // round-trip keeps `~`/`%PWD%` instead of baking in absolutes.
+        root.path = o.value(QStringLiteral("path")).toString();
         if (root.path.isEmpty())
             continue;
         root.label = o.value(QStringLiteral("label")).toString();
