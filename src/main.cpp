@@ -1,10 +1,12 @@
 #include "AgentConfig.h"
 #include "AgentLauncher.h"
 #include "AgentModel.h"
-#include "Logger.h"
 #include "core/LegacyImport.h"
+#include "core/Logging.h"
+#include "core/Settings.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QDir>
 #include <QGuiApplication>
 #include <QIcon>
@@ -21,7 +23,8 @@ int main(int argc, char *argv[])
 {
     QGuiApplication::setApplicationName(QStringLiteral("AgentWorkbench"));
 
-    Logger::install();
+    // 1) Logging first: any later failure must be on disk (specs/01 §4.9).
+    awb::core::Logging::install();
 
     QGuiApplication app(argc, argv);
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
@@ -40,6 +43,13 @@ int main(int argc, char *argv[])
     QString legacyNotice;
     const bool legacyImported = awb::core::LegacyImport::runOnce(
         AgentConfig::userDataDir(), &legacyNotice);
+
+    // Typed settings.json access; written with defaults on the very first
+    // start so the file exists for the UI and for the legacy-title hint in
+    // AgentConfig::load().
+    awb::core::Settings settings;
+    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
+        settings.save();
 
     AgentConfig config;
     config.load(); // reads agents.json, re-applying the bundled default launchers
@@ -99,7 +109,7 @@ int main(int argc, char *argv[])
                     "zip archive (especially the \"qml\" subfolder) and make "
                     "sure your antivirus did not quarantine any files.\n\n"
                     "Details were written to:\n%1")
-                    .arg(Logger::logFilePath())
+                    .arg(awb::core::Logging::logFilePath())
                     .utf16()),
             L"AgentWorkbench", MB_ICONERROR | MB_OK);
 #endif

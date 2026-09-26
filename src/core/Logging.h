@@ -1,17 +1,23 @@
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef AWB_CORE_LOGGING_H
+#define AWB_CORE_LOGGING_H
 
 #include <QFile>
 #include <QString>
 #include <QStringList>
 
-// Rotating-file log handler. Installs a Qt message handler that writes all
-// qDebug/qInfo/qWarning/qCritical output to
-//   ~/.AgentWorkbench/log/agentworkbench.log
+namespace awb::core {
+
+// Rotating-file log handler (01-architecture.md §4.1). Installs a Qt
+// message handler that writes all qDebug/qInfo/qWarning/qCritical output to
+//   <dataRoot>/log/agentworkbench.log
 // When that file reaches the size limit it is rotated to
 // agentworkbench.log.1, the previous .1 becomes .2, and the oldest backup is
 // deleted, so at most maxFiles files (current + backups) exist at any time.
-class Logger
+//
+// Modules may declare a Qt logging category (Q_LOGGING_CATEGORY,
+// named "awb.<module>") and log through it; the category appears as a
+// prefix on the line so the log can be filtered per module.
+class Logging
 {
 public:
     // Rotation policy: 5 MB per file, 3 files (current + 2 backups) → 15 MB.
@@ -31,22 +37,19 @@ public:
                         qint64 maxFileSize = DEFAULT_MAX_FILE_SIZE,
                         int maxFiles = DEFAULT_MAX_FILES);
 
-    // Flush, close, and restore the default message handler. Mainly for tests,
-    // which must not keep a message handler installed past the test case.
+    // Flush, close, and restore the default message handler. Mainly for
+    // tests, which must not keep a message handler installed past the test
+    // case.
     static void uninstall();
 
     // Absolute path of the current log file, for messages that point the
     // user at the log. Empty when install() has not run yet.
     static QString logFilePath();
 
-    // Render a program and its arguments as one copy-pasteable command line,
-    // double-quoting arguments that contain whitespace or quotes. Used by the
-    // "[cmd]" log lines so the log shows what was really executed.
+    // Forwarders to the canonical implementations in TextUtils (kept here
+    // because the log formatting belongs with the log).
     static QString formatCommandLine(const QString &program,
                                      const QStringList &args = QStringList());
-
-    // Cap a captured command output at `limit` characters, appending a note
-    // when text was dropped, so one chatty command cannot fill the log.
     static QString clampOutput(const QString &text,
                                int limit = DEFAULT_MAX_OUTPUT);
 
@@ -70,4 +73,6 @@ private:
     static qint64 s_bytesWritten;
 };
 
-#endif // LOGGER_H
+} // namespace awb::core
+
+#endif // AWB_CORE_LOGGING_H

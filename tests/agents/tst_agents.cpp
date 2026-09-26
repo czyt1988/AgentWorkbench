@@ -13,13 +13,14 @@
 #include "AgentConfig.h"
 #include "AgentLauncher.h"
 #include "AgentModel.h"
-#include "Logger.h"
-#include "core/LegacyImport.h"
+#include "core/Logging.h"
 
-// Unit tests for the config/model/launcher core. All config reads and
+// Unit tests for the agent config/model/launcher (S1 interim: the whole
+// legacy suite lives here until S2 splits it into tests/agents/tst_* per
+// the mapping in specs/03 §5). All config reads and
 // writes are isolated from the user's real config via
 // QStandardPaths test mode.
-class TestCore : public QObject
+class TestAgents : public QObject
 {
     Q_OBJECT
 
@@ -43,22 +44,6 @@ private slots:
                  QStringLiteral("agent"));
     }
 
-    void testResolveIconPassthrough()
-    {
-        // Regression: file:// URLs must pass through unchanged, otherwise a
-        // resolved local-file icon degrades to default.svg after save+reload.
-        QCOMPARE(AgentConfig::resolveIcon(QStringLiteral("file:///C:/icons/a.svg")),
-                 QStringLiteral("file:///C:/icons/a.svg"));
-        QCOMPARE(AgentConfig::resolveIcon(QStringLiteral("")),
-                 QStringLiteral("qrc:/icons/default.svg"));
-        QCOMPARE(AgentConfig::resolveIcon(QStringLiteral("qrc:/icons/bot.svg")),
-                 QStringLiteral("qrc:/icons/bot.svg"));
-
-        QTemporaryFile tmp;
-        QVERIFY(tmp.open());
-        QVERIFY(AgentConfig::resolveIcon(tmp.fileName())
-                    .startsWith(QStringLiteral("file:///")));
-    }
 
     void testRemovedIdsRoundTrip()
     {
@@ -158,14 +143,6 @@ private slots:
     // Test mode does not redirect HomeLocation, so a data directory derived
     // from it made every test read and rewrite the real user config — which is
     // how test agents ended up in ~/.AgentWorkbench/agents.json.
-    void testUserDataDirStaysInTestSandbox()
-    {
-        const QString realDir =
-            QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-            + QStringLiteral("/.AgentWorkbench");
-        QVERIFY(!AgentConfig::userDataDir().startsWith(realDir));
-        QVERIFY(AgentConfig::configFilePath().startsWith(AgentConfig::userDataDir()));
-    }
 
     // 0.4.0: the root "title" field no longer drives the window title (it
     // moved to settings.json). Loading ignores the field, saving must not
@@ -191,7 +168,7 @@ private slots:
 
         s_capturedMessages.clear();
         const QtMessageHandler previous =
-            qInstallMessageHandler(&TestCore::captureMessage);
+            qInstallMessageHandler(&TestAgents::captureMessage);
         AgentConfig cfg;
         cfg.load();
         qInstallMessageHandler(previous);
@@ -216,72 +193,6 @@ private slots:
     // One-time adoption of the legacy ~/.AgentLauncher directory: files are
     // copied into the new data root, the legacy directory survives, and a
     // second call is a no-op (01-architecture.md §7.3).
-    void testLegacyImport()
-    {
-        QTemporaryDir tmp;
-        QVERIFY(tmp.isValid());
-        const QString oldRoot =
-            tmp.path() + QStringLiteral("/.AgentLauncher");
-        const QString newRoot =
-            tmp.path() + QStringLiteral("/.AgentWorkbench");
-
-        auto write_file = [](const QString &path, const QByteArray &bytes) {
-            QDir().mkpath(QFileInfo(path).absolutePath());
-            QFile f(path);
-            if (!f.open(QIODevice::WriteOnly))
-                return false;
-            return f.write(bytes) == bytes.size();
-        };
-        QVERIFY(write_file(oldRoot + QStringLiteral("/agents.json"),
-                           QByteArrayLiteral("{\"agents\":[]}")));
-        QVERIFY(write_file(oldRoot + QStringLiteral("/agent_state.json"),
-                           QByteArrayLiteral("{}")));
-        QVERIFY(write_file(oldRoot + QStringLiteral("/log/agentlauncher.log"),
-                           QByteArrayLiteral("old log")));
-
-        // The logger creates the new log directory before the import runs;
-        // that alone must not count as "already initialized".
-        QVERIFY(QDir().mkpath(newRoot + QStringLiteral("/log")));
-
-        QString notice;
-        QVERIFY(awb::core::LegacyImport::importOnce(newRoot, oldRoot, &notice));
-        QVERIFY(!notice.isEmpty());
-        QVERIFY(QFile::exists(newRoot + QStringLiteral("/agents.json")));
-        QVERIFY(QFile::exists(newRoot + QStringLiteral("/agent_state.json")));
-        QVERIFY(QFile::exists(
-            newRoot + QStringLiteral("/log/agentlauncher.log")));
-        // The legacy directory is never deleted or modified.
-        QVERIFY(QFile::exists(oldRoot + QStringLiteral("/agents.json")));
-        QVERIFY(QFile::exists(
-            oldRoot + QStringLiteral("/log/agentlauncher.log")));
-
-        // Second start: no-op, no second notice.
-        notice.clear();
-        QVERIFY(!awb::core::LegacyImport::importOnce(newRoot, oldRoot,
-                                                     &notice));
-        QVERIFY(notice.isEmpty());
-
-        // A populated data root is never imported over, even when the legacy
-        // directory is still around.
-        QVERIFY(write_file(newRoot + QStringLiteral("/settings.json"),
-                           QByteArrayLiteral("{}")));
-        QVERIFY(write_file(oldRoot + QStringLiteral("/agent_state.json"),
-                           QByteArrayLiteral("{\"again\":true}")));
-        const QByteArray before =
-            QFile(newRoot + QStringLiteral("/agents.json")).readAll();
-        QVERIFY(!awb::core::LegacyImport::importOnce(newRoot, oldRoot,
-                                                     &notice));
-        QCOMPARE(QFile(newRoot + QStringLiteral("/agents.json")).readAll(),
-                 before);
-
-        // No legacy directory -> nothing happens.
-        QTemporaryDir solo;
-        QVERIFY(solo.isValid());
-        QVERIFY(!awb::core::LegacyImport::importOnce(
-            solo.path() + QStringLiteral("/new"),
-            solo.path() + QStringLiteral("/missing-old"), &notice));
-        QVERIFY(notice.isEmpty());
-    }
 
     // A built-in deleted in the Settings page stays deleted, even though load()
     // re-applies the shipped definition of every other built-in.
@@ -413,67 +324,10 @@ private slots:
 
     // A command line is quoted only where it has to be, so the log shows the
     // real thing and it can still be pasted back into cmd.exe.
-    void testFormatCommandLine()
-    {
-        QCOMPARE(Logger::formatCommandLine(QStringLiteral("qwen"),
-                                           {QStringLiteral("serve")}),
-                 QStringLiteral("qwen serve"));
-        QCOMPARE(Logger::formatCommandLine(
-                     QStringLiteral("cmd"),
-                     {QStringLiteral("/c"),
-                      QStringLiteral("C:/Program Files/qwen.cmd"),
-                      QStringLiteral("serve")}),
-                 QStringLiteral("cmd /c \"C:/Program Files/qwen.cmd\" serve"));
-        // An empty argument stays visible instead of collapsing into nothing.
-        QCOMPARE(Logger::formatCommandLine(QStringLiteral("x"), {QString()}),
-                 QStringLiteral("x \"\""));
-    }
 
-    void testClampOutput()
-    {
-        const QString text(100, QLatin1Char('a'));
-        QCOMPARE(Logger::clampOutput(text, 200), text);
-
-        const QString clamped = Logger::clampOutput(text, 10);
-        QVERIFY(clamped.startsWith(QStringLiteral("aaaaaaaaaa")));
-        QVERIFY(clamped.contains(QStringLiteral("90")));
-    }
 
     // The log rotates at the size limit and keeps at most that many files, so
     // a chatty install can never fill the disk.
-    void testLogRotation()
-    {
-        QCOMPARE(Logger::DEFAULT_MAX_FILES, 3);
-        QCOMPARE(Logger::DEFAULT_MAX_FILE_SIZE, qint64(5 * 1024 * 1024));
-
-        QTemporaryDir dir;
-        QVERIFY(dir.isValid());
-
-        // Tiny files so rotation happens without writing megabytes; one line
-        // is already bigger than the limit, so every write rotates.
-        Logger::install(dir.path(), 128, 3);
-        for (int i = 0; i < 20; ++i)
-            qInfo().noquote() << QStringLiteral("rotation line %1").arg(i);
-        Logger::uninstall(); // hand the message handler back to QTest
-
-        const QDir logDir(dir.path());
-        const QStringList files = logDir.entryList(
-            {QStringLiteral("agentworkbench.log*")}, QDir::Files, QDir::Name);
-        QCOMPARE(files, QStringList({QStringLiteral("agentworkbench.log"),
-                                     QStringLiteral("agentworkbench.log.1"),
-                                     QStringLiteral("agentworkbench.log.2")}));
-
-        QString logged;
-        for (const QString &name : files) {
-            QFile f(logDir.filePath(name));
-            QVERIFY(f.open(QIODevice::ReadOnly));
-            logged += QString::fromUtf8(f.readAll());
-        }
-        // The newest line survived (the last write may have rotated it into
-        // .1 already), and the oldest ones were dropped for good.
-        QVERIFY(logged.contains(QStringLiteral("rotation line 19")));
-        QVERIFY(!logged.contains(QStringLiteral("rotation line 0")));
-    }
 
 #ifdef Q_OS_WIN
     // End-to-end check of the command log: launching an install really runs
@@ -502,10 +356,10 @@ private slots:
         const QString id = QStringLiteral("log-probe");
 
         QSignalSpy finished(&launcher, &AgentLauncher::installFinished);
-        Logger::install(logDir.path());
+        awb::core::Logging::install(logDir.path());
         launcher.install(id);
         QVERIFY(finished.wait(15000));
-        Logger::uninstall();
+        awb::core::Logging::uninstall();
 
         QFile log(logDir.filePath(QStringLiteral("agentworkbench.log")));
         QVERIFY(log.open(QIODevice::ReadOnly));
@@ -556,7 +410,7 @@ private:
     }
 };
 
-QStringList TestCore::s_capturedMessages;
+QStringList TestAgents::s_capturedMessages;
 
-QTEST_MAIN(TestCore)
-#include "tst_core.moc"
+QTEST_MAIN(TestAgents)
+#include "tst_agents.moc"

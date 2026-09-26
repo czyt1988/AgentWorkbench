@@ -1,54 +1,36 @@
-#include "Logger.h"
+#include "core/Logging.h"
+
+#include "core/Paths.h"
+#include "core/TextUtils.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
-#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTextStream>
 
-namespace {
+namespace awb::core {
 
-const QString kLogFileName = QStringLiteral("agentworkbench.log");
+QFile Logging::s_logFile;
+QString Logging::s_logPath;
+qint64 Logging::s_maxFileSize = Logging::DEFAULT_MAX_FILE_SIZE;
+int Logging::s_maxFiles = Logging::DEFAULT_MAX_FILES;
+qint64 Logging::s_bytesWritten = 0;
 
-// Quote an argument only when leaving it bare would change how the line reads
-// (whitespace) or how it could be pasted back into cmd.exe (quotes).
-QString quoteArg(const QString &arg)
-{
-    if (arg.isEmpty())
-        return QStringLiteral("\"\"");
-    static const QRegularExpression needsQuoting(QStringLiteral("[\\s\"]"));
-    if (!needsQuoting.match(arg).hasMatch())
-        return arg;
-    QString quoted = arg;
-    quoted.replace(QLatin1Char('"'), QStringLiteral("\\\""));
-    return QStringLiteral("\"%1\"").arg(quoted);
-}
-
-} // namespace
-
-QFile Logger::s_logFile;
-QString Logger::s_logPath;
-qint64 Logger::s_maxFileSize = Logger::DEFAULT_MAX_FILE_SIZE;
-int Logger::s_maxFiles = Logger::DEFAULT_MAX_FILES;
-qint64 Logger::s_bytesWritten = 0;
-
-void Logger::install(const QString &directory, qint64 maxFileSize, int maxFiles)
+void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles)
 {
     s_maxFileSize = maxFileSize > 0 ? maxFileSize : DEFAULT_MAX_FILE_SIZE;
     s_maxFiles = qMax(1, maxFiles);
 
-    // Log directory: ~/.AgentWorkbench/log/ unless the caller overrides it.
-    s_logPath = directory.isEmpty()
-                    ? QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-                          + QStringLiteral("/.AgentWorkbench/log")
-                    : directory;
+    // Log directory: <dataRoot>/log/ unless the caller overrides it.
+    s_logPath = directory.isEmpty() ? Paths::logsDir() : directory;
     QDir().mkpath(s_logPath);
 
     if (s_logFile.isOpen())
         s_logFile.close();
     s_logFile.setFileName(logFilePath());
 
-    qInstallMessageHandler(Logger::messageHandler);
+    qInstallMessageHandler(Logging::messageHandler);
 
     // The handler still mirrors to stderr, so a log file that cannot be opened
     // (read-only data directory, disk full) is reported there instead of
@@ -69,7 +51,7 @@ void Logger::install(const QString &directory, qint64 maxFileSize, int maxFiles)
                              .arg(s_maxFiles);
 }
 
-void Logger::uninstall()
+void Logging::uninstall()
 {
     qInstallMessageHandler(nullptr);
 
@@ -80,38 +62,29 @@ void Logger::uninstall()
     s_bytesWritten = 0;
 }
 
-QString Logger::logFilePath()
+QString Logging::logFilePath()
 {
     if (s_logPath.isEmpty())
         return {};
-    return s_logPath + QLatin1Char('/') + kLogFileName;
+    return s_logPath + QLatin1Char('/') + QStringLiteral("agentworkbench.log");
 }
 
-QString Logger::backupPath(int index)
+QString Logging::backupPath(int index)
 {
     return QStringLiteral("%1.%2").arg(logFilePath()).arg(index);
 }
 
-QString Logger::formatCommandLine(const QString &program, const QStringList &args)
+QString Logging::formatCommandLine(const QString &program, const QStringList &args)
 {
-    QStringList parts;
-    parts.reserve(args.size() + 1);
-    parts << quoteArg(program);
-    for (const QString &arg : args)
-        parts << quoteArg(arg);
-    return parts.join(QLatin1Char(' '));
+    return TextUtils::formatCommandLine(program, args);
 }
 
-QString Logger::clampOutput(const QString &text, int limit)
+QString Logging::clampOutput(const QString &text, int limit)
 {
-    if (limit <= 0 || text.size() <= limit)
-        return text;
-    return text.left(limit)
-           + QStringLiteral("\n… (%1 more characters not logged)")
-                 .arg(text.size() - limit);
+    return TextUtils::clampOutput(text, limit);
 }
 
-void Logger::messageHandler(QtMsgType type,
+void Logging::messageHandler(QtMsgType type,
                              const QMessageLogContext &context,
                              const QString &msg)
 {
@@ -120,8 +93,8 @@ void Logger::messageHandler(QtMsgType type,
     switch (type) {
     case QtInfoMsg:     level = "INFO";    break;
     case QtWarningMsg:  level = "WARNING"; break;
-    case QtCriticalMsg:  level = "CRITICAL"; break;
-    case QtFatalMsg:     level = "FATAL";  break;
+    case QtCriticalMsg: level = "CRITICAL"; break;
+    case QtFatalMsg:    level = "FATAL";  break;
     case QtDebugMsg:
     default:            level = "DEBUG";   break;
     }
@@ -129,14 +102,22 @@ void Logger::messageHandler(QtMsgType type,
     const QString timestamp = QDateTime::currentDateTime()
                                   .toString(QStringLiteral("yyyy-MM-dd hh:mm:ss.zzz"));
 
+    // Category prefix (awb.agents, awb.theme, …) so the log can be filtered
+    // per module; the Qt default category is skipped.
+    QString category;
+    if (context.category && qstrcmp(context.category, "default") != 0)
+        category = QStringLiteral(" [") + QString::fromLatin1(context.category)
+                   + QLatin1Char(']');
+
     // Include source location when available (file:line in the category).
     QString location;
     if (context.file)
         location = QStringLiteral(" [%1:%2]").arg(context.file).arg(context.line);
 
-    const QString line = QStringLiteral("[%1] [%2]%3 %4")
+    const QString line = QStringLiteral("[%1] [%2]%3%4 %5")
                              .arg(timestamp)
                              .arg(QString::fromLatin1(level))
+                             .arg(category)
                              .arg(location)
                              .arg(msg);
 
@@ -156,7 +137,7 @@ void Logger::messageHandler(QtMsgType type,
     fflush(stderr);
 }
 
-void Logger::rotateIfNeeded()
+void Logging::rotateIfNeeded()
 {
     if (!s_logFile.isOpen() || s_bytesWritten < s_maxFileSize)
         return;
@@ -178,3 +159,5 @@ void Logger::rotateIfNeeded()
                    | (s_maxFiles > 1 ? QIODevice::Append : QIODevice::Truncate));
     s_bytesWritten = 0;
 }
+
+} // namespace awb::core

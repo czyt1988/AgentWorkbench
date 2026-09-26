@@ -9,8 +9,11 @@
 #include <QStringList>
 #include <QVariantMap>
 
-class QNetworkAccessManager;
-class QNetworkReply;
+namespace awb::core {
+class HttpProbe;
+class ScriptRunner;
+} // namespace awb::core
+
 class QTimer;
 
 class AgentLauncher : public QObject
@@ -85,10 +88,28 @@ signals:
 private slots:
     void checkAll();
 
+private slots:
+    // One finished ScriptRunner run, dispatched by operation ("install",
+    // "version", … encoded into the run key as "<op>:<id>").
+    void onScriptFinished(const QString &key, bool ok, int exitCode,
+                          const QString &stdOut, const QString &stdErr,
+                          const QString &error);
+    // Live output of install/update/setup runs, streamed onto the card.
+    void onScriptChunk(const QString &key, const QString &text);
+
 private:
     AgentModel *m_model;
-    QNetworkAccessManager *m_nam;
+    awb::core::HttpProbe *m_probe;
+    awb::core::ScriptRunner *m_scripts;
     QTimer *m_timer;
+
+    // Accumulated console output per script run key (live display).
+    QHash<QString, QString> m_scriptBuffers;
+    // Start time per script run key, for the "done, exit=0, 1.2s" log line.
+    QHash<QString, qint64> m_scriptStartMs;
+    // The setup command text, kept until its run finishes so the failure
+    // message can quote it (0.3.0 captured it in the completion lambda).
+    QHash<QString, QString> m_scriptCommands;
 
     // id -> PID of the most recent process this launcher started (in-memory,
     // current session only). Used by stop(); cleared if the launcher restarts.
@@ -111,16 +132,6 @@ private:
     // Write the model's agents + removal records to agents.json.
     bool saveConfig();
 
-    QString expandEnv(const QString &path) const;
-
-    // Resolve a bare command (e.g. "qwen") to a full executable path,
-    // applying PATHEXT on Windows so .cmd/.bat shims are found.
-    static QString resolveProgram(const QString &program);
-
-    // Parse the TCP port from an agent's webUrl. Returns the explicit port,
-    // or the scheme default (80/443) when none is given; -1 if unparseable.
-    int portFromWebUrl(const QString &webUrl) const;
-
     // Return the PIDs of processes listening on the given TCP port. Used by
     // forceStop() to kill agents this launcher didn't start (no tracked PID).
     QList<qint64> findPidsForPort(int port) const;
@@ -128,9 +139,6 @@ private:
     // Run each agent's versionCommand silently on startup.
     void checkVersions();
     void checkVersion(const QString &id);
-
-    // Extract a x.y.z version string from command output.
-    static QString extractVersion(const QString &output);
 
     // One-time setup: run setupCommand before first launch, persist state.
     void runSetup(const QString &id);

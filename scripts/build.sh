@@ -17,7 +17,7 @@
 #   -b, --build-dir DIR    Build directory
 #                          (default: "build" for Debug, "build-release" for Release)
 #   -j, --jobs N           Parallel compilation jobs (default: tool default)
-#       --target NAME      Build one target only (AgentWorkbench, AgentWorkbenchTests)
+#       --target NAME      Build one target only (AgentWorkbench, tst_core, tst_agents)
 #   -t, --test             Run the unit tests (ctest) after building
 #       --run              Launch the application after building (detached)
 #   -c, --clean            Delete the build directory first (full rebuild)

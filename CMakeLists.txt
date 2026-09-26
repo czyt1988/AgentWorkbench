@@ -12,21 +12,20 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Netwo
 
 qt_standard_project_setup(REQUIRES 6.5)
 
+# L0 infrastructure library (src/core). See specs/01-architecture.md §4.1.
+add_subdirectory(src/core)
+
 set(APP_SOURCES
     src/main.cpp
     src/AgentConfig.cpp
     src/AgentModel.cpp
     src/AgentLauncher.cpp
-    src/Logger.cpp
-    src/core/LegacyImport.cpp
 )
 
 set(APP_HEADERS
     src/AgentConfig.h
     src/AgentModel.h
     src/AgentLauncher.h
-    src/Logger.h
-    src/core/LegacyImport.h
 )
 
 qt_add_executable(AgentWorkbench
@@ -62,6 +61,7 @@ qt_add_resources(AgentWorkbench "app_resources"
 )
 
 target_link_libraries(AgentWorkbench PRIVATE
+    awb_core
     Qt6::Core
     Qt6::Gui
     Qt6::Qml
@@ -72,13 +72,11 @@ target_link_libraries(AgentWorkbench PRIVATE
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.
 # qt6_create_translation auto-separates .ts files from sources by extension.
+# The scan list covers every source with tr()/translate() — including the
+# core library — and lives in cmake/AwbTranslations.cmake (specs/01 §10).
+include(cmake/AwbTranslations.cmake)
 qt6_create_translation(QM_FILES
-    ${APP_SOURCES}
-    ${APP_HEADERS}
-    qml/main.qml
-    qml/AgentCard.qml
-    qml/AgentEditPage.qml
-    qml/SettingsPage.qml
+    ${AWB_TS_SOURCES}
     translations/agentworkbench_zh_CN.ts
 )
 
@@ -102,33 +100,13 @@ set_target_properties(AgentWorkbench PROPERTIES
 
 # --- Unit tests ---------------------------------------------------------------
 # Isolated from the real user config via QStandardPaths test mode (see
-# tests/tst_core.cpp). Disable with -DBUILD_TESTING=OFF (e.g. if the Qt
+# tests/). One executable per module, registered with ctest under the same
+# name (specs/01 §11). Disable with -DBUILD_TESTING=OFF (e.g. if the Qt
 # installation lacks the Test component).
-option(BUILD_TESTING "Build the unit test target" ON)
+option(BUILD_TESTING "Build the unit tests" ON)
 
 if (BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
     enable_testing()
-    qt_add_executable(AgentWorkbenchTests
-        tests/tst_core.cpp
-        src/AgentConfig.cpp
-        src/AgentModel.cpp
-        src/AgentLauncher.cpp
-        src/Logger.cpp
-        src/core/LegacyImport.cpp
-    )
-    # tst_core.cpp includes "AgentConfig.h" from src/.
-    target_include_directories(AgentWorkbenchTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    qt_add_resources(AgentWorkbenchTests "test_resources"
-        PREFIX "/"
-        FILES
-            config/default_agents.json
-    )
-    target_link_libraries(AgentWorkbenchTests PRIVATE
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Network
-        Qt6::Test
-    )
-    add_test(NAME AgentWorkbenchTests COMMAND AgentWorkbenchTests)
+    add_subdirectory(tests)
 endif()

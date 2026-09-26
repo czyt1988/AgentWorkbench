@@ -96,9 +96,6 @@ private:
     // on the agent's position in the list. Returns true if any color was
     // assigned (so the caller can persist).
     bool assignPaletteColors();
-
-    // Expand %VAR% environment variables and ~ in a path.
-    static QString expandEnv(const QString &path);
 };
 
 #endif // AGENTCONFIG_H

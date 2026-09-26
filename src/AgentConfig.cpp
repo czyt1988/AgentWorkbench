@@ -1,5 +1,10 @@
 #include "AgentConfig.h"
 
+#include "core/IconResolver.h"
+#include "core/JsonStore.h"
+#include "core/OpResult.h"
+#include "core/Paths.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -93,10 +98,6 @@ void AgentConfig::load()
 bool AgentConfig::save()
 {
     const QString path = configFilePath();
-    QDir().mkpath(QFileInfo(path).absolutePath());
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly))
-        return false;
 
     // A config that never diverged from the shipped default is written as the
     // bundled file byte for byte: with no user-added agents and no deletions,
@@ -107,7 +108,7 @@ bool AgentConfig::save()
     if (m_removedIds.isEmpty() && agentsArray(m_agents) == agentsArray(defaults)) {
         QFile bundled(QStringLiteral(":/config/default_agents.json"));
         if (bundled.open(QIODevice::ReadOnly))
-            return file.write(bundled.readAll()) > 0;
+            return awb::core::JsonStore::writeBytes(path, bundled.readAll()).ok;
     }
 
     QJsonObject root;
@@ -119,21 +120,15 @@ bool AgentConfig::save()
         root[QStringLiteral("removed")] = removed;
     }
 
-    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-    return true;
+    // Atomic, consistently indented (core::JsonStore is the only writer of
+    // configuration files).
+    return awb::core::JsonStore::writeFile(path, root).ok;
 }
 
 QString AgentConfig::userDataDir()
 {
-    // QStandardPaths test mode only redirects the App* locations (see
-    // QStandardPaths::setTestModeEnabled), never HomeLocation, so unit tests
-    // would otherwise read and rewrite the developer's real config. Keep them
-    // on the redirected location.
-    if (QStandardPaths::isTestModeEnabled())
-        return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-
-    return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-           + QStringLiteral("/.AgentWorkbench");
+    // The data root lives in core::Paths (test-mode aware, single source).
+    return awb::core::Paths::dataRoot();
 }
 
 QString AgentConfig::configFilePath()
@@ -232,49 +227,10 @@ QString AgentConfig::paletteColorAt(int index)
 
 QString AgentConfig::resolveIcon(const QString &raw)
 {
-    if (raw.isEmpty())
-        return QStringLiteral("qrc:/icons/default.svg");
-
-    // Built-in resources, remote URLs and file URLs are used as-is.
-    if (raw.startsWith(QStringLiteral("qrc:/"))
-        || raw.startsWith(QStringLiteral("http://"))
-        || raw.startsWith(QStringLiteral("https://"))
-        || raw.startsWith(QStringLiteral("file://")))
-        return raw;
-
-    // Treat anything else as a local file path. Expand environment variables
-    // and ~ so users can write e.g. "%USERPROFILE%/icons/my-agent.svg".
-    const QString expanded = expandEnv(raw);
-    const QFileInfo fi(expanded);
-    if (fi.exists())
-        return QUrl::fromLocalFile(fi.absoluteFilePath()).toString();
-
-    // File not found — fall back to the default icon rather than showing
-    // nothing.
-    return QStringLiteral("qrc:/icons/default.svg");
-}
-
-QString AgentConfig::expandEnv(const QString &path)
-{
-    QString result = path;
-    // Expand %VAR% style variables (Windows), e.g. %USERPROFILE%.
-    static const QRegularExpression re(QStringLiteral("%(\\w+)%"));
-    QRegularExpressionMatchIterator it = re.globalMatch(result);
-    QString out;
-    int cursor = 0;
-    while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        out += result.mid(cursor, m.capturedStart() - cursor);
-        const QString var = m.captured(1);
-        const QString val = qEnvironmentVariable(qUtf8Printable(var));
-        out += val.isEmpty() ? m.captured(0) : val;
-        cursor = m.capturedEnd();
-    }
-    out += result.mid(cursor);
-    // Expand ~ to the home directory (unix style, convenience).
-    out.replace(QStringLiteral("~/"),
-                QStandardPaths::writableLocation(QStandardPaths::HomeLocation) + QStringLiteral("/"));
-    return out;
+    // The application-level fallback lives here; core never hardcodes an
+    // app resource path (01-architecture.md §4.1).
+    return awb::core::IconResolver::resolve(
+        raw, QStringLiteral("qrc:/icons/default.svg"));
 }
 
 // --- Default config helpers ---------------------------------------------------
