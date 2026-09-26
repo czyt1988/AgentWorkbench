@@ -4,6 +4,14 @@ All notable changes to **AgentLauncher** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Command logging**: every command the launcher runs is recorded with the command line it really executed (after PATH resolution and the `cmd /c` wrapping of `.cmd`/`.bat` shims), its exit code, how long it took, and the command's own output — covering launch, stop, force-stop, install, update, version probes, runtime detection and the one-time setup. Successful calls are logged too, so the log shows what the launcher did, not only where it failed.
+- **Application-level logging**: opening a web URL or a config directory, writing `agents.json` / `agent_state.json`, and every running/stopped transition of an agent are logged as well. Failures that used to be silent (unreadable token file, unwritable config, `openUrl` refused by the shell) are now visible.
+- **Log rotation keeps three files**: the log rotates at 5 MB and keeps `agentlauncher.log` plus two backups (`agentlauncher.log.1`, `agentlauncher.log.2`), deleting the oldest — previously 10 MB keeping two files in total.
+
 ## [0.3.0] - 2026-09-10
 
 This release adds in-app launcher management, makes the portable build

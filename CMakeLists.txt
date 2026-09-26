@@ -109,6 +109,7 @@ if (BUILD_TESTING)
         src/AgentConfig.cpp
         src/AgentModel.cpp
         src/AgentLauncher.cpp
+        src/Logger.cpp
     )
     # tst_core.cpp includes "AgentConfig.h" from src/.
     target_include_directories(AgentLauncherTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

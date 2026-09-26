@@ -9,8 +9,9 @@ AgentLauncher 采用配置化驱动。所有 agent 定义都放在单个 `agents
 | Linux | `~/.AgentLauncher/agents.json` |
 | macOS | `~/.AgentLauncher/agents.json` |
 
-所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）
-以及 `log/agentlauncher.log`。
+所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）以及 `log/agentlauncher.log`。
+
+日志记录启动器做过的事情：它执行的每条命令（真实命令行、退出码、耗时，以及命令自身的输出，失败时同样记录），以及配置写入、一次性设置状态和 agent 运行状态的变化。日志按 5 MB 轮转，最多保留三个文件（`agentlauncher.log`、`agentlauncher.log.1`、`agentlauncher.log.2`），最旧的一个会被删除，因此日志总量不会超过 15 MB。
 
 应用内置了默认配置（`config/default_agents.json`，编译进可执行文件）。**内置** agent
 的定义只来自这份文件：磁盘上的同名 id 条目会在每次启动时被它整体覆盖，所以磁盘里的

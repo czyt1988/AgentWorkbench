@@ -12,6 +12,13 @@ AgentLauncher is config-driven. All agent definitions live in a single
 All user data lives in that one directory: `agents.json`, `agent_state.json`
 (the one-time setup state) and `log/agentlauncher.log`.
 
+The log records what the launcher does: every command it runs — the real command
+line, the exit code, how long it took and the command's own output, failures
+included — plus configuration writes, one-time setup state and agent health
+changes. It rotates at 5 MB and keeps three files (`agentlauncher.log`,
+`agentlauncher.log.1`, `agentlauncher.log.2`), deleting the oldest, so it never
+grows past 15 MB.
+
 The app ships a default configuration (`config/default_agents.json`, compiled
 into the executable). **Built-in** agents are defined by that file alone: an
 on-disk entry with the same id is replaced by it on every start, so the

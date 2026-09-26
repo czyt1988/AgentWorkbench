@@ -4,11 +4,13 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTemporaryFile>
 
 #include "AgentConfig.h"
 #include "AgentLauncher.h"
 #include "AgentModel.h"
+#include "Logger.h"
 
 // Unit tests for the config/model/launcher core. All config reads and
 // writes are isolated from the user's real config via
@@ -287,6 +289,114 @@ private slots:
         QVERIFY(!launcher.isDefaultAgent(QStringLiteral("my-agent")));
         QVERIFY(launcher.configFilePath().endsWith(QStringLiteral("agents.json")));
     }
+
+    // A command line is quoted only where it has to be, so the log shows the
+    // real thing and it can still be pasted back into cmd.exe.
+    void testFormatCommandLine()
+    {
+        QCOMPARE(Logger::formatCommandLine(QStringLiteral("qwen"),
+                                           {QStringLiteral("serve")}),
+                 QStringLiteral("qwen serve"));
+        QCOMPARE(Logger::formatCommandLine(
+                     QStringLiteral("cmd"),
+                     {QStringLiteral("/c"),
+                      QStringLiteral("C:/Program Files/qwen.cmd"),
+                      QStringLiteral("serve")}),
+                 QStringLiteral("cmd /c \"C:/Program Files/qwen.cmd\" serve"));
+        // An empty argument stays visible instead of collapsing into nothing.
+        QCOMPARE(Logger::formatCommandLine(QStringLiteral("x"), {QString()}),
+                 QStringLiteral("x \"\""));
+    }
+
+    void testClampOutput()
+    {
+        const QString text(100, QLatin1Char('a'));
+        QCOMPARE(Logger::clampOutput(text, 200), text);
+
+        const QString clamped = Logger::clampOutput(text, 10);
+        QVERIFY(clamped.startsWith(QStringLiteral("aaaaaaaaaa")));
+        QVERIFY(clamped.contains(QStringLiteral("90")));
+    }
+
+    // The log rotates at the size limit and keeps at most that many files, so
+    // a chatty install can never fill the disk.
+    void testLogRotation()
+    {
+        QCOMPARE(Logger::DEFAULT_MAX_FILES, 3);
+        QCOMPARE(Logger::DEFAULT_MAX_FILE_SIZE, qint64(5 * 1024 * 1024));
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        // Tiny files so rotation happens without writing megabytes; one line
+        // is already bigger than the limit, so every write rotates.
+        Logger::install(dir.path(), 128, 3);
+        for (int i = 0; i < 20; ++i)
+            qInfo().noquote() << QStringLiteral("rotation line %1").arg(i);
+        Logger::uninstall(); // hand the message handler back to QTest
+
+        const QDir logDir(dir.path());
+        const QStringList files = logDir.entryList(
+            {QStringLiteral("agentlauncher.log*")}, QDir::Files, QDir::Name);
+        QCOMPARE(files, QStringList({QStringLiteral("agentlauncher.log"),
+                                     QStringLiteral("agentlauncher.log.1"),
+                                     QStringLiteral("agentlauncher.log.2")}));
+
+        QString logged;
+        for (const QString &name : files) {
+            QFile f(logDir.filePath(name));
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            logged += QString::fromUtf8(f.readAll());
+        }
+        // The newest line survived (the last write may have rotated it into
+        // .1 already), and the oldest ones were dropped for good.
+        QVERIFY(logged.contains(QStringLiteral("rotation line 19")));
+        QVERIFY(!logged.contains(QStringLiteral("rotation line 0")));
+    }
+
+#ifdef Q_OS_WIN
+    // End-to-end check of the command log: launching an install really runs
+    // `cmd /c <installCommand>`, and the log then carries the command line,
+    // the exit code and the command's own output.
+    void testInstallCommandIsLogged()
+    {
+        QTemporaryDir logDir;
+        QVERIFY(logDir.isValid());
+
+        AgentConfig cfg;
+        cfg.load();
+        AgentModel model;
+        model.setAgents(cfg.agents());
+        AgentLauncher launcher(&model);
+
+        // The install command is a cmd builtin: no tooling or network needed,
+        // and it prints something to capture.
+        QVariantMap fields;
+        fields.insert(QStringLiteral("name"), QStringLiteral("Log Probe"));
+        fields.insert(QStringLiteral("command"), QStringLiteral("logprobe serve"));
+        fields.insert(QStringLiteral("webUrl"), QStringLiteral("http://127.0.0.1:9"));
+        fields.insert(QStringLiteral("installCommand"),
+                      QStringLiteral("echo install-finished"));
+        QVERIFY(launcher.addAgent(fields));
+        const QString id = QStringLiteral("log-probe");
+
+        QSignalSpy finished(&launcher, &AgentLauncher::installFinished);
+        Logger::install(logDir.path());
+        launcher.install(id);
+        QVERIFY(finished.wait(15000));
+        Logger::uninstall();
+
+        QFile log(logDir.filePath(QStringLiteral("agentlauncher.log")));
+        QVERIFY(log.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(log.readAll());
+        QVERIFY2(text.contains(QStringLiteral("[cmd] install \"%1\": "
+                                              "running: cmd /c echo install-finished")
+                                   .arg(id)),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("done, exit=0")), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("install-finished")), qPrintable(text));
+    }
+#endif
 
 private:
     // Write an agents.json into the test-mode data directory.

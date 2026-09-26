@@ -1,5 +1,6 @@
 #include "AgentLauncher.h"
 #include "AgentConfig.h"
+#include "Logger.h"
 
 #include <QDesktopServices>
 #include <QDir>
@@ -58,6 +59,107 @@ void carryRuntimeState(const Agent &from, Agent &to)
     to.consoleOutput = from.consoleOutput;
 }
 
+// --- Operational log -------------------------------------------------------
+// Everything the launcher does on the user's behalf is reported through these
+// helpers, one line per event, so the log answers "what did the launcher run,
+// and what came back":
+//   [cmd] install "opencode": running: cmd /c npm install -g opencode-ai
+//   [cmd] install "opencode": done, exit=0, 31.2s
+//   [app] openWeb "kimi-code": failed to open http://127.0.0.1:4096/
+// The tag separates spawned processes ("cmd") from everything else ("app");
+// `id` is the agent id, or empty for operations that are not about one agent.
+
+QString logPrefix(const QString &tag, const QString &operation, const QString &id)
+{
+    return id.isEmpty()
+               ? QStringLiteral("[%1] %2: ").arg(tag, operation)
+               : QStringLiteral("[%1] %2 \"%3\": ").arg(tag, operation, id);
+}
+
+// A spawned process: its command line, exit code, and output.
+void cmdLog(const QString &operation, const QString &id, const QString &message)
+{
+    qInfo().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
+}
+
+void cmdLogError(const QString &operation, const QString &id, const QString &message)
+{
+    qWarning().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
+}
+
+// Everything else: opening a URL, writing config/state, health transitions.
+void appLog(const QString &operation, const QString &id, const QString &message)
+{
+    qInfo().noquote() << logPrefix(QStringLiteral("app"), operation, id) + message;
+}
+
+void appLogError(const QString &operation, const QString &id, const QString &message)
+{
+    qWarning().noquote() << logPrefix(QStringLiteral("app"), operation, id) + message;
+}
+
+// How long a command took, e.g. "1.2s".
+QString elapsedSince(qint64 startMs)
+{
+    return QStringLiteral("%1s")
+        .arg((QDateTime::currentMSecsSinceEpoch() - startMs) / 1000.0, 0, 'f', 1);
+}
+
+// Outcome of a finished process, e.g. "done, exit=0, 31.2s".
+QString exitSummary(int exitCode, qint64 startMs)
+{
+    return QStringLiteral("%1, exit=%2, %3")
+        .arg(exitCode == 0 ? QStringLiteral("done") : QStringLiteral("FAILED"))
+        .arg(exitCode)
+        .arg(elapsedSince(startMs));
+}
+
+// How the launcher runs a raw install/update/setup/version command string.
+QString shellCommandLine(const QString &command)
+{
+    return QStringLiteral("cmd /c ") + command;
+}
+
+// Verbatim output of a finished command, capped so one chatty command cannot
+// fill the log. Newlines are kept so errors read exactly as the tool printed
+// them. `failure` mirrors the severity of the matching outcome line.
+void logCommandOutput(const QString &operation, const QString &id,
+                      const QString &output, bool failure = false)
+{
+    const QString text = Logger::clampOutput(output).trimmed();
+    const QString line = logPrefix(QStringLiteral("cmd"), operation, id)
+                         + (text.isEmpty()
+                                ? QStringLiteral("output: (none)")
+                                : QStringLiteral("output:\n") + text);
+    if (failure)
+        qWarning().noquote() << line;
+    else
+        qInfo().noquote() << line;
+}
+
+// The kill command used to take an agent down, per platform. It is built once
+// here and both logged and executed from the same values, so the log always
+// shows the real thing.
+QString killProgramName()
+{
+#ifdef Q_OS_WIN
+    return QStringLiteral("taskkill");
+#else
+    return QStringLiteral("kill");
+#endif
+}
+
+QStringList killProgramArgs(qint64 pid)
+{
+#ifdef Q_OS_WIN
+    // /F force, /T kills the whole process tree (cmd -> qwen.cmd -> node).
+    return {QStringLiteral("/F"), QStringLiteral("/T"),
+            QStringLiteral("/PID"), QString::number(pid)};
+#else
+    return {QStringLiteral("-9"), QString::number(pid)};
+#endif
+}
+
 } // namespace
 
 AgentLauncher::AgentLauncher(AgentModel *model, QObject *parent)
@@ -71,6 +173,10 @@ AgentLauncher::AgentLauncher(AgentModel *model, QObject *parent)
 
 void AgentLauncher::start()
 {
+    appLog(QStringLiteral("start"), QString(),
+           QStringLiteral("%1 launcher(s) configured, config: %2")
+               .arg(m_model->agents().size())
+               .arg(configFilePath()));
     loadSetupState();
     // Mark every agent with a versionCommand as "checking" before any QML
     // paint so the spinner is visible from the first frame, even if the
@@ -119,6 +225,8 @@ void AgentLauncher::doLaunch(const QString &id)
     // Split command into program + arguments on whitespace.
     const QStringList parts = QProcess::splitCommand(command);
     if (parts.isEmpty()) {
+        cmdLogError(QStringLiteral("launch"), id,
+                    QStringLiteral("skipped, the startup command is empty"));
         emit launchFailed(id, tr("Startup command is empty."));
         return;
     }
@@ -135,7 +243,10 @@ void AgentLauncher::doLaunch(const QString &id)
         const QString msg = tr("Cannot find '%1' on your PATH. "
                                "Make sure it is installed and on PATH.")
                                 .arg(program);
-        qWarning() << "AgentLauncher: launch failed for" << id << "-" << msg;
+        cmdLogError(QStringLiteral("launch"), id,
+                    QStringLiteral("cannot resolve '%1' on PATH "
+                                   "(configured command: %2)")
+                        .arg(program, command));
         emit launchFailed(id, msg);
         return;
     }
@@ -158,7 +269,14 @@ void AgentLauncher::doLaunch(const QString &id)
         proc.setProgram(resolved);
         proc.setArguments(args);
     }
-    proc.setWorkingDirectory(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
+    const QString cwd = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    proc.setWorkingDirectory(cwd);
+
+    // The line the log exists for: what is really executed, after PATH
+    // resolution and the cmd.exe wrapping of .cmd/.bat shims.
+    cmdLog(QStringLiteral("launch"), id,
+           QStringLiteral("running: %1  (cwd: %2)")
+               .arg(Logger::formatCommandLine(proc.program(), proc.arguments()), cwd));
 
     // If a token file is configured, read it and set QWEN_SERVER_TOKEN in the
     // process environment. This lets the daemon pick up the bearer token
@@ -173,21 +291,32 @@ void AgentLauncher::doLaunch(const QString &id)
                 QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
                 env.insert(QStringLiteral("QWEN_SERVER_TOKEN"), token);
                 proc.setProcessEnvironment(env);
+                // The token value itself never reaches the log.
+                cmdLog(QStringLiteral("launch"), id,
+                       QStringLiteral("injecting QWEN_SERVER_TOKEN from %1")
+                           .arg(tokenPath));
+            } else {
+                cmdLogError(QStringLiteral("launch"), id,
+                            QStringLiteral("token file %1 is empty").arg(tokenPath));
             }
+        } else {
+            cmdLogError(QStringLiteral("launch"), id,
+                        QStringLiteral("cannot read token file %1: %2")
+                            .arg(tokenPath, f.errorString()));
         }
     }
 
     qint64 pid = 0;
     const bool ok = proc.startDetached(&pid);
     if (!ok) {
-        const QString msg = tr("Failed to start '%1'.").arg(program);
-        qWarning() << "AgentLauncher: startDetached failed for" << id << "-"
-                   << msg;
-        emit launchFailed(id, msg);
+        cmdLogError(QStringLiteral("launch"), id,
+                    QStringLiteral("failed to start: %1").arg(proc.errorString()));
+        emit launchFailed(id, tr("Failed to start '%1'.").arg(program));
         return;
     }
 
     m_pids.insert(id, pid);
+    cmdLog(QStringLiteral("launch"), id, QStringLiteral("started, pid %1").arg(pid));
 
     // Mark the card as "launching" so the action button shows a spinner until
     // the health check confirms the server is up — or a 30s safety timeout
@@ -210,7 +339,9 @@ bool AgentLauncher::stop(const QString &id)
     if (it == m_pids.constEnd() || *it == 0) {
         const QString msg = tr("This agent wasn't started from the launcher; "
                                "stop it with its own command.");
-        qWarning() << "AgentLauncher: cannot stop" << id << "-" << msg;
+        cmdLogError(QStringLiteral("stop"), id,
+                    QStringLiteral("no PID tracked in this launcher session, "
+                                   "nothing to kill"));
         emit launchFailed(id, msg);
         return false;
     }
@@ -218,22 +349,18 @@ bool AgentLauncher::stop(const QString &id)
     const qint64 pid = *it;
     m_pids.erase(it);
 
-    bool ok = false;
-#ifdef Q_OS_WIN
-    // /F force, /T kills the whole process tree (cmd -> qwen.cmd -> node).
-    ok = QProcess::startDetached(
-        QStringLiteral("taskkill"),
-        { QStringLiteral("/F"), QStringLiteral("/T"),
-          QStringLiteral("/PID"), QString::number(pid) });
-#else
-    ok = QProcess::startDetached(
-        QStringLiteral("kill"),
-        { QStringLiteral("-9"), QString::number(pid) });
-#endif
+    const QStringList args = killProgramArgs(pid);
+    cmdLog(QStringLiteral("stop"), id,
+           QStringLiteral("running: %1")
+               .arg(Logger::formatCommandLine(killProgramName(), args)));
+    const bool ok = QProcess::startDetached(killProgramName(), args);
     if (!ok) {
-        const QString msg = tr("Failed to stop process (PID %1).").arg(pid);
-        qWarning() << "AgentLauncher:" << msg;
-        emit launchFailed(id, msg);
+        cmdLogError(QStringLiteral("stop"), id,
+                    QStringLiteral("failed to kill pid %1").arg(pid));
+        emit launchFailed(id, tr("Failed to stop process (PID %1).").arg(pid));
+    } else {
+        cmdLog(QStringLiteral("stop"), id,
+               QStringLiteral("killed process tree, pid %1").arg(pid));
     }
 
     // Re-check so the card flips back to Stopped once the port is down.
@@ -252,7 +379,9 @@ void AgentLauncher::forceStop(const QString &id)
     const int port = portFromWebUrl(a.webUrl);
     if (port < 0) {
         const QString msg = tr("Cannot determine port from web URL.");
-        qWarning() << "AgentLauncher: cannot force stop" << id << "-" << msg;
+        cmdLogError(QStringLiteral("forceStop"), id,
+                    QStringLiteral("cannot determine a port from web URL '%1'")
+                        .arg(a.webUrl));
         emit launchFailed(id, msg);
         return;
     }
@@ -261,25 +390,26 @@ void AgentLauncher::forceStop(const QString &id)
     if (pids.isEmpty()) {
         const QString msg = tr("No process found listening on port %1; "
                                "the agent may already be stopped.").arg(port);
-        qWarning() << "AgentLauncher: cannot force stop" << id << "-" << msg;
+        cmdLogError(QStringLiteral("forceStop"), id,
+                    QStringLiteral("no process listening on port %1").arg(port));
         emit launchFailed(id, msg);
         return;
     }
 
+    QStringList pidList;
+    for (const qint64 pid : pids)
+        pidList << QString::number(pid);
+    const QString pidsText = pidList.join(QStringLiteral(", "));
+    cmdLog(QStringLiteral("forceStop"), id,
+           QStringLiteral("port %1 is held by pid(s) %2").arg(port).arg(pidsText));
+
     bool anyOk = false;
     for (const qint64 pid : pids) {
-#ifdef Q_OS_WIN
-        // /F force, /T kills the whole process tree (cmd -> qwen.cmd -> node).
-        const bool ok = QProcess::startDetached(
-            QStringLiteral("taskkill"),
-            { QStringLiteral("/F"), QStringLiteral("/T"),
-              QStringLiteral("/PID"), QString::number(pid) });
-#else
-        const bool ok = QProcess::startDetached(
-            QStringLiteral("kill"),
-            { QStringLiteral("-9"), QString::number(pid) });
-#endif
-        if (ok)
+        const QStringList args = killProgramArgs(pid);
+        cmdLog(QStringLiteral("forceStop"), id,
+               QStringLiteral("running: %1")
+                   .arg(Logger::formatCommandLine(killProgramName(), args)));
+        if (QProcess::startDetached(killProgramName(), args))
             anyOk = true;
     }
 
@@ -290,8 +420,13 @@ void AgentLauncher::forceStop(const QString &id)
     if (!anyOk) {
         const QString msg = tr("Failed to stop process (PID %1).")
                                 .arg(pids.constFirst());
-        qWarning() << "AgentLauncher:" << msg;
+        cmdLogError(QStringLiteral("forceStop"), id,
+                    QStringLiteral("failed to kill pid(s) %1").arg(pidsText));
         emit launchFailed(id, msg);
+    } else {
+        cmdLog(QStringLiteral("forceStop"), id,
+               QStringLiteral("killed the process tree(s) holding port %1")
+                   .arg(port));
     }
 
     // Re-check so the card flips back to Stopped once the port is down.
@@ -388,25 +523,24 @@ bool AgentLauncher::hasLaunchedAgents() const
 
 int AgentLauncher::stopAll()
 {
+    const int tracked = m_pids.size();
     int killed = 0;
     for (auto it = m_pids.constBegin(); it != m_pids.constEnd(); ++it) {
         const qint64 pid = *it;
         if (pid == 0)
             continue;
-#ifdef Q_OS_WIN
-        const bool ok = QProcess::startDetached(
-            QStringLiteral("taskkill"),
-            { QStringLiteral("/F"), QStringLiteral("/T"),
-              QStringLiteral("/PID"), QString::number(pid) });
-#else
-        const bool ok = QProcess::startDetached(
-            QStringLiteral("kill"),
-            { QStringLiteral("-9"), QString::number(pid) });
-#endif
-        if (ok)
+        const QStringList args = killProgramArgs(pid);
+        cmdLog(QStringLiteral("stopAll"), it.key(),
+               QStringLiteral("running: %1")
+                   .arg(Logger::formatCommandLine(killProgramName(), args)));
+        if (QProcess::startDetached(killProgramName(), args))
             ++killed;
     }
     m_pids.clear();
+    appLog(QStringLiteral("stopAll"), QString(),
+           QStringLiteral("terminated %1 of %2 launcher(s) started this session")
+               .arg(killed)
+               .arg(tracked));
     return killed;
 }
 
@@ -435,7 +569,21 @@ void AgentLauncher::openWeb(const QString &id)
         }
     }
 
-    QDesktopServices::openUrl(QUrl(url));
+    // The #token=… fragment must never reach the log, so strip it first.
+    QString loggedUrl = url;
+    const int fragment = loggedUrl.indexOf(QLatin1Char('#'));
+    if (fragment >= 0)
+        loggedUrl.truncate(fragment);
+
+    if (QDesktopServices::openUrl(QUrl(url))) {
+        appLog(QStringLiteral("openWeb"), id,
+               QStringLiteral("opened %1").arg(loggedUrl));
+    } else {
+        appLogError(QStringLiteral("openWeb"), id,
+                    QStringLiteral("failed to open %1 — no handler accepted "
+                                   "the URL")
+                        .arg(loggedUrl));
+    }
 }
 
 void AgentLauncher::openConfigDir(const QString &id)
@@ -444,10 +592,19 @@ void AgentLauncher::openConfigDir(const QString &id)
     if (row < 0)
         return;
     QString dir = expandEnv(m_model->agents().at(row).configDir);
-    if (dir.isEmpty())
+    if (dir.isEmpty()) {
+        appLogError(QStringLiteral("openConfigDir"), id,
+                    QStringLiteral("no config directory configured"));
         return;
+    }
     dir = QDir::fromNativeSeparators(dir);
-    QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+    if (QDesktopServices::openUrl(QUrl::fromLocalFile(dir))) {
+        appLog(QStringLiteral("openConfigDir"), id,
+               QStringLiteral("opened %1").arg(dir));
+    } else {
+        appLogError(QStringLiteral("openConfigDir"), id,
+                    QStringLiteral("failed to open %1").arg(dir));
+    }
 }
 
 namespace {
@@ -574,7 +731,15 @@ bool AgentLauncher::saveConfig()
     cfg.setRemovedIds(m_removedIds);
     // Preserve the root window title across saves.
     cfg.setTitle(m_title);
-    return cfg.save();
+    const bool ok = cfg.save();
+    if (ok) {
+        appLog(QStringLiteral("config"), QString(),
+               QStringLiteral("saved %1").arg(configFilePath()));
+    } else {
+        appLogError(QStringLiteral("config"), QString(),
+                    QStringLiteral("failed to write %1").arg(configFilePath()));
+    }
+    return ok;
 }
 
 void AgentLauncher::checkAll()
@@ -600,6 +765,15 @@ void AgentLauncher::checkAll()
             // Once the server is up, the launch is done: clear the spinner.
             if (up)
                 m_model->setLaunching(id, false);
+            // Report health transitions (not every poll) so the log tells the
+            // story of when an agent came up or went down.
+            const int row = m_model->indexOf(id);
+            const bool wasRunning = row >= 0 && m_model->agents().at(row).running;
+            if (up != wasRunning) {
+                appLog(QStringLiteral("state"), id,
+                       up ? QStringLiteral("stopped → running")
+                          : QStringLiteral("running → stopped"));
+            }
             m_model->setRunning(id, up);
             reply->deleteLater();
         });
@@ -665,6 +839,8 @@ void AgentLauncher::checkVersion(const QString &id)
     proc->setProgram(QStringLiteral("cmd"));
     proc->setArguments({QStringLiteral("/c"), cmd});
     // Default channel mode → CREATE_NO_WINDOW → no visible console.
+    cmdLog(QStringLiteral("version"), id,
+           QStringLiteral("running: %1").arg(shellCommandLine(cmd)));
 
     const QString capturedId = id;
     const int capturedEpoch = epoch;
@@ -685,7 +861,7 @@ void AgentLauncher::checkVersion(const QString &id)
     };
 
     connect(proc, &QProcess::finished, this,
-            [this, capturedId, capturedEpoch, proc, scheduleClear](int exitCode, QProcess::ExitStatus) {
+            [this, capturedId, capturedEpoch, startMs, proc, scheduleClear](int exitCode, QProcess::ExitStatus) {
                 const QString stdOutput =
                     decodeProcessOutput(proc->readAllStandardOutput());
                 const QString errOutput =
@@ -702,15 +878,22 @@ void AgentLauncher::checkVersion(const QString &id)
                     // non-zero exit. Some tools exit non-zero for --version.
                     m_model->setInstalled(capturedId, true);
                     m_model->setVersion(capturedId, version);
-                    if (version.isEmpty())
-                        qWarning() << "AgentLauncher: version command succeeded for"
-                                   << capturedId << "but could not parse version from:"
-                                   << stdOutput << errOutput;
+                    if (version.isEmpty()) {
+                        cmdLog(QStringLiteral("version"), capturedId,
+                               QStringLiteral("%1, but no version string in the output")
+                                   .arg(exitSummary(exitCode, startMs)));
+                        logCommandOutput(QStringLiteral("version"), capturedId,
+                                         stdOutput + errOutput);
+                    } else {
+                        cmdLog(QStringLiteral("version"), capturedId,
+                               QStringLiteral("%1 → %2")
+                                   .arg(exitSummary(exitCode, startMs), version));
+                    }
                 } else {
-                    qWarning() << "AgentLauncher: version command failed for" << capturedId
-                               << "- exit code:" << exitCode
-                               << "stdout:" << stdOutput.trimmed()
-                               << "stderr:" << errOutput.trimmed();
+                    cmdLogError(QStringLiteral("version"), capturedId,
+                                exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("version"), capturedId,
+                                     stdOutput + errOutput, true);
                     m_model->setInstalled(capturedId, false);
                     m_model->setVersion(capturedId, QString());
                 }
@@ -719,10 +902,11 @@ void AgentLauncher::checkVersion(const QString &id)
             });
 
     connect(proc, &QProcess::errorOccurred, this,
-            [this, capturedId, capturedEpoch, proc, scheduleClear](QProcess::ProcessError err) {
+            [this, capturedId, capturedEpoch, proc, scheduleClear](QProcess::ProcessError) {
                 if (proc->state() == QProcess::NotRunning) {
-                    qWarning() << "AgentLauncher: version command failed to start for"
-                               << capturedId << "- error:" << err;
+                    cmdLogError(QStringLiteral("version"), capturedId,
+                                QStringLiteral("failed to start: %1")
+                                    .arg(proc->errorString()));
                     m_model->setInstalled(capturedId, false);
                     m_model->setVersion(capturedId, QString());
                     scheduleClear();
@@ -733,7 +917,8 @@ void AgentLauncher::checkVersion(const QString &id)
     // Safety timeout: kill hung version commands after 10s.
     QTimer::singleShot(10000, proc, [this, capturedId, capturedEpoch, proc, scheduleClear]() {
         if (proc->state() != QProcess::NotRunning) {
-            qWarning() << "AgentLauncher: version command timed out for" << capturedId;
+            cmdLogError(QStringLiteral("version"), capturedId,
+                        QStringLiteral("timed out after 10s, killing it"));
             proc->kill();
             m_model->setInstalled(capturedId, false);
             m_model->setVersion(capturedId, QString());
@@ -769,6 +954,9 @@ void AgentLauncher::runSetup(const QString &id)
     m_model->setConsoleOutput(id, QString());
     m_model->setSetupping(id, true);
 
+    cmdLog(QStringLiteral("setup"), id,
+           QStringLiteral("configured command: %1").arg(cmd));
+
     // Write the setup command to a temporary .cmd file and execute that.
     // QProcess on Windows escapes internal " as \" (the C convention), but
     // cmd.exe doesn't understand \" — it treats \ as a literal character,
@@ -778,6 +966,9 @@ void AgentLauncher::runSetup(const QString &id)
         QDir::tempPath() + QStringLiteral("/agentlauncher_XXXXXX.cmd"));
     if (!batchFile->open()) {
         m_model->setSetupping(id, false);
+        cmdLogError(QStringLiteral("setup"), id,
+                    QStringLiteral("cannot create the temporary batch file: %1")
+                        .arg(batchFile->errorString()));
         emit launchFailed(id, tr("Failed to create a temporary batch file for setup."));
         delete batchFile;
         return;
@@ -793,9 +984,13 @@ void AgentLauncher::runSetup(const QString &id)
     proc->setProgram(QStringLiteral("cmd"));
     proc->setArguments({QStringLiteral("/c"), batchFile->fileName()});
     // No visible console window; output is captured for live display.
+    cmdLog(QStringLiteral("setup"), id,
+           QStringLiteral("running: %1")
+               .arg(Logger::formatCommandLine(proc->program(), proc->arguments())));
 
     const QString capturedId = id;
     const QString capturedCmd = cmd;
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
     QSharedPointer<QString> buffer = QSharedPointer<QString>::create();
 
     connect(proc, &QProcess::readyReadStandardOutput, this,
@@ -805,7 +1000,7 @@ void AgentLauncher::runSetup(const QString &id)
             });
 
     connect(proc, &QProcess::finished, this,
-            [this, capturedId, capturedCmd, proc, buffer](int exitCode, QProcess::ExitStatus) {
+            [this, capturedId, capturedCmd, startMs, proc, buffer](int exitCode, QProcess::ExitStatus) {
                 m_model->setSetupping(capturedId, false);
 
                 // Drain any tail bytes, then push the final text to the card.
@@ -814,10 +1009,17 @@ void AgentLauncher::runSetup(const QString &id)
                 m_model->setConsoleOutput(capturedId, *buffer);
 
                 if (exitCode == 0) {
+                    cmdLog(QStringLiteral("setup"), capturedId,
+                           exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("setup"), capturedId, *buffer);
                     markSetupDone(capturedId);
                     // Proceed with the actual launch (clears the console area).
                     doLaunch(capturedId);
                 } else {
+                    cmdLogError(QStringLiteral("setup"), capturedId,
+                                exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("setup"), capturedId, *buffer,
+                                     true);
                     const QString detail = buffer->trimmed().isEmpty()
                         ? tr("(no output)") : buffer->trimmed();
                     emit launchFailed(capturedId,
@@ -834,6 +1036,9 @@ void AgentLauncher::runSetup(const QString &id)
             [this, capturedId, proc](QProcess::ProcessError) {
                 if (proc->state() == QProcess::NotRunning) {
                     m_model->setSetupping(capturedId, false);
+                    cmdLogError(QStringLiteral("setup"), capturedId,
+                                QStringLiteral("failed to start: %1")
+                                    .arg(proc->errorString()));
                     emit launchFailed(capturedId,
                         tr("Failed to start setup command."));
                     proc->deleteLater();
@@ -841,9 +1046,12 @@ void AgentLauncher::runSetup(const QString &id)
             });
 
     // Safety timeout: kill hung setup commands after 30s.
-    QTimer::singleShot(30000, proc, [proc]() {
-        if (proc->state() != QProcess::NotRunning)
+    QTimer::singleShot(30000, proc, [this, capturedId, proc]() {
+        if (proc->state() != QProcess::NotRunning) {
+            cmdLogError(QStringLiteral("setup"), capturedId,
+                        QStringLiteral("timed out after 30s, killing it"));
             proc->kill();
+        }
     });
 
     proc->start();
@@ -890,8 +1098,16 @@ void AgentLauncher::markSetupDone(const QString &id)
     root[id] = agentState;
 
     QDir().mkpath(QFileInfo(stateFilePath()).absolutePath());
-    if (file.open(QIODevice::WriteOnly))
+    if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        appLog(QStringLiteral("setup"), id,
+               QStringLiteral("marked as done in %1").arg(stateFilePath()));
+    } else {
+        appLogError(QStringLiteral("setup"), id,
+                    QStringLiteral("cannot write %1 — the setup command will run "
+                                   "again on the next start")
+                        .arg(stateFilePath()));
+    }
 }
 
 void AgentLauncher::resetSetup(const QString &id)
@@ -907,8 +1123,17 @@ void AgentLauncher::resetSetup(const QString &id)
     file.close();
     root.remove(id);
 
-    if (file.open(QIODevice::WriteOnly))
+    if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        appLog(QStringLiteral("setup"), id,
+               QStringLiteral("re-initialized, the setup command runs again "
+                              "before the next start"));
+    } else {
+        appLogError(QStringLiteral("setup"), id,
+                    QStringLiteral("cannot write %1 while clearing the setup "
+                                   "state")
+                        .arg(stateFilePath()));
+    }
 }
 
 // --- Runtime version detection (Python / Node.js) -------------------------
@@ -929,6 +1154,8 @@ void AgentLauncher::detectRuntime(const QString &program,
     // point spawning a process. findExecutable applies PATHEXT on Windows.
     const QString resolved = QStandardPaths::findExecutable(program);
     if (resolved.isEmpty()) {
+        cmdLogError(QStringLiteral("runtime"), runtimeName,
+                    QStringLiteral("'%1' is not on PATH").arg(program));
         if (runtimeName == QLatin1String("Python")) {
             m_pythonInstalled = false;
             m_pythonVersion.clear();
@@ -945,9 +1172,15 @@ void AgentLauncher::detectRuntime(const QString &program,
     proc->setArguments({QStringLiteral("/c"), program + QStringLiteral(" ") + versionArg});
 
     const QString capturedRuntime = runtimeName;
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+    // The probe hands cmd one string ("python --version"), so it is reported
+    // the same way as the other cmd /c lines rather than as a quoted argv.
+    cmdLog(QStringLiteral("runtime"), runtimeName,
+           QStringLiteral("running: %1")
+               .arg(shellCommandLine(program + QLatin1Char(' ') + versionArg)));
 
     connect(proc, &QProcess::finished, this,
-            [this, capturedRuntime, proc](int exitCode, QProcess::ExitStatus) {
+            [this, capturedRuntime, startMs, proc](int exitCode, QProcess::ExitStatus) {
                 const QString stdOutput =
                     QString::fromLocal8Bit(proc->readAllStandardOutput());
                 const QString errOutput =
@@ -976,6 +1209,16 @@ void AgentLauncher::detectRuntime(const QString &program,
                         m_nodeVersion.clear();
                     }
                 }
+                if (version.isEmpty()) {
+                    cmdLogError(QStringLiteral("runtime"), capturedRuntime,
+                                QStringLiteral("%1, no version string in the output: %2")
+                                    .arg(exitSummary(exitCode, startMs),
+                                         (stdOutput + errOutput).trimmed()));
+                } else {
+                    cmdLog(QStringLiteral("runtime"), capturedRuntime,
+                           QStringLiteral("%1 → %2")
+                               .arg(exitSummary(exitCode, startMs), version));
+                }
                 emit runtimeVersionsChanged();
                 proc->deleteLater();
             });
@@ -983,6 +1226,9 @@ void AgentLauncher::detectRuntime(const QString &program,
     connect(proc, &QProcess::errorOccurred, this,
             [this, capturedRuntime, proc](QProcess::ProcessError) {
                 if (proc->state() == QProcess::NotRunning) {
+                    cmdLogError(QStringLiteral("runtime"), capturedRuntime,
+                                QStringLiteral("failed to start: %1")
+                                    .arg(proc->errorString()));
                     if (capturedRuntime == QLatin1String("Python")) {
                         m_pythonInstalled = false;
                         m_pythonVersion.clear();
@@ -998,6 +1244,8 @@ void AgentLauncher::detectRuntime(const QString &program,
     // Safety timeout: kill hung detection after 10s.
     QTimer::singleShot(10000, proc, [this, capturedRuntime, proc]() {
         if (proc->state() != QProcess::NotRunning) {
+            cmdLogError(QStringLiteral("runtime"), capturedRuntime,
+                        QStringLiteral("timed out after 10s, killing it"));
             proc->kill();
             if (capturedRuntime == QLatin1String("Python")) {
                 m_pythonInstalled = false;
@@ -1023,10 +1271,14 @@ void AgentLauncher::install(const QString &id)
     const Agent &a = m_model->agents().at(row);
 
     if (a.running) {
+        cmdLogError(QStringLiteral("install"), id,
+                    QStringLiteral("skipped, the agent is running"));
         emit launchFailed(id, tr("Please close %1 before installing/updating.").arg(a.name));
         return;
     }
     if (a.installCommand.isEmpty()) {
+        cmdLogError(QStringLiteral("install"), id,
+                    QStringLiteral("skipped, no install command is configured"));
         emit installFinished(id, false,
             tr("No install command configured for %1.").arg(a.name));
         return;
@@ -1044,8 +1296,11 @@ void AgentLauncher::install(const QString &id)
     proc->setProgram(QStringLiteral("cmd"));
     proc->setArguments({QStringLiteral("/c"), a.installCommand});
     // No visible console window; output is captured for live display.
+    cmdLog(QStringLiteral("install"), id,
+           QStringLiteral("running: %1").arg(shellCommandLine(a.installCommand)));
 
     const QString capturedId = id;
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
     QPointer<QProcess> guard(proc);
     bool *handled = new bool(false);
     // Accumulator shared between the readyRead and finished handlers so the
@@ -1063,7 +1318,7 @@ void AgentLauncher::install(const QString &id)
             });
 
     connect(proc, &QProcess::finished, this,
-            [this, capturedId, guard, handled, buffer](int exitCode, QProcess::ExitStatus) {
+            [this, capturedId, startMs, guard, handled, buffer](int exitCode, QProcess::ExitStatus) {
                 if (*handled)
                     return;
                 *handled = true;
@@ -1080,8 +1335,15 @@ void AgentLauncher::install(const QString &id)
                 delete handled;
 
                 if (exitCode == 0) {
+                    cmdLog(QStringLiteral("install"), capturedId,
+                           exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("install"), capturedId, *buffer);
                     emit installFinished(capturedId, true, QString());
                 } else {
+                    cmdLogError(QStringLiteral("install"), capturedId,
+                                exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("install"), capturedId, *buffer,
+                                     true);
                     QString detail = buffer->trimmed();
                     if (detail.isEmpty())
                         detail = tr("(no output)");
@@ -1104,6 +1366,9 @@ void AgentLauncher::install(const QString &id)
                     m_model->setInstalling(capturedId, false);
                     guard->deleteLater();
                     delete handled;
+                    cmdLogError(QStringLiteral("install"), capturedId,
+                                QStringLiteral("failed to start: %1")
+                                    .arg(guard->errorString()));
                     emit installFinished(capturedId, false,
                         tr("Failed to start install command."));
                 }
@@ -1120,10 +1385,14 @@ void AgentLauncher::updateTool(const QString &id)
     const Agent &a = m_model->agents().at(row);
 
     if (a.running) {
+        cmdLogError(QStringLiteral("update"), id,
+                    QStringLiteral("skipped, the agent is running"));
         emit launchFailed(id, tr("Please close %1 before installing/updating.").arg(a.name));
         return;
     }
     if (a.updateCommand.isEmpty()) {
+        cmdLogError(QStringLiteral("update"), id,
+                    QStringLiteral("skipped, no update command is configured"));
         emit installFinished(id, false,
             tr("No update command configured for %1.").arg(a.name));
         return;
@@ -1137,8 +1406,11 @@ void AgentLauncher::updateTool(const QString &id)
     proc->setProgram(QStringLiteral("cmd"));
     proc->setArguments({QStringLiteral("/c"), a.updateCommand});
     // No visible console window; output is captured for live display.
+    cmdLog(QStringLiteral("update"), id,
+           QStringLiteral("running: %1").arg(shellCommandLine(a.updateCommand)));
 
     const QString capturedId = id;
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
     QPointer<QProcess> guard(proc);
     bool *handled = new bool(false);
     QSharedPointer<QString> buffer = QSharedPointer<QString>::create();
@@ -1152,7 +1424,7 @@ void AgentLauncher::updateTool(const QString &id)
             });
 
     connect(proc, &QProcess::finished, this,
-            [this, capturedId, guard, handled, buffer](int exitCode, QProcess::ExitStatus) {
+            [this, capturedId, startMs, guard, handled, buffer](int exitCode, QProcess::ExitStatus) {
                 if (*handled)
                     return;
                 *handled = true;
@@ -1167,8 +1439,15 @@ void AgentLauncher::updateTool(const QString &id)
                 delete handled;
 
                 if (exitCode == 0) {
+                    cmdLog(QStringLiteral("update"), capturedId,
+                           exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("update"), capturedId, *buffer);
                     emit installFinished(capturedId, true, QString());
                 } else {
+                    cmdLogError(QStringLiteral("update"), capturedId,
+                                exitSummary(exitCode, startMs));
+                    logCommandOutput(QStringLiteral("update"), capturedId, *buffer,
+                                     true);
                     QString detail = buffer->trimmed();
                     if (detail.isEmpty())
                         detail = tr("(no output)");
@@ -1188,6 +1467,9 @@ void AgentLauncher::updateTool(const QString &id)
                     m_model->setInstalling(capturedId, false);
                     guard->deleteLater();
                     delete handled;
+                    cmdLogError(QStringLiteral("update"), capturedId,
+                                QStringLiteral("failed to start: %1")
+                                    .arg(guard->errorString()));
                     emit installFinished(capturedId, false,
                         tr("Failed to start update command."));
                 }
