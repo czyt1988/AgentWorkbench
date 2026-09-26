@@ -96,20 +96,31 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
         kind = QStringLiteral("external");
     }
     if (kind == QLatin1String("external")) {
-        if (QDesktopServices::openUrl(url))
+        if (QDesktopServices::openUrl(url)) {
+            qInfo().noquote() << QStringLiteral(
+                "WebTabs: opened %1 in the system browser").arg(url.toString());
             emit externalOpened(url.toString());
-        else
+        } else {
             qWarning().noquote() << QStringLiteral(
                 "WebTabs: no handler accepted %1").arg(url.toString());
+        }
         return {};
     }
 
     // Same agent already open -> activate instead of duplicating (S5-T1).
     if (WebTab *existing = m_tabs->tabForAgent(agentId)) {
         activateTab(existing->id());
+        qInfo().noquote() << QStringLiteral(
+            "WebTabs: activated the existing tab %1 for %2")
+            .arg(existing->id(), agentId);
         return existing->id();
     }
-    return createTab(agentId, url, fields);
+
+    const QString id = createTab(agentId, url, fields);
+    qInfo().noquote() << QStringLiteral(
+        "WebTabs: opened tab %1 for agent %2 (%3, surface=%4)")
+        .arg(id, agentId, url.toString(), kind);
+    return id;
 }
 
 QString WebTabsFacade::createTab(const QString &agentId, const QUrl &url,

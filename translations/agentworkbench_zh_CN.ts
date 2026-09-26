@@ -1563,87 +1563,87 @@ Command: %2
 <context>
     <name>WebEngineSurface</name>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="65"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="67"/>
         <source>Failed to load %1</source>
         <translation>无法加载 %1</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="75"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="78"/>
         <source>The render process was terminated (code %1)</source>
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="105"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="143"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="109"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="147"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="113"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="151"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="128"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="109"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="129"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="110"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="139"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="120"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="178"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="182"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="187"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="191"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="209"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="213"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="219"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="223"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="243"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="247"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="249"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="253"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="254"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="258"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="259"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="263"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="264"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="268"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
@@ -1651,97 +1651,97 @@ Command: %2
 <context>
     <name>WebTabsPage</name>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="182"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="183"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="184"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="185"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="186"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="187"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="201"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="202"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="210"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="211"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="233"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="241"/>
         <source>Copy URL</source>
         <translation>复制 URL</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="242"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="250"/>
         <source>Zoom in</source>
         <translation>放大</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="246"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="254"/>
         <source>Zoom out</source>
         <translation>缩小</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="250"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="258"/>
         <source>Reset zoom</source>
         <translation>重置缩放</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="256"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="264"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="264"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="272"/>
         <source>Close tab</source>
         <translation>关闭标签</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="295"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="302"/>
         <source>No Web views open</source>
         <translation>还没有打开的 Web 视图</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="304"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="311"/>
         <source>Open a view from a running agent&apos;s card, or from the list below.</source>
         <translation>从运行中 agent 的卡片打开视图，或从下方列表打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="305"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="312"/>
         <source>This build opens agent WebUIs in the system browser. Start an agent below to open it.</source>
         <translation>此构建在系统浏览器中打开 agent 的 WebUI。在下方启动一个 agent 即可打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="356"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="363"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="366"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="373"/>
         <source>No agent is running - start one from the launcher page.</source>
         <translation>没有 agent 在运行——先到启动器页面启动一个。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="372"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="379"/>
         <source>Go to launcher</source>
         <translation>前往启动器</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="405"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="412"/>
         <source>View released to free memory</source>
         <translation>视图已释放以回收内存</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="411"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="418"/>
         <source>Restore view</source>
         <translation>恢复视图</translation>
     </message>
@@ -1998,7 +1998,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="201"/>
+        <location filename="../app/main.cpp" line="202"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

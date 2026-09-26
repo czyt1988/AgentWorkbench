@@ -3,6 +3,7 @@ build/
 out/
 site/
 dist/
+dist-*/
 # Anchored to the repo root: an unanchored build* also hides scripts/build.sh
 /build*
 

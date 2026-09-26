@@ -115,6 +115,7 @@ Item {
                                     }
 
                                     Label {
+                                        id: tabLabel
                                         Layout.fillWidth: true
                                         text: title.length > 0 ? title
                                              : String(url).replace(/^https?:\/\//, "").replace(/[?#].*$/, "")
@@ -211,15 +212,19 @@ Item {
                         enabled: web.activeTabId.length > 0
                         onClicked: web.openExternal(web.activeTabId)
                     }
-                    MenuButton {
-                        id: tabMenu
+                    // Qt Quick Controls 2 has no MenuButton type (it was a
+                    // Qt 5 Controls 1 thing) — a Button popping the menu
+                    // is the supported shape.
+                    Button {
+                        id: tabMenuButton
                         anchors.verticalCenter: parent.verticalCenter
                         enabled: web.activeTabId.length > 0
                         implicitWidth: 28
                         implicitHeight: 28
+                        padding: 0
                         background: Rectangle {
                             radius: theme.radiusControl
-                            color: parent.hovered || parent.menu.opened
+                            color: parent.hovered || tabMenu.opened
                                    ? theme.surfaceHoverBg : "transparent"
                         }
                         contentItem: Image {
@@ -227,8 +232,11 @@ Item {
                             sourceSize: Qt.size(14, 14)
                             fillMode: Image.PreserveAspectFit
                         }
+                        onClicked: tabMenu.popup()
+                    }
 
-                        menu: Menu {
+                    Menu {
+                        id: tabMenu
                             MenuItem {
                                 text: qsTr("Copy URL")
                                 onTriggered: {
@@ -265,7 +273,6 @@ Item {
                                 onTriggered: web.closeTab(web.activeTabId)
                             }
                         }
-                    }
                 }
             }
         }
@@ -428,10 +435,10 @@ Item {
                                 function(active) {
                                     page.chromeHidden = active
                                 })
+                            // Entries are overwritten on reload; stale ones
+                            // for closed tabs are never consulted (the menu
+                            // only reads the active tab's fresh item).
                             page.surfaceItems[tabHost.tabId] = item
-                        }
-                        onUnloaded: {
-                            delete page.surfaceItems[tabHost.tabId]
                         }
                     }
                 }

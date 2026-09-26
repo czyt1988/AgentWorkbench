@@ -33,7 +33,7 @@ Item {
 
         // Memory policy (02 §6.5): only the active tab keeps a live view;
         // the rest freeze (session kept) until released by the LRU.
-        lifeCycleState: {
+        lifecycleState: {
             if (!web.freezeInactiveTabs)
                 return WebEngineView.Active
             return surface.visible && web.activeTabId === tab.id
@@ -53,16 +53,19 @@ Item {
             if (surface.hasTab)
                 web.setTabProgress(tab.id, loadProgress)
         }
-        onLoadFinished: function(ok) {
+        // Qt 6 has no loadFinished — load results arrive via loadingChanged
+        // with a LoadStatus enum (02 §6.3 state machine).
+        onLoadingChanged: function(loadingInfo) {
             if (!surface.hasTab)
                 return
-            if (ok) {
+            if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
                 web.setTabProgress(tab.id, 100)
                 web.setTabState(tab.id, "ready")
-            } else {
-                console.error("WebEngine: failed to load", String(url))
-                web.setTabLastError(tab.id,
-                                    qsTr("Failed to load %1").arg(String(url)))
+            } else if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
+                console.error("WebEngine: failed to load",
+                              String(loadingInfo.url))
+                web.setTabLastError(tab.id, qsTr("Failed to load %1")
+                                               .arg(String(loadingInfo.url)))
                 web.setTabState(tab.id, "error")
             }
         }
@@ -75,10 +78,6 @@ Item {
                 web.setTabLastError(tab.id, qsTr("The render process was terminated (code %1)").arg(exitCode))
                 web.setTabState(tab.id, "crashed")
             }
-        }
-        onErrorOccurred: function(error) {
-            if (surface.hasTab)
-                web.setTabLastError(tab.id, String(error))
         }
 
         // --- Popups: loopback -> new in-app tab; anything else -> system
@@ -96,24 +95,6 @@ Item {
             } else {
                 workbench.openExternalUrl(target)
             }
-        }
-
-        // --- Downloads (02 §6.4): always accepted, into web.downloadDir.
-        onDownloadRequested: function(download) {
-            download.directory = web.downloadDir
-            download.accept()
-            workbench.notify("info", qsTr("Download started"),
-                             download.downloadFileName)
-            download.stateChanged.connect(function() {
-                if (download.state === WebEngineDownloadRequest.DownloadCompleted) {
-                    workbench.notify("success", qsTr("Download finished"),
-                                     String(download.path))
-                } else if (download.state === WebEngineDownloadRequest.DownloadCancelled
-                           || download.state === WebEngineDownloadRequest.DownloadInterrupted) {
-                    workbench.notify("warning", qsTr("Download interrupted"),
-                                     download.downloadFileName)
-                }
-            })
         }
 
         // --- Fullscreen: accept and let the page hide its tab bar.
@@ -149,6 +130,29 @@ Item {
         devToolsWindow.show()
         devToolsWindow.raise()
         devToolsWindow.requestActivate()
+    }
+
+    // --- Downloads (02 §6.4): Qt 6 moved downloadRequested from the view
+    // onto the profile — always accepted, into web.downloadDir.
+    Connections {
+        target: view.profile
+        enabled: view.profile !== null
+        function onDownloadRequested(download) {
+            download.directory = web.downloadDir
+            download.accept()
+            workbench.notify("info", qsTr("Download started"),
+                             download.downloadFileName)
+            download.stateChanged.connect(function() {
+                if (download.state === WebEngineDownloadRequest.DownloadCompleted) {
+                    workbench.notify("success", qsTr("Download finished"),
+                                     String(download.path))
+                } else if (download.state === WebEngineDownloadRequest.DownloadCancelled
+                           || download.state === WebEngineDownloadRequest.DownloadInterrupted) {
+                    workbench.notify("warning", qsTr("Download interrupted"),
+                                     download.downloadFileName)
+                }
+            })
+        }
     }
 
     // --- State overlays (02 §6.3) -------------------------------------------

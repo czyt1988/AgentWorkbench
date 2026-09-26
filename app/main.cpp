@@ -102,13 +102,10 @@ int main(int argc, char *argv[])
                                                &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
-    awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
-                                              &notifications, &skills);
-
     // Plugins (specs/01 §9): discover manifests always (for the settings
     // list), load libraries only when the user opted in — failures log and
-    // never block startup. (workbench is constructed before this block —
-    // see below; setDiscoveredPlugins runs after it.)
+    // never block startup. This runs BEFORE BuiltinPages restores the last
+    // page, so a plugin page id survives a restart.
     awb::core::PluginHost pluginHost;
     const QList<awb::core::PluginHost::Manifest> manifests =
         pluginHost.discover();
@@ -145,6 +142,10 @@ int main(int argc, char *argv[])
         }
         pluginHost.loadEnabled(enabled, &pluginServices);
     }
+
+    awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
+                                              &notifications, &skills);
+
 
 #ifdef AWB_ENABLE_WEBENGINE
     // The embedded surface registers itself with the web domain; profiles
