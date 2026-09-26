@@ -102,6 +102,7 @@ bool NavigationModel::registerPage(const PageDescriptor &page)
     sort();
     endResetModel();
     emit pagesChanged();
+    emit badgesChanged(); // the map gains a key
     return true;
 }
 
@@ -118,6 +119,7 @@ bool NavigationModel::unregisterPage(const QString &id)
         emit currentPageChanged();
     }
     emit pagesChanged();
+    emit badgesChanged(); // the map loses a key
     return true;
 }
 
@@ -144,6 +146,14 @@ QVariantMap NavigationModel::currentPage() const
     return page(m_currentId);
 }
 
+QVariantMap NavigationModel::badges() const
+{
+    QVariantMap map;
+    for (const PageDescriptor &p : m_pages)
+        map.insert(p.id, p.badgeText);
+    return map;
+}
+
 void NavigationModel::setBadge(const QString &id, const QString &text)
 {
     const int row = indexOfId(id);
@@ -154,6 +164,8 @@ void NavigationModel::setBadge(const QString &id, const QString &text)
     m_pages[row].badgeText = text;
     const QModelIndex idx = index(row, 0);
     emit dataChanged(idx, idx, { BadgeRole });
+    // Drives the `badges` Q_PROPERTY — StatusBar binds nav.badges[id].
+    emit badgesChanged();
 }
 
 void NavigationModel::setCurrentPageId(const QString &id)

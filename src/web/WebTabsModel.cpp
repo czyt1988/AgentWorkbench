@@ -92,9 +92,24 @@ bool WebTabsModel::removeTab(const QString &id)
     beginRemoveRows(QModelIndex(), row, row);
     WebTab *tab = m_tabs.takeAt(row);
     endRemoveRows();
-    if (m_activeIndex >= m_tabs.size())
+    // Keep the active tab pointing at the SAME tab: removing a row before
+    // it shifts later rows down one slot; only clamp when the active tab
+    // itself was removed or fell off the end. A removal at the active row
+    // keeps the index but swaps the tab behind it — also a change.
+    const int previousActive = m_activeIndex;
+    bool activeChanged = false;
+    if (row < m_activeIndex)
+        --m_activeIndex;
+    else if (row == m_activeIndex)
+        activeChanged = true;
+    if (m_activeIndex >= m_tabs.size()) {
         m_activeIndex = m_tabs.size() - 1;
-    emit activeIndexChanged();
+        activeChanged = true;
+    }
+    if (m_activeIndex != previousActive)
+        activeChanged = true;
+    if (activeChanged)
+        emit activeIndexChanged();
     tab->deleteLater();
     return true;
 }

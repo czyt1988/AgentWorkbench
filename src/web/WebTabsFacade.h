@@ -27,6 +27,12 @@ class WebTabsFacade : public QObject
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
     Q_PROPERTY(QString activeTabId READ activeTabId NOTIFY activeTabChanged)
+    // Notifiable rowCount — QML bindings (empty state) can't depend on the
+    // rowCount() method, which has no notify signal.
+    Q_PROPERTY(int tabCount READ tabCount NOTIFY tabCountChanged)
+    // State of the active tab ("loading" | "ready" | …, empty when no tab):
+    // drives the toolbar's reload/stop toggle (02 §6.1).
+    Q_PROPERTY(QString activeState READ activeState NOTIFY activeStateChanged)
     Q_PROPERTY(bool devToolsEnabled READ devToolsEnabled CONSTANT)
     Q_PROPERTY(bool freezeInactiveTabs READ freezeInactiveTabs NOTIFY
                    policyChanged)
@@ -40,6 +46,8 @@ public:
     WebTabsModel *tabs() const { return m_tabs; }
 
     QString activeTabId() const;
+    int tabCount() const;
+    QString activeState() const;
 
     // True in Debug builds — the tab menu only offers devtools then.
     bool devToolsEnabled() const;
@@ -72,6 +80,9 @@ public:
     Q_INVOKABLE void reopen(const QString &id);
 
     Q_INVOKABLE QVariantMap tabForAgent(const QString &agentId) const;
+    // The live WebTab for id (nullptr when gone) — QML reads its Q_PROPERTYs
+    // (zoom, state …) dynamically; used by zoom/menu shortcuts.
+    Q_INVOKABLE QObject *tabObject(const QString &id) const;
     // QML component URL for a surface kind ("" when unavailable).
     Q_INVOKABLE QString surfaceUrl(const QString &kind) const;
 
@@ -94,6 +105,8 @@ public:
 
 signals:
     void activeTabChanged();
+    void tabCountChanged();
+    void activeStateChanged();
     // web.freezeInactiveTabs / web.downloadDir changed in settings.json.
     void policyChanged();
     // Info-level notice for the external-surface path (02 §6.7); the

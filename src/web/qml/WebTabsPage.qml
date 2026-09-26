@@ -37,6 +37,15 @@ Item {
             height: visible ? theme.tabBarHeight : 0
             color: theme.chromeBg
 
+            // Bottom separator (02 §6.1: 下边框 theme.separator).
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 1
+                color: theme.separator
+            }
+
             RowLayout {
                 anchors.fill: parent
                 spacing: 0
@@ -63,6 +72,7 @@ Item {
                                 required property string url
                                 required property string state
                                 required property string color
+                                required property string iconSource
                                 required property int loadProgress
                                 required property string surfaceKind
                                 property bool active: web.activeTabId === tabId
@@ -112,6 +122,18 @@ Item {
                                                    ? tabButton.color
                                                    : theme.accent
                                         }
+                                    }
+
+                                    // Tab icon, 16px (02 §6.2): the agent
+                                    // icon, falling back to web.svg.
+                                    Image {
+                                        width: 16
+                                        height: 16
+                                        source: tabButton.iconSource.length > 0
+                                                ? tabButton.iconSource
+                                                : "qrc:/icons/web.svg"
+                                        sourceSize: Qt.size(16, 16)
+                                        fillMode: Image.PreserveAspectFit
                                     }
 
                                     Label {
@@ -168,12 +190,19 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: web.activateTab(tabButton.tabId)
-                                    onDoubleClicked: web.reloadTab(tabButton.tabId)
-                                    // Middle click closes (02 §6.2).
-                                    onReleased: function(mouse) {
+                                    // Middle click must be ACCEPTED, or the
+                                    // button never reaches the handlers (02 §6.2).
+                                    acceptedButtons: Qt.LeftButton
+                                                     | Qt.MiddleButton
+                                    onClicked: function(mouse) {
                                         if (mouse.button === Qt.MiddleButton)
                                             web.closeTab(tabButton.tabId)
+                                        else
+                                            web.activateTab(tabButton.tabId)
+                                    }
+                                    onDoubleClicked: function(mouse) {
+                                        if (mouse.button === Qt.LeftButton)
+                                            web.reloadTab(tabButton.tabId)
                                     }
                                 }
 
@@ -196,12 +225,25 @@ Item {
                     spacing: theme.spacingXs
                     rightPadding: theme.spacingS
 
+                    // ⟳ reload / ✕ stop — the button follows the active
+                    // tab's state (02 §6.1).
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
-                        iconSource: "qrc:/icons/refresh.svg"
-                        tooltip: qsTr("Reload")
+                        iconSource: web.activeState === "loading"
+                                    ? "qrc:/icons/close.svg"
+                                    : "qrc:/icons/refresh.svg"
+                        tooltip: web.activeState === "loading"
+                                 ? qsTr("Stop loading") : qsTr("Reload")
                         enabled: web.activeTabId.length > 0
-                        onClicked: web.reloadTab(web.activeTabId)
+                        onClicked: {
+                            if (web.activeState === "loading") {
+                                const item = page.surfaceItems[web.activeTabId]
+                                if (item)
+                                    item.stopLoading()
+                            } else {
+                                web.reloadTab(web.activeTabId)
+                            }
+                        }
                     }
                     // "Open in browser" stays visible at all times — the
                     // escape hatch must never be hidden (02 §6.7).
@@ -228,7 +270,7 @@ Item {
                                    ? theme.surfaceHoverBg : "transparent"
                         }
                         contentItem: Image {
-                            source: "qrc:/icons/plus.svg"
+                            source: "qrc:/icons/menu.svg"
                             sourceSize: Qt.size(14, 14)
                             fillMode: Image.PreserveAspectFit
                         }
@@ -286,7 +328,9 @@ Item {
             Flickable {
                 id: emptyState
                 anchors.fill: parent
-                visible: web.model.rowCount() === 0
+                // tabCount is NOTifiable; rowCount() has no notify signal,
+                // so a binding to it never re-evaluated after the first tab.
+                visible: web.tabCount === 0
                 contentWidth: width
                 contentHeight: runningColumn.implicitHeight + 2 * theme.spacingXl
 
@@ -452,8 +496,10 @@ Item {
         const id = web.activeTabId
         if (id.length === 0)
             return
-        const current = web.tabObject(id).zoom
-        web.setTabZoom(id, Math.min(2.0, Math.max(0.5, current + delta)))
+        const tab = web.tabObject(id)
+        if (!tab)
+            return
+        web.setTabZoom(id, Math.min(2.0, Math.max(0.5, tab.zoom + delta)))
     }
 
     Shortcut {
@@ -495,6 +541,17 @@ Item {
         context: Qt.ApplicationShortcut
         enabled: web.activeTabId.length > 0
         onActivated: web.setTabZoom(web.activeTabId, 1.0)
+    }
+    // F12 opens devtools — Debug builds only (02 §6.6).
+    Shortcut {
+        sequence: "F12"
+        context: Qt.ApplicationShortcut
+        enabled: web.devToolsEnabled && web.activeTabId.length > 0
+        onActivated: {
+            const item = page.surfaceItems[web.activeTabId]
+            if (item)
+                item.openDevTools()
+        }
     }
     Shortcut {
         sequence: "Esc"

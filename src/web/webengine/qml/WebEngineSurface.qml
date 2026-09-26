@@ -67,6 +67,10 @@ Item {
                 web.setTabLastError(tab.id, qsTr("Failed to load %1")
                                                .arg(String(loadingInfo.url)))
                 web.setTabState(tab.id, "error")
+            } else if (loadingInfo.status === WebEngineView.LoadStoppedStatus) {
+                // A deliberate stop (toolbar ✕ / overlay Cancel) settles the
+                // state machine — otherwise the spinner runs forever.
+                web.setTabState(tab.id, "ready")
             }
         }
         // Do NOT auto-reload after a renderer crash — crash loops are worse
@@ -130,6 +134,11 @@ Item {
         devToolsWindow.show()
         devToolsWindow.raise()
         devToolsWindow.requestActivate()
+    }
+
+    // Toolbar "stop loading" (02 §6.1: ⟳ 重载/✕ 停止加载).
+    function stopLoading() {
+        view.stop()
     }
 
     // --- Downloads (02 §6.4): Qt 6 moved downloadRequested from the view

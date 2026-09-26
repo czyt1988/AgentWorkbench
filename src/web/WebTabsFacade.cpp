@@ -8,9 +8,39 @@
 
 #include <QDateTime>
 #include <QDesktopServices>
+#include <QStringList>
 #include <QUrl>
 
 namespace awb::web {
+
+namespace {
+// Display form of a tab URL: the bearer-token fragment (#token=… or
+// …&token=…) never reaches a log line or a user-visible toast (it must
+// stay out of anything a third party can read; 01 §4.7).
+QString redactedUrl(const QUrl &url)
+{
+    const QString fragment = url.fragment();
+    if (fragment.isEmpty())
+        return url.toString(QUrl::RemoveFragment);
+
+    // Drop only the token= part; keep any legitimate fragment text.
+    QStringList parts;
+    bool droppedToken = false;
+    for (const QString &part : fragment.split(QLatin1Char('&'))) {
+        if (part.startsWith(QLatin1String("token="))) {
+            droppedToken = true;
+            continue;
+        }
+        parts.append(part);
+    }
+    QString text = url.toString(QUrl::RemoveFragment);
+    if (!droppedToken)
+        text += QLatin1Char('#') + fragment;
+    else if (!parts.isEmpty())
+        text += QLatin1Char('#') + parts.join(QLatin1Char('&'));
+    return text;
+}
+} // namespace
 
 WebTabsFacade::WebTabsFacade(core::Settings *settings, QObject *parent)
     : QObject(parent)
@@ -20,11 +50,22 @@ WebTabsFacade::WebTabsFacade(core::Settings *settings, QObject *parent)
 {
     wireActiveTracking();
 
+    // Drive the notifiable tabCount off the model's structural changes —
+    // QML bindings can't depend on rowCount(), which has no NOTIFY.
+    connect(m_tabs, &QAbstractItemModel::rowsInserted, this,
+            &WebTabsFacade::tabCountChanged);
+    connect(m_tabs, &QAbstractItemModel::rowsRemoved, this,
+            &WebTabsFacade::tabCountChanged);
+
     connect(settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
                 if (key == QLatin1String("web.freezeInactiveTabs")
                     || key == QLatin1String("web.downloadDir"))
                     emit policyChanged();
+                // Lowering the cap must take effect immediately, not only
+                // on the next tab open.
+                else if (key == QLatin1String("web.maxLiveTabs"))
+                    applyMemoryPolicy();
             });
 }
 
@@ -36,6 +77,23 @@ QAbstractItemModel *WebTabsFacade::model() const
 QString WebTabsFacade::activeTabId() const
 {
     return m_tabs->activeTabId();
+}
+
+int WebTabsFacade::tabCount() const
+{
+    return m_tabs->rowCount();
+}
+
+QString WebTabsFacade::activeState() const
+{
+    const WebTab *tab = tabForId(activeTabId());
+    return tab ? tab->state() : QString();
+}
+
+QObject *WebTabsFacade::tabObject(const QString &id) const
+{
+    // Live QObject* so QML property reads (zoom, state …) stay reactive.
+    return tabForId(id);
 }
 
 bool WebTabsFacade::devToolsEnabled() const
@@ -98,11 +156,12 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
     if (kind == QLatin1String("external")) {
         if (QDesktopServices::openUrl(url)) {
             qInfo().noquote() << QStringLiteral(
-                "WebTabs: opened %1 in the system browser").arg(url.toString());
-            emit externalOpened(url.toString());
+                "WebTabs: opened %1 in the system browser")
+                                     .arg(redactedUrl(url));
+            emit externalOpened(redactedUrl(url));
         } else {
             qWarning().noquote() << QStringLiteral(
-                "WebTabs: no handler accepted %1").arg(url.toString());
+                "WebTabs: no handler accepted %1").arg(redactedUrl(url));
         }
         return {};
     }
@@ -119,7 +178,7 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
     const QString id = createTab(agentId, url, fields);
     qInfo().noquote() << QStringLiteral(
         "WebTabs: opened tab %1 for agent %2 (%3, surface=%4)")
-        .arg(id, agentId, url.toString(), kind);
+        .arg(id, agentId, redactedUrl(url), kind);
     return id;
 }
 
@@ -212,7 +271,11 @@ void WebTabsFacade::openExternal(const QString &id)
     if (!tab)
         return;
     // The escape hatch must work even when the embedded view is broken
-    // (02 §6.7): strip the token fragment from the log line only.
+    // (02 §6.7). The browser needs the token fragment; the log line must
+    // not have it.
+    qInfo().noquote() << QStringLiteral(
+        "WebTabs: opened %1 in the system browser")
+                             .arg(redactedUrl(tab->url()));
     QDesktopServices::openUrl(tab->url());
 }
 
@@ -321,35 +384,50 @@ void WebTabsFacade::wireActiveTracking()
 {
     connect(m_tabs, &WebTabsModel::activeIndexChanged, this,
             &WebTabsFacade::activeTabChanged);
+    connect(m_tabs, &WebTabsModel::activeIndexChanged, this,
+            &WebTabsFacade::activeStateChanged);
+    // Any dataChanged on the active row means one of its properties moved
+    // (state, title, progress …) — re-read activeState in QML.
+    connect(m_tabs, &QAbstractItemModel::dataChanged, this,
+            [this](const QModelIndex &topLeft, const QModelIndex &,
+                   const QList<int> &) {
+                if (topLeft.row() == m_tabs->activeIndex())
+                    emit activeStateChanged();
+            });
 }
 
 // LRU release: past maxLiveTabs, the least recently used INACTIVE tab is
-// released (view destroyed, tab kept — 02 §6.5). Only tabs that currently
-// own a view count as live.
+// released (view destroyed, tab kept — 02 §6.5). The active tab's view
+// counts toward the cap too — "视图上限" bounds ALL live views, so the
+// loop stops at maxLive live views in total, not maxLive + 1.
 void WebTabsFacade::applyMemoryPolicy()
 {
     if (!m_settings->webOptions().freezeInactiveTabs)
         return;
-    const int maxLive = m_settings->webOptions().maxLiveTabs;
+    const int maxLive = qMax(1, m_settings->webOptions().maxLiveTabs);
 
-    QList<WebTab *> live;
+    QList<WebTab *> releasable; // live but inactive — candidates
+    int liveCount = 0;          // every view that currently exists
     for (int i = 0; i < m_tabs->rowCount(); ++i) {
         WebTab *tab = m_tabs->tabAt(i);
-        const QString state = tab->state();
-        if (state != QLatin1String("released") && tab->id() != activeTabId())
-            live.append(tab);
+        if (tab->state() == QLatin1String("released"))
+            continue;
+        ++liveCount;
+        if (tab->id() != activeTabId())
+            releasable.append(tab);
     }
-    while (live.size() > qMax(1, maxLive)) {
-        // Oldest by lastUsedMs first (the active tab is never in this list).
+    while (liveCount > maxLive && !releasable.isEmpty()) {
+        // Oldest by lastUsedMs first (the active tab is never released).
         WebTab *oldest = nullptr;
-        for (WebTab *tab : live) {
+        for (WebTab *tab : releasable) {
             if (!oldest || tab->lastUsedMs() < oldest->lastUsedMs())
                 oldest = tab;
         }
         if (!oldest)
             break;
         oldest->setState(QStringLiteral("released"));
-        live.removeAll(oldest);
+        releasable.removeAll(oldest);
+        --liveCount;
     }
 }
 

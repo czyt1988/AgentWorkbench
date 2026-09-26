@@ -22,6 +22,10 @@ class NavigationModel : public QAbstractListModel
     // Workspace's `nav.currentPage.source` evaluate AND re-evaluate when
     // the page changes — a bare invokable reads as a function reference.
     Q_PROPERTY(QVariantMap currentPage READ currentPage NOTIFY currentPageChanged)
+    // {pageId: badgeText} for every page. NOTifiable so StatusBar can bind
+    // `nav.badges["agents"]` — the `page(id)` invokable has no notify
+    // signal, so a badge change never re-evaluated that binding.
+    Q_PROPERTY(QVariantMap badges READ badges NOTIFY badgesChanged)
 
 public:
     enum Roles {
@@ -54,6 +58,9 @@ public:
 
     void setBadge(const QString &id, const QString &text);
 
+    // Snapshot for the `badges` Q_PROPERTY (see above).
+    QVariantMap badges() const;
+
     QString currentPageId() const { return m_currentId; }
     void setCurrentPageId(const QString &id);
 
@@ -69,6 +76,7 @@ public:
 signals:
     void currentPageChanged();
     void pagesChanged();
+    void badgesChanged();
 
 private:
     int indexOfId(const QString &id) const;
