@@ -1,6 +1,7 @@
 #include "workbench/WorkbenchContext.h"
 
 #include "agents/AgentModel.h"
+#include "agents/AgentUrls.h"
 #include "core/Settings.h"
 #include "agents/AgentsFacade.h"
 #include "shell/NavigationModel.h"
@@ -52,7 +53,10 @@ void WorkbenchContext::openWeb(const QString &agentId)
 
     QVariantMap fields;
     fields[QStringLiteral("agentId")] = def.id;
-    fields[QStringLiteral("url")] = def.webUrl;
+    // The final URL, not the bare webUrl: a configured tokenFile becomes a
+    // #token=<value> fragment that the web UI needs for mutation routes
+    // (01 §4.7: "取 AgentUrls 的最终 URL").
+    fields[QStringLiteral("url")] = agents::AgentUrls::finalUrl(def);
     fields[QStringLiteral("title")] = def.name;
     fields[QStringLiteral("icon")] = def.icon;
     fields[QStringLiteral("color")] = def.color;

@@ -33,9 +33,8 @@ EnvironmentService::EnvironmentService(QObject *parent)
                     m_nodeVersion = installed ? version : QString();
                 }
 
-                if (m_pending > 0)
-                    --m_pending;
-                m_detecting = m_pending > 0;
+                if (m_inflight.remove(key))
+                    m_detecting = !m_inflight.isEmpty();
                 emit changed();
             });
 
@@ -63,12 +62,15 @@ void EnvironmentService::detect(const QString &program,
         return;
     }
 
-    ++m_pending;
+    const QString key = QStringLiteral("environment:") + runtimeName;
+    // Insert (not count): a refresh while this probe is in flight starts a
+    // superseding run under the same key; its finished() clears it once.
+    m_inflight.insert(key);
     m_detecting = true;
     emit changed();
     // Separate channels (older Python prints the version to stderr).
-    m_runner->runShell(QStringLiteral("environment:") + runtimeName,
-                       program + QStringLiteral(" --version"), 10000, false);
+    m_runner->runShell(key, program + QStringLiteral(" --version"), 10000,
+                       false);
 }
 
 } // namespace awb::workbench

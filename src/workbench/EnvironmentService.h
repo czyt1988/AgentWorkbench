@@ -2,6 +2,7 @@
 #define AWB_WORKBENCH_ENVIRONMENTSERVICE_H
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 
 namespace awb::core {
@@ -45,7 +46,12 @@ private:
     bool m_pythonInstalled = false;
     QString m_nodeVersion;
     bool m_nodeInstalled = false;
-    int m_pending = 0;
+    // In-flight probe keys ("environment:Python" / "environment:Node").
+    // A plain counter leaked: refresh() while a probe runs supersedes it
+    // (ScriptRunner's epoch drops the stale finished()), so the counter
+    // never returned to zero and `detecting` stuck true. A keyed set is
+    // idempotent — the superseding run removes the same key when it ends.
+    QSet<QString> m_inflight;
     bool m_detecting = false;
 };
 
