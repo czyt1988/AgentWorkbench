@@ -139,5 +139,5 @@ AgentLauncher 的首个正式版本化发布——一个基于 Qt6/QML + C++ 的
 - **安装/更新状态卡死**：移除了安装/更新命令末尾的 `& pause`（它会等待按键，导致 `QProcess::finished` 永不触发，卡片停留在「安装中…」）；增加了运行保护（agent 运行时拒绝执行），并修正了成功/失败两种情况下 `installFinished` 信号的发射。
 - **停止按钮状态**：`stop()` 失败时现在会复位 `stopping` 状态，按钮不再卡住。
 
-[0.3.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.3.0
-[0.2.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.2.0
+[0.3.0]: https://github.com/czyt1988/AgentWorkbench/releases/tag/v0.3.0
+[0.2.0]: https://github.com/czyt1988/AgentWorkbench/releases/tag/v0.2.0

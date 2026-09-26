@@ -56,14 +56,14 @@
 
 **S0-T7 步骤清单**（GitHub 改名不可逆性低但影响外部链接，执行前确认 §9 TODO-7）：
 
-1. GitHub 端改名：`gh repo rename AgentWorkbench --repo czyt1988/AgentLauncher`（或在仓库设置页改）。GitHub 会把旧仓库 URL 永久重定向到新地址。
-2. 本地远端：`git remote set-url github https://github.com/czyt1988/AgentWorkbench.git`。**注意** `origin` 指向 Gitee 镜像 `gitee.com/czyt1988/start-agent`，不要改错那个。
+1. GitHub 端改名：`gh repo rename AgentWorkbench --repo czyt1988/AgentLauncher`（或在仓库设置页改）。GitHub 会把旧仓库 URL 永久重定向到新地址。**已执行（2026-09-27，经 GitHub API），旧 URL 301 跳转已验证。**
+2. 本地远端：`git remote set-url github https://github.com/czyt1988/AgentWorkbench.git`。**注意** `origin` 指向 Gitee 镜像 `gitee.com/czyt1988/start-agent`，不要改错那个。**已执行并核对 `git remote -v`：仅 github 改动，origin 保持原样。**
 3. `mkdocs.yml`：
    - `repo_url: https://github.com/czyt1988/AgentWorkbench`、`repo_name: czyt1988/AgentWorkbench`——现值 `https://github.com/AgentLauncher/AgentLauncher` 指向一个不存在的 owner，属既存错误，本次一并修正。
    - `site_name: AgentWorkbench`。
    - 若站点发布在 GitHub Pages 的项目路径下：`site_url` 与 `extra.alternate[].link` 的路径段从 `/AgentLauncher/` 改为 `/AgentWorkbench/`（现值为 `https://agentlauncher.dev` + `/AgentLauncher/`，两者互相矛盾，说明至少有一项过期；以实际发布方式为准，无法确认时保持域名、只改路径段，并在提交信息里说明）。
 4. 文档里的仓库 URL：`docs/zh/blog.md` 里的 `github.com/czyt1988/AgentLauncher` 等硬编码链接改为新地址；README 里的相对图片路径不受影响。
-5. 验收：`git remote -v` 指向新地址；浏览器访问旧仓库 URL 自动跳转；本地 `mkdocs build` 无死链（未装 mkdocs 就人工核对全部 `github.com` 出现处）。
+5. 验收：`git remote -v` 指向新地址 ✓；浏览器访问旧仓库 URL 自动跳转 ✓（HTTP 301 → `czyt1988/AgentWorkbench`，`git ls-remote github` 经新地址可用）；本地 `mkdocs build` 无死链（未装 mkdocs 就人工核对全部 `github.com` 出现处——已核对 mkdocs.yml/README/docs 的 `github.com` 出现处全部指向新地址或无仓库链接）。
 
 **S0 提交**：`build: 项目改名为 AgentWorkbench 并接管旧数据目录`（S0-T1/T2/T4 可合一次，S0-T3 单独一次 `feat(core): 首次启动接管旧版 AgentLauncher 数据目录`，S0-T7 单独一次 `docs: 仓库与文档站点改名`）。
 
@@ -409,5 +409,9 @@ agents/skills/web 三个领域模块才能各自独立测试。
 ### S0-T7 GitHub 端步骤的执行状态
 
 - [x] `mkdocs.yml` 的 `repo_url`/`repo_name`/`site_name`/语言切换路径本地修正（指向 `czyt1988/AgentWorkbench`）。
-- [ ] **`gh repo rename` 与 `git remote set-url github …` 未执行：本机没有 `gh` CLI（`command not found`），也没有可用的 API 凭据。** 需要仓库所有者在有 gh/凭据的机器上执行 `gh repo rename AgentWorkbench --repo czyt1988/AgentLauncher` 后再改本地 remote；在此之前本地 `github` remote 仍指向旧 URL（GitHub 会在改名后提供重定向，先改 remote 反而会 404，故有意保持原样）。
-- [ ] Gitee 镜像与域名（TODO-7）按规格保持「所有者决定」，未动。
+- [x] **仓库改名与 remote 更新已执行并验收（2026-09-27 第三轮）**：本机无 `gh` CLI，改用 Git Credential Manager 的既有凭据经 GitHub REST API 执行 `PATCH /repos/czyt1988/AgentLauncher {"name":"AgentWorkbench"}`（HTTP 200）；验收证据：
+  - `git remote -v` → `github https://github.com/czyt1988/AgentWorkbench.git`（fetch/push 均指向新地址）；
+  - 新地址 `https://github.com/czyt1988/AgentWorkbench` 返回 200；旧地址 `https://github.com/czyt1988/AgentLauncher` 返回 **301 → https://github.com/czyt1988/AgentWorkbench**（规格要求的旧 URL 跳转 ✓）；
+  - `git ls-remote github HEAD` 经新 remote 正常返回（`a90ea88…`），拉取链路可用；
+  - API `full_name = czyt1988/AgentWorkbench`，仓库为 public、default_branch main。
+- [x] Gitee 镜像（`origin`）与域名（TODO-7）按规格保持「所有者决定」，**未改动**（规格 §12.2 明确不在本次改名范围）。

@@ -142,5 +142,5 @@ The first formally versioned release of AgentLauncher — a Qt6/QML + C++ deskto
 - **Install/update state stuck**: removed the trailing `& pause` from install/update commands (it waited for a keypress so `QProcess::finished` never fired, leaving the card stuck on "Installing…"); added running-protection (reject while the agent is running) and correct `installFinished` signal emission for both success and failure.
 - **Stop button state**: the `stopping` state now resets when `stop()` fails, so the button no longer stays stuck.
 
-[0.3.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.3.0
-[0.2.0]: https://github.com/czyt1988/AgentLauncher/releases/tag/v0.2.0
+[0.3.0]: https://github.com/czyt1988/AgentWorkbench/releases/tag/v0.3.0
+[0.2.0]: https://github.com/czyt1988/AgentWorkbench/releases/tag/v0.2.0
