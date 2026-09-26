@@ -71,10 +71,6 @@ public:
     // startup by main.cpp.
     void setRemovedIds(const QStringList &ids) { m_removedIds = ids; }
 
-    // Root window title from agents.json; loaded once at startup so saves
-    // preserve a hand-edited custom title.
-    void setTitle(const QString &title) { m_title = title; }
-
 signals:
     // Emitted when a launch/stop attempt fails. The UI shows an at-place
     // flash on the matching card plus a detailed popup.
@@ -111,9 +107,6 @@ private:
     // Deleted built-in ids, persisted as the root "removed" array so the
     // migration on next startup does not resurrect them.
     QStringList m_removedIds;
-
-    // Root window title from agents.json, preserved across saves.
-    QString m_title;
 
     // Write the model's agents + removal records to agents.json.
     bool saveConfig();

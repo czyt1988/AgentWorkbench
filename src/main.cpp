@@ -2,6 +2,7 @@
 #include "AgentLauncher.h"
 #include "AgentModel.h"
 #include "Logger.h"
+#include "core/LegacyImport.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -18,7 +19,7 @@
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication::setApplicationName(QStringLiteral("AgentLauncher"));
+    QGuiApplication::setApplicationName(QStringLiteral("AgentWorkbench"));
 
     Logger::install();
 
@@ -28,9 +29,17 @@ int main(int argc, char *argv[])
 
     // Load locale-appropriate translation from embedded :/i18n/ resources.
     QTranslator translator;
-    if (translator.load(QLocale(), QStringLiteral("agentlauncher"),
+    if (translator.load(QLocale(), QStringLiteral("agentworkbench"),
                         QStringLiteral("_"), QStringLiteral(":/i18n")))
         app.installTranslator(&translator);
+
+    // Adopt a pre-0.4 ~/.AgentLauncher data directory on the first start
+    // after the upgrade, before anything else touches the data root
+    // (01-architecture.md §7.3). Runs at most once; the notice is shown
+    // once by the UI below.
+    QString legacyNotice;
+    const bool legacyImported = awb::core::LegacyImport::runOnce(
+        AgentConfig::userDataDir(), &legacyNotice);
 
     AgentConfig config;
     config.load(); // reads agents.json, re-applying the bundled default launchers
@@ -42,8 +51,6 @@ int main(int argc, char *argv[])
     // Deletion records for built-in agents, persisted in agents.json so the
     // shipped definition is not re-applied to them on the next start.
     launcher.setRemovedIds(config.removedIds());
-    // Root window title, preserved by the launcher across config saves.
-    launcher.setTitle(config.title());
     launcher.start();
 
     QQmlApplicationEngine engine;
@@ -56,7 +63,11 @@ int main(int argc, char *argv[])
                          + QStringLiteral("/qml"));
     engine.rootContext()->setContextProperty(QStringLiteral("agentModel"), &model);
     engine.rootContext()->setContextProperty(QStringLiteral("launcher"), &launcher);
-    engine.rootContext()->setContextProperty(QStringLiteral("appTitle"), config.title());
+    // One-shot notice: non-empty only on the first start after adopting the
+    // legacy AgentLauncher data directory.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("legacyImportNotice"),
+        legacyImported ? legacyNotice : QString());
 
     engine.load(QUrl(QStringLiteral("qrc:/qml/main.qml")));
     if (engine.rootObjects().isEmpty()) {
@@ -90,7 +101,7 @@ int main(int argc, char *argv[])
                     "Details were written to:\n%1")
                     .arg(Logger::logFilePath())
                     .utf16()),
-            L"AgentLauncher", MB_ICONERROR | MB_OK);
+            L"AgentWorkbench", MB_ICONERROR | MB_OK);
 #endif
         return -1;
     }

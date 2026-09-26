@@ -8,7 +8,7 @@
 
 namespace {
 
-const QString kLogFileName = QStringLiteral("agentlauncher.log");
+const QString kLogFileName = QStringLiteral("agentworkbench.log");
 
 // Quote an argument only when leaving it bare would change how the line reads
 // (whitespace) or how it could be pasted back into cmd.exe (quotes).
@@ -37,10 +37,10 @@ void Logger::install(const QString &directory, qint64 maxFileSize, int maxFiles)
     s_maxFileSize = maxFileSize > 0 ? maxFileSize : DEFAULT_MAX_FILE_SIZE;
     s_maxFiles = qMax(1, maxFiles);
 
-    // Log directory: ~/.AgentLauncher/log/ unless the caller overrides it.
+    // Log directory: ~/.AgentWorkbench/log/ unless the caller overrides it.
     s_logPath = directory.isEmpty()
                     ? QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-                          + QStringLiteral("/.AgentLauncher/log")
+                          + QStringLiteral("/.AgentWorkbench/log")
                     : directory;
     QDir().mkpath(s_logPath);
 
@@ -54,7 +54,7 @@ void Logger::install(const QString &directory, qint64 maxFileSize, int maxFiles)
     // (read-only data directory, disk full) is reported there instead of
     // silently losing every message.
     if (!s_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        qWarning().noquote() << QStringLiteral("AgentLauncher: cannot write the log "
+        qWarning().noquote() << QStringLiteral("AgentWorkbench: cannot write the log "
                                                "file %1: %2")
                                     .arg(logFilePath(), s_logFile.errorString());
         return;
@@ -62,7 +62,7 @@ void Logger::install(const QString &directory, qint64 maxFileSize, int maxFiles)
     s_bytesWritten = s_logFile.size();
 
     qInfo().noquote() << QStringLiteral(
-                             "AgentLauncher: logging started → %1 "
+                             "AgentWorkbench: logging started → %1 "
                              "(rotating at %2 KB, keeping %3 files)")
                              .arg(logFilePath())
                              .arg(s_maxFileSize / 1024)

@@ -45,9 +45,6 @@ public:
     QList<Agent> agents() const { return m_agents; }
     void setAgents(const QList<Agent> &agents) { m_agents = agents; }
 
-    QString title() const { return m_title; }
-    void setTitle(const QString &title) { m_title = title; }
-
     // Ids of built-in agents the user deleted (Settings page). Persisted as
     // the root "removed" array: built-in agents always come from the shipped
     // default, so without this list a deleted launcher would be back on the
@@ -56,8 +53,7 @@ public:
     void setRemovedIds(const QStringList &ids) { m_removedIds = ids; }
 
     // The bundled default agent definitions from :/config/default_agents.json.
-    // outTitle, when not null, receives the default root title.
-    static QList<Agent> loadDefaults(QString *outTitle = nullptr);
+    static QList<Agent> loadDefaults();
 
     // Ids of the bundled default agents.
     static QStringList defaultAgentIds();
@@ -83,7 +79,7 @@ public:
     static QString resolveIcon(const QString &raw);
 
     // Directory holding the per-user data files: agents.json and
-    // agent_state.json, co-located with the log directory (~/.AgentLauncher)
+    // agent_state.json, co-located with the log directory (~/.AgentWorkbench)
     // so everything the app writes lives in one place.
     static QString userDataDir();
 
@@ -91,10 +87,9 @@ public:
 
 private:
     QList<Agent> m_agents;
-    QString m_title;
     QStringList m_removedIds;
 
-    QList<Agent> parse(const QByteArray &data, QString &outTitle);
+    QList<Agent> parse(const QByteArray &data);
 
     // Assign a color from the built-in palette to every agent whose `color`
     // is still empty. Colors are assigned by cycling through the palette based

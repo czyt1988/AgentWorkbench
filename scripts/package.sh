@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AgentLauncher Windows packaging script.
+# AgentWorkbench Windows packaging script.
 # Usage: bash scripts/package.sh  (or double-click in Explorer)
 #
 # Prerequisites:
@@ -28,7 +28,7 @@ QT_PREFIX="${QT_PREFIX:-}"
 BUILD_DIR="${BUILD_DIR:-build-release}"
 
 # Distribution directory; its name is the top-level folder inside the zip
-DIST_DIR="${DIST_DIR:-dist/AgentLauncher}"
+DIST_DIR="${DIST_DIR:-dist/AgentWorkbench}"
 
 # Version number (used in the zip file name). Leave empty to read it
 # automatically from the project() call in CMakeLists.txt.
@@ -58,7 +58,7 @@ if [[ -z "${VERSION:-}" ]]; then
 fi
 echo "Version: $VERSION"
 
-ZIP_NAME="AgentLauncher-${VERSION}-win64-Portable.zip"
+ZIP_NAME="AgentWorkbench-${VERSION}-win64-Portable.zip"
 
 echo ""
 echo "=== [1/4] Release build (scripts/build.sh) ==="
@@ -84,7 +84,7 @@ cp "$EXE" "$DIST_DIR/"
 echo ""
 echo "=== [3/4] windeployqt: pull Qt/QML dependencies ==="
 "$QT_PREFIX/bin/windeployqt.exe" --release --no-translations --no-system-d3d-compiler \
-    --qmldir qml "$DIST_DIR/AgentLauncher.exe"
+    --qmldir qml "$DIST_DIR/AgentWorkbench.exe"
 
 # Pin Qt's prefix to the exe directory. Without qt.conf, Qt relocates the
 # prefix relative to Qt6Core.dll and guesses; an explicit qt.conf guarantees

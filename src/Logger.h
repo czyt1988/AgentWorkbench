@@ -7,9 +7,9 @@
 
 // Rotating-file log handler. Installs a Qt message handler that writes all
 // qDebug/qInfo/qWarning/qCritical output to
-//   ~/.AgentLauncher/log/agentlauncher.log
+//   ~/.AgentWorkbench/log/agentworkbench.log
 // When that file reaches the size limit it is rotated to
-// agentlauncher.log.1, the previous .1 becomes .2, and the oldest backup is
+// agentworkbench.log.1, the previous .1 becomes .2, and the oldest backup is
 // deleted, so at most maxFiles files (current + backups) exist at any time.
 class Logger
 {

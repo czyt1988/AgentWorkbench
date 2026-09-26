@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -7,10 +8,13 @@
 #include <QTemporaryDir>
 #include <QTemporaryFile>
 
+#include <utility>
+
 #include "AgentConfig.h"
 #include "AgentLauncher.h"
 #include "AgentModel.h"
 #include "Logger.h"
+#include "core/LegacyImport.h"
 
 // Unit tests for the config/model/launcher core. All config reads and
 // writes are isolated from the user's real config via
@@ -24,6 +28,7 @@ private slots:
     {
         QStandardPaths::setTestModeEnabled(true);
         QFile::remove(AgentConfig::configFilePath());
+        QFile::remove(AgentConfig::userDataDir() + QStringLiteral("/settings.json"));
     }
 
     void testSlugFromName()
@@ -70,7 +75,7 @@ private slots:
     }
 
     // A fresh install writes the bundled default through unchanged, so
-    // ~/.AgentLauncher/agents.json and config/default_agents.json stay
+    // ~/.AgentWorkbench/agents.json and config/default_agents.json stay
     // diffable while the shipped launcher list is being edited.
     void testFirstRunCopiesBundledDefaultVerbatim()
     {
@@ -152,14 +157,130 @@ private slots:
     // Regression: the data directory must stay inside the test-mode sandbox.
     // Test mode does not redirect HomeLocation, so a data directory derived
     // from it made every test read and rewrite the real user config — which is
-    // how test agents ended up in ~/.AgentLauncher/agents.json.
+    // how test agents ended up in ~/.AgentWorkbench/agents.json.
     void testUserDataDirStaysInTestSandbox()
     {
         const QString realDir =
             QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-            + QStringLiteral("/.AgentLauncher");
+            + QStringLiteral("/.AgentWorkbench");
         QVERIFY(!AgentConfig::userDataDir().startsWith(realDir));
         QVERIFY(AgentConfig::configFilePath().startsWith(AgentConfig::userDataDir()));
+    }
+
+    // 0.4.0: the root "title" field no longer drives the window title (it
+    // moved to settings.json). Loading ignores the field, saving must not
+    // write it back, and a leftover value is reported once a settings file
+    // exists to move it to (03-migration-plan.md S0-T6).
+    void testTitleIsIgnored()
+    {
+        QJsonObject user;
+        user[QStringLiteral("id")] = QStringLiteral("my-agent");
+        user[QStringLiteral("name")] = QStringLiteral("My Agent");
+        user[QStringLiteral("command")] = QStringLiteral("myagent web");
+        QJsonObject root;
+        root[QStringLiteral("title")] = QStringLiteral("Hand-edited Title");
+        root[QStringLiteral("agents")] = QJsonArray{user};
+        writeConfig(root);
+
+        // The deprecation hint fires only once a settings file exists.
+        QFile settings(AgentConfig::userDataDir()
+                       + QStringLiteral("/settings.json"));
+        QVERIFY(settings.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        settings.write("{}");
+        settings.close();
+
+        s_capturedMessages.clear();
+        const QtMessageHandler previous =
+            qInstallMessageHandler(&TestCore::captureMessage);
+        AgentConfig cfg;
+        cfg.load();
+        qInstallMessageHandler(previous);
+
+        bool hinted = false;
+        for (const QString &msg : std::as_const(s_capturedMessages)) {
+            if (msg.contains(QStringLiteral("\"title\" field is ignored")))
+                hinted = true;
+        }
+        QVERIFY2(hinted, "a legacy root title must be reported as ignored");
+
+        // The title is dropped from the saved file.
+        QVERIFY(cfg.save());
+        QFile onDisk(AgentConfig::configFilePath());
+        QVERIFY(onDisk.open(QIODevice::ReadOnly));
+        const QJsonObject saved =
+            QJsonDocument::fromJson(onDisk.readAll()).object();
+        QVERIFY(!saved.contains(QStringLiteral("title")));
+        QVERIFY(saved.value(QStringLiteral("agents")).toArray().size() >= 1);
+    }
+
+    // One-time adoption of the legacy ~/.AgentLauncher directory: files are
+    // copied into the new data root, the legacy directory survives, and a
+    // second call is a no-op (01-architecture.md §7.3).
+    void testLegacyImport()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString oldRoot =
+            tmp.path() + QStringLiteral("/.AgentLauncher");
+        const QString newRoot =
+            tmp.path() + QStringLiteral("/.AgentWorkbench");
+
+        auto write_file = [](const QString &path, const QByteArray &bytes) {
+            QDir().mkpath(QFileInfo(path).absolutePath());
+            QFile f(path);
+            if (!f.open(QIODevice::WriteOnly))
+                return false;
+            return f.write(bytes) == bytes.size();
+        };
+        QVERIFY(write_file(oldRoot + QStringLiteral("/agents.json"),
+                           QByteArrayLiteral("{\"agents\":[]}")));
+        QVERIFY(write_file(oldRoot + QStringLiteral("/agent_state.json"),
+                           QByteArrayLiteral("{}")));
+        QVERIFY(write_file(oldRoot + QStringLiteral("/log/agentlauncher.log"),
+                           QByteArrayLiteral("old log")));
+
+        // The logger creates the new log directory before the import runs;
+        // that alone must not count as "already initialized".
+        QVERIFY(QDir().mkpath(newRoot + QStringLiteral("/log")));
+
+        QString notice;
+        QVERIFY(awb::core::LegacyImport::importOnce(newRoot, oldRoot, &notice));
+        QVERIFY(!notice.isEmpty());
+        QVERIFY(QFile::exists(newRoot + QStringLiteral("/agents.json")));
+        QVERIFY(QFile::exists(newRoot + QStringLiteral("/agent_state.json")));
+        QVERIFY(QFile::exists(
+            newRoot + QStringLiteral("/log/agentlauncher.log")));
+        // The legacy directory is never deleted or modified.
+        QVERIFY(QFile::exists(oldRoot + QStringLiteral("/agents.json")));
+        QVERIFY(QFile::exists(
+            oldRoot + QStringLiteral("/log/agentlauncher.log")));
+
+        // Second start: no-op, no second notice.
+        notice.clear();
+        QVERIFY(!awb::core::LegacyImport::importOnce(newRoot, oldRoot,
+                                                     &notice));
+        QVERIFY(notice.isEmpty());
+
+        // A populated data root is never imported over, even when the legacy
+        // directory is still around.
+        QVERIFY(write_file(newRoot + QStringLiteral("/settings.json"),
+                           QByteArrayLiteral("{}")));
+        QVERIFY(write_file(oldRoot + QStringLiteral("/agent_state.json"),
+                           QByteArrayLiteral("{\"again\":true}")));
+        const QByteArray before =
+            QFile(newRoot + QStringLiteral("/agents.json")).readAll();
+        QVERIFY(!awb::core::LegacyImport::importOnce(newRoot, oldRoot,
+                                                     &notice));
+        QCOMPARE(QFile(newRoot + QStringLiteral("/agents.json")).readAll(),
+                 before);
+
+        // No legacy directory -> nothing happens.
+        QTemporaryDir solo;
+        QVERIFY(solo.isValid());
+        QVERIFY(!awb::core::LegacyImport::importOnce(
+            solo.path() + QStringLiteral("/new"),
+            solo.path() + QStringLiteral("/missing-old"), &notice));
+        QVERIFY(notice.isEmpty());
     }
 
     // A built-in deleted in the Settings page stays deleted, even though load()
@@ -337,10 +458,10 @@ private slots:
 
         const QDir logDir(dir.path());
         const QStringList files = logDir.entryList(
-            {QStringLiteral("agentlauncher.log*")}, QDir::Files, QDir::Name);
-        QCOMPARE(files, QStringList({QStringLiteral("agentlauncher.log"),
-                                     QStringLiteral("agentlauncher.log.1"),
-                                     QStringLiteral("agentlauncher.log.2")}));
+            {QStringLiteral("agentworkbench.log*")}, QDir::Files, QDir::Name);
+        QCOMPARE(files, QStringList({QStringLiteral("agentworkbench.log"),
+                                     QStringLiteral("agentworkbench.log.1"),
+                                     QStringLiteral("agentworkbench.log.2")}));
 
         QString logged;
         for (const QString &name : files) {
@@ -386,7 +507,7 @@ private slots:
         QVERIFY(finished.wait(15000));
         Logger::uninstall();
 
-        QFile log(logDir.filePath(QStringLiteral("agentlauncher.log")));
+        QFile log(logDir.filePath(QStringLiteral("agentworkbench.log")));
         QVERIFY(log.open(QIODevice::ReadOnly));
         const QString text = QString::fromUtf8(log.readAll());
         QVERIFY2(text.contains(QStringLiteral("[cmd] install \"%1\": "
@@ -399,6 +520,14 @@ private slots:
 #endif
 
 private:
+    // Message capture for asserting on log output (testTitleIsIgnored).
+    static QStringList s_capturedMessages;
+    static void captureMessage(QtMsgType, const QMessageLogContext &,
+                               const QString &msg)
+    {
+        s_capturedMessages.append(msg);
+    }
+
     // Write an agents.json into the test-mode data directory.
     static void writeConfig(const QJsonObject &root)
     {
@@ -426,6 +555,8 @@ private:
         return ids;
     }
 };
+
+QStringList TestCore::s_capturedMessages;
 
 QTEST_MAIN(TestCore)
 #include "tst_core.moc"

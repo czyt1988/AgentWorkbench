@@ -4,12 +4,13 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: window
-    width: 960
-    height: 640
-    minimumWidth: 720
-    minimumHeight: 480
+    width: 1440
+    height: 900
+    minimumWidth: 1024
+    minimumHeight: 640
     visible: true
-    title: appTitle.length > 0 ? appTitle : qsTr("AgentLauncher")
+    // Brand name, deliberately not translated (see 02-ui-specification.md §13).
+    title: "AgentWorkbench"
 
     color: "#1e1e2e"
 
@@ -225,6 +226,56 @@ ApplicationWindow {
         onClicked: stack.push(settingsPageComp)
     }
 
+    // One-shot notice shown on the first start after the legacy AgentLauncher
+    // data directory was adopted into ~/.AgentWorkbench. Empty otherwise.
+    Popup {
+        id: legacyImportPopup
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        width: 460
+        padding: 20
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color: "#1e1e2e"
+            border.color: "#89b4fa"
+            border.width: 1
+            radius: 12
+        }
+
+        Component.onCompleted: {
+            if (legacyImportNotice.length > 0)
+                open()
+        }
+
+        ColumnLayout {
+            width: legacyImportPopup.availableWidth
+            spacing: 14
+
+            Label {
+                text: qsTr("Configuration imported")
+                color: "#89b4fa"
+                font.pixelSize: 16
+                font.bold: true
+            }
+            Label {
+                Layout.fillWidth: true
+                text: legacyImportNotice
+                color: "#cdd6f4"
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
+            Button {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("OK")
+                background: Rectangle { radius: 8; color: parent.down ? "#45475a" : (parent.hovered ? "#4a4d62" : "#313244"); border.color: "#45475a" }
+                contentItem: Label { text: parent.text; color: "#cdd6f4"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                onClicked: legacyImportPopup.close()
+            }
+        }
+    }
+
     // Exit confirmation: shown when the user closes the window while one or
     // more agents were started from the launcher this session.
     Popup {
@@ -255,7 +306,7 @@ ApplicationWindow {
             }
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Background terminals were launched via AgentLauncher this session. Close them before exiting?")
+                text: qsTr("Background terminals were launched via AgentWorkbench this session. Close them before exiting?")
                 color: "#cdd6f4"
                 font.pixelSize: 13
                 wrapMode: Text.Wrap

@@ -46,12 +46,8 @@ QJsonArray agentsArray(const QList<Agent> &agents)
 
 void AgentConfig::load()
 {
-    QString defaultTitle;
-    loadDefaults(&defaultTitle);
-
     m_agents.clear();
     m_removedIds.clear();
-    m_title.clear();
 
     QByteArray data;
     {
@@ -59,12 +55,25 @@ void AgentConfig::load()
         if (file.open(QIODevice::ReadOnly))
             data = file.readAll();
     }
-    if (!data.isEmpty())
-        m_agents = parse(data, m_title);
+    if (!data.isEmpty()) {
+        m_agents = parse(data);
 
-    // An empty root title means "use the shipped one".
-    if (m_title.isEmpty())
-        m_title = defaultTitle;
+        //0.4.0: the root "title" field no longer drives the window title —
+        // that lives in settings.json now. Hint users who still have one,
+        // but only once a settings file exists; before that there is
+        // nowhere to move it to (03-migration-plan.md S0-T6).
+        const QString legacyTitle = QJsonDocument::fromJson(data)
+                                        .object()
+                                        .value(QStringLiteral("title"))
+                                        .toString();
+        if (!legacyTitle.isEmpty()
+            && QFile::exists(userDataDir() + QStringLiteral("/settings.json"))) {
+            qInfo().noquote() << QStringLiteral(
+                "agents.json: the root \"title\" field is ignored; set the "
+                "window title in Settings (settings.json window.title) "
+                "instead.");
+        }
+    }
 
     // Built-in agents always come from the bundled default, so the on-disk
     // file only decides which of them the user deleted, plus the agents the
@@ -91,20 +100,17 @@ bool AgentConfig::save()
 
     // A config that never diverged from the shipped default is written as the
     // bundled file byte for byte: with no user-added agents and no deletions,
-    // ~/.AgentLauncher/agents.json stays an exact copy of
+    // ~/.AgentWorkbench/agents.json stays an exact copy of
     // config/default_agents.json, which keeps the two diffable while working
     // on the default launcher list.
-    QString defaultTitle;
-    const QList<Agent> defaults = loadDefaults(&defaultTitle);
-    if (m_removedIds.isEmpty() && m_title == defaultTitle
-        && agentsArray(m_agents) == agentsArray(defaults)) {
+    const QList<Agent> defaults = loadDefaults();
+    if (m_removedIds.isEmpty() && agentsArray(m_agents) == agentsArray(defaults)) {
         QFile bundled(QStringLiteral(":/config/default_agents.json"));
         if (bundled.open(QIODevice::ReadOnly))
             return file.write(bundled.readAll()) > 0;
     }
 
     QJsonObject root;
-    root[QStringLiteral("title")] = m_title;
     root[QStringLiteral("agents")] = agentsArray(m_agents);
     if (!m_removedIds.isEmpty()) {
         QJsonArray removed;
@@ -127,7 +133,7 @@ QString AgentConfig::userDataDir()
         return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
 
     return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-           + QStringLiteral("/.AgentLauncher");
+           + QStringLiteral("/.AgentWorkbench");
 }
 
 QString AgentConfig::configFilePath()
@@ -135,12 +141,11 @@ QString AgentConfig::configFilePath()
     return userDataDir() + QStringLiteral("/agents.json");
 }
 
-QList<Agent> AgentConfig::parse(const QByteArray &data, QString &outTitle)
+QList<Agent> AgentConfig::parse(const QByteArray &data)
 {
     QList<Agent> result;
     const QJsonDocument doc = QJsonDocument::fromJson(data);
     const QJsonObject root = doc.object();
-    outTitle = root.value(QStringLiteral("title")).toString();
     m_removedIds.clear();
     const QJsonArray removed = root.value(QStringLiteral("removed")).toArray();
     for (const QJsonValue &v : removed)
@@ -274,19 +279,12 @@ QString AgentConfig::expandEnv(const QString &path)
 
 // --- Default config helpers ---------------------------------------------------
 
-QList<Agent> AgentConfig::loadDefaults(QString *outTitle)
+QList<Agent> AgentConfig::loadDefaults()
 {
     QFile def(QStringLiteral(":/config/default_agents.json"));
-    if (!def.open(QIODevice::ReadOnly)) {
-        if (outTitle)
-            outTitle->clear();
+    if (!def.open(QIODevice::ReadOnly))
         return {};
-    }
-    QString title;
-    const QList<Agent> agents = AgentConfig().parse(def.readAll(), title);
-    if (outTitle)
-        *outTitle = title;
-    return agents;
+    return AgentConfig().parse(def.readAll());
 }
 
 QStringList AgentConfig::defaultAgentIds()

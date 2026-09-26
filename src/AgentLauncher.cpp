@@ -729,8 +729,6 @@ bool AgentLauncher::saveConfig()
     AgentConfig cfg;
     cfg.setAgents(m_model->agents());
     cfg.setRemovedIds(m_removedIds);
-    // Preserve the root window title across saves.
-    cfg.setTitle(m_title);
     const bool ok = cfg.save();
     if (ok) {
         appLog(QStringLiteral("config"), QString(),

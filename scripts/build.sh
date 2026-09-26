@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AgentLauncher build script — configure + compile in one command.
+# AgentWorkbench build script — configure + compile in one command.
 # Usage: bash scripts/build.sh [options]
 #
 # Prerequisites: Qt 6.5+ (msvc build recommended) and, for MSVC builds driven
@@ -17,7 +17,7 @@
 #   -b, --build-dir DIR    Build directory
 #                          (default: "build" for Debug, "build-release" for Release)
 #   -j, --jobs N           Parallel compilation jobs (default: tool default)
-#       --target NAME      Build one target only (AgentLauncher, AgentLauncherTests)
+#       --target NAME      Build one target only (AgentWorkbench, AgentWorkbenchTests)
 #   -t, --test             Run the unit tests (ctest) after building
 #       --run              Launch the application after building (detached)
 #   -c, --clean            Delete the build directory first (full rebuild)
@@ -478,7 +478,7 @@ fi
 # Where the executable ends up: single-config generators write it into the
 # build directory, multi-config generators add a per-configuration subdirectory.
 exe_path() {
-    local name="${1:-AgentLauncher}"
+    local name="${1:-AgentWorkbench}"
     if [[ $MULTI_CONFIG -eq 1 ]]; then
         printf '%s/%s/%s.exe\n' "$BUILD_DIR_ABS" "$CONFIG" "$name"
     else
@@ -554,7 +554,7 @@ join_quoted() {
 # runs configure and build in sequence. The command lines are baked into the
 # file: passing them to `cmd /c` from Git Bash mangles quoting.
 run_msvc_build() {
-    local bat="$BUILD_DIR/.build-agentlauncher.bat"
+    local bat="$BUILD_DIR/.build-agentworkbench.bat"
     local vcvars_win cmake_dir ninja_dir configure_cmd build_cmd
     mkdir -p "$BUILD_DIR"
 
