@@ -319,80 +319,77 @@ Item {
             Layout.fillHeight: true
 
             // Running agents with one-click open (empty state).
-            Flickable {
+            AEmptyState {
                 id: emptyState
                 anchors.fill: parent
                 // tabCount is NOTifiable; rowCount() has no notify signal,
                 // so a binding to it never re-evaluated after the first tab.
                 visible: web.tabCount === 0
-                contentWidth: width
-                contentHeight: runningColumn.implicitHeight + 2 * theme.spacingXl
-
-                ColumnLayout {
-                    id: runningColumn
-                    width: emptyState.width - 2 * theme.spacingXl
-                    x: theme.spacingXl
-                    y: theme.spacingXl
-                    spacing: theme.spacingM
-
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("No Web views open")
-                        color: theme.textPrimary
-                        font.pixelSize: theme.fontSizeSubtitle
-                        font.bold: true
-                    }
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.fillWidth: true
-                        text: web.engineAvailable
+                iconSource: "qrc:/icons/web.svg"
+                title: qsTr("No Web views open")
+                description: web.engineAvailable
                               ? qsTr("Open a view from a running agent's card, or from the list below.")
                               : qsTr("This build opens agent WebUIs in the system browser. Start an agent below to open it.")
-                        color: theme.textMuted
-                        font.pixelSize: theme.fontSizeBody
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                    }
+                actionText: qsTr("Go to launcher")
+                onActionClicked: workbench.showPage("agents")
 
-                    Repeater {
-                        id: runningList
-                        model: agents.model
-                        delegate: AListRow {
-                            Layout.fillWidth: true
-                            visible: model.running
-                            height: visible ? 48 : 0
-                            onVisibleChanged: Qt.callLater(page.recountRunning)
+                extra: [
+                    // Bounded-height scroll so a long running list cannot
+                    // push the action button out of the page.
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.min(contentHeight, 320)
+                        contentWidth: width
+                        contentHeight: rowsColumn.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
 
-                            AgentAvatar {
-                                iconSource: model.icon
-                                agentColor: model.color
-                                running: model.running
-                            }
-                            ColumnLayout {
-                                spacing: 0
-                                Layout.fillWidth: true
-                                Label {
-                                    text: model.name
-                                    color: theme.textPrimary
-                                    font.pixelSize: theme.fontSizeBody
-                                    font.bold: true
-                                }
-                                Label {
-                                    text: model.webUrl
-                                    color: theme.textMuted
-                                    font.pixelSize: theme.fontSizeSmall
-                                    font.family: theme.monoFamily
-                                    elide: Text.ElideMiddle
+                        ColumnLayout {
+                            id: rowsColumn
+                            width: parent.width
+                            spacing: theme.spacingS
+
+                            Repeater {
+                                id: runningList
+                                model: agents.model
+                                delegate: AListRow {
                                     Layout.fillWidth: true
+                                    visible: model.running
+                                    height: visible ? 48 : 0
+                                    onVisibleChanged: Qt.callLater(page.recountRunning)
+
+                                    AgentAvatar {
+                                        iconSource: model.icon
+                                        agentColor: model.color
+                                        running: model.running
+                                    }
+                                    ColumnLayout {
+                                        spacing: 0
+                                        Layout.fillWidth: true
+                                        Label {
+                                            text: model.name
+                                            color: theme.textPrimary
+                                            font.pixelSize: theme.fontSizeBody
+                                            font.bold: true
+                                        }
+                                        Label {
+                                            text: model.webUrl
+                                            color: theme.textMuted
+                                            font.pixelSize: theme.fontSizeSmall
+                                            font.family: theme.monoFamily
+                                            elide: Text.ElideMiddle
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                    AButton {
+                                        variant: "primary"
+                                        text: qsTr("Open")
+                                        onClicked: workbench.openWeb(model.agentId)
+                                    }
                                 }
-                            }
-                            AButton {
-                                variant: "primary"
-                                text: qsTr("Open")
-                                onClicked: workbench.openWeb(model.agentId)
                             }
                         }
-                    }
+                    },
 
                     Label {
                         Layout.alignment: Qt.AlignHCenter
@@ -401,12 +398,7 @@ Item {
                         color: theme.textMuted
                         font.pixelSize: theme.fontSizeSmall
                     }
-                    AButton {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("Go to launcher")
-                        onClicked: workbench.showPage("agents")
-                    }
-                }
+                ]
             }
 
             // Surfaces: every tab keeps its place; released views are
