@@ -35,12 +35,13 @@ fail() {
 
 # --- 1. Dependency direction -------------------------------------------------
 # Domain modules: which sibling directories each one must not mention.
-for domain in agentcatalog skillcatalog web; do
+for domain in agentcatalog skillcatalog web tools; do
     others=""
     case "$domain" in
-        agentcatalog)  others="skillcatalog web" ;;
-        skillcatalog)  others="agentcatalog web" ;;
-        web)           others="agentcatalog skillcatalog" ;;
+        agentcatalog)  others="skillcatalog web tools" ;;
+        skillcatalog)  others="agentcatalog web tools" ;;
+        web)           others="agentcatalog skillcatalog tools" ;;
+        tools)         others="agentcatalog skillcatalog web" ;;
     esac
     # shell/ and workbench/ are also forbidden (domain modules never depend
     # on the UI framework or the application layer).
@@ -116,17 +117,19 @@ alias_header() {
         agents) echo "src/agentcatalog/AgentsFacade.h" ;;
         web) echo "src/web/WebTabsFacade.h" ;;
         skills) echo "src/skillcatalog/SkillsFacade.h" ;;
+        tools) echo "src/tools/ToolsFacade.h" ;;
         workbench) echo "src/workbench/WorkbenchContext.h" ;;
         environment) echo "src/workbench/EnvironmentService.h" ;;
         WebProfiles) echo "src/web/webengine/WebEngineProfileStore.h" ;;
         agents.model) echo "src/agentcatalog/AgentModel.h" ;;
         skills.model) echo "src/skillcatalog/SkillModel.h" ;;
         web.model) echo "src/web/WebTabsModel.h" ;;
+        tools.model) echo "src/tools/FileTreeModel.h" ;;
         *) echo "" ;;
     esac
 }
 
-ALIASES="theme nav shell ui notifications agents web skills workbench environment WebProfiles agents.model skills.model web.model"
+ALIASES="theme nav shell ui notifications agents web skills tools workbench environment WebProfiles agents.model skills.model web.model tools.model"
 QML_FILES="$(find qml src examples -name '*.qml' 2>/dev/null)"
 for alias in $ALIASES; do
     hdr="$(alias_header "$alias")"

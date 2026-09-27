@@ -1594,6 +1594,24 @@ Command: %2
     </message>
 </context>
 <context>
+    <name>ToolsFacade</name>
+    <message>
+        <location filename="../src/tools/ToolsFacade.cpp" line="74"/>
+        <source>The selected path is not a folder.</source>
+        <translation>所选路径不是文件夹。</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/ToolsFacade.cpp" line="78"/>
+        <source>Could not save the workspace list.</source>
+        <translation>无法保存工作区列表。</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/ToolsFacade.cpp" line="89"/>
+        <source>The workspace is not in the list.</source>
+        <translation>该工作区不在列表中。</translation>
+    </message>
+</context>
+<context>
     <name>UiServices</name>
     <message>
         <location filename="../src/shell/UiServices.cpp" line="21"/>

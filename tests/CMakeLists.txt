@@ -8,6 +8,7 @@ add_subdirectory(theme)
 add_subdirectory(shell)
 add_subdirectory(web)
 add_subdirectory(skillcatalog)
+add_subdirectory(tools)
 
 # Architecture rules as a test: a violating build fails
 # instead of relying on people remembering the rules.
