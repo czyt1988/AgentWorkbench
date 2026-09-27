@@ -64,14 +64,9 @@ Item {
         PageHeader {
             title: qsTr("Agent Tools")
             subtitle: qsTr("Compose prompts without accidentally sending them")
-
-            AButton {
-                text: qsTr("Copy")
-                onClicked: page.copyDraft()
-            }
         }
 
-        // --- Toolbar: workspace switcher + add + refresh -----------------
+        // --- Toolbar: workspace switcher + add + refresh + copy -----------
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
@@ -155,6 +150,17 @@ Item {
                 tooltip: qsTr("Refresh the file tree")
                 enabled: tools.currentWorkspace.length > 0
                 onClicked: tools.refresh()
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            // 页面主动作，靠右落在编辑区正上方：与刷新同一水平线，
+            // 也贴着它作用的那个编辑框。
+            AButton {
+                text: qsTr("Copy")
+                onClicked: page.copyDraft()
             }
         }
 
