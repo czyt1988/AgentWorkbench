@@ -267,6 +267,7 @@ Item {
                             // required property 混用会静默取不到值，role 一律
                             // 经 required property 声明。
                             required property string name
+                            required property string path
                             required property string relativePath
                             required property bool isDir
 
@@ -323,6 +324,28 @@ Item {
                                                     tools.fileReference(
                                                         treeRow.relativePath))
                                     }
+                                }
+                            }
+
+                            // 右键复制路径：只吃右键，左键留给上面的 TapHandler。
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                onClicked: function(mouse) {
+                                    pathMenu.popup(mouse.x, mouse.y)
+                                }
+                            }
+
+                            Menu {
+                                id: pathMenu
+
+                                MenuItem {
+                                    text: qsTr("Copy relative path")
+                                    onTriggered: workbench.copyText(treeRow.relativePath)
+                                }
+                                MenuItem {
+                                    text: qsTr("Copy absolute path")
+                                    onTriggered: workbench.copyText(treeRow.path)
                                 }
                             }
 
