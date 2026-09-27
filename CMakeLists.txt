@@ -17,14 +17,14 @@ qt_standard_project_setup(REQUIRES 6.5)
 include(cmake/AwbOptions.cmake)
 
 # Layered modules, bottom-up:
-#   core -> theme -> {shell, agents, web} -> workbench -> app
+#   core -> theme -> {shell, agentcatalog, skillcatalog, web} -> workbench -> app
 add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)
 add_subdirectory(src/core)      # L0 infrastructure
 add_subdirectory(src/theme)     # L1 theme engine
-add_subdirectory(src/agents)    # L2 agents domain
+add_subdirectory(src/agentcatalog) # L2 agent catalog
 add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
 add_subdirectory(src/web)       # L2 web tabs (+ webengine adapter when ON)
-add_subdirectory(src/skills)    # L2 skills browser
+add_subdirectory(src/skillcatalog) # L2 skill catalog
 add_subdirectory(src/workbench) # L3 application layer
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.

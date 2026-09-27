@@ -1,9 +1,9 @@
 #include "workbench/WorkbenchContext.h"
 
-#include "agents/AgentModel.h"
-#include "agents/AgentUrls.h"
+#include "agentcatalog/AgentModel.h"
+#include "agentcatalog/AgentUrls.h"
 #include "core/Settings.h"
-#include "agents/AgentsFacade.h"
+#include "agentcatalog/AgentsFacade.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"

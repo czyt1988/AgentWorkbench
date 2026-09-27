@@ -1,11 +1,11 @@
 #include "workbench/BuiltinPages.h"
 
-#include "agents/AgentModel.h"
-#include "agents/AgentsFacade.h"
+#include "agentcatalog/AgentModel.h"
+#include "agentcatalog/AgentsFacade.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
-#include "skills/SkillsFacade.h"
+#include "skillcatalog/SkillsFacade.h"
 #include "web/WebTabsFacade.h"
 
 namespace awb::workbench {
@@ -39,7 +39,7 @@ void BuiltinPages::registerPages()
     launcher.title = tr("Agent Launcher");
     launcher.iconSource = QStringLiteral("qrc:/icons/terminal.svg");
     launcher.source =
-        QStringLiteral("qrc:/qt/qml/AgentWorkbench/agents/AgentGridPage.qml");
+        QStringLiteral("qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml");
     launcher.section = QStringLiteral("main");
     launcher.order = 10;
     m_nav->registerPage(launcher);
@@ -59,7 +59,7 @@ void BuiltinPages::registerPages()
     skillsPage.title = tr("Skills");
     skillsPage.iconSource = QStringLiteral("qrc:/icons/skills.svg");
     skillsPage.source =
-        QStringLiteral("qrc:/qt/qml/AgentWorkbench/skills/SkillGridPage.qml");
+        QStringLiteral("qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml");
     skillsPage.section = QStringLiteral("main");
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);

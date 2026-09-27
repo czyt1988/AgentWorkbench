@@ -1,0 +1,33 @@
+# awb_agentcatalog (L2 domain): agent definitions, persistence, process
+# lifecycle, health checks and one-shot commands. Depends on awb_core only
+# (no Qt Quick, no other domain modules).
+qt_add_library(awb_agentcatalog STATIC
+    AgentDefinition.h
+    AgentHealthMonitor.cpp
+    AgentHealthMonitor.h
+    AgentModel.cpp
+    AgentModel.h
+    AgentRepository.cpp
+    AgentRepository.h
+    AgentRuntime.cpp
+    AgentRuntime.h
+    AgentScripts.cpp
+    AgentScripts.h
+    AgentState.h
+    AgentStateStore.cpp
+    AgentStateStore.h
+    AgentUrls.cpp
+    AgentUrls.h
+    AgentsFacade.cpp
+    AgentsFacade.h
+)
+
+target_include_directories(awb_agentcatalog PUBLIC ${CMAKE_SOURCE_DIR}/src)
+
+target_link_libraries(awb_agentcatalog
+    PUBLIC
+        awb_core
+        awb_theme
+        Qt6::Core
+        Qt6::Gui
+)

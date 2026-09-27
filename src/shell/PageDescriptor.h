@@ -13,7 +13,7 @@ struct PageDescriptor
     QString id;
     QString title;      // English source string (translated at the edge)
     QString iconSource; // qrc:/icons/... URL
-    QString source;     // QML URL, e.g. qrc:/qt/qml/AgentWorkbench/agents/…
+    QString source;     // QML URL, e.g. qrc:/qt/qml/AgentWorkbench/agentcatalog/…
     QString section = QStringLiteral("main"); // main | extensions | system
     int order = 0;
     QString badgeText;  // sidebar pill, empty = no badge

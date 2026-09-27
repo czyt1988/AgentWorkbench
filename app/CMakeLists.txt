@@ -3,7 +3,7 @@
 #
 # All module QML is compiled into the executable through qt_add_qml_module
 # with stable aliases, so a page URL looks like
-#   qrc:/qt/qml/AgentWorkbench/agents/AgentGridPage.qml
+#   qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml
 # Resources are never put into static libraries (qrc initializers in static
 # libraries get dropped by the linker.
 
@@ -13,17 +13,17 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
                    AgentAvatar)
-set(_agents_qml AgentCard AgentGridPage AgentEditDialog)
-set(_skills_qml SkillGridPage SkillCard SkillDetailFlyout)
+set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
+set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
 
 set(AWB_QML_FILES "")
-foreach(name IN LISTS _skills_qml)
-    set(_f ${CMAKE_SOURCE_DIR}/src/skills/qml/${name}.qml)
+foreach(name IN LISTS _skillcatalog_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/${name}.qml)
     list(APPEND AWB_QML_FILES ${_f})
     set_source_files_properties(${_f} PROPERTIES
-        QT_RESOURCE_ALIAS "skills/${name}.qml")
+        QT_RESOURCE_ALIAS "skillcatalog/${name}.qml")
 endforeach()
 foreach(name IN LISTS _web_qml)
     set(_f ${CMAKE_SOURCE_DIR}/src/web/qml/${name}.qml)
@@ -49,11 +49,11 @@ foreach(name IN LISTS _component_qml)
     set_source_files_properties(${_f} PROPERTIES
         QT_RESOURCE_ALIAS "components/${name}.qml")
 endforeach()
-foreach(name IN LISTS _agents_qml)
-    set(_f ${CMAKE_SOURCE_DIR}/src/agents/qml/${name}.qml)
+foreach(name IN LISTS _agentcatalog_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/${name}.qml)
     list(APPEND AWB_QML_FILES ${_f})
     set_source_files_properties(${_f} PROPERTIES
-        QT_RESOURCE_ALIAS "agents/${name}.qml")
+        QT_RESOURCE_ALIAS "agentcatalog/${name}.qml")
 endforeach()
 
 qt_add_executable(AgentWorkbench
@@ -65,10 +65,10 @@ target_include_directories(AgentWorkbench
     PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(AgentWorkbench PRIVATE
-    awb_agents
+    awb_agentcatalog
     awb_core
     awb_shell
-    awb_skills
+    awb_skillcatalog
     awb_theme
     awb_web
     awb_workbench

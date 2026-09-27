@@ -15,10 +15,10 @@ target_include_directories(awb_workbench PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(awb_workbench
     PUBLIC
-        awb_agents
+        awb_agentcatalog
         awb_core
         awb_shell
-        awb_skills
+        awb_skillcatalog
         awb_theme
         awb_web
         Qt6::Core

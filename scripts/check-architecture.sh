@@ -35,12 +35,12 @@ fail() {
 
 # --- 1. Dependency direction -------------------------------------------------
 # Domain modules: which sibling directories each one must not mention.
-for domain in agents skills web; do
+for domain in agentcatalog skillcatalog web; do
     others=""
     case "$domain" in
-        agents) others="skills web" ;;
-        skills) others="agents web" ;;
-        web)    others="agents skills" ;;
+        agentcatalog)  others="skillcatalog web" ;;
+        skillcatalog)  others="agentcatalog web" ;;
+        web)           others="agentcatalog skillcatalog" ;;
     esac
     # shell/ and workbench/ are also forbidden (domain modules never depend
     # on the UI framework or the application layer).
@@ -113,14 +113,14 @@ alias_header() {
         shell) echo "src/shell/ShellController.h" ;;
         ui) echo "src/shell/UiServices.h" ;;
         notifications) echo "src/shell/Notifications.h" ;;
-        agents) echo "src/agents/AgentsFacade.h" ;;
+        agents) echo "src/agentcatalog/AgentsFacade.h" ;;
         web) echo "src/web/WebTabsFacade.h" ;;
-        skills) echo "src/skills/SkillsFacade.h" ;;
+        skills) echo "src/skillcatalog/SkillsFacade.h" ;;
         workbench) echo "src/workbench/WorkbenchContext.h" ;;
         environment) echo "src/workbench/EnvironmentService.h" ;;
         WebProfiles) echo "src/web/webengine/WebEngineProfileStore.h" ;;
-        agents.model) echo "src/agents/AgentModel.h" ;;
-        skills.model) echo "src/skills/SkillModel.h" ;;
+        agents.model) echo "src/agentcatalog/AgentModel.h" ;;
+        skills.model) echo "src/skillcatalog/SkillModel.h" ;;
         web.model) echo "src/web/WebTabsModel.h" ;;
         *) echo "" ;;
     esac

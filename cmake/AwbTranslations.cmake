@@ -11,10 +11,10 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/app/main.cpp
     # core
     ${CMAKE_SOURCE_DIR}/src/core/LegacyImport.cpp
-    # agents domain
-    ${CMAKE_SOURCE_DIR}/src/agents/AgentRuntime.cpp
-    ${CMAKE_SOURCE_DIR}/src/agents/AgentScripts.cpp
-    ${CMAKE_SOURCE_DIR}/src/agents/AgentsFacade.cpp
+    # agent catalog
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/AgentRuntime.cpp
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/AgentScripts.cpp
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/AgentsFacade.cpp
     # shell
     ${CMAKE_SOURCE_DIR}/src/shell/UiServices.cpp
     # application layer
@@ -42,16 +42,16 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AFormLabel.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AgentAvatar.qml
-    # agents QML
-    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentCard.qml
-    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentGridPage.qml
-    ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentEditDialog.qml
+    # agent catalog QML
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/AgentCard.qml
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/AgentGridPage.qml
+    ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/AgentEditDialog.qml
     # web QML
     ${CMAKE_SOURCE_DIR}/src/web/qml/WebTabsPage.qml
     ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/WebEngineSurface.qml
-    # skills domain + QML
-    ${CMAKE_SOURCE_DIR}/src/skills/SkillsFacade.cpp
-    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillGridPage.qml
-    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillCard.qml
-    ${CMAKE_SOURCE_DIR}/src/skills/qml/SkillDetailFlyout.qml
+    # skill catalog + QML
+    ${CMAKE_SOURCE_DIR}/src/skillcatalog/SkillsFacade.cpp
+    ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillGridPage.qml
+    ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillCard.qml
+    ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillDetailFlyout.qml
 )

@@ -1,4 +1,4 @@
-#include "agents/AgentsFacade.h"
+#include "agentcatalog/AgentsFacade.h"
 #include "core/LegacyImport.h"
 #include "core/PluginHost.h"
 #include "core/Logging.h"
@@ -6,7 +6,7 @@
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "shell/NavigationModel.h"
-#include "skills/SkillsFacade.h"
+#include "skillcatalog/SkillsFacade.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
 #include "shell/UiServices.h"
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
         settings.save();
 
     // 3) Assembly, dependency order from the bottom up:
-    //    core -> theme -> shell -> agents -> workbench.
+    //    core -> theme -> shell -> agentcatalog -> workbench.
     awb::theme::ThemeRegistry themeRegistry;
     awb::theme::Theme theme(&settings, &themeRegistry);
 
