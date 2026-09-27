@@ -203,6 +203,7 @@ Rectangle {
             contentHeight: rowsColumn.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: AScrollBar {}
 
             ColumnLayout {
                 id: rowsColumn

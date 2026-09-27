@@ -15,13 +15,17 @@ Dialog {
     readonly property bool isAdd: agentId.length === 0
     property var agentData: agentId.length > 0 ? agents.model.agent(agentId) : ({})
 
+    // 挂到窗口 Overlay：对话框以「窗口」而不是「屏幕」为居中与限高的基准
+    // ——popup 会被所在窗口裁剪，按 Screen.height 算出来的高度在窗口比屏幕
+    // 矮时，超出的部分（含保存按钮）无论表单怎么滚都够不着。
+    parent: Overlay.overlay
     anchors.centerIn: parent
     modal: true
     focus: true
     padding: 0
     width: 640
-    // Bounded by the screen; the form scrolls internally.
-    height: Math.min(scrollView.implicitHeight, Screen.height - 120)
+    // 以窗口高度为上界；表单内部滚动。
+    height: Math.min(scrollView.implicitHeight, parent.height - 120)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     background: Rectangle {
@@ -100,6 +104,7 @@ Dialog {
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
+        ScrollBar.vertical: AScrollBar {}
 
         ColumnLayout {
             width: scrollView.availableWidth

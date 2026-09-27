@@ -240,7 +240,7 @@ Item {
                         boundsBehavior: Flickable.StopAtBounds
                         model: tools.model
 
-                        ScrollBar.vertical: ScrollBar {}
+                        ScrollBar.vertical: AScrollBar {}
 
                         delegate: Item {
                             id: treeRow

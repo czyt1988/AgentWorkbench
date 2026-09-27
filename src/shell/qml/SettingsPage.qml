@@ -72,6 +72,7 @@ Page {
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
+        ScrollBar.vertical: AScrollBar {}
 
         ColumnLayout {
             width: scrollView.availableWidth

@@ -156,6 +156,7 @@ Item {
             visible: !skills.scanning && skills.model.count > 0
             clip: true
             contentWidth: availableWidth
+            ScrollBar.vertical: AScrollBar {}
 
             Flow {
                 width: scrollView.availableWidth

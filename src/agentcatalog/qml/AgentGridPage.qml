@@ -161,6 +161,7 @@ Item {
             visible: page.shownCount > 0
             clip: true
             contentWidth: availableWidth
+            ScrollBar.vertical: AScrollBar {}
 
             Flow {
                 id: flow

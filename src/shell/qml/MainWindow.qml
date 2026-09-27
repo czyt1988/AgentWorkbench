@@ -26,10 +26,14 @@ ApplicationWindow {
     readonly property var environment: Environment
 
     visible: true
-    width: shell.windowWidth
-    height: shell.windowHeight
+    // 恢复的窗口尺寸按可用屏幕区域钳制：在大屏上保存过的窗口换到小屏打开
+    // 会超出屏幕，被裁掉的下缘（状态栏、页面尾部）永远够不着。
+    width: Math.min(shell.windowWidth, Screen.desktopAvailableWidth)
+    height: Math.min(shell.windowHeight, Screen.desktopAvailableHeight)
     minimumWidth: 1024
-    minimumHeight: 640
+    // 低到足以容纳缩小的逻辑高度（小屏、高 DPI）：页面内部自己滚动，窗口
+    // 只需要装得下外壳。
+    minimumHeight: 540
     // Brand name, deliberately not translated.
     title: shell.windowTitle.length > 0 ? shell.windowTitle
                                         : "AgentWorkbench"

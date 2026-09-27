@@ -39,6 +39,7 @@ ADialog {
                 visible: control.detail.length > 0
                 implicitHeight: Math.min(detailLabel.implicitHeight, 160)
                 clip: true
+                ScrollBar.vertical: AScrollBar {}
 
                 Label {
                     id: detailLabel
