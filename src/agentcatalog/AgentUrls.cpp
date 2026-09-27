@@ -7,7 +7,7 @@
 #include <QRegularExpression>
 #include <QUrl>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 namespace {
 
@@ -104,4 +104,4 @@ QString AgentUrls::sessionUrlFromOutput(const QString &output,
     return {};
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

@@ -6,8 +6,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-using awb::agents::AgentDefinition;
-using awb::agents::AgentUrls;
+using awb::agentcatalog::AgentDefinition;
+using awb::agentcatalog::AgentUrls;
 
 class TestAgentUrls : public QObject
 {

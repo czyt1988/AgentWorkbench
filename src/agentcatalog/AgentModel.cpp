@@ -3,7 +3,7 @@
 #include <QSet>
 #include <QVariantMap>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 AgentModel::AgentModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -232,4 +232,4 @@ void AgentModel::setConsoleOutput(const QString &id, const QString &text)
     AWB_STATE_SETTER(consoleOutput, text, ConsoleOutputRole);
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

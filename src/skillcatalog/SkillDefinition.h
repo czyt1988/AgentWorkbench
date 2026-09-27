@@ -5,7 +5,7 @@
 #include <QString>
 #include <QVariantMap>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 // One discovered skill.
 struct SkillDefinition
@@ -25,6 +25,6 @@ struct SkillDefinition
     QVariantMap extras;
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLDEFINITION_H

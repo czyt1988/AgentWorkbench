@@ -5,7 +5,7 @@
 #include <QFile>
 #include <QJsonObject>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 AgentStateStore::AgentStateStore(const QString &dataRoot)
     : m_dataRoot(dataRoot)
@@ -62,4 +62,4 @@ bool AgentStateStore::reset(const QString &id)
     return true;
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

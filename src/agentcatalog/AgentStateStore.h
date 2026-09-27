@@ -4,7 +4,7 @@
 #include <QHash>
 #include <QString>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // agent_state.json: which agents have completed their one-time setup.
 // Loaded once, written atomically via core::JsonStore.
@@ -33,6 +33,6 @@ private:
     QHash<QString, bool> m_setupDone;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTSTATESTORE_H

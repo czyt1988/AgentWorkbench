@@ -4,7 +4,7 @@
 #include <QHash>
 #include <QString>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 // Parsed frontmatter of a SKILL.md.
 struct SkillFrontmatter
@@ -30,6 +30,6 @@ public:
     static SkillFrontmatter parse(const QByteArray &content);
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLFRONTMATTER_H

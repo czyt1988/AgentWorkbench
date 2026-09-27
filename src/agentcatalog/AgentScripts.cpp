@@ -9,7 +9,7 @@
 #include <QDateTime>
 #include <QTimer>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 namespace {
 
@@ -406,4 +406,4 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
         .arg(operation, key);
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

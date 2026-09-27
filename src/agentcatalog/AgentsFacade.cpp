@@ -17,7 +17,7 @@
 #include <QDir>
 #include <QUrl>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 namespace {
 
@@ -386,4 +386,4 @@ bool AgentsFacade::saveConfig()
     return ok;
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

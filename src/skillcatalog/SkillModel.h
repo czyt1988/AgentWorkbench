@@ -8,7 +8,7 @@
 #include <QSet>
 #include <QStringList>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 // The skill list with client-side filtering, source facets and sorting.
 // The full scan result is kept master-side so
@@ -83,6 +83,6 @@ private:
     QString m_sortMode = QStringLiteral("name");
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLMODEL_H

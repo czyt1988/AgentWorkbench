@@ -12,10 +12,10 @@ namespace awb::workbench {
 
 BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
                            shell::ShellController *shell,
-                           agents::AgentsFacade *agents,
+                           agentcatalog::AgentsFacade *agents,
                            web::WebTabsFacade *web,
                            shell::Notifications *notifications,
-                           skills::SkillsFacade *skills, QObject *parent)
+                           skillcatalog::SkillsFacade *skills, QObject *parent)
     : QObject(parent)
     , m_nav(nav)
     , m_shell(shell)
@@ -79,10 +79,10 @@ void BuiltinPages::wireBadges()
 {
     // Launcher badge = number of running agents (hidden at 0) —
     auto update = [this]() {
-        const QList<awb::agents::AgentDefinition> &definitions =
+        const QList<awb::agentcatalog::AgentDefinition> &definitions =
             m_agents->agentModel()->definitions();
         int running = 0;
-        for (const awb::agents::AgentDefinition &d : definitions) {
+        for (const awb::agentcatalog::AgentDefinition &d : definitions) {
             if (m_agents->agentModel()->state(d.id).running)
                 ++running;
         }
@@ -90,15 +90,15 @@ void BuiltinPages::wireBadges()
                         running > 0 ? QString::number(running) : QString());
     };
 
-    const awb::agents::AgentModel *model = m_agents->agentModel();
-    connect(model, &awb::agents::AgentModel::dataChanged, this,
+    const awb::agentcatalog::AgentModel *model = m_agents->agentModel();
+    connect(model, &awb::agentcatalog::AgentModel::dataChanged, this,
             [update](const QModelIndex &, const QModelIndex &, const QList<int> &roles) {
                 if (roles.isEmpty()
-                    || roles.contains(awb::agents::AgentModel::RunningRole))
+                    || roles.contains(awb::agentcatalog::AgentModel::RunningRole))
                     update();
             });
-    connect(model, &awb::agents::AgentModel::rowsInserted, this, update);
-    connect(model, &awb::agents::AgentModel::rowsRemoved, this, update);
+    connect(model, &awb::agentcatalog::AgentModel::rowsInserted, this, update);
+    connect(model, &awb::agentcatalog::AgentModel::rowsRemoved, this, update);
     update();
 }
 
@@ -107,20 +107,20 @@ void BuiltinPages::wireWebRules()
     // Cross-domain rules: agent stopped -> tab offline; agent
     // back -> reload; agent deleted -> close its tab. The external-surface
     // notice becomes a toast.
-    connect(m_agents, &agents::AgentsFacade::runningChanged, this,
+    connect(m_agents, &agentcatalog::AgentsFacade::runningChanged, this,
             [this](const QString &id, bool running) {
                 if (running)
                     m_web->markOnlineForAgent(id);
                 else
                     m_web->markOfflineForAgent(id);
             });
-    connect(m_agents, &agents::AgentsFacade::agentRemoved, this,
+    connect(m_agents, &agentcatalog::AgentsFacade::agentRemoved, this,
             [this](const QString &id) { m_web->closeTabsForAgent(id); });
 
     // A session URL captured from the agent's launch output (a fresh
     // per-process token for dsh) retargets an already-open tab instead of
     // leaving it on the bare webUrl the token gate rejects with 401.
-    connect(m_agents, &agents::AgentsFacade::sessionUrlChanged, this,
+    connect(m_agents, &agentcatalog::AgentsFacade::sessionUrlChanged, this,
             [this](const QString &id, const QString &url) {
                 m_web->retargetTabForAgent(id, url);
             });

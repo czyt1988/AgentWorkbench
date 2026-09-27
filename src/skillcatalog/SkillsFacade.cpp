@@ -15,7 +15,7 @@
 #include <QProcess>
 #include <QUrl>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 SkillsFacade::SkillsFacade(core::Settings *settings, QObject *parent)
     : QObject(parent)
@@ -274,4 +274,4 @@ const SkillDefinition *SkillsFacade::find(const QString &skillFilePath) const
     return nullptr;
 }
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog

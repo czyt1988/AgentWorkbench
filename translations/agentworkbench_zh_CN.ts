@@ -1912,7 +1912,7 @@ Command: %2
     </message>
 </context>
 <context>
-    <name>awb::agents::AgentRuntime</name>
+    <name>awb::agentcatalog::AgentRuntime</name>
     <message>
         <source>Startup command is empty.</source>
         <translation type="vanished">启动命令为空。</translation>
@@ -1943,7 +1943,7 @@ Command: %2
     </message>
 </context>
 <context>
-    <name>awb::agents::AgentScripts</name>
+    <name>awb::agentcatalog::AgentScripts</name>
     <message>
         <source>Please close %1 before installing/updating.</source>
         <translation type="vanished">请先关闭 %1 后再进行安装/更新。</translation>

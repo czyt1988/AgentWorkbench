@@ -4,8 +4,8 @@
 
 #include "skillcatalog/SkillFrontmatter.h"
 
-using awb::skills::SkillFrontmatter;
-using awb::skills::SkillFrontmatterParser;
+using awb::skillcatalog::SkillFrontmatter;
+using awb::skillcatalog::SkillFrontmatterParser;
 
 // Covers quotes, folded/literal scalars, multi-line indentation,
 // BOM, CRLF, missing frontmatter, colons inside values.

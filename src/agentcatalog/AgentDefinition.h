@@ -3,7 +3,7 @@
 
 #include <QString>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // The persisted fields of an agent — everything written to agents.json.
 // Runtime state lives in AgentState and is never persisted here.
@@ -27,6 +27,6 @@ struct AgentDefinition
                           // browser
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTDEFINITION_H

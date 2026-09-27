@@ -1,6 +1,6 @@
 #include "skillcatalog/SkillRoot.h"
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 QList<SkillRoot> SkillRoots::defaults()
 {
@@ -91,4 +91,4 @@ QList<SkillRoot> SkillRoots::fromJson(const QJsonArray &entries)
     return roots;
 }
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog

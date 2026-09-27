@@ -13,7 +13,7 @@ namespace awb::core {
 class Settings;
 } // namespace awb::core
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 class SkillModel;
 
@@ -91,6 +91,6 @@ private:
     bool m_scanning = false;
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLSFACADE_H

@@ -6,7 +6,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // agents.json: read/write plus the built-in sync semantics of 0.3.0
 // The data root is injected at construction —
@@ -95,6 +95,6 @@ private:
     QStringList m_agentPalette;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTREPOSITORY_H

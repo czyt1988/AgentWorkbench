@@ -3,7 +3,7 @@
 
 #include <QString>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // The runtime-only fields of an agent — they exist only in memory and are
 // never written to agents.json.
@@ -22,6 +22,6 @@ struct AgentState
                                   // progress
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTSTATE_H

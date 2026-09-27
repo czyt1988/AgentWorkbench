@@ -9,8 +9,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-using awb::agents::AgentRepository;
-using awb::agents::AgentsFacade;
+using awb::agentcatalog::AgentRepository;
+using awb::agentcatalog::AgentsFacade;
 
 #ifdef Q_OS_WIN
 class TestAgentScripts : public QObject

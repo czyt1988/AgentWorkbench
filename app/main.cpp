@@ -108,12 +108,12 @@ int main(int argc, char *argv[])
     awb::shell::UiServices ui;
     awb::shell::Notifications notifications;
 
-    awb::agents::AgentsFacade agents(&settings, awb::core::Paths::dataRoot(),
+    awb::agentcatalog::AgentsFacade agents(&settings, awb::core::Paths::dataRoot(),
                                      &theme);
     agents.start();
 
     awb::web::WebTabsFacade webTabs(&settings);
-    awb::skills::SkillsFacade skills(&settings);
+    awb::skillcatalog::SkillsFacade skills(&settings);
 
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,

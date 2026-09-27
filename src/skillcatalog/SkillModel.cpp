@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 SkillModel::SkillModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -145,4 +145,4 @@ void SkillModel::refilter()
     endResetModel();
 }
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog

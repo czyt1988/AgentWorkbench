@@ -12,8 +12,8 @@
 
 #include <utility>
 
-using awb::agents::AgentDefinition;
-using awb::agents::AgentRepository;
+using awb::agentcatalog::AgentDefinition;
+using awb::agentcatalog::AgentRepository;
 
 class TestAgentRepository : public QObject
 {

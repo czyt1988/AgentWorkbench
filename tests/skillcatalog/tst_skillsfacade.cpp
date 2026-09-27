@@ -7,7 +7,7 @@
 #include <QtTest>
 
 using awb::core::Settings;
-using awb::skills::SkillsFacade;
+using awb::skillcatalog::SkillsFacade;
 
 // kindLabel(): the shared display mapping for skill root kinds (single
 // source for the Settings and Skills pages).

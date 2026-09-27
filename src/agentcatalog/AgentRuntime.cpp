@@ -20,7 +20,7 @@
 #include <QTimer>
 #include <QUrl>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 namespace {
 
@@ -469,4 +469,4 @@ QList<qint64> AgentRuntime::findPidsForPort(int port)
     return pids;
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

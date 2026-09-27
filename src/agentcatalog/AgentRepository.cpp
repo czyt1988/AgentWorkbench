@@ -11,7 +11,7 @@
 
 #include <algorithm>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 namespace {
 
@@ -288,4 +288,4 @@ QString AgentRepository::slugFromName(const QString &name)
     return s;
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

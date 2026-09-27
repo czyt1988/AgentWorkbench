@@ -16,7 +16,7 @@ namespace awb::workbench {
 WorkbenchContext::WorkbenchContext(shell::NavigationModel *nav,
                                    shell::UiServices *ui,
                                    shell::Notifications *notifications,
-                                   agents::AgentsFacade *agents,
+                                   agentcatalog::AgentsFacade *agents,
                                    web::WebTabsFacade *web,
                                    core::Settings *settings, QObject *parent)
     : QObject(parent)
@@ -46,7 +46,7 @@ void WorkbenchContext::openWeb(const QString &agentId)
     const int row = m_agents->agentModel()->indexOf(agentId);
     if (row < 0)
         return;
-    const awb::agents::AgentDefinition def =
+    const awb::agentcatalog::AgentDefinition def =
         m_agents->agentModel()->definitions().at(row);
     if (def.webUrl.isEmpty())
         return;
@@ -61,7 +61,7 @@ void WorkbenchContext::openWeb(const QString &agentId)
     // ("取 AgentUrls 的最终 URL").
     const QString sessionUrl = m_agents->sessionUrl(def.id);
     fields[QStringLiteral("url")] = sessionUrl.isEmpty()
-            ? agents::AgentUrls::finalUrl(def)
+            ? agentcatalog::AgentUrls::finalUrl(def)
             : sessionUrl;
     fields[QStringLiteral("title")] = def.name;
     fields[QStringLiteral("icon")] = def.icon;

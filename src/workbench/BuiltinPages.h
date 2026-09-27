@@ -4,9 +4,9 @@
 #include <QObject>
 #include <QString>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 class AgentsFacade;
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 namespace awb::shell {
 class NavigationModel;
 class ShellController;
@@ -15,9 +15,9 @@ class Notifications;
 namespace awb::web {
 class WebTabsFacade;
 } // namespace awb::web
-namespace awb::skills {
+namespace awb::skillcatalog {
 class SkillsFacade;
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 namespace awb::workbench {
 
@@ -31,9 +31,9 @@ class BuiltinPages : public QObject
 
 public:
     BuiltinPages(shell::NavigationModel *nav, shell::ShellController *shell,
-                 agents::AgentsFacade *agents, web::WebTabsFacade *web,
+                 agentcatalog::AgentsFacade *agents, web::WebTabsFacade *web,
                  shell::Notifications *notifications,
-                 skills::SkillsFacade *skills, QObject *parent = nullptr);
+                 skillcatalog::SkillsFacade *skills, QObject *parent = nullptr);
 
 private:
     void registerPages();
@@ -44,10 +44,10 @@ private:
 
     shell::NavigationModel *m_nav;
     shell::ShellController *m_shell;
-    agents::AgentsFacade *m_agents;
+    agentcatalog::AgentsFacade *m_agents;
     web::WebTabsFacade *m_web;
     shell::Notifications *m_notifications;
-    skills::SkillsFacade *m_skills;
+    skillcatalog::SkillsFacade *m_skills;
 };
 
 } // namespace awb::workbench

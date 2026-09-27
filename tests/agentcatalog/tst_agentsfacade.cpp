@@ -11,9 +11,9 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-using awb::agents::AgentDefinition;
-using awb::agents::AgentRepository;
-using awb::agents::AgentsFacade;
+using awb::agentcatalog::AgentDefinition;
+using awb::agentcatalog::AgentRepository;
+using awb::agentcatalog::AgentsFacade;
 
 class TestAgentsFacade : public QObject
 {

@@ -8,7 +8,7 @@
 #include <QHash>
 #include <QList>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // List model over agents: the persisted definitions plus a per-id runtime
 // state map. Role names and order are byte-compatible with 0.3.0 so the
@@ -86,6 +86,6 @@ private:
     QHash<QString, AgentState> m_states;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTMODEL_H

@@ -14,7 +14,7 @@
 
 #include <utility>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 namespace {
 
@@ -367,4 +367,4 @@ void SkillScanner::dedupePluginVersions(Stats &stats)
     m_definitions = kept;
 }
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog

@@ -8,7 +8,7 @@
 #include <QStringList>
 #include <QTimer>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 class AgentModel;
 
@@ -109,6 +109,6 @@ private:
     QTimer m_sessionUrlTimer;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTRUNTIME_H

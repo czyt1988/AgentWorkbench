@@ -5,7 +5,7 @@
 
 #include <QTimer>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 AgentHealthMonitor::AgentHealthMonitor(AgentModel *model, int intervalMs,
                                        QObject *parent)
@@ -65,4 +65,4 @@ void AgentHealthMonitor::checkAll()
     }
 }
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog

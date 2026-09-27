@@ -11,9 +11,9 @@
 #include <QTcpServer>
 #include <QtTest>
 
-using awb::agents::AgentDefinition;
-using awb::agents::AgentModel;
-using awb::agents::AgentRuntime;
+using awb::agentcatalog::AgentDefinition;
+using awb::agentcatalog::AgentModel;
+using awb::agentcatalog::AgentRuntime;
 
 // Launch/stop/force-stop bookkeeping and the port→PID parsing behind
 // forceStop (the logic is kept AND has cases).

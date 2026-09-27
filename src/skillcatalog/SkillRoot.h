@@ -6,7 +6,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 // One scan root. `path` may contain wildcards
 // (the ZCode plugin cache entry does) — the scanner expands them.
@@ -37,6 +37,6 @@ public:
     static QList<SkillRoot> fromJson(const QJsonArray &entries);
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLROOT_H

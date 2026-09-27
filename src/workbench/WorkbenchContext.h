@@ -9,9 +9,9 @@
 namespace awb::core {
 class Settings;
 } // namespace awb::core
-namespace awb::agents {
+namespace awb::agentcatalog {
 class AgentsFacade;
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 namespace awb::shell {
 class NavigationModel;
 class Notifications;
@@ -39,7 +39,7 @@ class WorkbenchContext : public QObject
 public:
     WorkbenchContext(shell::NavigationModel *nav, shell::UiServices *ui,
                      shell::Notifications *notifications,
-                     agents::AgentsFacade *agents, web::WebTabsFacade *web,
+                     agentcatalog::AgentsFacade *agents, web::WebTabsFacade *web,
                      core::Settings *settings, QObject *parent = nullptr);
 
     QString currentPageId() const;
@@ -93,7 +93,7 @@ private:
     shell::NavigationModel *m_nav;
     shell::UiServices *m_ui;
     shell::Notifications *m_notifications;
-    agents::AgentsFacade *m_agents;
+    agentcatalog::AgentsFacade *m_agents;
     web::WebTabsFacade *m_web;
     core::Settings *m_settings;
     QString m_legacyImportNotice;

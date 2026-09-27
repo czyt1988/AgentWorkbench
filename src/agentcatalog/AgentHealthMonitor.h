@@ -10,7 +10,7 @@ namespace awb::core {
 class HttpProbe;
 } // namespace awb::core
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 class AgentModel;
 
@@ -54,6 +54,6 @@ private:
     QHash<QString, bool> m_lastRunning;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTHEALTHMONITOR_H

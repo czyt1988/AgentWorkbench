@@ -11,7 +11,7 @@ namespace awb::core {
 class Settings;
 } // namespace awb::core
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 // Walks the configured roots and finds skills: any directory containing a
 // SKILL.md counts as one skill and is not descended into further
@@ -76,6 +76,6 @@ private:
     int m_nextLocalId = 1;
 };
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog
 
 #endif // AWB_SKILLS_SKILLSCANNER_H

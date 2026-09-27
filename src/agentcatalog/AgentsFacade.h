@@ -14,7 +14,7 @@ namespace awb::theme {
 class Theme;
 } // namespace awb::theme
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 class AgentHealthMonitor;
 class AgentModel;
@@ -116,6 +116,6 @@ private:
     AgentHealthMonitor *m_health;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTSFACADE_H

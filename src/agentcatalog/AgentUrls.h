@@ -5,7 +5,7 @@
 
 #include <QString>
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 // URL and token handling for agents. Shared by the embedded view and the
 // external browser so both open exactly the same URL
@@ -35,6 +35,6 @@ public:
                                         const QString &webUrl);
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTURLS_H

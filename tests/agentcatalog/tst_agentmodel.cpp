@@ -4,9 +4,9 @@
 
 #include <QtTest>
 
-using awb::agents::AgentDefinition;
-using awb::agents::AgentModel;
-using awb::agents::AgentState;
+using awb::agentcatalog::AgentDefinition;
+using awb::agentcatalog::AgentModel;
+using awb::agentcatalog::AgentState;
 
 class TestAgentModel : public QObject
 {

@@ -3,7 +3,7 @@
 #include <QRegularExpression>
 #include <QStringList>
 
-namespace awb::skills {
+namespace awb::skillcatalog {
 
 namespace {
 
@@ -227,4 +227,4 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
     return SkillFrontmatter();
 }
 
-} // namespace awb::skills
+} // namespace awb::skillcatalog

@@ -14,10 +14,10 @@
 #include "skillcatalog/SkillScanner.h"
 
 using awb::core::Settings;
-using awb::skills::SkillDefinition;
-using awb::skills::SkillModel;
-using awb::skills::SkillRoot;
-using awb::skills::SkillScanner;
+using awb::skillcatalog::SkillDefinition;
+using awb::skillcatalog::SkillModel;
+using awb::skillcatalog::SkillRoot;
+using awb::skillcatalog::SkillScanner;
 
 // Covers multi-root scanning, plugin multi-version dedup, a
 // missing root never fails the scan. Uses fixed text samples in temp dirs —

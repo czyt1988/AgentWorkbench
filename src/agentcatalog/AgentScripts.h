@@ -9,7 +9,7 @@ namespace awb::core {
 class ScriptRunner;
 } // namespace awb::core
 
-namespace awb::agents {
+namespace awb::agentcatalog {
 
 class AgentModel;
 class AgentStateStore;
@@ -77,6 +77,6 @@ private:
     QHash<QString, int> m_versionEpoch;
 };
 
-} // namespace awb::agents
+} // namespace awb::agentcatalog
 
 #endif // AWB_AGENTS_AGENTSCRIPTS_H
