@@ -62,7 +62,11 @@ public:
     QVariantMap badges() const;
 
     QString currentPageId() const { return m_currentId; }
-    void setCurrentPageId(const QString &id);
+    // Q_INVOKABLE: a bare Q_PROPERTY WRITE is not in the meta-object method
+    // table — QML calling nav.setCurrentPageId(...) threw
+    // "…is not a function" and sidebar/Ctrl+N page switching silently did
+    // nothing. Property assignment (nav.currentPageId = x) still works too.
+    Q_INVOKABLE void setCurrentPageId(const QString &id);
 
     // Pages in display order (section grouping + order field), for the
     // sidebar's Ctrl+1…9 shortcuts and repeaters.

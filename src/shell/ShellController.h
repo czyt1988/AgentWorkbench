@@ -49,10 +49,13 @@ public:
     void setLastPageId(const QString &id);
 
     // Web options (02 §6.7): surface policy + Chromium flags.
+    // Q_INVOKABLE — same reason as NavigationModel::setCurrentPageId: these
+    // have no WRITE accessor, so QML could not call them as methods (the
+    // settings page's surface/flags edits silently did nothing).
     QString webSurface() const;
-    void setWebSurface(const QString &surface);
+    Q_INVOKABLE void setWebSurface(const QString &surface);
     QString webChromiumFlags() const;
-    void setWebChromiumFlags(const QString &flags);
+    Q_INVOKABLE void setWebChromiumFlags(const QString &flags);
 
 signals:
     void windowTitleChanged();
