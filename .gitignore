@@ -30,6 +30,7 @@ cmake_install.cmake
 .vscode/
 .idea/
 .zcode/
+.zcodeignore
 *.swp
 
 # OS
