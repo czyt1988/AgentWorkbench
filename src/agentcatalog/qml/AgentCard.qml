@@ -479,11 +479,9 @@ Item {
             }
         }
 
-        // Button row anchored to the bottom of the card so there's no
-        // large empty gap below the buttons. While the agent runs, the
-        // primary action is a split button: the body opens the WebUI
-        // in-app (navigating to the web page), the chevron offers
-        // "Open in browser" as the alternative.
+        // 按钮行锚在卡片底部，下方不留大片空白。agent 运行时主操作是
+        // QToolButton 式下拉按钮：按钮本体在应用内打开 WebUI，按钮内紧随
+        // 文字的箭头区弹出备选打开方式菜单。
         Row {
             id: buttonRow
             anchors.bottom: parent.bottom
@@ -497,7 +495,7 @@ Item {
                 variant: "primary"
                 accentColor: root.agentColor
                 width: root.running_p
-                       ? (parent.width - 10) * 0.6 - openSplit.width - parent.spacing
+                       ? (parent.width - 10) * 0.6
                        : (parent.width - 10) / 2
                 // While the agent is booting up or setting up, disable
                 // the button (no double-launch) and show a spinner in
@@ -505,6 +503,9 @@ Item {
                 // is running.
                 enabled: !root.launching_p && !root.setupping_p
                 text: root.launching_p ? "" : (root.running_p ? qsTr("Open") : qsTr("Start"))
+                dropdown: root.running_p
+                menuOpen: openMenu.visible
+                onDropdownActivated: openMenu.popup()
 
                 BusyIndicator {
                     anchors.centerIn: parent
@@ -518,61 +519,6 @@ Item {
                         workbench.openWeb(root.agentId_p)
                     else
                         agents.launch(root.agentId_p)
-                }
-            }
-
-            // Split arrow: page-private micro-interaction in the AButton
-            // visual language (same primary tint, seam groove, right
-            // corners rounded) — pops the alternative open action.
-            Item {
-                id: openSplit
-                visible: root.running_p
-                width: visible ? 26 : 0
-                height: actionButton.implicitHeight
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: theme.radiusControl
-                    color: openSplitArea.containsMouse
-                           ? theme.hover(root.agentColor)
-                           : root.agentColor
-                }
-                // Square off the left corners (Rectangle cannot round
-                // per-corner): a patch of the same color covers the left
-                // rounding zone.
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: theme.radiusControl
-                    color: openSplitArea.containsMouse
-                           ? theme.hover(root.agentColor)
-                           : root.agentColor
-                }
-                // Seam between the button and the arrow.
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: 1
-                    color: theme.alpha(theme.windowBg, 0.35)
-                }
-                Image {
-                    anchors.centerIn: parent
-                    source: "qrc:/icons/chevron-down.svg"
-                    sourceSize: Qt.size(14, 14)
-                    fillMode: Image.PreserveAspectFit
-                }
-                MouseArea {
-                    id: openSplitArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    ToolTip.visible: containsMouse
-                    ToolTip.delay: 300
-                    ToolTip.timeout: 10000
-                    ToolTip.text: qsTr("More open actions")
-                    onClicked: openMenu.popup()
                 }
             }
 
