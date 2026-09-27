@@ -58,7 +58,6 @@ cmake/        shared build options (AwbOptions.cmake, AwbTranslations.cmake)
 resources/    built-in theme JSON files
 config/       default_agents.json (bundled as a Qt resource)
 icons/        SVG icons (bundled as a Qt resource)
-examples/     example plugin (AWB_BUILD_PLUGIN_EXAMPLES)
 tests/        one test target per module + check_architecture
 scripts/      build.sh, package.sh, check-architecture.sh
 docs/         MkDocs site (English + zh/)
@@ -70,7 +69,6 @@ docs/         MkDocs site (English + zh/)
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | embedded Web views (MSVC only; MinGW + ON fails at configure time with a readable error) |
 | `BUILD_TESTING` | `ON` | unit test targets (needs the Qt Test module) |
-| `AWB_BUILD_PLUGIN_EXAMPLES` | `OFF` | build `examples/plugins/hello` and install it into the dev data directory |
 
 Pass extra configure arguments after `--`, e.g.:
 

@@ -121,7 +121,6 @@ ColumnLayout {
 遗留的已知小项（不紧急）：
 
 - `ACard` 仍零使用（AgentCard/SkillCard 自带状态化边框着色，暂无恰切落点；出现第三个卡片形态时再评估）。
-- hello 示例插件侧栏行图标缺失（注册的 `qrc:/icons/hello.png` 不存在，回退为空）。
 - AgentCard 卡内 16px 微型交互件（下载/更新/输出关闭角标）仍是页面私有 Item+MouseArea——有意保留，见 §3 硬规则的例外条款。
 
 ## 6. UI 改动提交前检查清单

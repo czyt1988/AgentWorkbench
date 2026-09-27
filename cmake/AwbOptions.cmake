@@ -5,7 +5,6 @@
 # a readable message, not with a wall of linker errors.
 
 option(AWB_ENABLE_WEBENGINE "Embed agent WebUIs with Qt WebEngine" ON)
-option(AWB_BUILD_PLUGIN_EXAMPLES "Build the example plugins (dev only)" OFF)
 
 if (AWB_ENABLE_WEBENGINE AND WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR

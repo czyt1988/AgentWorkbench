@@ -33,7 +33,7 @@ cmake --build build
 - 需要 Qt 6.5+（模块：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools；内嵌 Web 另需 WebEngineQuick，只有 MSVC 有）。
 - 需要 CMake 3.16+，C++17。
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
-- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）、`AWB_BUILD_PLUGIN_EXAMPLES`（默认 OFF，打开会构建并安装 `examples/plugins/hello`）。额外参数经 `bash scripts/build.sh -- -D…` 传入。
+- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建，然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
 - 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skillcatalog` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
@@ -55,7 +55,6 @@ cmake/         AwbOptions.cmake、AwbTranslations.cmake（可翻译源清单）
 resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json（打包为 Qt 资源）
 icons/         SVG 图标（打包为 Qt 资源）
-examples/      示例插件（examples/plugins/hello）
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
 docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）

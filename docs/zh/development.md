@@ -48,7 +48,6 @@ cmake/        公共构建选项（AwbOptions.cmake、AwbTranslations.cmake）
 resources/    内置主题 JSON
 config/       default_agents.json（打包为 Qt 资源）
 icons/        SVG 图标（打包为 Qt 资源）
-examples/     示例插件（AWB_BUILD_PLUGIN_EXAMPLES）
 tests/        每模块一个测试目标 + check_architecture
 scripts/      build.sh、package.sh、check-architecture.sh
 docs/         MkDocs 站点（英文 + zh/）
@@ -60,7 +59,6 @@ docs/         MkDocs 站点（英文 + zh/）
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | 内嵌 Web 视图（仅 MSVC；MinGW + ON 在配置期报错） |
 | `BUILD_TESTING` | `ON` | 单元测试目标（需要 Qt Test 模块） |
-| `AWB_BUILD_PLUGIN_EXAMPLES` | `OFF` | 构建 `examples/plugins/hello` 并装入开发数据目录 |
 
 在 `--` 之后传额外的配置参数，例如：
 

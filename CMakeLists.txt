@@ -34,13 +34,6 @@ qt6_create_translation(QM_FILES
     ${AWB_TS_SOURCES}
     translations/agentworkbench_zh_CN.ts
 )
-# Example plugin: compiled only on demand; a POST_BUILD
-# step installs it into the developer's plugins directory so it can be
-# enabled in Settings -> Plugins.
-if (AWB_BUILD_PLUGIN_EXAMPLES)
-    add_subdirectory(examples/plugins/hello)
-endif()
-
 # L4 executable: assembly + QML module + all embedded resources.
 add_subdirectory(app)
 

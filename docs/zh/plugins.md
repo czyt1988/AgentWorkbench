@@ -23,26 +23,26 @@ AgentWorkbench 可以用插件扩展。本页说明什么是插件、如何启�
 
 ```
 <dataRoot>/plugins/
-  hello/
+  notes/
     plugin.json     清单（id、name、version、apiVersion、entry、pages）
-    hello.dll       编译后的插件
+    notes.dll       编译后的插件
 ```
 
 `plugin.json`：
 
 ```json
 {
-  "id": "hello",
-  "name": "Hello",
+  "id": "notes",
+  "name": "Notes",
   "version": "0.1.0",
   "apiVersion": 1,
-  "description": "最小示例插件。",
+  "description": "一段简短说明，会显示在设置页。",
   "author": "you",
-  "entry": "hello.dll",
+  "entry": "notes.dll",
   "pages": [
-    { "id": "hello", "title": "Hello",
+    { "id": "notes", "title": "Notes",
       "icon": "qrc:/icons/bot.svg",
-      "source": "qrc:/hello/HelloPage.qml",
+      "source": "qrc:/notes/NotesPage.qml",
       "section": "extensions", "order": 50 }
   ]
 }
@@ -70,9 +70,9 @@ AWB_PLUGIN_EXPORT int awb_plugin_api_version()
 AWB_PLUGIN_EXPORT int awb_plugin_register(awb::plugin::Services *services)
 {
     awb::plugin::PageDescriptor page;
-    page.id = "hello";
-    page.title = "Hello";
-    page.source = "qrc:/hello/HelloPage.qml";
+    page.id = "notes";
+    page.title = "Notes";
+    page.source = "qrc:/notes/NotesPage.qml";
     page.section = "extensions";
     services->registerPage(page);
     return 0; // 非 0 = 宿主记日志并忽略该插件
@@ -99,17 +99,11 @@ ABI 规则：
   启动；
 - 插件不能写 `agents.json` 或设置文件；主题与设置访问均为只读。
 
-## 示例插件
+## 打包插件
 
-`examples/plugins/hello/` 是一个完整的最小插件。构建：
-
-```bash
-bash scripts/build.sh -- -DAWB_BUILD_PLUGIN_EXAMPLES=ON
-```
-
-构建会把 `hello.dll` 与 `plugin.json` 复制到
-`<数据目录>/plugins/hello/`，宿主即可发现它。在 设置 → 插件 中启用并重启
-——侧边栏 extensions 分组会出现 **Hello** 页面。
+把插件编译为动态库，将 `plugin.json` 与编译出的 `dll` 放进
+`<数据目录>/plugins/` 下的同名文件夹，然后在 设置 → 插件 中启用并重启
+——页面的侧边栏 extensions 分组就会出现。
 
 ## 开发提示
 

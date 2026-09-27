@@ -26,26 +26,26 @@ manifest never loads code.
 
 ```
 <dataRoot>/plugins/
-  hello/
+  notes/
     plugin.json     manifest (id, name, version, apiVersion, entry, pages)
-    hello.dll       the compiled plugin
+    notes.dll       the compiled plugin
 ```
 
 `plugin.json`:
 
 ```json
 {
-  "id": "hello",
-  "name": "Hello",
+  "id": "notes",
+  "name": "Notes",
   "version": "0.1.0",
   "apiVersion": 1,
-  "description": "The smallest example plugin.",
+  "description": "A short description shown in Settings.",
   "author": "you",
-  "entry": "hello.dll",
+  "entry": "notes.dll",
   "pages": [
-    { "id": "hello", "title": "Hello",
+    { "id": "notes", "title": "Notes",
       "icon": "qrc:/icons/bot.svg",
-      "source": "qrc:/hello/HelloPage.qml",
+      "source": "qrc:/notes/NotesPage.qml",
       "section": "extensions", "order": 50 }
   ]
 }
@@ -75,9 +75,9 @@ AWB_PLUGIN_EXPORT int awb_plugin_api_version()
 AWB_PLUGIN_EXPORT int awb_plugin_register(awb::plugin::Services *services)
 {
     awb::plugin::PageDescriptor page;
-    page.id = "hello";
-    page.title = "Hello";
-    page.source = "qrc:/hello/HelloPage.qml";
+    page.id = "notes";
+    page.title = "Notes";
+    page.source = "qrc:/notes/NotesPage.qml";
     page.section = "extensions";
     services->registerPage(page);
     return 0; // non-zero = the host logs and ignores the plugin
@@ -105,18 +105,12 @@ Rules of the ABI:
 - plugins cannot write `agents.json` or settings; theme and settings
   access is read-only.
 
-## The example plugin
+## Packaging a plugin
 
-`examples/plugins/hello/` is a complete, minimal plugin. Build it with:
-
-```bash
-bash scripts/build.sh -- -DAWB_BUILD_PLUGIN_EXAMPLES=ON
-```
-
-The build copies `hello.dll` and `plugin.json` into
-`<dataRoot>/plugins/hello/`, where the host discovers it. Enable it in
-Settings → Plugins and restart — the **Hello** page appears in the
-sidebar's extensions section.
+Build your plugin as a shared library, put `plugin.json` and the
+compiled `dll` into a folder of that name under `<dataRoot>/plugins/`,
+then enable it in Settings → Plugins and restart — the page appears in
+the sidebar's extensions section.
 
 ## Development notes
 
