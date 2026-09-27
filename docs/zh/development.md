@@ -79,7 +79,7 @@ ctest 每个模块一个可执行文件，外加架构守门：
 
 | 测试 | 覆盖 |
 |---|---|
-| `check_architecture` | QML 无字面色值（十六进制与数字 `Qt.rgba`）、无反向/横向模块依赖、源串全英文、core/theme 不含 UI |
+| `check_architecture` | QML 无字面色值（十六进制与数字 `Qt.rgba`）、无反向/横向模块依赖、源串全英文、core/theme 不含 UI、QML 单例方法调用均为 `Q_INVOKABLE`、属性赋值均有 `WRITE` 访问器 |
 | `tst_core` | 路径、JSON 存储、设置、日志、进程执行器、脚本执行器、HTTP 探测、插件清单、旧目录接管 |
 | `tst_agents` | 仓库同步语义、模型角色、门面 CRUD、脚本日志、URL、运行时启动/停止/强制停止 |
 | `tst_theme` | 加载器校验规则、注册表覆盖行为 |

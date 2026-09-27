@@ -60,6 +60,15 @@ experimental plugins. The design lives in the `specs/` directory.
   contract name through a root alias.
 - `currentPage` is now a notifiable property — as a bare invokable it read as
   a function reference and workspace pages never actually loaded.
+- **QML could not call three C++ methods** (they lacked `Q_INVOKABLE`, so QML
+  threw "…is not a function" and the action silently did nothing): sidebar
+  clicks and `Ctrl+1…9` page switching (`setCurrentPageId`), the settings
+  page's surface switch (`setWebSurface`) and Chromium-flags edit
+  (`setWebChromiumFlags`) — all broken since S4, found by a manual run because
+  page-load smoke never clicks. `check-architecture` now has a rule that gates
+  every QML singleton method call on `Q_INVOKABLE` and every property write on
+  a `WRITE` accessor; `tst_shell` invokes all three through the meta-object to
+  keep them callable.
 - Quality-review round (5 P0 + ~25 P1): the first-start `settings.json` write
   no longer runs before the legacy-directory adoption check (which made the
   one-time `~/.AgentLauncher` import dead code); `workbench.openWeb` keeps the

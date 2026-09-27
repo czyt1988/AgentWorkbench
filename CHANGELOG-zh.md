@@ -59,6 +59,7 @@
 - 导航的 `currentPage` 由可通知属性暴露：此前它是 Q_INVOKABLE，QML 绑定
   求值为函数引用，工作区页面实际从未加载。
 - 质量审查轮（5 项 P0 + 约 25 项 P1）：首启写 `settings.json` 不再先于旧目录接管检查（否则一次性接管 `~/.AgentLauncher` 永远不会发生）；`workbench.openWeb` 保留 `#token=` 片段（否则内嵌视图对 mutation 路由 401），日志与 toast 一律脱敏；Skills 卡片描述不再被钳到约 4px 高而不可见；Web 空态与缩放快捷键恢复工作（`tabCount`/`tabObject` 成为真实的可通知 API）；插件 skill 去重保留胜出版本的**全部** skill；关闭活动标签左侧的标签不再使活动标签漂移；状态栏运行数/标签数徽标随变化重绑；标签栏补齐图标、中键关闭、下边框分隔线、⟳/停止加载切换与 `⋯` 菜单图标；按钮显示键盘焦点环；`F12` 打开开发者工具（仅 Debug 构建）；Skills 悬停卡支持键盘聚焦打开、窗口边界翻转、滚动即关；分面/kind 标签可翻译；启动时接线 `logging.*` 与 `locale.override`。
+- **三个 C++ 方法缺 `Q_INVOKABLE`，QML 调用即抛「…is not a function」且操作静默失效**（手工运行发现）：侧边栏点击与 `Ctrl+1…9` 切页（`setCurrentPageId`）、设置页表面切换（`setWebSurface`）、Chromium flags 编辑（`setWebChromiumFlags`）——三者自 S4 起即坏，因页面冒烟从不点击而直到人工运行才暴露。已全部补 `Q_INVOKABLE`；`check-architecture` 新增规则5（QML 单例方法调用必须 `Q_INVOKABLE`、属性赋值必须有 `WRITE`，正负向实测有效）；`tst_shell::testQmlCalledMethodsAreInvokable` 经 meta-object 真实调用三方法防回归。
 
 ### 打包
 
