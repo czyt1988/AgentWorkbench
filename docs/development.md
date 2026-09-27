@@ -94,6 +94,7 @@ ctest runs one executable per module plus the architecture gate:
 | `tst_theme` | loader validation rules, registry override behaviour |
 | `tst_shell` | navigation registration, badges, window persistence, clipboard results |
 | `tst_web` | tab reuse, close semantics, offline/online transitions, LRU release (no WebEngine needed) |
+| `tst_workbench` | cross-domain intents: `openWeb` navigation, external-surface no-tab path, browser-open URL handoff |
 | `tst_skillcatalog` | frontmatter parsing, scanning, plugin version dedup, filtering |
 
 A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.

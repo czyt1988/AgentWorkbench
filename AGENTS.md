@@ -90,6 +90,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 - C++ 全局注册在 `AgentWorkbench.App` 这个纯 C++ URI 上，且**类型名必须大写**（Qt ≥6 拒绝小写单例名）。不要往 `AgentWorkbench` URI 手工注册单例（那是 `qt_add_qml_module` 生成的有 qmldir 的模块，会报 protected module），也不要用 `setContextProperty`。
 - QML 侧的契约名是 `MainWindow.qml` 根部的**小写别名**：`theme`、`nav`、`shell`、`ui`、`toasts`、`agents`、`web`、`skills`、`workbench`、`environment`（`WebProfiles` 只在 `WebEngineSurface.qml` 内部直接用，没有别名）。页面 QML 用 `import AgentWorkbench` 拿 `components/` 里的共享组件。
 - **QML 要调用的每个方法都必须 `Q_INVOKABLE`（或槽/信号），要赋值的每个属性都必须有 `WRITE`**：裸方法/裸写入器不在 meta-object 方法表里，QML 调用即抛「is not a function」/「read-only property」，而按页面加载的冒烟（改 `lastPageId` 注入）从不点击，抓不到——已有三处此类缺陷（切页、Web 表面切换、Chromium flags）因此长期静默失效。`check_architecture` 规则5 在构建期挡，`tst_shell::testQmlCalledMethodsAreInvokable` 用 `QMetaObject::invokeMethod` 复现 QML 的真实解析路径。
+- **delegate 的 `required property` 按「属性名 = role 名」匹配**：模型 role 叫 `color`，属性就必须叫 `color`——改名后 delegate 拿不到 role、整个实例静默不渲染。此时若 delegate 根是 `Rectangle`/有同名视觉属性的类型，`color` 会**遮蔽**视觉属性、主题绑定落到字符串上、视觉永远保持默认值（Web 标签按钮因此长期渲染成白块）。两者都要顾到的写法：根用 `Item` + required property，视觉背景放内层子项（`AgentCard`、WebTabsPage 的 tab delegate 均如此）。
 - 构建日志里 `AgentWorkbench.App` 的 unresolved-import 警告是 qmlcachegen 对纯 C++ URI 的**预期现象**，不要为了消除它改设计。
 - 新增/移动 `.qml` 要同时改两处：`app/CMakeLists.txt` 的清单（`QT_RESOURCE_ALIAS` 决定 URL，形如 `qrc:/qt/qml/AgentWorkbench/<area>/<Name>.qml`）与 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`（若文件里有 `qsTr()`）。
 

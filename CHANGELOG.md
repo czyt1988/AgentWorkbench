@@ -4,6 +4,51 @@ All notable changes to **AgentWorkbench** (called AgentLauncher up to 0.3.0) are
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Web page "Home" button**: the tab-bar toolbar gains a home entry that
+  brings back the running-agent list (the no-tabs page) without closing any
+  open tab — previously there was no way back to the list once a view was
+  open, so agents started later could not be opened from the WebUI page.
+  Clicking a tab, opening an agent from the list or cycling `Ctrl+Tab`
+  leaves it.
+- **Launcher card split button**: while an agent runs, "Open" opens the
+  WebUI **in-app and navigates to the web page** (previously the tab opened
+  in the background and the user had to switch pages manually); a chevron
+  beside it offers "Open in browser" (also in the card's context menu).
+- `tst_workbench` test target covering the `openWeb` navigation contract,
+  the external-surface no-tab path and the new browser-open intent.
+
+### Fixed
+
+- **Switching Web tabs no longer repaints the whole page.** Two freeze
+  bugs: a view that was still loading when its tab was switched away got
+  `Frozen` (Chromium suspends a frozen page's JS, so the load stalled until
+  you came back and then flashed the loading overlay over the rendered
+  page), and error/offline state changes tried to freeze the *active* tab
+  (rejected by Qt with "page is visible", leaving the tab stuck). The
+  lifecycle binding now only freezes inactive, settled tabs — never the
+  active tab, never an in-flight load. `web.freezeInactiveTabs` also
+  defaults to **off** now: resuming a frozen SPA visibly repaints it, and
+  Chromium already throttles hidden views, so the freeze option is opt-in
+  for CPU-constrained setups. The `maxLiveTabs` LRU release no longer
+  depends on that setting and bounds memory either way.
+- **Web tab buttons rendered as white blocks**: the tab delegate's
+  `required property string color` (matching the model's `color` role)
+  shadowed the delegate Rectangle's `color`, so the theme binding landed
+  on the string and the tab body painted default-white with near-invisible
+  text. The delegate root is now an Item with an inner background
+  Rectangle (the AgentCard pattern).
+- **Running-agent rows collapsed in the Web page's list**: `AListRow` had
+  an explicit `height` but no `implicitHeight`, so the layout-driven list
+  squeezed rows to ~0 — the "Open" buttons appeared as clipped slivers,
+  the second row was invisible and the empty note "No agent is running"
+  showed while agents were running. `AListRow` now mirrors its height into
+  `implicitHeight` (benefits every layout-managed use), and the running
+  list no longer forces per-row heights itself.
+
 ## [0.4.0] - 2026-09-27
 
 This release reworks the project from **AgentLauncher** into

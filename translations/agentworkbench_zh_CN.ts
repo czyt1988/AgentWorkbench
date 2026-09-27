@@ -34,98 +34,109 @@
     <name>AgentCard</name>
     <message>
         <location filename="../src/agentcatalog/qml/AgentCard.qml" line="135"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="560"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="635"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
         <location filename="../src/agentcatalog/qml/AgentCard.qml" line="135"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="497"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="507"/>
         <source>Start</source>
         <translation>开启</translation>
     </message>
     <message>
         <location filename="../src/agentcatalog/qml/AgentCard.qml" line="144"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="583"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="586"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="658"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="661"/>
         <source>Force Stop</source>
         <translation>强制停止</translation>
     </message>
     <message>
         <location filename="../src/agentcatalog/qml/AgentCard.qml" line="149"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="298"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="582"/>
+        <source>Open in browser</source>
+        <translation>在浏览器打开</translation>
+    </message>
+    <message>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="154"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="303"/>
         <source>Update</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="149"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="239"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="154"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="244"/>
         <source>Install</source>
         <translation>安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="159"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="164"/>
         <source>Show output</source>
         <translation>显示输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="168"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="515"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="173"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="588"/>
         <source>Configure</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="172"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="177"/>
         <source>Open config folder</source>
         <translation>打开配置文件夹</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="176"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="181"/>
         <source>Re-initialize</source>
         <translation>重新初始化</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="245"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="250"/>
         <source>Please close before installing</source>
         <translation>请先关闭后再安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="304"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="309"/>
         <source>Please close before updating</source>
         <translation>请先关闭后再更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="363"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="368"/>
         <source>Setting up...</source>
         <translation>正在设置…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="364"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="369"/>
         <source>Installing...</source>
         <translation>正在安装…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="365"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="370"/>
         <source>Starting...</source>
         <translation>正在启动…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="366"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="371"/>
         <source>Stopping...</source>
         <translation>正在停止…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="584"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="574"/>
+        <source>More open actions</source>
+        <translation>更多打开方式</translation>
+    </message>
+    <message>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="659"/>
         <source>Force stop %1? This will terminate the process serving %2.</source>
         <translation>强制停止 %1？这将终止服务 %2 的进程。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="587"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="662"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="262"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="267"/>
         <source>Installed</source>
         <translation>已安装</translation>
     </message>
@@ -146,22 +157,22 @@
         <translation type="vanished">正在停止…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="367"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="367"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="465"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="470"/>
         <source>Hide output</source>
         <translation>隐藏输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="497"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="507"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
@@ -1639,125 +1650,125 @@ Command: %2
 <context>
     <name>WebEngineSurface</name>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="95"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="100"/>
         <source>Failed to load %1</source>
         <translation>无法加载 %1</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="110"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="115"/>
         <source>The render process was terminated (code %1)</source>
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="426"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="431"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="430"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="435"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="434"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="439"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="169"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="174"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="92"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="97"/>
         <source>Failed to load %1 (HTTP %2)</source>
         <translation>无法加载 %1（HTTP %2）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="170"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="175"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="274"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="279"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="326"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="385"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="331"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="390"/>
         <source>Sign in</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="334"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="339"/>
         <source>The site &quot;%1&quot; requires authentication.</source>
         <translation>站点“%1”要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="336"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="341"/>
         <source>This site requires authentication.</source>
         <translation>此站点要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="344"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="349"/>
         <source>Username</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="360"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="365"/>
         <source>Password</source>
         <translation>密码</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="398"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="403"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="465"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="470"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="474"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="479"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="496"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="501"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="506"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="511"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="268"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="380"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="530"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="273"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="385"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="535"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="536"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="541"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="541"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="546"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="546"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="551"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="551"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="556"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
@@ -1765,107 +1776,113 @@ Command: %2
 <context>
     <name>WebTabsPage</name>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="214"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="235"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="216"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="237"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="218"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="239"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="242"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="261"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="363"/>
+        <source>Home</source>
+        <translation>主页</translation>
+    </message>
+    <message>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="274"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="242"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="274"/>
         <source>Stop loading</source>
         <translation>停止加载</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="259"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="291"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="270"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="302"/>
         <source>More actions</source>
         <translation>更多操作</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="277"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="309"/>
         <source>Copy URL</source>
         <translation>复制 URL</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="286"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="318"/>
         <source>Zoom in</source>
         <translation>放大</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="290"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="322"/>
         <source>Zoom out</source>
         <translation>缩小</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="294"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="326"/>
         <source>Reset zoom</source>
         <translation>重置缩放</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="300"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="332"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="308"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="340"/>
         <source>Close tab</source>
         <translation>关闭标签</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="329"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="364"/>
         <source>No Web views open</source>
         <translation>还没有打开的 Web 视图</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="331"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="366"/>
         <source>Open a view from a running agent&apos;s card, or from the list below.</source>
         <translation>从运行中 agent 的卡片打开视图，或从下方列表打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="332"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="367"/>
         <source>This build opens agent WebUIs in the system browser. Start an agent below to open it.</source>
         <translation>此构建在系统浏览器中打开 agent 的 WebUI。在下方启动一个 agent 即可打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="386"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="425"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="397"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="439"/>
         <source>No agent is running - start one from the launcher page.</source>
         <translation>没有 agent 在运行——先到启动器页面启动一个。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="333"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="368"/>
         <source>Go to launcher</source>
         <translation>前往启动器</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="431"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="473"/>
         <source>View released to free memory</source>
         <translation>视图已释放以回收内存</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="437"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="479"/>
         <source>Restore view</source>
         <translation>恢复视图</translation>
     </message>
@@ -1873,27 +1890,32 @@ Command: %2
 <context>
     <name>WorkbenchContext</name>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="100"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="102"/>
+        <source>Opening in the browser</source>
+        <translation>正在浏览器中打开</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="132"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="105"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="137"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="122"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="154"/>
         <source>Cannot open link</source>
         <translation>无法打开链接</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="133"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="165"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="191"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="223"/>
         <source>Plugins run inside this application&apos;s process. Their trust level is the same as the application itself — only enable plugins you trust. Changes take effect after a restart.</source>
         <translation>插件运行在本应用的进程内，信任级别等同于应用本身——只启用你信任的插件。修改在重启后生效。</translation>
     </message>
