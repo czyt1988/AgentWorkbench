@@ -59,24 +59,33 @@
 
 | 组件 | 用途 | 什么时候用 |
 |---|---|---|
-| `AButton` | 文字按钮 | 一切文字按钮（variant: primary/secondary/ghost/danger） |
+| `AButton` | 文字按钮 | 一切文字按钮（variant: primary/secondary/ghost/danger；primary 可经 `accentColor` 注入运行期颜色，如 agent 着色） |
 | `AIconButton` | 图标按钮 | 一切图标按钮（tooltip 必填） |
-| `ASearchField` | 搜索框 | 列表过滤输入 |
+| `ATextField` | 单行输入框 | 一切文本输入（含 `invalid` 红边与 2px 焦点环；高度 32 与 AButton 对齐） |
+| `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
+| `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
+| `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |
 | `APill` | 徽标胶囊 | 计数、来源标签 |
-| `AEmptyState` | 空状态 | 「无数据/无匹配」整块占位 |
-| `ADialog` | 模态对话框骨架 | 一切模态弹窗 |
-| `ASectionHeader` | 设置分组标题 | 表单/设置页分节 |
-| `AToolTip` | 主题化 tooltip | …（见 §5 待办：当前无人使用） |
+| `AEmptyState` | 空状态 | 「无数据/无匹配」整块占位（`extra` 插槽可放列表等附加内容） |
+| `ADialog` | 模态弹窗骨架 | 一切模态弹窗（`danger` 变体：红标题 + 红边框） |
+| `AConfirmDialog` | 确认弹窗 | 危险/常规确认（确认+取消双按钮，`detailData` 插槽放上下文警告） |
+| `AAlertDialog` | 提示弹窗 | 错误/通知（消息 + 可滚动 mono 详情 + 关闭按钮） |
+| `ASectionHeader` | 设置分组标题 | 表单/设置页分节（`extra` 尾部动作右对齐） |
+| `AStatusDot` | 状态点 | on/off 指示（尺寸/颜色/tooltip 可配，永不只靠颜色） |
+| `AToastStack` | 通知栈 | 右下角 toast |
 | `AgentAvatar` | 图标 + 状态角标 | agent 的可视化入口 |
 | `PageHeader`（非 A*） | 页面标题栏 | 各页顶部 |
 
 硬规则：
 
-- **不要手写裸 `Button` + 自定义 background**——必须用 `AButton`/`AIconButton`。新变体（颜色/尺寸）不够用时给 A 组件加属性，而不是旁路它。
-- **不要手写弹窗骨架**（`Popup` + overlayBg 背景 + ColumnLayout + 标题/正文/按钮那套）——用 `ADialog`。需要确认弹窗就基于它做 `AConfirmDialog`（见 §5）。
-- **不要重复实现状态点**——用 `AgentAvatar`（带状态）或提炼 `AStatusDot`（见 §5）。
-- 新的通用件放 `components/`、名字以 `A` 开头、只用 theme 令牌；登记进下表。页面私有件（如 `AgentCard` 的控制台面板）留在各模块 qml/ 下，不进货架。
+- **不要手写裸 `Button` + 自定义 background**——必须用 `AButton`/`AIconButton`。primary 需要着色就设 `accentColor`，新变体（尺寸等）不够用时给 A 组件加属性，而不是旁路它。页面私有的微型交互件（如 AgentCard 卡内的 16px 下载/更新/关闭角标）除外。
+- **不要手写弹窗骨架**（`Popup` + overlayBg 背景 + ColumnLayout + 标题/正文/按钮那套）——确认走 `AConfirmDialog`，错误/通知走 `AAlertDialog`，特殊形态（退出确认的三按钮）直接基于 `ADialog`。
+- **不要重复实现状态点**——用 `AStatusDot`。
+- **不要手写主题化 TextField**——用 `ATextField`（焦点/无效态已内建）。
+- **列表行**用 `AListRow`，注入图标/文本列/尾部控件。
+- tooltip 一律用**附加式** `ToolTip.x`，遵守全局惯例：`delay: 300`、`timeout: 10000`，delegate 类宿主加 `Component.onDestruction: ToolTip.hide()`（防宿主销毁后 tooltip 冻结在屏上；dev 分支 2026-09 已全量整改）。
+- 新的通用件放 `components/`、名字以 `A` 开头、只用 theme 令牌、**同时登记** `app/CMakeLists.txt` 的 `_component_qml` 与 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`（有 `qsTr()` 时）。页面私有件（如 `AgentCard` 的控制台面板）留在各模块 qml/ 下，不进货架。
 
 ## 4. 页面模板速查
 
@@ -93,19 +102,27 @@ ColumnLayout {
 
 空状态用 `AEmptyState`，加载中用骨架屏（参考 `SkillGridPage.qml`）。
 
-## 5. 已知重复与待提炼（2026-09 审计结论）
+## 5. 已知重复与待提炼（2026-09 审计结论及处置）
 
-以下是审计发现、**尚未**提炼的共性点，做相关区域时顺手收敛，不要加剧：
+2026-09 审计发现的共性重复，本轮已按下列方式收敛；遗留项做相关区域时顺手处理，不要加剧：
 
-1. **7 处手写模态弹窗** vs 零使用的 `ADialog`：`MainWindow`（退出确认、导入提示）、`SettingsPage`（删除确认、保存失败）、`AgentGridPage`（启动失败）、`AgentCard`（强制停止确认）、`AgentEditDialog`（保存失败）。→ 提炼 `AConfirmDialog`（危险确认）与 `AAlertDialog`（错误提示），全部迁到 `ADialog` 之上。
-2. **裸 Button**：`AgentEditDialog`（Cancel/Save/Back）、`AgentCard`（Open/Start、Configure、强制停止弹窗内两个）、`WebTabsPage`（tab 菜单按钮）手写了与 `AButton`/`AIconButton` 重复的主题样式。→ 直接替换。
-3. **4 处手写状态点**（尺寸 8/10/12 各不相同）：`SettingsPage` 启动器行、`AgentCard` 头部、`WebTabsPage` 标签、`AgentAvatar`。→ 提炼 `AStatusDot { running, color, tooltip }`。
-4. **列表行卡片**重复 4 处（`SettingsPage` 启动器/技能根/插件行、`WebTabsPage` 运行中列表）：圆角矩形 + RowLayout(图标 + 名称/副标题列 + 尾部控件)。→ 提炼 `AListRow`。
-5. **主题化 TextField 缺位**：`SettingsPage` 两处、`AgentEditDialog` 的 `FormTextField` 手写同样的背景。→ 提炼 `ATextField`（含 invalid 状态），并把 `FormLabel`（标签 + 必填星号 + 信息 tooltip）一并进货架。
-6. **`kindLabel()` 重复**：`SettingsPage` 与 `SkillGridPage` 各自维护同一个 switch。→ 下沉到 `SkillsFacade`（C++ `tr()`，字符串只留一份）。
-7. **附加式 `ToolTip.` 51 处全部未主题化**（走 Basic 样式默认外观），而 `AToolTip` 组件零使用。→ 统一附加样式或删掉死组件。
-8. **过滤按钮组**重复：`AgentGridPage` 与 `SkillGridPage` 的「All + 若干 facet」AButton 行。→ 提炼 `AFilterBar`。
-9. **Web 页空状态**未用 `AEmptyState`（手写标题/描述 + 列表）。→ 给 `AEmptyState` 加 `extra` 插槽后迁移。
+| # | 审计发现 | 状态 |
+|---|---|---|
+| 1 | 7 处手写模态弹窗 | **已收敛**：`ADialog` 加 danger 变体，新增 `AConfirmDialog`/`AAlertDialog`，7 处全部迁移 |
+| 2 | 裸 Button 手写主题样式 ×9 | **已收敛**：AgentCard/AgentEditDialog/WebTabsPage 全部换 `AButton`/`AIconButton`（AButton 新增 `accentColor`） |
+| 3 | 4 处手写状态点（尺寸不一） | **已收敛**：统一 `AStatusDot` |
+| 4 | 列表行卡片同构 ×4 | **已收敛**：统一 `AListRow` |
+| 5 | 主题化 TextField 缺位、FormLabel 内联 | **已收敛**：`ATextField`/`AFormLabel` 入货架 |
+| 6 | `kindLabel()` 双份维护 | **已收敛**：下沉 `SkillsFacade::kindLabel()`（含测试） |
+| 7 | 附加式 tooltip 未主题化、`AToolTip` 死代码 | **已决策**：dev 分支删除 `AToolTip`，全仓改用附加式 ToolTip 的统一惯例（delay 300 / timeout 10000 / delegate 销毁时 hide，见 §3） |
+| 8 | 过滤按钮组 ×2 | **不提炼**：两处语义不同（单选 displayFilter vs 多选 facets），强行共享是坏抽象；约定为「ASearchField + ghost/primary 切换 AButton 行」的模式，见各页 |
+| 9 | Web 页空状态手写 | **已收敛**：`AEmptyState` 增加 `extra` 插槽后迁移（列表带高度上限的滚动） |
+
+遗留的已知小项（不紧急）：
+
+- `ACard` 仍零使用（AgentCard/SkillCard 自带状态化边框着色，暂无恰切落点；出现第三个卡片形态时再评估）。
+- hello 示例插件侧栏行图标缺失（注册的 `qrc:/icons/hello.png` 不存在，回退为空）。
+- AgentCard 卡内 16px 微型交互件（下载/更新/输出关闭角标）仍是页面私有 Item+MouseArea——有意保留，见 §3 硬规则的例外条款。
 
 ## 6. UI 改动提交前检查清单
 

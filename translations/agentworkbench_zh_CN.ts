@@ -1029,48 +1029,48 @@ Command: %2
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="41"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="27"/>
         <source>Delete Launcher</source>
         <translation>删除启动器</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="42"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="28"/>
         <source>Remove &quot;%1&quot; from the launcher list?</source>
         <translation>从启动器列表中移除&quot;%1&quot;？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="55"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="41"/>
         <source>The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.</source>
         <translation>该 Agent 正在运行。删除不会终止进程；如需停止请使用其自身的停止命令。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="63"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="49"/>
         <source>This is a built-in launcher. You can bring it back later with &quot;Restore default launchers&quot;.</source>
         <translation>这是内置启动器。之后可通过&quot;恢复默认启动器&quot;找回。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="44"/>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="199"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="30"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="185"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="45"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="31"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="78"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="64"/>
         <source>Save failed</source>
         <translation>保存失败</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="79"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="65"/>
         <source>Could not write the configuration file:</source>
         <translation>无法写入配置文件：</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="81"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="67"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1079,152 +1079,146 @@ Command: %2
         <translation type="vanished">← 返回</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="23"/>
         <source>Agents</source>
-        <translation>Agents</translation>
+        <translation type="vanished">Agents</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="24"/>
         <source>Claude</source>
-        <translation>Claude</translation>
+        <translation type="vanished">Claude</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="25"/>
         <source>Codex</source>
-        <translation>Codex</translation>
+        <translation type="vanished">Codex</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="26"/>
         <source>Plugin</source>
-        <translation>插件</translation>
+        <translation type="vanished">插件</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="27"/>
         <source>Project</source>
-        <translation>项目</translation>
+        <translation type="vanished">项目</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="28"/>
         <source>Custom</source>
-        <translation>自定义</translation>
+        <translation type="vanished">自定义</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="95"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="81"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="96"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="82"/>
         <source>Appearance, launchers and application options</source>
         <translation>外观、启动器与应用选项</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="101"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="87"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="114"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="100"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="131"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="117"/>
         <source>Launchers</source>
         <translation>启动器</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="136"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="122"/>
         <source>Add Launcher</source>
         <translation>添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="189"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="175"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="190"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="176"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="194"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="180"/>
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="215"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="201"/>
         <source>Environment</source>
         <translation>环境</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="229"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="215"/>
         <source>Python %1</source>
         <translation>Python %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="230"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="216"/>
         <source>Python not found</source>
         <translation>未找到 Python</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="238"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="224"/>
         <source>Node.js %1</source>
         <translation>Node.js %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="239"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="225"/>
         <source>Node.js not found</source>
         <translation>未找到 Node.js</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="245"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="231"/>
         <source>Re-detect</source>
         <translation>重新检测</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="252"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="238"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="257"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="243"/>
         <source>Rescan</source>
         <translation>重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="309"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="295"/>
         <source>Remove this root</source>
         <translation>移除该根目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="323"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="309"/>
         <source>Add a skill root directory...</source>
         <translation>添加 Skill 根目录…</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="332"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="318"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="351"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="337"/>
         <source>Plugin caches keep several versions of the same plugin; only the highest is listed.</source>
         <translation>同一插件的缓存可能保留多个版本，只列出最高的一个。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="420"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="406"/>
         <source>Plugins</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="444"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="430"/>
         <source>Enable plugins (experimental)</source>
         <translation>启用插件（实验性）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="459"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="445"/>
         <source>No plugins found. Drop one into the plugins folder (Settings -&gt; data directory).</source>
         <translation>未发现插件。将其放入插件目录（设置 → 数据目录）即可。</translation>
     </message>
@@ -1233,33 +1227,33 @@ Command: %2
         <translation type="vanished">Skill 根目录与扫描选项将随 Skills 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="360"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="346"/>
         <source>Web</source>
         <translation>Web</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="373"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="359"/>
         <source>Surface</source>
         <translation>表面</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="383"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="369"/>
         <source>Embedded (in-app)</source>
         <translation>内嵌（应用内）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="384"/>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="385"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="370"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="371"/>
         <source>External (system browser)</source>
         <translation>外部（系统浏览器）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="402"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="388"/>
         <source>Chromium flags, e.g. --disable-gpu (applies after restart)</source>
         <translation>Chromium 启动参数，例如 --disable-gpu（重启后生效）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="412"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="398"/>
         <source>If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app &apos;Open in browser&apos; action always works as a fallback.</source>
         <translation>如果内嵌视图无法启动（GPU 驱动问题），在此添加 --disable-gpu。应用内的“在浏览器打开”始终可用作兜底。</translation>
     </message>
@@ -1268,17 +1262,17 @@ Command: %2
         <translation type="vanished">内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="509"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="495"/>
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="529"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="515"/>
         <source>Open data folder</source>
         <translation>打开数据目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="545"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="531"/>
         <source>Restore default launchers</source>
         <translation>恢复默认启动器</translation>
     </message>
@@ -1385,102 +1379,96 @@ Command: %2
 <context>
     <name>SkillGridPage</name>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="19"/>
         <source>Agents</source>
-        <translation>Agents</translation>
+        <translation type="vanished">Agents</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="20"/>
         <source>Claude</source>
-        <translation>Claude</translation>
+        <translation type="vanished">Claude</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="21"/>
         <source>Codex</source>
-        <translation>Codex</translation>
+        <translation type="vanished">Codex</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="22"/>
         <source>Plugin</source>
-        <translation>插件</translation>
+        <translation type="vanished">插件</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="23"/>
         <source>Project</source>
-        <translation>项目</translation>
+        <translation type="vanished">项目</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="24"/>
         <source>Custom</source>
-        <translation>自定义</translation>
+        <translation type="vanished">自定义</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="48"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="34"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="49"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="35"/>
         <source>Local SKILL.md files discovered in the configured roots</source>
         <translation>在已配置的根目录中发现的本地 SKILL.md 文件</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="52"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="38"/>
         <source>Rescan</source>
         <translation>重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="68"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="54"/>
         <source>Search name or description...</source>
         <translation>搜索名称或描述…</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="77"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="63"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="99"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="85"/>
         <source>Sort: name</source>
         <translation>排序：名称</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="100"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="86"/>
         <source>Sort: modified</source>
         <translation>排序：修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="101"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="87"/>
         <source>Sort: source</source>
         <translation>排序：来源</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="143"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="129"/>
         <source>No skills found</source>
         <translation>没有找到 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="144"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="130"/>
         <source>No SKILL.md files were found in the scanned roots. Add a directory in Settings.</source>
         <translation>已扫描的根目录中没有 SKILL.md 文件。可在设置中添加目录。</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="145"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="131"/>
         <source>Open settings</source>
         <translation>打开设置</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="156"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="142"/>
         <source>No matching skills</source>
         <translation>没有匹配的 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="157"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="143"/>
         <source>No skill matches the current search or facet filters.</source>
         <translation>没有 Skill 匹配当前的搜索或分面过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillGridPage.qml" line="158"/>
+        <location filename="../src/skills/qml/SkillGridPage.qml" line="144"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
@@ -1535,6 +1523,36 @@ Command: %2
         <location filename="../src/skills/SkillsFacade.cpp" line="221"/>
         <source>Could not open the file manager.</source>
         <translation>无法打开文件管理器。</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="233"/>
+        <source>Agents</source>
+        <translation>Agents</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="235"/>
+        <source>Claude</source>
+        <translation>Claude</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="237"/>
+        <source>Codex</source>
+        <translation>Codex</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="239"/>
+        <source>Plugin</source>
+        <translation>插件</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="241"/>
+        <source>Project</source>
+        <translation>项目</translation>
+    </message>
+    <message>
+        <location filename="../src/skills/SkillsFacade.cpp" line="243"/>
+        <source>Custom</source>
+        <translation>自定义</translation>
     </message>
 </context>
 <context>
@@ -1774,7 +1792,7 @@ Command: %2
     <message>
         <location filename="../src/web/qml/WebTabsPage.qml" line="270"/>
         <source>More actions</source>
-        <translation type="unfinished"></translation>
+        <translation>更多操作</translation>
     </message>
     <message>
         <location filename="../src/web/qml/WebTabsPage.qml" line="277"/>
@@ -1807,42 +1825,42 @@ Command: %2
         <translation>关闭标签</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="340"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="329"/>
         <source>No Web views open</source>
         <translation>还没有打开的 Web 视图</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="349"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="331"/>
         <source>Open a view from a running agent&apos;s card, or from the list below.</source>
         <translation>从运行中 agent 的卡片打开视图，或从下方列表打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="350"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="332"/>
         <source>This build opens agent WebUIs in the system browser. Start an agent below to open it.</source>
         <translation>此构建在系统浏览器中打开 agent 的 WebUI。在下方启动一个 agent 即可打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="391"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="386"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="400"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="397"/>
         <source>No agent is running - start one from the launcher page.</source>
         <translation>没有 agent 在运行——先到启动器页面启动一个。</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="406"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="333"/>
         <source>Go to launcher</source>
         <translation>前往启动器</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="439"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="431"/>
         <source>View released to free memory</source>
         <translation>视图已释放以回收内存</translation>
     </message>
     <message>
-        <location filename="../src/web/qml/WebTabsPage.qml" line="445"/>
+        <location filename="../src/web/qml/WebTabsPage.qml" line="437"/>
         <source>Restore view</source>
         <translation>恢复视图</translation>
     </message>
