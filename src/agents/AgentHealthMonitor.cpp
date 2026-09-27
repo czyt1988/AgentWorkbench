@@ -21,10 +21,16 @@ AgentHealthMonitor::AgentHealthMonitor(AgentModel *model, int intervalMs,
                 m_inflight.remove(url);
                 // One probe result applies to every agent pointing at the
                 // URL (0.3.0 issued one request per agent; same outcome).
+                // Edge-triggered per agent: the first verdict for an id and
+                // every actual flip emit; a steady state stays silent.
                 const QList<AgentDefinition> &definitions =
                     m_model->definitions();
                 for (const AgentDefinition &d : definitions) {
-                    if (d.webUrl == url)
+                    if (d.webUrl != url)
+                        continue;
+                    const bool was = m_lastRunning.value(d.id, !up);
+                    m_lastRunning.insert(d.id, up);
+                    if (up != was)
                         emit runningChanged(d.id, up);
                 }
             });

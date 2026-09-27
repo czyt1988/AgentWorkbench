@@ -95,6 +95,10 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
     // cross-domain rules (tab offline/online).
     connect(m_health, &AgentHealthMonitor::runningChanged, this,
             &AgentsFacade::runningChanged);
+    // The session URL a token-gated agent printed to its launch output
+    // leaves the domain the same way (BuiltinPages retargets an open tab).
+    connect(m_runtime, &AgentRuntime::sessionUrlChanged, this,
+            &AgentsFacade::sessionUrlChanged);
 
     // Health transitions: clear the launching spinner once the server is up,
     // report only real transitions in the log, and update the model.
@@ -356,6 +360,11 @@ bool AgentsFacade::restoreDefaults()
 bool AgentsFacade::isDefaultAgent(const QString &id) const
 {
     return m_repo->isDefaultAgent(id);
+}
+
+QString AgentsFacade::sessionUrl(const QString &id) const
+{
+    return m_runtime->sessionUrl(id);
 }
 
 QString AgentsFacade::configFilePath() const

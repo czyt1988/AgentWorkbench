@@ -96,18 +96,20 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 ### 门面与状态
 
 - QML 只与门面对象和模型交互——agent 操作走 `agents.*`（`AgentsFacade` 保留 0.3.0 的 Q_INVOKABLE/信号名），跨域动作走 `workbench.*`，通知走 `workbench.notify`/`toasts`；QML 不直接读写文件、不直接调 `Qt.openUrlExternally`。
-- 运行状态通过向 `webUrl` 发 HTTP 健康检查来检测（任何 HTTP 响应 = 运行中；连接被拒绝/超时 = 已停止）。不要新增进程嗅探逻辑。
+- 运行状态通过向 `webUrl` 发 HTTP 健康检查来检测（任何 HTTP 响应 = 运行中；连接被拒绝/超时 = 已停止）。不要新增进程嗅探逻辑。`AgentHealthMonitor::runningChanged` 是**边沿触发**（状态不变不发）：它经 `BuiltinPages` 驱动 `WebTabsFacade::markOnlineForAgent`，每轮重发会把 error 标签无限拉回 loading 重载。
 - Python / Node.js 版本由 `workbench::EnvironmentService` 检测，状态栏徽标绑定 `environment.*`；缺失时显示红色 ×。
 - 面向 QML 的 API 按异步设计（`refresh()` 立即返回 + `xxxFinished` 信号），这样以后挪到工作线程不用改 QML。
 
 ### 启动与一次性命令
 
 - 启动用 `core::ProcessRunner::startDetached`（先 `findExecutable` 解析 PATHEXT，`.cmd`/`.bat` 垫片经 `cmd /c` 包装），agent 在启动器关闭后仍继续运行；一次性命令（install/update/version/setup）统一走 `core::ScriptRunner`，输出实时上卡片。
+- `launch()` 同时把 agent 的 stdout+stderr 重定向到 `<logsDir>/output/<agentId>.log` 并轮询 60 s：token 门禁的 harness（dsh）把**每进程随机**的带 token URL 打到 stdout 而非写 token 文件，`AgentUrls::sessionUrlFromOutput` 提取指向 `webUrl` 同一服务器的第一条 URL 作为 session URL。它经 `AgentsFacade::sessionUrlChanged` 交给 `BuiltinPages` → `WebTabsFacade::retargetTabForAgent` 换掉已开标签的 URL 重载；`WorkbenchContext::openWeb` 优先用它。停止 agent 时丢弃（token 已随进程死亡）。**带 token 的 URL 一律不进日志**（`redactedUrl` 同时抹 `?token=` 与 `#token=`）。
 - `setupCommand` 成功（退出码 0）后写 `agent_state.json`（`AgentStateStore`），之后不再重复运行，除非卡片右键「重新初始化」。
 
 ### Web 与 Skills
 
-- **每个 agent 一个持久 profile（`web::WebProfilePaths`，`<dataRoot>/webprofiles/<agentId>`）是硬要求**：Chromium 按 host 索引 cookie 且忽略端口，共享 profile 会让不同端口的本地服务互相串号（实测证据见 `docs/research/webengine-embedding.md`）。
+- **每个 agent 一个持久 profile（`web::WebProfilePaths`，`<dataRoot>/webprofiles/<agentId>`）是硬要求**：Chromium 按 host 索引 cookie 且忽略端口，共享 profile 会让不同端口的本地服务互相串号（实测证据见 `docs/research/webengine-embedding.md`）。profile 必须是 **`QQuickWebEngineProfile`**（`WebEngineView.profile` 的类型，也是 QML 可解析返回类型的唯一注册类），且构造后要显式 `setOffTheRecord(false)`——Qt 6.7 的公开构造函数用空名字建 adapter、适配器构造时即据此定为隐身，`setStorageName` 不会翻转它，漏了这条 profile 会静默全内存、cookie 重启即失。
+- WebEngineView 的 `LifecycleState` 是 **scoped 枚举**：QML 里写 `WebEngineView.LifecycleState.Active`，裸 `WebEngineView.Active` 是 undefined，赋值会静默失效。
 - Skill 扫描根来自 `settings.json` 的 `skills.roots`，空数组 = 内置默认（`~/.agents/skills`、`~/.claude/skills`、`~/.codex/skills`、ZCode 插件缓存的通配路径、项目目录）。根路径**原样存取**（`~`、`%PWD%`、通配符在扫描时展开，展开后的形式不许回写），插件缓存按版本去重。
 
 ### 测试

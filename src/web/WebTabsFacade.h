@@ -98,6 +98,10 @@ public:
     void markOfflineForAgent(const QString &agentId);
     void markOnlineForAgent(const QString &agentId);
     void closeTabsForAgent(const QString &agentId);
+    // Point an agent's existing tab at a new URL (the session URL captured
+    // from the agent's launch output): the url binding re-navigates the
+    // view and the loading state clears any error/offline overlay.
+    void retargetTabForAgent(const QString &agentId, const QUrl &url);
 
     // Register a surface component (awb_web_webengine calls this for
     // "embedded" at startup).

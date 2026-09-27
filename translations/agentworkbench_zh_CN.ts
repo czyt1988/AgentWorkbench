@@ -849,38 +849,38 @@ Command: %2
 <context>
     <name>AgentRuntime</name>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="75"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="93"/>
         <source>Startup command is empty.</source>
         <translation>启动命令为空。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="88"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="106"/>
         <source>Cannot find &apos;%1&apos; on your PATH. Make sure it is installed and on PATH.</source>
         <translation>在 PATH 中找不到 &apos;%1&apos;，请确认已安装且在 PATH 中。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="147"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="172"/>
         <source>Failed to start &apos;%1&apos;.</source>
         <translation>启动 &apos;%1&apos; 失败。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="175"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="209"/>
         <source>This agent wasn&apos;t started from the launcher; stop it with its own command.</source>
         <translation>此代理不是从启动器启动的，请用其自身命令关闭。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="196"/>
-        <location filename="../src/agents/AgentRuntime.cpp" line="261"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="233"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="299"/>
         <source>Failed to stop process (PID %1).</source>
         <translation>停止进程失败（PID %1）。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="218"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="255"/>
         <source>Cannot determine port from web URL.</source>
         <translation>无法从 Web 地址解析出端口。</translation>
     </message>
     <message>
-        <location filename="../src/agents/AgentRuntime.cpp" line="229"/>
+        <location filename="../src/agents/AgentRuntime.cpp" line="266"/>
         <source>No process found listening on port %1; the agent may already be stopped.</source>
         <translation>未找到监听端口 %1 的进程；该代理可能已停止。</translation>
     </message>
@@ -975,7 +975,7 @@ Command: %2
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="123"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="131"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
@@ -1639,120 +1639,125 @@ Command: %2
 <context>
     <name>WebEngineSurface</name>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="83"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="95"/>
         <source>Failed to load %1</source>
         <translation>无法加载 %1</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="98"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="110"/>
         <source>The render process was terminated (code %1)</source>
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="414"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="426"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="418"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="430"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="422"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="434"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="157"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="169"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="158"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="92"/>
+        <source>Failed to load %1 (HTTP %2)</source>
+        <translation>无法加载 %1（HTTP %2）</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="170"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="262"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="274"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="314"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="373"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="326"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="385"/>
         <source>Sign in</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="322"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="334"/>
         <source>The site &quot;%1&quot; requires authentication.</source>
         <translation>站点“%1”要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="324"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="336"/>
         <source>This site requires authentication.</source>
         <translation>此站点要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="332"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="344"/>
         <source>Username</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="348"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="360"/>
         <source>Password</source>
         <translation>密码</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="386"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="398"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="453"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="465"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="462"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="474"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="484"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="496"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="494"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="506"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="256"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="368"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="518"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="268"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="380"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="530"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="524"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="536"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="529"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="541"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="534"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="546"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="539"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="551"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
@@ -1868,27 +1873,27 @@ Command: %2
 <context>
     <name>WorkbenchContext</name>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="94"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="100"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="99"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="105"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="116"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="122"/>
         <source>Cannot open link</source>
         <translation>无法打开链接</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="127"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="133"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="185"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="191"/>
         <source>Plugins run inside this application&apos;s process. Their trust level is the same as the application itself — only enable plugins you trust. Changes take effect after a restart.</source>
         <translation>插件运行在本应用的进程内，信任级别等同于应用本身——只启用你信任的插件。修改在重启后生效。</translation>
     </message>

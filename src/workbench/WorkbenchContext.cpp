@@ -53,10 +53,16 @@ void WorkbenchContext::openWeb(const QString &agentId)
 
     QVariantMap fields;
     fields[QStringLiteral("agentId")] = def.id;
-    // The final URL, not the bare webUrl: a configured tokenFile becomes a
-    // #token=<value> fragment that the web UI needs for mutation routes
+    // Prefer the session URL captured from the agent's launch output: a
+    // token-gated harness (dsh) answers the bare webUrl with 401, and only
+    // its printed per-process URL authenticates. Otherwise the final URL,
+    // not the bare webUrl: a configured tokenFile becomes a #token=<value>
+    // fragment that the web UI needs for mutation routes
     // ("取 AgentUrls 的最终 URL").
-    fields[QStringLiteral("url")] = agents::AgentUrls::finalUrl(def);
+    const QString sessionUrl = m_agents->sessionUrl(def.id);
+    fields[QStringLiteral("url")] = sessionUrl.isEmpty()
+            ? agents::AgentUrls::finalUrl(def)
+            : sessionUrl;
     fields[QStringLiteral("title")] = def.name;
     fields[QStringLiteral("icon")] = def.icon;
     fields[QStringLiteral("color")] = def.color;

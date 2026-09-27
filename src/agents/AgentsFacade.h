@@ -76,6 +76,11 @@ public:
     // True when the id belongs to the bundled default_agents.json.
     Q_INVOKABLE bool isDefaultAgent(const QString &id) const;
 
+    // The authenticated session URL captured from this agent's launch output
+    // (token-gated harnesses such as dsh print one per process). Empty when
+    // none was captured — openWeb then falls back to the configured webUrl.
+    Q_INVOKABLE QString sessionUrl(const QString &id) const;
+
     // Path of the on-disk agents.json (shown in error messages).
     Q_INVOKABLE QString configFilePath() const;
 
@@ -96,6 +101,9 @@ signals:
     // An agent was deleted from the configuration (BuiltinPages closes its
     // tabs).
     void agentRemoved(const QString &id);
+    // The launch captured the agent's authenticated session URL (dsh-style
+    // per-process token). BuiltinPages retargets an open tab at it.
+    void sessionUrlChanged(const QString &id, const QString &url);
 
 private:
     bool saveConfig();

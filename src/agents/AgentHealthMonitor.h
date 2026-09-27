@@ -1,6 +1,7 @@
 #ifndef AWB_AGENTS_AGENTHEALTHMONITOR_H
 #define AWB_AGENTS_AGENTHEALTHMONITOR_H
 
+#include <QHash>
 #include <QObject>
 #include <QSet>
 #include <QString>
@@ -46,6 +47,11 @@ private:
     // late reply can never overwrite a fresher state — and N agents that
     // share a URL cost one request per round, not N.
     QSet<QString> m_inflight;
+    // id -> last reported state, so runningChanged stays edge-triggered: a
+    // steady "running" must not re-emit every round — BuiltinPages would
+    // flip every error tab back to loading and reload it forever (observed
+    // as an endless 3s load-retry loop on token-gated pages).
+    QHash<QString, bool> m_lastRunning;
 };
 
 } // namespace awb::agents

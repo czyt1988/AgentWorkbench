@@ -117,6 +117,14 @@ void BuiltinPages::wireWebRules()
     connect(m_agents, &agents::AgentsFacade::agentRemoved, this,
             [this](const QString &id) { m_web->closeTabsForAgent(id); });
 
+    // A session URL captured from the agent's launch output (a fresh
+    // per-process token for dsh) retargets an already-open tab instead of
+    // leaving it on the bare webUrl the token gate rejects with 401.
+    connect(m_agents, &agents::AgentsFacade::sessionUrlChanged, this,
+            [this](const QString &id, const QString &url) {
+                m_web->retargetTabForAgent(id, url);
+            });
+
     connect(m_web, &web::WebTabsFacade::externalOpened, this,
             [this](const QString &url) {
                 m_notifications->notify(

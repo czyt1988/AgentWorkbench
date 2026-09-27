@@ -2,6 +2,7 @@
 
 #include "core/ProcessRunner.h"
 
+#include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -81,6 +82,37 @@ private slots:
         QVERIFY(!ProcessRunner::startDetached(
             QStringLiteral("no-such-program-awb-xyz"), {}, nullptr, &error));
         QVERIFY(!error.isEmpty());
+    }
+
+    // With an outputFile the detached child's stdout (and merged stderr)
+    // lands in that file — the capture the agents domain reads back for
+    // session URLs.
+    void testStartDetachedRedirectsOutput()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString outFile = tmp.path() + QStringLiteral("/out.log");
+        qint64 pid = 0;
+        QString error;
+        const bool ok = ProcessRunner::startDetached(
+            ProcessRunner::findExecutable(QStringLiteral("cmd")),
+            {QStringLiteral("/c"), QStringLiteral("echo hello-redirect")},
+            &pid, &error, QString(), QProcessEnvironment(), outFile);
+        QVERIFY2(ok, qPrintable(error));
+
+        // The detached child writes asynchronously — poll briefly.
+        QString text;
+        for (int i = 0; i < 100 && !text.contains(QStringLiteral("hello-redirect"));
+             ++i) {
+            QFile f(outFile);
+            if (f.open(QIODevice::ReadOnly))
+                text = ProcessRunner::decodeOutput(f.readAll());
+            if (!text.contains(QStringLiteral("hello-redirect")))
+                QTest::qWait(50);
+        }
+        QVERIFY(text.contains(QStringLiteral("hello-redirect")));
+        // Let the child fully exit before QTemporaryDir cleans up.
+        QTest::qWait(300);
     }
 
     void testDecodeOutput()
