@@ -18,6 +18,9 @@ class WebTabsFacade;
 namespace awb::skillcatalog {
 class SkillsFacade;
 } // namespace awb::skillcatalog
+namespace awb::tools {
+class ToolsFacade;
+} // namespace awb::tools
 
 namespace awb::workbench {
 
@@ -33,7 +36,8 @@ public:
     BuiltinPages(shell::NavigationModel *nav, shell::ShellController *shell,
                  agentcatalog::AgentsFacade *agents, web::WebTabsFacade *web,
                  shell::Notifications *notifications,
-                 skillcatalog::SkillsFacade *skills, QObject *parent = nullptr);
+                 skillcatalog::SkillsFacade *skills,
+                 tools::ToolsFacade *tools, QObject *parent = nullptr);
 
 private:
     void registerPages();
@@ -48,6 +52,7 @@ private:
     web::WebTabsFacade *m_web;
     shell::Notifications *m_notifications;
     skillcatalog::SkillsFacade *m_skills;
+    tools::ToolsFacade *m_tools;
 };
 
 } // namespace awb::workbench

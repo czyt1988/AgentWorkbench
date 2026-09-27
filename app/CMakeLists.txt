@@ -12,9 +12,10 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
-                   AgentAvatar)
+                   ATextArea AgentAvatar)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
+set(_tools_qml ToolsPage)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
 
@@ -55,6 +56,12 @@ foreach(name IN LISTS _agentcatalog_qml)
     set_source_files_properties(${_f} PROPERTIES
         QT_RESOURCE_ALIAS "agentcatalog/${name}.qml")
 endforeach()
+foreach(name IN LISTS _tools_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/tools/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "tools/${name}.qml")
+endforeach()
 
 qt_add_executable(AgentWorkbench
     main.cpp
@@ -70,6 +77,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     awb_shell
     awb_skillcatalog
     awb_theme
+    awb_tools
     awb_web
     awb_workbench
     Qt6::Core
@@ -77,6 +85,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::QuickDialogs2
     Qt6::Network
 )
 
@@ -120,6 +129,8 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/search.svg
     ${CMAKE_SOURCE_DIR}/icons/skills.svg
     ${CMAKE_SOURCE_DIR}/icons/terminal.svg
+    ${CMAKE_SOURCE_DIR}/icons/file.svg
+    ${CMAKE_SOURCE_DIR}/icons/tools.svg
     ${CMAKE_SOURCE_DIR}/icons/web.svg
 )
 foreach(icon IN LISTS AWB_ICON_FILES)

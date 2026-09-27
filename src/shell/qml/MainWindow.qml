@@ -21,6 +21,7 @@ ApplicationWindow {
     readonly property var agents: Agents
     readonly property var web: Web
     readonly property var skills: Skills
+    readonly property var tools: Tools
     readonly property var workbench: Workbench
     readonly property var environment: Environment
 

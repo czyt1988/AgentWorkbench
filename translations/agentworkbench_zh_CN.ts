@@ -955,27 +955,32 @@ Command: %2
 <context>
     <name>BuiltinPages</name>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="39"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="42"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="49"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="52"/>
         <source>Agent Web UI</source>
         <translation>Agent Web UI</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="59"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="62"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="69"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="74"/>
+        <source>Agent Tools</source>
+        <translation>Agent 工具</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="84"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="131"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="146"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
@@ -991,37 +996,37 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="111"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="112"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="119"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="120"/>
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="131"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="132"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="141"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="142"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="150"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="151"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="162"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="163"/>
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="164"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="165"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1612,6 +1617,84 @@ Command: %2
     </message>
 </context>
 <context>
+    <name>ToolsPage</name>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="34"/>
+        <source>Nothing to copy</source>
+        <translation>没有可复制的内容</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="35"/>
+        <source>The editor is empty.</source>
+        <translation>编辑区是空的。</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="39"/>
+        <source>Copied</source>
+        <translation>已复制</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="40"/>
+        <source>The prompt is on the clipboard.</source>
+        <translation>提示词已复制到剪贴板。</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="49"/>
+        <source>Could not add the workspace</source>
+        <translation>无法添加工作区</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="55"/>
+        <source>Choose a workspace folder</source>
+        <translation>选择工作区文件夹</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="64"/>
+        <source>Agent Tools</source>
+        <translation>Agent 工具</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="65"/>
+        <source>Compose prompts without accidentally sending them</source>
+        <translation>安心编写提示词，不会误触发送</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="68"/>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="82"/>
+        <source>Workspace</source>
+        <translation>工作区</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="133"/>
+        <source>Remove this workspace</source>
+        <translation>移除此工作区</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="139"/>
+        <source>Could not remove the workspace</source>
+        <translation>无法移除工作区</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="148"/>
+        <source>Add Folder...</source>
+        <translation>添加文件夹…</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="154"/>
+        <source>Refresh the file tree</source>
+        <translation>刷新文件树</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="174"/>
+        <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
+        <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
+    </message>
+</context>
+<context>
     <name>UiServices</name>
     <message>
         <location filename="../src/shell/UiServices.cpp" line="21"/>
@@ -2140,7 +2223,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="220"/>
+        <location filename="../app/main.cpp" line="223"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

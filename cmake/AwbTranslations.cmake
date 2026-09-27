@@ -56,4 +56,5 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillDetailFlyout.qml
     # tools
     ${CMAKE_SOURCE_DIR}/src/tools/ToolsFacade.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
 )

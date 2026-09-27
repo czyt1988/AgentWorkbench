@@ -20,6 +20,7 @@ target_link_libraries(awb_workbench
         awb_shell
         awb_skillcatalog
         awb_theme
+        awb_tools
         awb_web
         Qt6::Core
         Qt6::Gui

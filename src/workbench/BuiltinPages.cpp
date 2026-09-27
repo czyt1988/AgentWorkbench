@@ -6,6 +6,7 @@
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
 #include "skillcatalog/SkillsFacade.h"
+#include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 
 namespace awb::workbench {
@@ -15,7 +16,8 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
                            agentcatalog::AgentsFacade *agents,
                            web::WebTabsFacade *web,
                            shell::Notifications *notifications,
-                           skillcatalog::SkillsFacade *skills, QObject *parent)
+                           skillcatalog::SkillsFacade *skills,
+                           tools::ToolsFacade *tools, QObject *parent)
     : QObject(parent)
     , m_nav(nav)
     , m_shell(shell)
@@ -23,6 +25,7 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
     , m_web(web)
     , m_notifications(notifications)
     , m_skills(skills)
+    , m_tools(tools)
 {
     registerPages();
     wireBadges();
@@ -63,6 +66,18 @@ void BuiltinPages::registerPages()
     skillsPage.section = QStringLiteral("main");
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
+
+    // Agent Tools joins after Skills: the prompt workbench is part of the
+    // daily workflow, not a system page.
+    shell::PageDescriptor toolsPage;
+    toolsPage.id = QStringLiteral("tools");
+    toolsPage.title = tr("Agent Tools");
+    toolsPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
+    toolsPage.source = QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml");
+    toolsPage.section = QStringLiteral("main");
+    toolsPage.order = 40;
+    m_nav->registerPage(toolsPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");

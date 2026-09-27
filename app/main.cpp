@@ -12,6 +12,7 @@
 #include "shell/UiServices.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
 #include "workbench/PluginServices.h"
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
 
     awb::web::WebTabsFacade webTabs(&settings);
     awb::skillcatalog::SkillsFacade skills(&settings);
+    awb::tools::ToolsFacade tools(awb::core::Paths::dataRoot());
 
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
@@ -162,7 +164,7 @@ int main(int argc, char *argv[])
     }
 
     awb::workbench::BuiltinPages builtinPages(&nav, &shell, &agents, &webTabs,
-                                              &notifications, &skills);
+                                              &notifications, &skills, &tools);
 
 
 #ifdef AWB_ENABLE_WEBENGINE
@@ -187,6 +189,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Agents", &agents);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Web", &webTabs);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Skills", &skills);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools", &tools);
     // First visit scans once the page opens (async-shaped refresh()).
     QObject::connect(&nav, &awb::shell::NavigationModel::pagesChanged,
                      &skills, [&skills, &nav]() {
