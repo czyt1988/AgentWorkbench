@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-AgentWorkbench（0.4.0 起由 AgentLauncher 改名而来）是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：左侧边栏 + 右侧工作区的外壳，内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题与实验性插件。它**配置化驱动**：agent 的定义（命令、Web 地址、配置目录、颜色）都在 `agents.json` 里，应用设置在 `settings.json` 里，而不是写在 C++ 中。
+AgentWorkbench 是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：左侧边栏 + 右侧工作区的外壳，内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题与实验性插件。它**配置化驱动**：agent 的定义（命令、Web 地址、配置目录、颜色）都在 `agents.json` 里，应用设置在 `settings.json` 里，而不是写在 C++ 中。
 
 ## 构建
 
@@ -130,10 +130,11 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 ## 提交
 
-每完成一个完整任务就提交一次，不要只改不提交；提交前先跑 `bash scripts/build.sh --test`，确认能编译且测试通过。提交信息按 Conventional Commits 格式写：类型与 scope 用标准英文关键字（`feat`、`fix`、`docs`、`refactor`、`test`、`build`、`chore`；scope 用模块名，如 `core`、`agents`、`shell`、`web`、`skills`、`theme`、`build`），描述与正文用中文，正文只说清楚「为什么这么改」。
-
-只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求。
-
+- 每完成一个完整任务就提交一次，不要只改不提交；
+- 提交信息使用 **Conventional Commits**（`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`）。
+- 版本遵循 **SemVer**，每次发版更新 `CHANGELOG.md`。
+- 只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求。
+- 分支：`main` 受保护，功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，完成后合并到`dev`分支并删除feat/fix分支。
 在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率。
 
 ## 不要做
