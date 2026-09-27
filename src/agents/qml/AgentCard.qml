@@ -572,66 +572,23 @@ Item {
 
     // Force-stop confirmation. Kills the process listening on this agent's
     // web port even when the launcher didn't start it (no tracked PID), so
-    // agents started elsewhere can still be terminated. Red border marks it as
-    // a destructive action. Centered over the window (not the 260px card).
-    Popup {
+    // agents started elsewhere can still be terminated. Danger styling
+    // marks it as a destructive action. Centered over the window (not the
+    // 260px card).
+    AConfirmDialog {
         id: forceStopConfirm
         parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        focus: true
+        danger: true
         width: 440
-        padding: 20
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        titleText: qsTr("Force Stop")
+        message: qsTr("Force stop %1? This will terminate the process serving %2.")
+            .arg(root.name_p).arg(root.webUrl_p)
+        confirmText: qsTr("Force Stop")
+        cancelText: qsTr("Cancel")
 
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.danger
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
-
-        ColumnLayout {
-            width: forceStopConfirm.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Force Stop")
-                color: theme.danger
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Force stop %1? This will terminate the process serving %2.")
-                    .arg(root.name_p).arg(root.webUrl_p)
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                Button {
-                    Layout.fillWidth: true
-                    text: qsTr("Force Stop")
-                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.pressed(theme.danger) : (parent.hovered ? theme.hover(theme.danger) : theme.danger) }
-                    contentItem: Label { text: parent.text; color: theme.windowBg; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    onClicked: {
-                        forceStopConfirm.close()
-                        root.stopping = true
-                        agents.forceStop(root.agentId_p)
-                    }
-                }
-                Button {
-                    Layout.fillWidth: true
-                    text: qsTr("Cancel")
-                    background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceBg) }
-                    contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    onClicked: forceStopConfirm.close()
-                }
-            }
+        onConfirmed: {
+            root.stopping = true
+            agents.forceStop(root.agentId_p)
         }
     }
 

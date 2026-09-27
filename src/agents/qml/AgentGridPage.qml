@@ -184,56 +184,13 @@ Item {
 
     // Central error display for launch/stop failures. The matching card
     // also flashes red for at-place feedback.
-    Popup {
+    AAlertDialog {
         id: errorPopup
-        property string message: ""
-        anchors.centerIn: parent
-        modal: true
-        focus: true
         width: 500
-        height: Math.min(errorColumn.implicitHeight + 2 * errorPopup.padding, 400)
-        padding: theme.spacingL
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.danger
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
-
-        ColumnLayout {
-            id: errorColumn
-            width: errorPopup.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Launch failed")
-                color: theme.danger
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            ScrollView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-
-                Label {
-                    Layout.fillWidth: true
-                    text: errorPopup.message
-                    color: theme.textPrimary
-                    font.family: theme.monoFamily
-                    font.pixelSize: theme.fontSizeSmall
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                }
-            }
-            AButton {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("OK")
-                onClicked: errorPopup.close()
-            }
-        }
+        titleText: qsTr("Launch failed")
+        property string message: ""
+        detail: errorPopup.message
+        dismissText: qsTr("OK")
     }
 
     Connections {

@@ -428,7 +428,7 @@ Dialog {
                         id: saveButton
                         variant: "primary"
                         // The agent's own color when set; theme accent otherwise.
-                        accentColor: page.agentData.color.length > 0
+                        accentColor: (page.agentData.color || "").length > 0
                                      ? page.agentData.color : theme.accent
                         enabled: page.formValid
                         text: qsTr("Save")
@@ -440,54 +440,11 @@ Dialog {
     }
 
     // Shown when addAgent/updateAgentFull could not write agents.json.
-    Popup {
+    AAlertDialog {
         id: saveErrorPopup
-        anchors.centerIn: parent
-        modal: true
-        focus: true
-        width: 420
-        padding: 20
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.danger
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
-
-        ColumnLayout {
-            width: saveErrorPopup.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Save failed")
-                color: theme.danger
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Could not write the configuration file:")
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            Label {
-                Layout.fillWidth: true
-                text: agents.configFilePath()
-                color: theme.accent
-                font.pixelSize: theme.fontSizeBody
-                font.family: theme.monoFamily
-                wrapMode: Text.WrapAnywhere
-            }
-            Button {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("OK")
-                background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
-                contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                onClicked: saveErrorPopup.close()
-            }
-        }
+        titleText: qsTr("Save failed")
+        message: qsTr("Could not write the configuration file:")
+        detail: agents.configFilePath()
+        dismissText: qsTr("OK")
     }
 }

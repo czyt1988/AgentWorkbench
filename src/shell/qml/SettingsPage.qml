@@ -35,131 +35,50 @@ Page {
     }
 
     // --- Delete confirmation -----------------------------------------------
-    Popup {
+    AConfirmDialog {
         id: deleteConfirmPopup
+        danger: true
+        titleText: qsTr("Delete Launcher")
+        message: qsTr("Remove \"%1\" from the launcher list?")
+                  .arg(deleteConfirmPopup.pendingName)
+        confirmText: qsTr("Delete")
+        cancelText: qsTr("Cancel")
         property string pendingId: ""
         property string pendingName: ""
         property bool pendingRunning: false
         property bool pendingBuiltin: false
-        anchors.centerIn: parent
-        modal: true
-        focus: true
-        width: 420
-        padding: theme.spacingL
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.danger
-            border.width: 1
-            radius: theme.radiusOverlay
+        // Contextual warnings injected between message and buttons.
+        Label {
+            Layout.fillWidth: true
+            visible: deleteConfirmPopup.pendingRunning
+            text: qsTr("The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.")
+            color: theme.warning
+            font.pixelSize: theme.fontSizeBody
+            wrapMode: Text.Wrap
+        }
+        Label {
+            Layout.fillWidth: true
+            visible: deleteConfirmPopup.pendingBuiltin
+            text: qsTr("This is a built-in launcher. You can bring it back later with \"Restore default launchers\".")
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeBody
+            wrapMode: Text.Wrap
         }
 
-        ColumnLayout {
-            width: deleteConfirmPopup.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Delete Launcher")
-                color: theme.danger
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Remove \"%1\" from the launcher list?")
-                      .arg(deleteConfirmPopup.pendingName)
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: deleteConfirmPopup.pendingRunning
-                text: qsTr("The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.")
-                color: theme.warning
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: deleteConfirmPopup.pendingBuiltin
-                text: qsTr("This is a built-in launcher. You can bring it back later with \"Restore default launchers\".")
-                color: theme.textMuted
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                AButton {
-                    Layout.fillWidth: true
-                    variant: "danger"
-                    text: qsTr("Delete")
-                    onClicked: {
-                        if (!agents.removeAgent(deleteConfirmPopup.pendingId))
-                            errorPopup.open()
-                        deleteConfirmPopup.close()
-                    }
-                }
-                AButton {
-                    Layout.fillWidth: true
-                    text: qsTr("Cancel")
-                    onClicked: deleteConfirmPopup.close()
-                }
-            }
+        onConfirmed: {
+            if (!agents.removeAgent(deleteConfirmPopup.pendingId))
+                errorPopup.open()
         }
     }
 
     // Shown when removeAgent/restoreDefaults could not write agents.json.
-    Popup {
+    AAlertDialog {
         id: errorPopup
-        anchors.centerIn: parent
-        modal: true
-        focus: true
-        width: 420
-        padding: theme.spacingL
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.danger
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
-
-        ColumnLayout {
-            width: errorPopup.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Save failed")
-                color: theme.danger
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Could not write the configuration file:")
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            Label {
-                Layout.fillWidth: true
-                text: agents.configFilePath()
-                color: theme.accent
-                font.pixelSize: theme.fontSizeBody
-                font.family: theme.monoFamily
-                wrapMode: Text.WrapAnywhere
-            }
-            AButton {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("OK")
-                onClicked: errorPopup.close()
-            }
-        }
+        titleText: qsTr("Save failed")
+        message: qsTr("Could not write the configuration file:")
+        detail: agents.configFilePath()
+        dismissText: qsTr("OK")
     }
 
     ScrollView {

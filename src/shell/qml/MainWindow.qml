@@ -104,32 +104,16 @@ ApplicationWindow {
     Toasts {}
 
     // --- Exit confirmation (0.3.0 behaviour preserved) --------------------
-    Popup {
+    ADialog {
         id: exitConfirmPopup
-        anchors.centerIn: parent
-        modal: true
-        focus: true
         width: 440
-        padding: theme.spacingL
         closePolicy: Popup.NoAutoClose
-
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.accent
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
+        titleText: qsTr("Confirm Exit")
 
         ColumnLayout {
             width: exitConfirmPopup.availableWidth
             spacing: theme.spacingM
 
-            Label {
-                text: qsTr("Confirm Exit")
-                color: theme.accent
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Background terminals were launched via AgentWorkbench this session. Close them before exiting?")
@@ -171,49 +155,17 @@ ApplicationWindow {
     }
 
     // --- Legacy data import notice (one-shot) --------------------
-    Popup {
+    AAlertDialog {
         id: legacyImportPopup
-        anchors.centerIn: parent
-        modal: true
-        focus: true
+        danger: false
         width: 460
-        padding: theme.spacingL
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color: theme.overlayBg
-            border.color: theme.accent
-            border.width: 1
-            radius: theme.radiusOverlay
-        }
+        titleText: qsTr("Configuration imported")
+        message: workbench.legacyImportNotice
+        dismissText: qsTr("OK")
 
         Component.onCompleted: {
             if (workbench.legacyImportNotice.length > 0)
                 open()
-        }
-
-        ColumnLayout {
-            width: legacyImportPopup.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Configuration imported")
-                color: theme.accent
-                font.pixelSize: theme.fontSizeSubtitle
-                font.bold: true
-            }
-            Label {
-                Layout.fillWidth: true
-                text: workbench.legacyImportNotice
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            AButton {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("OK")
-                onClicked: legacyImportPopup.close()
-            }
         }
     }
 }
