@@ -33,17 +33,33 @@ Item {
 
         // Memory policy: only the active tab keeps a live view;
         // the rest freeze (session kept) until released by the LRU.
+        // A loading view must stay Active — Frozen suspends the page, which
+        // can stall an in-flight load mid-way.
         lifecycleState: {
             if (!web.freezeInactiveTabs)
                 return WebEngineView.Active
             return surface.visible && web.activeTabId === tab.id
-                   && tab.state === "ready"
+                   && (tab.state === "loading" || tab.state === "ready")
                    ? WebEngineView.Active : WebEngineView.Frozen
         }
 
         onUrlChanged: {
             if (surface.hasTab)
                 web.setTabUrl(tab.id, String(url))
+        }
+        // The tab state machine drives loads: `loading` means "should be
+        // loading". reloadTab()/markOnlineForAgent() flip the state WITHOUT
+        // touching the URL (the url binding above only fires on url
+        // changes), so the transition to loading must trigger the actual
+        // load from here. Without this the spinner ran forever and the
+        // overlay's Cancel had nothing to stop — view.stop() on an idle
+        // view never emits LoadStoppedStatus.
+        Connections {
+            target: surface.tab
+            function onStateChanged() {
+                if (surface.hasTab && tab.state === "loading")
+                    view.reload()
+            }
         }
         onTitleChanged: {
             if (surface.hasTab)
@@ -107,11 +123,257 @@ Item {
             surface.fullScreenToggled(request.fullScreen)
         }
 
+        // --- JS alert()/confirm()/prompt(): the engine blocks the page's
+        // JS until answered. Without a handler Qt shows its own dialog, but
+        // if that dialog is dismissed in a way that never answers, every
+        // later interaction silently stalls. Handle it ourselves: a themed
+        // dialog that ALWAYS answers (OK / Cancel), so the page can never
+        // stay blocked.
+        onJavaScriptDialogRequested: function(request) {
+            request.accepted = true
+            jsDialog.request = request
+            jsDialog.open()
+        }
+
+        // --- HTTP basic auth (opencode's login prompt): same shape as the
+        // JS dialog — always answers, Cancel rejects.
+        onAuthenticationDialogRequested: function(request) {
+            request.accepted = true
+            authDialog.request = request
+            authDialog.open()
+        }
+
+        // --- window.close() from the page closes the tab (the page asked
+        // for it). Previously the request was silently ignored and the
+        // stuck page could not be dismissed.
+        onWindowCloseRequested: {
+            if (surface.hasTab)
+                web.closeTab(tab.id)
+        }
+
         // --- Permissions: all denied in v1, with a visible notice.
         onFeaturePermissionRequested: function(securityOrigin, feature) {
             view.rejectFeature(feature)
             workbench.notify("warning", qsTr("Permission denied"),
                              qsTr("This page requested a browser permission; the current version does not support it."))
+        }
+    }
+
+    // --- JS alert()/confirm()/prompt() ------------------------------------
+    // Themed replacement for the engine's default dialog. IMPORTANT: while
+    // open, the page's JS is blocked, so the buttons must ALWAYS answer the
+    // request — closing this popup via the dialog's own close handling
+    // (e.g. the closePolicy below) must also reject, never leave the
+    // request dangling. That is why closePolicy is NoAutoClose and only
+    // these two buttons settle it.
+    Popup {
+        id: jsDialog
+
+        property var request: null
+        // alert() has no Cancel; prompt() has an input field.
+        readonly property bool isAlert:
+            request && request.type === JavaScriptDialogRequest.DialogTypeAlert
+        readonly property bool isPrompt:
+            request && request.type === JavaScriptDialogRequest.DialogTypePrompt
+
+        function settle(accept) {
+            if (!request)
+                return
+            if (accept) {
+                if (isPrompt)
+                    request.dialogAccept(promptField.text)
+                else
+                    request.dialogAccept()
+            } else {
+                request.dialogReject()
+            }
+            request = null
+            close()
+        }
+
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        width: 380
+        padding: theme.spacingL
+
+        background: Rectangle {
+            color: theme.overlayBg
+            border.color: theme.accent
+            border.width: 1
+            radius: theme.radiusOverlay
+        }
+
+        onOpened: {
+            promptField.text = request ? request.defaultText : ""
+            if (isPrompt)
+                promptField.forceActiveFocus()
+        }
+
+        ColumnLayout {
+            width: jsDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: jsDialog.request ? jsDialog.request.title : ""
+                color: theme.accent
+                font.pixelSize: theme.fontSizeSubtitle
+                font.bold: true
+                elide: Text.ElideRight
+            }
+            Label {
+                Layout.fillWidth: true
+                text: jsDialog.request ? jsDialog.request.message : ""
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            TextField {
+                id: promptField
+                Layout.fillWidth: true
+                visible: jsDialog.isPrompt
+                color: theme.textPrimary
+                placeholderTextColor: theme.textMuted
+                font.pixelSize: theme.fontSizeBody
+                background: Rectangle {
+                    radius: theme.radiusControl
+                    color: theme.surfaceAltBg
+                    border.color: promptField.activeFocus
+                                  ? theme.focusRing : theme.borderSubtle
+                    border.width: promptField.activeFocus ? 2 : 1
+                }
+                onAccepted: jsDialog.settle(true)
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item { Layout.fillWidth: true }
+                AButton {
+                    visible: !jsDialog.isAlert
+                    text: qsTr("Cancel")
+                    onClicked: jsDialog.settle(false)
+                }
+                AButton {
+                    variant: "primary"
+                    // confirm() semantics: OK returns true.
+                    text: qsTr("OK")
+                    onClicked: jsDialog.settle(true)
+                }
+            }
+        }
+    }
+
+    // --- HTTP basic / proxy auth ------------------------------------------
+    // opencode-style logins: the engine blocks the page until credentials
+    // arrive. Same rule as the JS dialog: always answer.
+    Popup {
+        id: authDialog
+
+        property var request: null
+
+        function settle(accept) {
+            if (!request)
+                return
+            if (accept)
+                request.dialogAccept(userField.text, passwordField.text)
+            else
+                request.dialogReject()
+            request = null
+            close()
+        }
+
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        width: 380
+        padding: theme.spacingL
+
+        background: Rectangle {
+            color: theme.overlayBg
+            border.color: theme.accent
+            border.width: 1
+            radius: theme.radiusOverlay
+        }
+
+        onOpened: {
+            userField.text = ""
+            passwordField.text = ""
+            userField.forceActiveFocus()
+        }
+
+        ColumnLayout {
+            width: authDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Sign in")
+                color: theme.accent
+                font.pixelSize: theme.fontSizeSubtitle
+                font.bold: true
+            }
+            Label {
+                Layout.fillWidth: true
+                text: authDialog.request && authDialog.request.realm.length > 0
+                      ? qsTr("The site \"%1\" requires authentication.")
+                        .arg(authDialog.request.realm)
+                      : qsTr("This site requires authentication.")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            TextField {
+                id: userField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Username")
+                color: theme.textPrimary
+                placeholderTextColor: theme.textMuted
+                font.pixelSize: theme.fontSizeBody
+                background: Rectangle {
+                    radius: theme.radiusControl
+                    color: theme.surfaceAltBg
+                    border.color: userField.activeFocus
+                                  ? theme.focusRing : theme.borderSubtle
+                    border.width: userField.activeFocus ? 2 : 1
+                }
+                onAccepted: passwordField.forceActiveFocus()
+            }
+            TextField {
+                id: passwordField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Password")
+                echoMode: TextInput.Password
+                color: theme.textPrimary
+                placeholderTextColor: theme.textMuted
+                font.pixelSize: theme.fontSizeBody
+                background: Rectangle {
+                    radius: theme.radiusControl
+                    color: theme.surfaceAltBg
+                    border.color: passwordField.activeFocus
+                                  ? theme.focusRing : theme.borderSubtle
+                    border.width: passwordField.activeFocus ? 2 : 1
+                }
+                onAccepted: authDialog.settle(true)
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item { Layout.fillWidth: true }
+                AButton {
+                    text: qsTr("Cancel")
+                    onClicked: authDialog.settle(false)
+                }
+                AButton {
+                    variant: "primary"
+                    text: qsTr("Sign in")
+                    onClicked: authDialog.settle(true)
+                }
+            }
         }
     }
 

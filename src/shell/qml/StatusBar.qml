@@ -62,6 +62,7 @@ Rectangle {
                         : qsTr("Python is not installed or not in PATH. Agents requiring Python may not work.")
                     ToolTip.visible: containsMouse
                     ToolTip.delay: 300
+                    ToolTip.timeout: 10000
                 }
             }
 
@@ -103,6 +104,7 @@ Rectangle {
                         : qsTr("Node.js is not installed or not in PATH. Agents requiring Node.js may not work.")
                     ToolTip.visible: containsMouse
                     ToolTip.delay: 300
+                    ToolTip.timeout: 10000
                 }
             }
         }

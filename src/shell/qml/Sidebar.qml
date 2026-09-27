@@ -17,11 +17,15 @@ Rectangle {
     // Expanded width: window.sidebarWidth from settings (ShellController
     // owns it), falling back to the theme token when the
     // key is explicitly cleared (0). Both default to 240.
-    width: collapsed ? theme.sidebarCollapsedWidth
-                     : (shell.sidebarWidth > 0 ? shell.sidebarWidth
-                                               : theme.sidebarWidth)
+    // implicitWidth, NOT width: this item is managed by the RowLayout in
+    // MainWindow, and layouts re-distribute from implicit-size changes —
+    // a child's width changing behind the layout's back left the workspace
+    // frozen at its old size with a gap next to the collapsed sidebar.
+    implicitWidth: collapsed ? theme.sidebarCollapsedWidth
+                             : (shell.sidebarWidth > 0 ? shell.sidebarWidth
+                                                       : theme.sidebarWidth)
 
-    Behavior on width {
+    Behavior on implicitWidth {
         NumberAnimation { duration: theme.durationNormal }
     }
 
@@ -130,6 +134,9 @@ Rectangle {
             Layout.topMargin: firstInSection && model.section === "system"
                               ? theme.spacingL : 0
             visible: model.enabled
+            // Rows are delegates (page plugins come and go) — a row dying
+            // while hovered must not freeze the shared tooltip on screen.
+            Component.onDestruction: ToolTip.hide()
 
             Rectangle {
                 visible: row.needsDivider
@@ -222,6 +229,7 @@ Rectangle {
             // Collapsed state: tooltip with the page title.
             ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
             ToolTip.delay: 300
+            ToolTip.timeout: 10000
             ToolTip.text: model.title
         }
     }

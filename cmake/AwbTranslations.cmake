@@ -35,7 +35,6 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ACard.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
-    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AToolTip.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AToastStack.qml
