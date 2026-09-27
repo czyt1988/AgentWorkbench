@@ -189,11 +189,11 @@ Item {
                         // （source 为空）不在此列。
                         if (!drop.source || !drop.source.isFileReferenceDrag)
                             return
-                        // positionAt 要的是内容坐标；未滚动时 contentX/Y 为 0。
-                        const pos = promptEditor.positionAt(
-                                    drop.x + promptEditor.contentX,
-                                    drop.y + promptEditor.contentY)
-                        promptEditor.insert(pos, drop.text)
+                        // TextArea 不是 Flickable，没有 contentX/contentY（读出来
+                        // 是 undefined，一加就变 NaN，positionAt 于是永远返回 0 =
+                        // 文首）。它自己就吃控件坐标，内边距与滚动都由它内部折算。
+                        promptEditor.insert(promptEditor.positionAt(drop.x, drop.y),
+                                            drop.text)
                         drop.acceptProposedAction()
                     }
                 }
