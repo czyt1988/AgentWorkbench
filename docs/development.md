@@ -114,8 +114,10 @@ The layering and dependency rules, in short:
   exposed to QML through lowercase root aliases (`theme`, `nav`, `agents`, …).
 - **Health**: running state comes from an HTTP probe of `webUrl` (any HTTP
   response = running). Do not add process sniffing.
-- **Logging**: `core::Logging` rotates at 5 MB × 3 files; commands are logged
-  with the command line actually executed.
+- **Logging**: `core::Logging` writes through spdlog's async backend (an
+  8192-slot MPMC queue drained by one worker thread) and rotates at 5 MB × 3
+  files; the emitting thread only formats the line and enqueues it. Commands
+  are logged with the command line actually executed.
 
 ## Documentation site
 

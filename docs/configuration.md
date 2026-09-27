@@ -30,6 +30,12 @@ transitions and plugin loading. It rotates at 5 MB and keeps three files
 (`agentworkbench.log`, `agentworkbench.log.1`, `agentworkbench.log.2`),
 deleting the oldest, so it never grows past 15 MB.
 
+Writing happens on a background thread (an async queue drained by a single
+worker): the thread that emits a log line only formats it and enqueues it,
+so chatty logging never stalls the UI. Warnings and above are flushed as
+they arrive, everything else at least once a second — an abnormal exit can
+therefore lose at most the last second of below-warning lines.
+
 
 ## settings.json
 
@@ -48,7 +54,8 @@ Missing keys take their defaults in place — there is no migration code:
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
-  "logging": { "maxFileSize": 5242880, "maxFiles": 3 },
+  "logging": { "maxFileSize": 5242880, "maxFiles": 3,
+               "level": "debug", "mirrorToStderr": true },
   "plugins": { "enabled": false, "disabledIds": [] }
 }
 ```
@@ -74,6 +81,11 @@ Missing keys take their defaults in place — there is no migration code:
   project's `.agents`/`.claude` skills). A non-empty array **completely
   replaces** the defaults; entries are
   `{ "id", "label", "path", "kind", "enabled" }`.
+- `logging.level` is the minimum level that reaches the file — `debug`
+  (default, logs everything), `info`, `warning`, `critical` or `off`; an
+  unknown value falls back to `debug` with a warning. `logging.mirrorToStderr`
+  (on by default) additionally echoes every line to the console the app was
+  started from. Both apply from the next start.
 - `plugins.enabled` is the master switch; `disabledIds` lists per-plugin
   opt-outs. Plugins load at startup, so toggles take effect after a
   restart. See [Plugins](plugins.md).

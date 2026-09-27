@@ -154,6 +154,7 @@ private:
 - 用户可见字符串用 `tr()` 包裹，源串必须是英文（`check_architecture` 规则 3）；翻译放 `translations/`，用 `%1` 占位符配 `.arg()`。
 - 内部字面量用 `QStringLiteral`，不要用 `tr()` 包不该翻译的内容（命令行、JSON 键、URL 片段）。
 - 日志用 `qInfo()` / `qWarning()`，英文，带 `[app]` / `[cmd]` 前缀与操作名、对象 id（见 `AgentsFacade.cpp` 的 `logPrefix`）。提交前不要留下 `qDebug()`。
+- 应用级事件日志用 `core/Logging.h` 的 `AWB_DEBUG` / `AWB_INFO` / `AWB_WARNING` / `AWB_CRITICAL` 宏：级别取宏名，分类固定 `awb.event`（写进行前缀，将来的 UI 日志视图按它过滤）；模块内部的一般日志维持 `qInfo()` / `qWarning()` 加 `[module]` 前缀。写盘是异步的（后台线程消费队列），不要假设一行日志在 `qInfo()` 返回时已经落盘。
 - 语言分工要记牢：**标识符、面向用户的字符串、日志、提交信息用英文；只有代码注释用中文**（见第 6 节）。不要把中文写进 `tr()`，也不要把中文写进日志。
 - 日志中禁止出现带 token 的 URL——`redactedUrl` 同时抹掉 `?token=` 与 `#token=`。
 

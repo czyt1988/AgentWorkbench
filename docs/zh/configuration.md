@@ -12,7 +12,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 
 所有用户数据都集中在同一个目录：`agents.json`、`agent_state.json`（一次性设置状态）以及 `log/agentworkbench.log`。
 
-日志记录启动器做过的事情：它执行的每条命令（真实命令行、退出码、耗时，以及命令自身的输出，失败时同样记录），以及配置写入、一次性设置状态和 agent 运行状态的变化。日志按 5 MB 轮转，最多保留三个文件（`agentworkbench.log`、`agentworkbench.log.1`、`agentworkbench.log.2`），最旧的一个会被删除，因此日志总量不会超过 15 MB。
+日志记录启动器做过的事情：它执行的每条命令（真实命令行、退出码、耗时，以及命令自身的输出，失败时同样记录），以及配置写入、一次性设置状态和 agent 运行状态的变化。日志按 5 MB 轮转，最多保留三个文件（`agentworkbench.log`、`agentworkbench.log.1`、`agentworkbench.log.2`），最旧的一个会被删除，因此日志总量不会超过 15 MB。写盘在后台线程完成（异步队列 + 独立工作线程）：发出日志的线程只负责拼行与入队，日志再密也不会卡住界面；warning 及以上即时落盘，其余最迟每秒一次——异常退出最多丢失最后一秒内低于 warning 的行。
 
 应用内置了默认配置（`config/default_agents.json`，编译进可执行文件）。**内置** agent
 的定义只来自这份文件：磁盘上的同名 id 条目会在每次启动时被它整体覆盖，所以磁盘里的
@@ -38,7 +38,8 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
-  "logging": { "maxFileSize": 5242880, "maxFiles": 3 },
+  "logging": { "maxFileSize": 5242880, "maxFiles": 3,
+               "level": "debug", "mirrorToStderr": true },
   "plugins": { "enabled": false, "disabledIds": [] }
 }
 ```
@@ -56,6 +57,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   Chromium 本身都会对隐藏页面做节流。
 - `skills.roots` 为空 = 平台默认根目录；非空即**完全取代**默认，条目为
   `{ "id", "label", "path", "kind", "enabled" }`。
+- `logging.level` 是落盘的最低级别——`debug`（默认，全部记录）、`info`、`warning`、`critical` 或 `off`，非法值告警后回退 `debug`；`logging.mirrorToStderr`（默认开启）把每行同时镜像到启动它的控制台。两项都在下次启动时生效。
 - `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
   加载，开关重启后生效。参见[插件](plugins.md)。
 

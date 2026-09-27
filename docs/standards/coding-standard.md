@@ -154,6 +154,7 @@ private:
 - User-visible strings are wrapped in `tr()` and the source string must be English (`check_architecture` rule 3); translations live in `translations/`, with `%1` placeholders filled by `.arg()`.
 - Internal literals use `QStringLiteral`; do not wrap things that must not be translated (command lines, JSON keys, URL fragments) in `tr()`.
 - Log with `qInfo()` / `qWarning()`, in English, prefixed with `[app]` / `[cmd]` plus the operation and the object id (see `logPrefix` in `AgentsFacade.cpp`). Do not commit `qDebug()`.
+- Application-level event logs use the `AWB_DEBUG` / `AWB_INFO` / `AWB_WARNING` / `AWB_CRITICAL` macros from `core/Logging.h`: the level comes from the macro name and the category is fixed to `awb.event` (it lands in the line prefix and is what a future UI log view would filter on). Module-internal logs stay on `qInfo()` / `qWarning()` with a `[module]` prefix. Writing is asynchronous (a background thread drains the queue), so never assume a line reached disk by the time `qInfo()` returns.
 - The language split matters: **identifiers, user-facing strings, logs and commit messages are English; only code comments are Chinese** (section 6). Never put Chinese inside `tr()`, and never put it in a log line.
 - Never log a URL that carries a token — `redactedUrl` strips both `?token=` and `#token=`.
 
