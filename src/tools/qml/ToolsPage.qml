@@ -51,26 +51,6 @@ Item {
                              result.error)
     }
 
-    // 恢复刷新前的展开状态。模型在 refresh() 里已经把快照里的目录重新
-    // fetch 好；这里只负责让视图重新展开它们（先父后子，子目录的视图行
-    // 要等父目录展开后才存在）。
-    function reexpandTree() {
-        if (typeof fileTree.rowAtIndex !== "function")
-            return
-        fileTree.forceLayout()
-        const paths = tools.model.restoredExpandedPaths.slice()
-        paths.sort((a, b) => a.split("/").length - b.split("/").length)
-        for (let i = 0; i < paths.length; ++i) {
-            const index = tools.model.indexByPath(paths[i])
-            if (!index.valid)
-                continue
-            fileTree.expandToIndex(index)
-            const row = fileTree.rowAtIndex(index)
-            if (row >= 0)
-                fileTree.expand(row)
-        }
-    }
-
     FolderDialog {
         id: folderDialog
         title: qsTr("Choose a workspace folder")
@@ -256,16 +236,6 @@ Item {
 
                         ScrollBar.vertical: ScrollBar {}
 
-                        // 视图把展开/收起回报给模型：refresh() 靠这份记录快照。
-                        // 视图对 model reset 的反应是全部收起，旧行触发的信号
-                        // 由模型的代数守卫丢弃。
-                        onExpanded: function(row, depth) {
-                            tools.model.setNodeExpanded(fileTree.index(row, 0), true)
-                        }
-                        onCollapsed: function(row, recursively) {
-                            tools.model.setNodeExpanded(fileTree.index(row, 0), false)
-                        }
-
                         delegate: Item {
                             id: treeRow
 
@@ -274,6 +244,11 @@ Item {
 
                             // DropArea 据此识别拖拽来源（见编辑区的 onDropped）。
                             readonly property bool isFileReferenceDrag: true
+                            // 行被回收进池子到再次被复用之间为真。一次展开/收起
+                            // 会让 TreeView 把所有可见行回收再复用（实测：50 行
+                            // 全部 pooled+reused），这期间 role 换成别行的值，
+                            // 动画要闭嘴，否则整棵树的箭头会一起转一遍。
+                            property bool rebinding: false
 
                             required property TreeView treeView
                             required property bool isTreeNode
@@ -288,6 +263,9 @@ Item {
                             required property string name
                             required property string relativePath
                             required property bool isDir
+
+                            TableView.onPooled: treeRow.rebinding = true
+                            TableView.onReused: treeRow.rebinding = false
 
                             // 拖出文件引用：Automatic 型拖拽，Drag.active 置真
                             // 即开始（mimeData 在会话开始时求值）。
@@ -315,8 +293,9 @@ Item {
                                 id: rowHover
                             }
 
-                            // 单击目录：先兜底 fetch 再切换展开（TreeView 不保证
-                            // 替懒加载模型驱动 fetchMore）。
+                            // 单击目录：先兜底 fetch 再切换展开。Qt 6.7 的
+                            // TreeView 也会经内部 proxy 替懒加载模型驱动
+                            // fetchMore，但那是实现细节，不去依赖它。
                             TapHandler {
                                 onSingleTapped: {
                                     if (treeRow.isDir) {
@@ -352,6 +331,7 @@ Item {
                                 rotation: treeRow.expanded ? 90 : 0
 
                                 Behavior on rotation {
+                                    enabled: !treeRow.rebinding
                                     NumberAnimation {
                                         duration: theme.durationFast
                                     }
@@ -405,17 +385,6 @@ Item {
                     }
                 }
             }
-        }
-    }
-
-    // watcher 触发的刷新没有 QML 调用点，经门面的 refreshFinished 统一收口。
-    Connections {
-        target: tools
-
-        // callLater：视图在事件循环里排空 model reset 之后再恢复展开，
-        // forceLayout 保证 rowAtIndex 拿到的是重排后的行号。
-        function onRefreshFinished() {
-            Qt.callLater(page.reexpandTree)
         }
     }
 }

@@ -156,22 +156,13 @@ private slots:
                  "tools.draft is not a writable property");
         QCOMPARE(facade.draft(), QStringLiteral("typed"));
 
+        // 刷新改为增量之后，QML 对模型只剩一个调用点：展开目录时兜底 fetch。
         awb::tools::FileTreeModel *model = facade.fileTreeModel();
         const QModelIndex first = model->index(0, 0);
         QVERIFY2(first.isValid(), "fixture row missing");
-        QVERIFY2(QMetaObject::invokeMethod(model, "setNodeExpanded",
-                                           Q_ARG(QModelIndex, first),
-                                           Q_ARG(bool, true)),
-                 "tools.model.setNodeExpanded is not invokable");
         QVERIFY2(QMetaObject::invokeMethod(model, "fetchChildren",
                                            Q_ARG(QModelIndex, first)),
                  "tools.model.fetchChildren is not invokable");
-        QModelIndex sub;
-        QVERIFY2(QMetaObject::invokeMethod(model, "indexByPath",
-                                           Q_RETURN_ARG(QModelIndex, sub),
-                                           Q_ARG(QString, QStringLiteral("sub"))),
-                 "tools.model.indexByPath is not invokable");
-        QVERIFY(sub.isValid());
 
         // removeWorkspace 放最后：它会清掉当前工作区，树随之变空。
         QVERIFY2(QMetaObject::invokeMethod(&facade, "removeWorkspace",

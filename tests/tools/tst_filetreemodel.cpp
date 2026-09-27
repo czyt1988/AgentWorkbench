@@ -13,8 +13,8 @@
 
 using awb::tools::FileTreeModel;
 
-// 懒加载文件树的模型契约：roles、目录优先排序、fetch 行为、
-// 刷新保住已展开状态、隐藏项排除。夹具结构：
+// 懒加载文件树的模型契约：roles、目录优先排序、fetch 行为、增量刷新
+// （不 reset、未变的节点原地保留）、隐藏项排除。夹具结构：
 //   root/ alpha.txt  beta.txt  Beta/inner.txt  Zeta/
 class TestFileTreeModel : public QObject
 {
@@ -124,93 +124,169 @@ private slots:
         QVERIFY(!model.hasChildren(empty));
     }
 
-    void testRefreshSeesChangesAndRestoresExpanded()
+    void testRefreshIsIncrementalAndKeepsNodes()
     {
         FileTreeModel model;
         model.setRootPath(m_root);
-        const QModelIndex beta = model.index(0, 0);
-        model.fetchMore(beta);
-        // 只有 QML 上报过展开的目录才会被 refresh 恢复（视图经 setNodeExpanded 记录）。
-        model.setNodeExpanded(beta, true);
+        const QModelIndex beta = childIndex(model, QModelIndex(),
+                                            QStringLiteral("Beta"));
+        model.fetchChildren(beta);
+        QCOMPARE(model.rowCount(beta), 1);
 
         makeFile(QStringLiteral("new.txt"));
         makeFile(QStringLiteral("Beta/extra.txt"));
 
         QSignalSpy refreshed(&model, &FileTreeModel::refreshed);
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
         model.refresh();
+
         QCOMPARE(refreshed.count(), 1);
+        // 绝不 reset：TreeView 收到 modelReset 会销毁全部 delegate 并把整棵树
+        // 收起，用户看到的就是「闪一下」。
+        QCOMPARE(reset.count(), 0);
+        QCOMPARE(removed.count(), 0);
+        QVERIFY(inserted.count() >= 2);
+
+        // Beta 节点被复用（同一个指针、同一行），它的子行与视图里的展开状态
+        // 因此都还在。
+        QVERIFY(model.index(0, 0) == beta);
+        QCOMPARE(model.rowCount(beta), 2);
+        QVERIFY(childIndex(model, beta, QStringLiteral("extra.txt")).isValid());
 
         QCOMPARE(model.rowCount(QModelIndex()), 5);
-        QCOMPARE(model.restoredExpandedPaths(), QStringList{QStringLiteral("Beta")});
-        // reset 之后旧索引失效，一律经 indexByPath 重新取。
-        const QModelIndex betaAgain = model.indexByPath(QStringLiteral("Beta"));
-        QVERIFY(betaAgain.isValid());
-        QCOMPARE(model.rowCount(betaAgain), 2);
-        QCOMPARE(model.data(model.indexByPath(QStringLiteral("Beta/inner.txt")),
-                            FileTreeModel::NameRole),
-                 QStringLiteral("inner.txt"));
-        QCOMPARE(model.data(model.indexByPath(QStringLiteral("Beta/extra.txt")),
-                            FileTreeModel::NameRole),
-                 QStringLiteral("extra.txt"));
-        QCOMPARE(model.data(model.indexByPath(QStringLiteral("new.txt")),
-                            FileTreeModel::NameRole),
-                 QStringLiteral("new.txt"));
+        QVERIFY(childIndex(model, QModelIndex(), QStringLiteral("new.txt")).isValid());
     }
 
-    void testSetNodeExpandedClearsSubtree()
+    void testRefreshWithoutChangesIsSilent()
     {
-        makeDir(QStringLiteral("Zeta/deep"));
-        makeFile(QStringLiteral("Zeta/deep/leaf.md"));
+        FileTreeModel model;
+        model.setRootPath(m_root);
+        model.fetchChildren(childIndex(model, QModelIndex(), QStringLiteral("Beta")));
+
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        QSignalSpy refreshed(&model, &FileTreeModel::refreshed);
+        model.refresh();
+
+        // 目录没变 = 一个信号都不发，视图一个 delegate 都不用碰。
+        QCOMPARE(refreshed.count(), 1);
+        QCOMPARE(reset.count(), 0);
+        QCOMPARE(inserted.count(), 0);
+        QCOMPARE(removed.count(), 0);
+        QCOMPARE(changed.count(), 0);
+    }
+
+    void testRefreshRemovesDeletedEntries()
+    {
+        FileTreeModel model;
+        model.setRootPath(m_root);
+        QVERIFY(QFile::remove(QDir(m_root).filePath(QStringLiteral("alpha.txt"))));
+
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.refresh();
+
+        QCOMPARE(model.rowCount(QModelIndex()), 3);
+        QCOMPARE(inserted.count(), 0);
+        // alpha.txt 排在文件组首位（目录在前），即顶层第 2 行。
+        QCOMPARE(removed.count(), 1);
+        QCOMPARE(removed.at(0).at(1).toInt(), 2);
+        QCOMPARE(removed.at(0).at(2).toInt(), 2);
+        QVERIFY(!childIndex(model, QModelIndex(), QStringLiteral("alpha.txt")).isValid());
+    }
+
+    void testRefreshKeepsSortOrder()
+    {
         FileTreeModel model;
         model.setRootPath(m_root);
 
-        const QModelIndex zeta = model.indexByPath(QStringLiteral("Zeta"));
+        // 一次刷新里同时出现「最前面插一个目录」与「最后面插一个文件」，
+        // 覆盖删除/插入区间的两端。
+        makeDir(QStringLiteral("Abc"));
+        makeFile(QStringLiteral("zz.txt"));
+        model.refresh();
+
+        QStringList names;
+        for (int row = 0; row < model.rowCount(QModelIndex()); ++row) {
+            names << model.data(model.index(row, 0), FileTreeModel::NameRole)
+                            .toString();
+        }
+        QCOMPARE(names, (QStringList{QStringLiteral("Abc"), QStringLiteral("Beta"),
+                                     QStringLiteral("Zeta"), QStringLiteral("alpha.txt"),
+                                     QStringLiteral("beta.txt"),
+                                     QStringLiteral("zz.txt")}));
+    }
+
+    void testRefreshTreatsRenamedEntryAsRemovePlusInsert()
+    {
+        FileTreeModel model;
+        model.setRootPath(m_root);
+        QVERIFY(QFile::rename(QDir(m_root).filePath(QStringLiteral("alpha.txt")),
+                              QDir(m_root).filePath(QStringLiteral("renamed.txt"))));
+
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.refresh();
+
+        QCOMPARE(removed.count(), 1);
+        QCOMPARE(inserted.count(), 1);
+        QVERIFY(!childIndex(model, QModelIndex(), QStringLiteral("alpha.txt")).isValid());
+        QVERIFY(childIndex(model, QModelIndex(), QStringLiteral("renamed.txt")).isValid());
+    }
+
+    void testRefreshHandlesTypeChange()
+    {
+        FileTreeModel model;
+        model.setRootPath(m_root);
+
+        // 同名但文件变成了目录：不能复用旧节点（文件节点没有子行）。
+        QVERIFY(QFile::remove(QDir(m_root).filePath(QStringLiteral("alpha.txt"))));
+        QVERIFY(QDir(m_root).mkpath(QStringLiteral("alpha.txt")));
+        model.refresh();
+
+        const QModelIndex node = childIndex(model, QModelIndex(),
+                                            QStringLiteral("alpha.txt"));
+        QVERIFY(node.isValid());
+        QCOMPARE(model.data(node, FileTreeModel::IsDirRole).toBool(), true);
+        QVERIFY(model.canFetchMore(node));
+    }
+
+    void testRefreshSyncsCollapsedFetchedDirs()
+    {
+        FileTreeModel model;
+        model.setRootPath(m_root);
+        const QModelIndex zeta = childIndex(model, QModelIndex(),
+                                            QStringLiteral("Zeta"));
         model.fetchChildren(zeta);
-        model.setNodeExpanded(zeta, true);
-        const QModelIndex deep = model.indexByPath(QStringLiteral("Zeta/deep"));
-        model.fetchChildren(deep);
-        model.setNodeExpanded(deep, true);
+        QCOMPARE(model.rowCount(zeta), 0);
 
-        // 收起父目录必须连子树一起清：否则 refresh 会把看不见的子树也恢复。
-        model.setNodeExpanded(zeta, false);
+        // 收起但读过的目录也要对账，否则下次展开是过期数据。
+        makeFile(QStringLiteral("Zeta/late.txt"));
         model.refresh();
-        QVERIFY(model.restoredExpandedPaths().isEmpty());
+
+        QCOMPARE(model.rowCount(zeta), 1);
+        QCOMPARE(model.data(model.index(0, 0, zeta), FileTreeModel::NameRole).toString(),
+                 QStringLiteral("late.txt"));
     }
 
-    void testStaleIndexAfterRefreshIsIgnored()
+    void testTopLevelCountChangesOnlyWhenItChanges()
     {
         FileTreeModel model;
         model.setRootPath(m_root);
-        const QModelIndex beta = model.index(0, 0);
-        model.fetchMore(beta);
-        model.setNodeExpanded(beta, true);
+        QCOMPARE(model.topLevelCount(), 4);
+
+        QSignalSpy countChanged(&model, &FileTreeModel::topLevelCountChanged);
         model.refresh();
+        QCOMPARE(countChanged.count(), 0);
 
-        // reset 之后旧索引的 internalPointer 指向已释放节点；setNodeExpanded
-        // 必须靠代数识别并静默丢弃，而不是解引用它。
-        model.setNodeExpanded(beta, true);
-        QCOMPARE(model.restoredExpandedPaths(), QStringList{QStringLiteral("Beta")});
-    }
-
-    void testIndexByPathFetchesIntermediates()
-    {
-        makeDir(QStringLiteral("Zeta/deep"));
-        makeFile(QStringLiteral("Zeta/deep/leaf.md"));
-        FileTreeModel model;
-        model.setRootPath(m_root);
-
-        // 中间层从未 fetch；indexByPath 必须沿途补读再给出索引。
-        const QModelIndex leaf =
-                model.indexByPath(QStringLiteral("Zeta/deep/leaf.md"));
-        QVERIFY(leaf.isValid());
-        QCOMPARE(model.data(leaf, FileTreeModel::SuffixRole).toString(),
-                 QStringLiteral("md"));
-        QCOMPARE(model.parent(leaf),
-                 model.indexByPath(QStringLiteral("Zeta/deep")));
-
-        // 不存在的路径与空串返回无效索引。
-        QVERIFY(!model.indexByPath(QStringLiteral("no/such/path")).isValid());
-        QVERIFY(!model.indexByPath(QString()).isValid());
+        makeFile(QStringLiteral("another.txt"));
+        model.refresh();
+        QCOMPARE(countChanged.count(), 1);
+        QCOMPARE(model.topLevelCount(), 5);
     }
 
     void testRootPathAndEmptyRoot()
@@ -254,6 +330,18 @@ private slots:
     }
 
 private:
+    /// 按名字在 parent 下找子行（模型不提供路径查找，测试自己走一层）。
+    static QModelIndex childIndex(QAbstractItemModel &model,
+                                  const QModelIndex &parent, const QString &name)
+    {
+        for (int row = 0; row < model.rowCount(parent); ++row) {
+            const QModelIndex index = model.index(row, 0, parent);
+            if (model.data(index, FileTreeModel::NameRole).toString() == name)
+                return index;
+        }
+        return QModelIndex();
+    }
+
     void makeDir(const QString &relative)
     {
         QVERIFY2(QDir(m_root).mkpath(relative), qPrintable(relative));

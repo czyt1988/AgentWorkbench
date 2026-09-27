@@ -1,7 +1,9 @@
 #include "tools/FileTreeModel.h"
 
+#include <QDebug>
 #include <QDir>
-#include <QFileInfo>
+#include <QHash>
+#include <QSet>
 
 #include <algorithm>
 
@@ -21,13 +23,21 @@ struct FileTreeModel::Node
     QString relativePath;  ///< 相对工作区根（正斜杠，根为空串）
     bool isDir = false;
     bool fetched = false;  ///< 目录的子项是否已读盘
-    bool expandedInUi = false; ///< QML 上报的展开状态（refresh 快照的依据）
-    int generation = 0;    ///< 创建时的重建代数，用于识别作废索引
     Node *parent = nullptr;
     int row = 0;
     std::vector<std::unique_ptr<Node>> children; ///< fetch 后才有内容
 };
 
+/// 刷新走增量对账而不是 reset 模型，原因有两层：
+///
+/// 1. TreeView 收到 modelReset 会把整棵扁平表推倒重建（所有 delegate 销毁重建，
+///    展开状态清空），用户看到的就是「整棵树闪一下再重新展开」；
+/// 2. 目录内容通常没变，reset 让没变的行也付一遍重建代价。
+///
+/// 所以 refresh() 只对**已读盘**的目录逐层与磁盘对账：同名同类型的旧节点原样复用
+/// （子树、fetched 状态、视图里的展开状态全都保住），差异压缩成最少的
+/// rowsRemoved / rowsInserted 区间发出去。没变化就一个信号都不发。
+/// 只有 setRootPath()（换工作区 = 换整棵树的内容）才走 reset。
 FileTreeModel::FileTreeModel(QObject *parent)
     : QAbstractItemModel(parent)
 {
@@ -138,8 +148,6 @@ void FileTreeModel::fetchMore(const QModelIndex &parent)
 
 void FileTreeModel::setRootPath(const QString &path)
 {
-    ++m_generation;
-
     // 整棵 staging 树（含顶层一层）在 reset 之外构造好：reset 之后视图
     // 一次取到完整行数，不会再有 rowsInserted 追加。TreeView 对
     // 「modelReset 之后立刻插入的行」会重复计入，实测（2026-09 冒烟）。
@@ -150,44 +158,27 @@ void FileTreeModel::setRootPath(const QString &path)
     beginResetModel();
     m_rootPath = root ? root->path : QString();
     m_root = std::move(root);
-    m_restoredExpandedPaths.clear();
     endResetModel();
     armWatchers();
     emit topLevelCountChanged();
 }
 
+/// 与磁盘对账，只对变化的行发信号。
+///
+/// 已读取的目录无论展开与否都会对账：收起但读过的目录里留着旧行，不更新的话
+/// 下次展开就是过期数据。目录集合有增删时重新布防 watcher（新增的目录要等它
+/// 被读取才会进监听列表，删除的目录要从列表里摘掉）。
 void FileTreeModel::refresh()
 {
     if (!m_root)
         return;
 
-    // 快照要在构造新树之前收集：旧节点是展开状态的唯一来源。
-    // 先序收集保证父路径总在子路径前面，恢复时逐层下钻即可。
-    QStringList expanded;
-    collectExpandedRelativePaths(m_root.get(), &expanded);
-
-    ++m_generation;
-    auto newRoot = makeRootNode(m_rootPath);
-    if (!newRoot)
-        return;
-    populateNode(newRoot.get());
-
-    // 恢复阶段全部在 staging 树上完成（无信号 fetch）；目录已消失
-    // （被删/改名）时静默跳过。
-    m_restoredExpandedPaths.clear();
-    for (const QString &relativePath : expanded) {
-        Node *node = findNodeInSubtree(newRoot.get(), relativePath, false);
-        if (!node || !node->isDir)
-            continue;
-        populateNode(node);
-        node->expandedInUi = true;
-        m_restoredExpandedPaths.append(relativePath);
+    const int topLevelBefore = topLevelCount();
+    if (syncNode(m_root.get())) {
+        armWatchers();
+        if (topLevelCount() != topLevelBefore)
+            emit topLevelCountChanged();
     }
-
-    beginResetModel();
-    m_root = std::move(newRoot);
-    endResetModel();
-    armWatchers();
     emit refreshed();
 }
 
@@ -196,47 +187,12 @@ int FileTreeModel::topLevelCount() const
     return m_root ? static_cast<int>(m_root->children.size()) : 0;
 }
 
-QModelIndex FileTreeModel::indexByPath(const QString &relativePath)
-{
-    Node *node = nodeForRelativePath(relativePath);
-    if (!node || node == m_root.get())
-        return QModelIndex();
-    return indexForNode(node);
-}
-
 void FileTreeModel::fetchChildren(const QModelIndex &parent)
 {
     fetchNode(parent.isValid() ? nodeForIndex(parent) : m_root.get());
 }
 
-void FileTreeModel::setNodeExpanded(const QModelIndex &index, bool expanded)
-{
-    Node *node = nodeForIndex(index);
-    if (!node || !node->isDir || node->generation != m_generation)
-        return;
-    node->expandedInUi = expanded;
-    // 收起时子树的展开标记一并清掉：子目录本就不可见，留着会让下一次
-    // refresh 把「已收起的子树」整条恢复出来。
-    if (!expanded)
-        clearExpandedBelow(node);
-}
-
 // --- private ------------------------------------------------------------------
-
-std::unique_ptr<FileTreeModel::Node> FileTreeModel::makeRootNode(
-        const QString &path) const
-{
-    if (path.isEmpty())
-        return nullptr;
-    // 空串经 QDir 也可能被拼成非空（相对当前目录），必须在这里归零，
-    // 否则无工作区时会指向进程当前目录。
-    auto root = std::make_unique<Node>();
-    root->name = QFileInfo(path).fileName();
-    root->path = QDir(path).absolutePath();
-    root->isDir = true;
-    root->generation = m_generation;
-    return root;
-}
 
 FileTreeModel::Node *FileTreeModel::nodeForIndex(const QModelIndex &index) const
 {
@@ -252,12 +208,11 @@ QModelIndex FileTreeModel::indexForNode(Node *node) const
     return createIndex(node->row, 0, node);
 }
 
-std::vector<std::unique_ptr<FileTreeModel::Node>> FileTreeModel::readChildNodes(
-        const Node *parent) const
+QFileInfoList FileTreeModel::readSortedEntries(const QString &dirPath)
 {
     // 排除隐藏项（Unix 的点文件 / Windows 的隐藏属性），其余不过滤：
     // node_modules、.git 这类目录照常出现，开销由懒加载控制。
-    QFileInfoList entries = QDir(parent->path).entryInfoList(
+    QFileInfoList entries = QDir(dirPath).entryInfoList(
             QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::NoSort);
     // 目录在前 + 文件名大小写不敏感排序；同字母异大小写再按原序保证稳定。
     std::sort(entries.begin(), entries.end(),
@@ -269,24 +224,44 @@ std::vector<std::unique_ptr<FileTreeModel::Node>> FileTreeModel::readChildNodes(
                       return cmp < 0;
                   return a.fileName().compare(b.fileName()) < 0;
               });
+    return entries;
+}
 
+std::unique_ptr<FileTreeModel::Node> FileTreeModel::makeChildNode(
+        const QFileInfo &entry, Node *parent)
+{
+    auto child = std::make_unique<Node>();
+    child->name = entry.fileName();
+    child->path = entry.absoluteFilePath();
+    child->relativePath = parent->relativePath.isEmpty()
+                              ? child->name
+                              : parent->relativePath + QLatin1Char('/') + child->name;
+    child->isDir = entry.isDir();
+    child->parent = parent;
+    return child;
+}
+
+std::unique_ptr<FileTreeModel::Node> FileTreeModel::makeRootNode(const QString &path)
+{
+    if (path.isEmpty())
+        return nullptr;
+    // 空串经 QDir 也可能被拼成非空（相对当前目录），必须在这里归零，
+    // 否则无工作区时会指向进程当前目录。
+    auto root = std::make_unique<Node>();
+    root->name = QFileInfo(path).fileName();
+    root->path = QDir(path).absolutePath();
+    root->isDir = true;
+    return root;
+}
+
+std::vector<std::unique_ptr<FileTreeModel::Node>> FileTreeModel::readChildNodes(
+        Node *parent)
+{
+    const QFileInfoList entries = readSortedEntries(parent->path);
     std::vector<std::unique_ptr<Node>> children;
     children.reserve(entries.size());
-    int row = 0;
-    for (const QFileInfo &entry : entries) {
-        auto child = std::make_unique<Node>();
-        child->name = entry.fileName();
-        child->path = entry.absoluteFilePath();
-        child->relativePath = parent->relativePath.isEmpty()
-                                  ? child->name
-                                  : parent->relativePath + QLatin1Char('/') + child->name;
-        child->isDir = entry.isDir();
-        child->generation = m_generation;
-        child->parent = const_cast<Node *>(parent);
-        child->row = row;
-        children.push_back(std::move(child));
-        ++row;
-    }
+    for (const QFileInfo &entry : entries)
+        children.push_back(makeChildNode(entry, parent));
     return children;
 }
 
@@ -295,6 +270,13 @@ void FileTreeModel::attachChildren(
 {
     node->children = std::move(children);
     node->fetched = true;
+    renumberChildren(node);
+}
+
+void FileTreeModel::renumberChildren(Node *node)
+{
+    for (size_t row = 0; row < node->children.size(); ++row)
+        node->children[row]->row = static_cast<int>(row);
 }
 
 void FileTreeModel::populateNode(Node *node)
@@ -323,62 +305,115 @@ void FileTreeModel::fetchNode(Node *node)
     armWatchers();
 }
 
-FileTreeModel::Node *FileTreeModel::findNodeInSubtree(Node *base,
-                                                      const QString &relativePath,
-                                                      bool withSignals)
+bool FileTreeModel::syncNode(Node *node)
 {
-    Node *current = base;
-    const QStringList segments =
-            relativePath.split(QLatin1Char('/'), Qt::SkipEmptyParts);
-    for (const QString &segment : segments) {
-        // 沿途逐层补 fetch：恢复深层路径时中间层必须已读取。
-        if (!current->fetched) {
-            if (withSignals)
-                fetchNode(current);
-            else
-                populateNode(current);
+    if (!node->isDir || !node->fetched)
+        return false;
+
+    bool changed = syncChildren(node);
+    for (const std::unique_ptr<Node> &child : node->children) {
+        if (syncNode(child.get()))
+            changed = true;
+    }
+    return changed;
+}
+
+/// 单层对账：把 node 的子项与磁盘列表对齐，差异压缩成最少的行信号。
+///
+/// 三步走，每步都严格夹在 begin/end 之间：
+/// 1. 按名字匹配旧节点，得到目标序列 desired（幸存者用旧指针，新面孔现建）；
+/// 2. 删除阶段从后往前逐段 erase，前面的行号在本阶段内始终有效；
+/// 3. 插入阶段从前往后逐段 insert——此时 children 只剩幸存者，而两侧都按同一
+///    比较器排过序，所以幸存者在 desired 与 children 里必然同序，一个游标就够。
+/// 幸存者不动，它们的子树、fetched 状态与视图里的展开状态因此全部保留。
+bool FileTreeModel::syncChildren(Node *node)
+{
+    const QFileInfoList entries = readSortedEntries(node->path);
+
+    QHash<QString, int> oldRowByName;
+    oldRowByName.reserve(static_cast<int>(node->children.size()));
+    for (size_t row = 0; row < node->children.size(); ++row)
+        oldRowByName.insert(node->children[row]->name, static_cast<int>(row));
+
+    std::vector<Node *> desired;
+    std::vector<std::unique_ptr<Node>> fresh;
+    std::vector<bool> desiredIsFresh;
+    QSet<const Node *> survivors;
+    desired.reserve(entries.size());
+    desiredIsFresh.reserve(entries.size());
+
+    for (const QFileInfo &entry : entries) {
+        Node *reused = nullptr;
+        const auto found = oldRowByName.find(entry.fileName());
+        if (found != oldRowByName.end()) {
+            Node *candidate = node->children[static_cast<size_t>(found.value())].get();
+            // 类型变了（文件被换成同名目录之类）按「删一个插一个」处理，
+            // 否则会把目录的子行挂到文件上。
+            if (candidate->isDir == entry.isDir())
+                reused = candidate;
+            oldRowByName.erase(found);
         }
-        Node *match = nullptr;
-        for (std::unique_ptr<Node> &child : current->children) {
-            // Windows 大小写不敏感；磁盘大小写可能与记忆的不一致。
-            if (child->name == segment
-                    || child->name.compare(segment, Qt::CaseInsensitive) == 0) {
-                match = child.get();
-                break;
-            }
+        if (reused) {
+            desired.push_back(reused);
+            desiredIsFresh.push_back(false);
+            survivors.insert(reused);
+            continue;
         }
-        if (!match)
-            return nullptr;
-        current = match;
+        auto child = makeChildNode(entry, node);
+        desired.push_back(child.get());
+        desiredIsFresh.push_back(true);
+        fresh.push_back(std::move(child));
     }
-    return current;
-}
 
-FileTreeModel::Node *FileTreeModel::nodeForRelativePath(
-        const QString &relativePath)
-{
-    if (!m_root || relativePath.isEmpty())
-        return m_root.get();
-    return findNodeInSubtree(m_root.get(), relativePath, true);
-}
+    if (fresh.empty() && survivors.size() == node->children.size())
+        return false;
 
-void FileTreeModel::collectExpandedRelativePaths(const Node *node, QStringList *out) const
-{
-    if (node != m_root.get()) {
-        if (!node->isDir || !node->expandedInUi)
-            return;
-        out->append(node->relativePath);
+    const QModelIndex parentIndex = indexForNode(node);
+
+    for (int row = static_cast<int>(node->children.size()) - 1; row >= 0;) {
+        if (survivors.contains(node->children[static_cast<size_t>(row)].get())) {
+            --row;
+            continue;
+        }
+        const int last = row;
+        while (row >= 0
+               && !survivors.contains(node->children[static_cast<size_t>(row)].get())) {
+            --row;
+        }
+        const int first = row + 1;
+        beginRemoveRows(parentIndex, first, last);
+        node->children.erase(node->children.begin() + first,
+                             node->children.begin() + last + 1);
+        endRemoveRows();
     }
-    for (const std::unique_ptr<Node> &child : node->children)
-        collectExpandedRelativePaths(child.get(), out);
-}
 
-void FileTreeModel::clearExpandedBelow(Node *node)
-{
-    for (std::unique_ptr<Node> &child : node->children) {
-        child->expandedInUi = false;
-        clearExpandedBelow(child.get());
+    size_t freshIndex = 0;
+    size_t childRow = 0;
+    size_t slot = 0;
+    while (slot < desired.size()) {
+        if (!desiredIsFresh[slot]) {
+            ++slot;
+            ++childRow;
+            continue;
+        }
+        const size_t runStart = slot;
+        while (slot < desired.size() && desiredIsFresh[slot])
+            ++slot;
+        const size_t count = slot - runStart;
+        beginInsertRows(parentIndex, static_cast<int>(childRow),
+                        static_cast<int>(childRow + count - 1));
+        for (size_t offset = 0; offset < count; ++offset) {
+            node->children.insert(node->children.begin()
+                                          + static_cast<long>(childRow + offset),
+                                  std::move(fresh[freshIndex + offset]));
+        }
+        endInsertRows();
+        freshIndex += count;
+        childRow += count;
     }
+
+    renumberChildren(node);
+    return true;
 }
 
 void FileTreeModel::collectWatchedDirs(const Node *node, QStringList *out) const
