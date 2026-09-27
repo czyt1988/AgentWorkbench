@@ -65,6 +65,10 @@ struct LoggingSettings
 {
     qint64 maxFileSize = 5 * 1024 * 1024;
     int maxFiles = 3;
+    // 最低落盘级别：debug/info/warning/critical/off，取值由 Logging 校验
+    QString level = QStringLiteral("debug");
+    // 是否把日志同时镜像到 stderr（控制台调试用）
+    bool mirrorToStderr = true;
 };
 
 struct PluginsSettings

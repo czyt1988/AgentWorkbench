@@ -101,6 +101,54 @@ private slots:
         QVERIFY(text.contains(QStringLiteral("categorized hello")));
         QVERIFY(text.contains(QStringLiteral("plain hello")));
     }
+
+    // 级别过滤：低于配置级别的消息不进文件，其余照常。
+    void testLevelFiltering()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        Logging::install(dir.path(), Logging::DEFAULT_MAX_FILE_SIZE,
+                         Logging::DEFAULT_MAX_FILES, QStringLiteral("warning"));
+        qInfo().noquote() << QStringLiteral("filtered info line");
+        qWarning().noquote() << QStringLiteral("kept warning line");
+        qCritical().noquote() << QStringLiteral("kept critical line");
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("kept warning line")),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("kept critical line")),
+                 qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("filtered info line")),
+                 qPrintable(text));
+    }
+
+    // 事件宏：AWB_* 绑定 awb.event 分类（写进行前缀），级别由宏名给出。
+    void testEventMacros()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        Logging::install(dir.path());
+        AWB_INFO << QStringLiteral("an event happened");
+        AWB_WARNING << QStringLiteral("a worrying event");
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("[awb.event]")), qPrintable(text));
+        QVERIFY(text.contains(QStringLiteral("an event happened")));
+        QVERIFY(text.contains(QStringLiteral("a worrying event")));
+        // 级别由宏名给出：AWB_INFO 落成 [INFO]，AWB_WARNING 落成 [WARNING]。
+        QVERIFY2(text.contains(QStringLiteral("[INFO] [awb.event]")),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("[WARNING] [awb.event]")),
+                 qPrintable(text));
+    }
 };
 
 #include "tst_logging.moc"

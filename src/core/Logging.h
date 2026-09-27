@@ -1,9 +1,22 @@
 #ifndef AWB_CORE_LOGGING_H
 #define AWB_CORE_LOGGING_H
 
+#include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
 #include <QtLogging>
+
+/// 应用级事件日志的 category（"awb.event"）：由下方的 AWB_* 宏绑定。
+/// 声明在全局作用域——宏展开处按未限定名查找，放进命名空间就解析不到。
+Q_DECLARE_LOGGING_CATEGORY(lcAwbEvent)
+
+/// 应用级事件日志的分级宏——级别取宏名，分类固定 awb.event：行前缀会带
+/// 该分类（供按事件过滤），将来的 UI 日志通道也按它分流。模块内部的一般
+/// 日志仍用 qInfo()/qWarning() 加 [module] 前缀。
+#define AWB_DEBUG     qCDebug(lcAwbEvent)
+#define AWB_INFO      qCInfo(lcAwbEvent)
+#define AWB_WARNING   qCWarning(lcAwbEvent)
+#define AWB_CRITICAL  qCCritical(lcAwbEvent)
 
 namespace awb::core {
 
@@ -30,12 +43,17 @@ public:
     /// 建日志目录、装消息处理器、启动后台写盘线程。启动期最先调用，之后的
     /// 任何失败都要落盘。可重复调用：旧后端先排空拆除，再建新的。
     ///
-    /// @param directory   日志目录；空串用 Paths::logsDir()
-    /// @param maxFileSize 单文件字节上限；非正数取默认值
-    /// @param maxFiles    文件总数（含当前文件）；小于 1 按 1 处理
+    /// @param directory       日志目录；空串用 Paths::logsDir()
+    /// @param maxFileSize     单文件字节上限；非正数取默认值
+    /// @param maxFiles        文件总数（含当前文件）；小于 1 按 1 处理
+    /// @param level           最低落盘级别（debug/info/warning/critical/off）；
+    ///                        非法值告警后按 debug 处理
+    /// @param mirrorToStderr  是否同时镜像到 stderr
     static void install(const QString &directory = QString(),
                         qint64 maxFileSize = DEFAULT_MAX_FILE_SIZE,
-                        int maxFiles = DEFAULT_MAX_FILES);
+                        int maxFiles = DEFAULT_MAX_FILES,
+                        const QString &level = QStringLiteral("debug"),
+                        bool mirrorToStderr = true);
 
     /// 排空队列、停掉后台线程、恢复默认消息处理器。
     /// 退出路径必须调用：不调则队列里还没写盘的尾部日志会丢。
@@ -43,6 +61,11 @@ public:
 
     /// 当前日志文件的绝对路径；install() 之前是空串。
     static QString logFilePath();
+
+    /// 级别名是否是 install()/settings.json 接受的取值之一
+    /// （debug、info、warning、critical、off）。Settings 用它校验
+    /// logging.level，避免两处各持一份取值清单。
+    static bool isValidLevelName(const QString &name);
 
     /// 命令行的展示形式，转发到 TextUtils 的规范实现。
     static QString formatCommandLine(const QString &program,

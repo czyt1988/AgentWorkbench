@@ -70,6 +70,8 @@ private slots:
         QCOMPARE(s.skillsOptions().maxDepth, 6);
         QCOMPARE(s.loggingOptions().maxFileSize, qint64(5 * 1024 * 1024));
         QCOMPARE(s.loggingOptions().maxFiles, 3);
+        QCOMPARE(s.loggingOptions().level, QStringLiteral("debug"));
+        QVERIFY(s.loggingOptions().mirrorToStderr);
         QVERIFY(!s.pluginsOptions().enabled);
 
         QVERIFY(s.save().ok);
@@ -130,6 +132,43 @@ private slots:
                 warned = true;
         }
         QVERIFY2(warned, "invalid values must be logged as warnings");
+    }
+
+    // 日志选项：自定义的级别与镜像开关读得进、save() 存得出；非法级别
+    // 告警后回默认值。
+    void testLoggingOptions()
+    {
+        writeSettingsFile(R"({ "logging": { "level": "warning",
+                                            "mirrorToStderr": false } })");
+        Settings s;
+        QCOMPARE(s.loggingOptions().level, QStringLiteral("warning"));
+        QVERIFY(!s.loggingOptions().mirrorToStderr);
+        QVERIFY(s.save().ok);
+
+        // save() 把两个新键原样写回了文件。
+        QFile f(Settings::settingsFilePath());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+        const QJsonObject logging =
+            root.value(QStringLiteral("logging")).toObject();
+        QCOMPARE(logging.value(QStringLiteral("level")).toString(),
+                 QStringLiteral("warning"));
+        QVERIFY(!logging.value(QStringLiteral("mirrorToStderr")).toBool());
+
+        // 非法级别：告警并回默认。
+        writeSettingsFile(R"({ "logging": { "level": "loud" } })");
+        g_captured.clear();
+        const QtMessageHandler previous =
+            qInstallMessageHandler(&captureMessage);
+        Settings invalid;
+        qInstallMessageHandler(previous);
+        QCOMPARE(invalid.loggingOptions().level, QStringLiteral("debug"));
+        bool warned = false;
+        for (const QString &msg : std::as_const(g_captured)) {
+            if (msg.contains(QStringLiteral("logging.level")))
+                warned = true;
+        }
+        QVERIFY2(warned, "an invalid log level must be logged as a warning");
     }
 
     // Unknown keys are ignored with a warning, never fatal.

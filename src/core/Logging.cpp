@@ -20,6 +20,9 @@
 #include <memory>
 #include <vector>
 
+// 与 Logging.h 里的 Q_DECLARE_LOGGING_CATEGORY 同在全局作用域。
+Q_LOGGING_CATEGORY(lcAwbEvent, "awb.event")
+
 namespace awb::core {
 
 namespace {
@@ -34,6 +37,25 @@ constexpr std::size_t kWorkerThreads = 1;
 // 1 s 后提交；每次 flush 只是把 CRT 缓冲交给操作系统，不是 fsync。
 constexpr std::chrono::seconds kFlushInterval{1};
 const char *const kLoggerName = "agentworkbench";
+
+// 级别名（install() 与 settings.json 的 logging.level 共用同一份取值
+// 清单）→ spdlog 级别；未知名字返回 false，调用方按默认处理。
+bool parseLevelName(const QString &name, spdlog::level::level_enum &out)
+{
+    if (name == QStringLiteral("debug"))
+        out = spdlog::level::debug;
+    else if (name == QStringLiteral("info"))
+        out = spdlog::level::info;
+    else if (name == QStringLiteral("warning"))
+        out = spdlog::level::warn;
+    else if (name == QStringLiteral("critical"))
+        out = spdlog::level::critical;
+    else if (name == QStringLiteral("off"))
+        out = spdlog::level::off;
+    else
+        return false;
+    return true;
+}
 
 // 文件名类型由 SPDLOG_WCHAR_FILENAMES 决定：Windows 下是 std::wstring
 // （宽字符才打得开非 ASCII 路径），其它平台是 std::string。
@@ -119,6 +141,9 @@ private:
 QString s_logPath;
 qint64 s_maxFileSize = Logging::DEFAULT_MAX_FILE_SIZE;
 int s_maxFiles = Logging::DEFAULT_MAX_FILES;
+// 最低落盘级别与 stderr 镜像开关，由 install() 的参数驱动。
+spdlog::level::level_enum s_minLevel = spdlog::level::debug;
+bool s_mirrorToStderr = true;
 std::shared_ptr<spdlog::logger> s_logger;
 std::shared_ptr<spdlog::details::thread_pool> s_pool;
 std::shared_ptr<RotatingFileSink> s_fileSink;
@@ -176,9 +201,16 @@ void buildBackend()
     }
 
     // stderr 镜像：旧实现无条件 fprintf(stderr)，这里等价保留，只是改由
-    // 后台线程写。
-    s_stderrSink = std::make_shared<spdlog::sinks::stderr_sink_mt>();
-    sinks.push_back(s_stderrSink);
+    // 后台线程写；logging.mirrorToStderr=false 时不挂这个 sink。
+    if (s_mirrorToStderr) {
+        s_stderrSink = std::make_shared<spdlog::sinks::stderr_sink_mt>();
+        sinks.push_back(s_stderrSink);
+    }
+
+    // 一个 sink 都没有（文件打不开且不镜像 stderr）：不建 logger，让
+    // handler 的 stderr 直写分支兜底——错误状况下的可见性优先于镜像开关。
+    if (sinks.empty())
+        return;
 
     try {
         s_pool = std::make_shared<spdlog::details::thread_pool>(kQueueCapacity,
@@ -190,8 +222,8 @@ void buildBackend()
         // （Windows 下 "\r\n"，与旧实现 QFile 的 Text 模式逐字节一致）；
         // 时间戳、级别、分类、位置都不走 spdlog 的 pattern。
         s_logger->set_pattern("%v");
-        // 全收所有 Qt 消息，与改造前「所有消息都落盘」的行为一致。
-        s_logger->set_level(spdlog::level::debug);
+        // handler 已按 s_minLevel 过滤过一轮，这里再设一次是双保险。
+        s_logger->set_level(s_minLevel);
         s_logger->flush_on(spdlog::level::warn);
         s_flusher = std::make_unique<spdlog::details::periodic_worker>(
             [] {
@@ -237,10 +269,12 @@ bool writeFatalNow(spdlog::string_view_t payload)
 
 } // namespace
 
-void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles)
+void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles,
+                      const QString &level, bool mirrorToStderr)
 {
     s_maxFileSize = maxFileSize > 0 ? maxFileSize : DEFAULT_MAX_FILE_SIZE;
     s_maxFiles = qMax(1, maxFiles);
+    s_mirrorToStderr = mirrorToStderr;
 
     // 日志目录：<dataRoot>/log/，调用方可覆盖（测试传临时目录）。
     s_logPath = directory.isEmpty() ? Paths::logsDir() : directory;
@@ -254,7 +288,19 @@ void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles
     // 分支，不会打到还不存在的队列上。
     qInstallMessageHandler(Logging::messageHandler);
 
+    // 级别解析放在 handler 之后：非法值的告警要进得了日志。未知值按 debug
+    // 处理（settings 侧已校验过，这里防的是直接调用 install()）。
+    bool hasBadLevel = false;
+    if (!parseLevelName(level, s_minLevel)) {
+        s_minLevel = spdlog::level::debug;
+        hasBadLevel = true;
+    }
+
     buildBackend();
+
+    if (hasBadLevel)
+        qWarning().noquote() << QStringLiteral(
+            "AgentWorkbench: unknown log level \"%1\"; using debug").arg(level);
 
     qInfo().noquote() << QStringLiteral(
                              "AgentWorkbench: logging started → %1 "
@@ -275,6 +321,12 @@ QString Logging::logFilePath()
     if (s_logPath.isEmpty())
         return {};
     return s_logPath + QLatin1Char('/') + QStringLiteral("agentworkbench.log");
+}
+
+bool Logging::isValidLevelName(const QString &name)
+{
+    spdlog::level::level_enum parsed = spdlog::level::debug;
+    return parseLevelName(name, parsed);
 }
 
 QString Logging::formatCommandLine(const QString &program, const QStringList &args)
@@ -298,6 +350,11 @@ void Logging::messageHandler(QtMsgType type,
                              const QMessageLogContext &context,
                              const QString &msg)
 {
+    // 级别过滤放在最前：被过滤的消息连行都不用拼。spdlog 的级别序是数值
+    // 越大越严重，低于阈值的直接丢弃（off = 全部丢弃）。
+    if (static_cast<int>(toSpdlogLevel(type)) < static_cast<int>(s_minLevel))
+        return;
+
     const char *level = "DEBUG";
     switch (type) {
     case QtInfoMsg:     level = "INFO";    break;

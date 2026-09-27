@@ -54,15 +54,18 @@ int main(int argc, char *argv[])
     // early would make its untouched-check (data root holds nothing but
     // log/) fail forever.
     awb::core::Settings settings;
-    // Apply the configured rotation policy (logging.maxFileSize/maxFiles).
-    // The install() above must run first with the defaults — Settings may
-    // warn and those warnings belong on disk — so re-install only when the
-    // user actually customized the policy.
+    // 应用配置的日志选项（轮转策略、级别、stderr 镜像）。上面第一次
+    // install() 必须先用默认值跑——Settings 构造期间的告警要落盘——所以
+    // 只在用户真改过某一项时才二次 install。
     const awb::core::LoggingSettings logOpts = settings.loggingOptions();
-    if (logOpts.maxFileSize != awb::core::Logging::DEFAULT_MAX_FILE_SIZE
-        || logOpts.maxFiles != awb::core::Logging::DEFAULT_MAX_FILES)
+    const awb::core::LoggingSettings logDefaults;
+    if (logOpts.maxFileSize != logDefaults.maxFileSize
+        || logOpts.maxFiles != logDefaults.maxFiles
+        || logOpts.level != logDefaults.level
+        || logOpts.mirrorToStderr != logDefaults.mirrorToStderr)
         awb::core::Logging::install(QString(), logOpts.maxFileSize,
-                                    logOpts.maxFiles);
+                                    logOpts.maxFiles, logOpts.level,
+                                    logOpts.mirrorToStderr);
     const QByteArray chromiumFlags =
         settings.webOptions().chromiumFlags.toUtf8();
     if (!chromiumFlags.isEmpty())
