@@ -46,24 +46,15 @@ cmake --build build
 ## 目录结构
 
 ```
-app/           可执行文件：组装（main.cpp、app.rc）、QML 模块与全部嵌入资源的清单
-               （app/CMakeLists.txt 是唯一的「发什么」清单；.qml 本体在各模块的 qml/ 下）
+app/           可执行文件：组装（main.cpp、app.rc）与资源清单；.qml 本体在各模块的 qml/ 下
 src/
-  core/          L0 基础设施：Paths、JsonStore、Settings、Logging、ProcessRunner、
-                 ScriptRunner、HttpProbe、PluginHost、LegacyImport、IconResolver、
-                 EnvExpander、TextUtils、OpResult
+  core/          L0 基础设施：Paths、JsonStore、Settings、Logging、ProcessRunner、ScriptRunner、HttpProbe、PluginHost、LegacyImport、IconResolver、EnvExpander、TextUtils、OpResult
   plugin_api/    L0 插件 ABI（仅头文件；外部仓库链接它）
   theme/         L1 主题引擎：ThemeFile/ThemeLoader/ThemeRegistry/Theme
-  agents/        L2：AgentDefinition/AgentState/AgentStateStore、AgentRepository、
-                 AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、
-                 AgentUrls、AgentsFacade + qml/
-  shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、
-                 PageDescriptor、窗口骨架 QML、qml/components/ 的 A* 组件
-                 （不认识 agent/skill/web）
-  skills/        L2：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、
-                 SkillScanner、SkillModel、SkillsFacade + qml/
-  web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、
-                 WebTabsFacade + qml/
+  agents/        L2：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
+  shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web）
+  skills/        L2：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
+  web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（唯一链接 Qt WebEngine 的目标，含 WebEngineSurface.qml）
   workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices
 cmake/         AwbOptions.cmake、AwbTranslations.cmake（可翻译源清单）
@@ -71,7 +62,7 @@ resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json（打包为 Qt 资源）
 icons/         SVG 图标（打包为 Qt 资源）
 examples/      示例插件（examples/plugins/hello）
-translations/  只有一份 agentworkbench_zh_CN.ts（构建时编译为 .qm，以 :/i18n/ 嵌入）
+translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
 docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
 specs/         重构规格（架构 / 界面 / 实施计划，见上文）
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
