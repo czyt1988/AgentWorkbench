@@ -234,6 +234,10 @@ Page {
                         height: 60
                         radius: theme.radiusControl
                         color: theme.surfaceBg
+                        // Rows are delegates; deleting an agent while its
+                        // status-dot tooltip is showing must not freeze the
+                        // shared tooltip on screen.
+                        Component.onDestruction: ToolTip.hide()
 
                         RowLayout {
                             anchors.fill: parent
@@ -275,6 +279,7 @@ Page {
                                 color: model.running ? theme.success : theme.neutralOff
                                 ToolTip.visible: dotArea.containsMouse
                                 ToolTip.delay: 300
+                                ToolTip.timeout: 10000
                                 ToolTip.text: model.running ? qsTr("Running")
                                                             : qsTr("Stopped")
 

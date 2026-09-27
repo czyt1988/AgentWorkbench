@@ -39,5 +39,6 @@ Item {
     HoverHandler { id: hover }
     ToolTip.visible: hover.hovered
     ToolTip.delay: 300
+    ToolTip.timeout: 10000
     ToolTip.text: control.statusText
 }

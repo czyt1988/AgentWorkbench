@@ -16,11 +16,14 @@ Rectangle {
     radius: theme.radiusPill
     color: fillColor
 
-    // Tooltip for long labels (e.g. plugin id + version).
+    // Tooltip for long labels (e.g. plugin id + version). The timeout keeps
+    // the shared tooltip self-dismissing (see SkillCard for the stuck-case
+    // background).
     property string tooltip: ""
     HoverHandler { id: hover }
     ToolTip.visible: tooltip.length > 0 && hover.hovered
     ToolTip.delay: 300
+    ToolTip.timeout: 10000
     ToolTip.text: tooltip
 
     Label {

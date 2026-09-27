@@ -137,6 +137,7 @@ Popup {
                         hoverEnabled: true
                         ToolTip.visible: containsMouse
                         ToolTip.delay: 300
+                        ToolTip.timeout: 10000
                         ToolTip.text: flyout.info.skillFilePath || ""
                     }
                 }
@@ -184,6 +185,11 @@ Popup {
                     columns: 2
                     columnSpacing: theme.spacingM
 
+                    // Extra rows are rebuilt whenever the flyout follows a
+                    // different skill — a hovered row dying here froze the
+                    // shared tooltip, exactly like the card delegates.
+                    Component.onDestruction: ToolTip.hide()
+
                     Label {
                         text: modelData.key
                         color: theme.textMuted
@@ -200,6 +206,7 @@ Popup {
                             hoverEnabled: true
                             ToolTip.visible: containsMouse
                             ToolTip.delay: 300
+                            ToolTip.timeout: 10000
                             ToolTip.text: modelData.value
                         }
                     }

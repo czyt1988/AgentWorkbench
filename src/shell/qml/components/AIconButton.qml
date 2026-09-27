@@ -19,6 +19,7 @@ Button {
 
     ToolTip.visible: tooltip.length > 0 && hovered
     ToolTip.delay: 300
+    ToolTip.timeout: 10000
     ToolTip.text: tooltip
 
     background: Rectangle {
