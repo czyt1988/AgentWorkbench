@@ -12,6 +12,11 @@ Item {
 
     // Fullscreen hides the tab bar; Esc leaves it first.
     property bool chromeHidden: false
+    // Home view: the agent list (the no-tabs page) on demand, without
+    // closing the open tabs — the way back to the launcher's cards while
+    // views are open. Leaving it (clicking a tab, opening an agent,
+    // cycling tabs) restores the active view.
+    property bool homeActive: false
     // Loaded surface items by tab id — the toolbar reaches the active one
     // (devtools lives on the surface).
     property var surfaceItems: ({})
@@ -64,13 +69,22 @@ Item {
 
                         Repeater {
                             model: web.model
-                            delegate: Rectangle {
+                            delegate: Item {
                                 id: tabButton
 
                                 required property string tabId
                                 required property string title
                                 required property string url
                                 required property string state
+                                // Required properties match model roles BY
+                                // NAME, so this must stay `color`
+                                // (WebTabsModel::ColorRole). The delegate
+                                // root is therefore an Item, not a Rectangle:
+                                // on a Rectangle this property would shadow
+                                // the visual color, the theme binding below
+                                // would land on the string, and the tab body
+                                // would paint default-white (same pattern as
+                                // AgentCard's root Item + inner Rectangle).
                                 required property string color
                                 required property string iconSource
                                 required property int loadProgress
@@ -83,10 +97,15 @@ Item {
                                         + (closeArea.visible ? 20 : 0),
                                         96), 200)
                                 height: theme.tabBarHeight
-                                color: active ? theme.tabActiveBg
-                                              : (tabMouse.containsMouse
-                                                 ? theme.surfaceHoverBg
-                                                 : theme.tabInactiveBg)
+
+                                Rectangle {
+                                    id: tabBackground
+                                    anchors.fill: parent
+                                    color: tabButton.active ? theme.tabActiveBg
+                                                  : (tabMouse.containsMouse
+                                                     ? theme.surfaceHoverBg
+                                                     : theme.tabInactiveBg)
+                                }
 
                                 // Active tab: 2px accent bar on top.
                                 Rectangle {
@@ -114,8 +133,10 @@ Item {
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.MiddleButton)
                                             web.closeTab(tabButton.tabId)
-                                        else
+                                        else {
+                                            page.homeActive = false
                                             web.activateTab(tabButton.tabId)
+                                        }
                                     }
                                     onDoubleClicked: function(mouse) {
                                         if (mouse.button === Qt.LeftButton)
@@ -231,6 +252,17 @@ Item {
                     spacing: theme.spacingXs
                     rightPadding: theme.spacingS
 
+                    // Home: back to the agent list (the no-tabs page)
+                    // without closing anything. Disabled when there is
+                    // nothing to come back from — the list is already up.
+                    AIconButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconSource: "qrc:/icons/home.svg"
+                        tooltip: qsTr("Home")
+                        enabled: web.tabCount > 0
+                        onClicked: page.homeActive = true
+                    }
+
                     // ⟳ reload / ✕ stop — the button follows the active
                     // tab's state.
                     AIconButton {
@@ -318,15 +350,18 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Running agents with one-click open (empty state).
+            // Running agents with one-click open (the empty state — and,
+            // via homeActive, the home view over open tabs; the surfaces
+            // bind their visibility to this item being hidden).
             AEmptyState {
                 id: emptyState
                 anchors.fill: parent
                 // tabCount is NOTifiable; rowCount() has no notify signal,
                 // so a binding to it never re-evaluated after the first tab.
-                visible: web.tabCount === 0
+                visible: web.tabCount === 0 || page.homeActive
                 iconSource: "qrc:/icons/web.svg"
-                title: qsTr("No Web views open")
+                title: page.homeActive ? qsTr("Home")
+                                       : qsTr("No Web views open")
                 description: web.engineAvailable
                               ? qsTr("Open a view from a running agent's card, or from the list below.")
                               : qsTr("This build opens agent WebUIs in the system browser. Start an agent below to open it.")
@@ -355,7 +390,11 @@ Item {
                                 delegate: AListRow {
                                     Layout.fillWidth: true
                                     visible: model.running
-                                    height: visible ? 48 : 0
+                                    // No manual height here: the layout
+                                    // sizes rows off AListRow's
+                                    // implicitHeight (48) and skips hidden
+                                    // rows entirely, which keeps the
+                                    // Flickable's contentHeight truthful.
                                     onVisibleChanged: Qt.callLater(page.recountRunning)
 
                                     AgentAvatar {
@@ -384,7 +423,10 @@ Item {
                                     AButton {
                                         variant: "primary"
                                         text: qsTr("Open")
-                                        onClicked: workbench.openWeb(model.agentId)
+                                        onClicked: {
+                                            page.homeActive = false
+                                            workbench.openWeb(model.agentId)
+                                        }
                                     }
                                 }
                             }
@@ -492,12 +534,18 @@ Item {
     Shortcut {
         sequences: [StandardKey.NextChild]
         context: Qt.ApplicationShortcut
-        onActivated: web.stepActiveTab(1)
+        onActivated: {
+            page.homeActive = false
+            web.stepActiveTab(1)
+        }
     }
     Shortcut {
         sequences: [StandardKey.PreviousChild]
         context: Qt.ApplicationShortcut
-        onActivated: web.stepActiveTab(-1)
+        onActivated: {
+            page.homeActive = false
+            web.stepActiveTab(-1)
+        }
     }
     Shortcut {
         sequences: ["Ctrl+=", "Ctrl++"]

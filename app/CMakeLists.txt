@@ -98,6 +98,7 @@ qt_add_qml_module(AgentWorkbench
 set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/app-icon.png
     ${CMAKE_SOURCE_DIR}/icons/bot.svg
+    ${CMAKE_SOURCE_DIR}/icons/chevron-down.svg
     ${CMAKE_SOURCE_DIR}/icons/chevron-left.svg
     ${CMAKE_SOURCE_DIR}/icons/chevron-right.svg
     ${CMAKE_SOURCE_DIR}/icons/close.svg
@@ -110,6 +111,7 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/external-link.svg
     ${CMAKE_SOURCE_DIR}/icons/folder.svg
     ${CMAKE_SOURCE_DIR}/icons/gear.svg
+    ${CMAKE_SOURCE_DIR}/icons/home.svg
     ${CMAKE_SOURCE_DIR}/icons/kimi-code.svg
     ${CMAKE_SOURCE_DIR}/icons/menu.svg
     ${CMAKE_SOURCE_DIR}/icons/openclaw.svg
