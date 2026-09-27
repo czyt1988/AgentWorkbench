@@ -27,7 +27,7 @@ cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-`bash scripts/package.sh` 会构建 Release 产物、用 `windeployqt` 部署依赖，并打包成 `dist/AgentWorkbench-<版本>-win64-Portable.zip`。
+`bash scripts/package.sh` 会构建 Release 产物（不含测试目标——打包只需要应用本体）、用 `windeployqt` 部署依赖，并打包成 `dist/AgentWorkbench-<版本>-win64-Portable.zip`。
 
 ## 项目结构
 
@@ -60,6 +60,8 @@ docs/         MkDocs 站点（英文 + zh/）
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | 内嵌 Web 视图（仅 MSVC；MinGW + ON 在配置期报错） |
 | `BUILD_TESTING` | `ON` | 单元测试目标（需要 Qt Test 模块） |
+
+`build.sh` 的两个测试开关都会显式设置 `BUILD_TESTING`：`--test` 配成 `ON`，`--no-tests`（`package.sh` 用它）配成 `OFF`。因此同一个构建目录在两种用法之间来回切换也能正常工作。
 
 在 `--` 之后传额外的配置参数，例如：
 

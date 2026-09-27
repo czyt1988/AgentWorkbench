@@ -8,7 +8,8 @@
 #
 # The compile step is delegated to scripts/build.sh, which owns Qt/MSVC
 # detection and the build itself. This script only adds the deployment steps:
-# windeployqt, qt.conf and the portable zip.
+# windeployqt, qt.conf and the portable zip. The build is configured without
+# the test targets — a package needs the application only.
 #
 # Qt and Visual Studio are auto-detected. To force a specific install, export
 # QT_PREFIX (or edit it in the CONFIG section below).
@@ -62,7 +63,9 @@ ZIP_NAME="AgentWorkbench-${VERSION}-win64-Portable.zip"
 
 echo ""
 echo "=== [1/4] Release build (scripts/build.sh) ==="
-bash scripts/build.sh --release --build-dir "$BUILD_DIR"
+# --no-tests keeps the unit test targets out of the release build: they are not
+# part of the shipped package, so compiling them only costs time.
+bash scripts/build.sh --release --no-tests --build-dir "$BUILD_DIR"
 
 # Read both values back from build.sh so this script never second-guesses the
 # toolchain: the Qt prefix comes from the build directory that was just
