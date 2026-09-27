@@ -1,6 +1,7 @@
 #include "core/Settings.h"
 
 #include "core/JsonStore.h"
+#include "core/Logging.h"
 #include "core/Paths.h"
 
 #include <QJsonObject>
@@ -128,7 +129,9 @@ const QSet<QString> kSkillsKeys = { QStringLiteral("roots"),
                                     QStringLiteral("includePluginCaches"),
                                     QStringLiteral("maxDepth") };
 const QSet<QString> kLoggingKeys = { QStringLiteral("maxFileSize"),
-                                     QStringLiteral("maxFiles") };
+                                     QStringLiteral("maxFiles"),
+                                     QStringLiteral("level"),
+                                     QStringLiteral("mirrorToStderr") };
 const QSet<QString> kPluginsKeys = { QStringLiteral("enabled"),
                                      QStringLiteral("disabledIds") };
 const QSet<QString> kRootKeys = {
@@ -262,6 +265,18 @@ void Settings::load()
     m_logging.maxFiles = readInt(logging, QStringLiteral("maxFiles"),
                                  m_logging.maxFiles, 1, 20,
                                  QStringLiteral("logging"));
+    m_logging.level = readString(logging, QStringLiteral("level"),
+                                 m_logging.level, QStringLiteral("logging"));
+    if (!Logging::isValidLevelName(m_logging.level)) {
+        qWarning().noquote() << QStringLiteral(
+            "Settings: logging.level \"%1\" is not one of debug, info, "
+            "warning, critical, off; using the default")
+                                .arg(m_logging.level);
+        m_logging.level = LoggingSettings().level;
+    }
+    m_logging.mirrorToStderr = readBool(
+        logging, QStringLiteral("mirrorToStderr"), m_logging.mirrorToStderr,
+        QStringLiteral("logging"));
 
     const QJsonObject plugins = root.value(QStringLiteral("plugins")).toObject();
     warnUnknownKeys(plugins, kPluginsKeys, QStringLiteral("plugins"));
@@ -379,6 +394,8 @@ OpResult Settings::save()
     QJsonObject logging;
     logging[QStringLiteral("maxFileSize")] = double(m_logging.maxFileSize);
     logging[QStringLiteral("maxFiles")] = m_logging.maxFiles;
+    logging[QStringLiteral("level")] = m_logging.level;
+    logging[QStringLiteral("mirrorToStderr")] = m_logging.mirrorToStderr;
 
     QJsonObject plugins;
     plugins[QStringLiteral("enabled")] = m_plugins.enabled;

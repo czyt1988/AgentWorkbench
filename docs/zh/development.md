@@ -27,7 +27,7 @@ cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-`bash scripts/package.sh` 会构建 Release 产物、用 `windeployqt` 部署依赖，并打包成 `dist/AgentWorkbench-<版本>-win64-Portable.zip`。
+`bash scripts/package.sh` 会构建 Release 产物（不含测试目标——打包只需要应用本体）、用 `windeployqt` 部署依赖，并打包成 `dist/AgentWorkbench-<版本>-win64-Portable.zip`。
 
 ## 项目结构
 
@@ -60,6 +60,8 @@ docs/         MkDocs 站点（英文 + zh/）
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | 内嵌 Web 视图（仅 MSVC；MinGW + ON 在配置期报错） |
 | `BUILD_TESTING` | `ON` | 单元测试目标（需要 Qt Test 模块） |
+
+`build.sh` 的两个测试开关都会显式设置 `BUILD_TESTING`：`--test` 配成 `ON`，`--no-tests`（`package.sh` 用它）配成 `OFF`。因此同一个构建目录在两种用法之间来回切换也能正常工作。
 
 在 `--` 之后传额外的配置参数，例如：
 
@@ -102,7 +104,9 @@ ctest 每个模块一个可执行文件，外加架构守门：
   类型名大写，经窗口根别名以小写契约名（`theme`、`nav`、`agents`…）暴露。
 - **健康检查**：运行态来自对 `webUrl` 的 HTTP 探测（任何响应 = 运行中），
   不要新增进程嗅探。
-- **日志**：`core::Logging` 按 5 MB × 3 文件轮转；命令记录真实执行的命令行。
+- **日志**：`core::Logging` 经 spdlog 异步后端写盘（8192 条 MPMC 队列 + 1 个
+  工作线程），按 5 MB × 3 文件轮转；发出日志的线程只拼行与入队。命令记录
+  真实执行的命令行。
 
 ## 文档站点
 

@@ -34,6 +34,9 @@ target_include_directories(awb_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(awb_core PUBLIC awb_plugin_api)
 
+# spdlog backs core::Logging only; PRIVATE so no other layer sees its headers.
+target_link_libraries(awb_core PRIVATE spdlog::spdlog)
+
 target_link_libraries(awb_core
     PUBLIC
         Qt6::Core

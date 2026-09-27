@@ -21,6 +21,9 @@
 #                          tst_agentcatalog, tst_theme, tst_shell, tst_web,
 #                          tst_skillcatalog)
 #   -t, --test             Run the unit tests (ctest) after building
+#                          (configures with -DBUILD_TESTING=ON)
+#       --no-tests         Configure without the test targets
+#                          (-DBUILD_TESTING=OFF), e.g. for release packaging
 #       --run              Launch the application after building (detached)
 #   -c, --clean            Delete the build directory first (full rebuild)
 #       --generator NAME   Force a CMake generator (default: keep whatever the
@@ -381,6 +384,10 @@ BUILD_DIR="${BUILD_DIR:-}"
 JOBS="${JOBS:-}"
 TARGET=""
 RUN_TESTS=0
+# BUILD_TESTING value to configure with. Empty leaves the option to the CMake
+# default / existing cache; --test and --no-tests set it explicitly so that a
+# build directory keeps working after the other flag was used on it.
+TESTS=""
 RUN_APP=0
 DO_CLEAN=0
 ACTION="build"
@@ -394,7 +401,8 @@ while [[ $# -gt 0 ]]; do
         -b|--build-dir)  BUILD_DIR="${2:?--build-dir needs a value}"; shift ;;
         -j|--jobs)       JOBS="${2:?--jobs needs a value}"; shift ;;
         --target)        TARGET="${2:?--target needs a value}"; shift ;;
-        -t|--test)       RUN_TESTS=1 ;;
+        -t|--test)       RUN_TESTS=1; TESTS="ON" ;;
+        --no-tests)      TESTS="OFF" ;;
         --run)           RUN_APP=1 ;;
         -c|--clean)      DO_CLEAN=1 ;;
         --generator)     GENERATOR="${2:?--generator needs a value}"; shift ;;
@@ -411,6 +419,11 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+if [[ "$TESTS" == "OFF" && $RUN_TESTS -eq 1 ]]; then
+    echo "Error: --test and --no-tests are mutually exclusive." >&2
+    exit 2
+fi
 
 # Always run from the project root, regardless of where the script is invoked.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -527,6 +540,9 @@ CONFIGURE_ARGS+=( "-DCMAKE_PREFIX_PATH=$QT_PREFIX" )
 CONFIGURE_ARGS+=( -DCMAKE_EXPORT_COMPILE_COMMANDS=ON )
 [[ $MULTI_CONFIG -eq 0 ]] && CONFIGURE_ARGS+=( "-DCMAKE_BUILD_TYPE=$CONFIG" )
 [[ -n "$NINJA_BIN" ]] && CONFIGURE_ARGS+=( "-DCMAKE_MAKE_PROGRAM=$(to_windows_path "$NINJA_BIN")" )
+# Placed before the user-supplied arguments so an explicit
+# `-- -DBUILD_TESTING=...` still wins over --test / --no-tests.
+[[ -n "$TESTS" ]] && CONFIGURE_ARGS+=( "-DBUILD_TESTING=$TESTS" )
 if [[ -n "${CMAKE_ARGS// /}" ]]; then
     read -r -a _extra <<<"$CMAKE_ARGS"
     CONFIGURE_ARGS+=( "${_extra[@]}" )
@@ -649,6 +665,8 @@ echo ""
 echo "=== Build succeeded ==="
 echo "Configuration: $CONFIG"
 echo "Executable:    $EXE"
-if [[ $RUN_TESTS -eq 0 ]]; then
+if [[ "$TESTS" == "OFF" ]]; then
+    echo "Tests:         not built (--no-tests)"
+elif [[ $RUN_TESTS -eq 0 ]]; then
     echo "Tests:         not run (add --test)"
 fi

@@ -36,8 +36,9 @@ cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-`bash scripts/package.sh` builds the release binary, deploys it with
-`windeployqt` and produces `dist/AgentWorkbench-<version>-win64-Portable.zip`.
+`bash scripts/package.sh` builds the release binary (without the test targets —
+a package only needs the application), deploys it with `windeployqt` and
+produces `dist/AgentWorkbench-<version>-win64-Portable.zip`.
 
 ## Project layout
 
@@ -70,6 +71,10 @@ docs/         MkDocs site (English + zh/)
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | embedded Web views (MSVC only; MinGW + ON fails at configure time with a readable error) |
 | `BUILD_TESTING` | `ON` | unit test targets (needs the Qt Test module) |
+
+`build.sh` sets `BUILD_TESTING` explicitly for both of its test flags —
+`--test` configures it `ON`, `--no-tests` (used by `package.sh`) configures it
+`OFF` — so one build directory keeps working after either was used on it.
 
 Pass extra configure arguments after `--`, e.g.:
 
@@ -114,8 +119,10 @@ The layering and dependency rules, in short:
   exposed to QML through lowercase root aliases (`theme`, `nav`, `agents`, …).
 - **Health**: running state comes from an HTTP probe of `webUrl` (any HTTP
   response = running). Do not add process sniffing.
-- **Logging**: `core::Logging` rotates at 5 MB × 3 files; commands are logged
-  with the command line actually executed.
+- **Logging**: `core::Logging` writes through spdlog's async backend (an
+  8192-slot MPMC queue drained by one worker thread) and rotates at 5 MB × 3
+  files; the emitting thread only formats the line and enqueues it. Commands
+  are logged with the command line actually executed.
 
 ## Documentation site
 

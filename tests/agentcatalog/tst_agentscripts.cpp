@@ -5,6 +5,7 @@
 #include "core/Logging.h"
 #include "core/Settings.h"
 
+#include <QFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>

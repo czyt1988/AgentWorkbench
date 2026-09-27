@@ -1,55 +1,77 @@
 #ifndef AWB_CORE_LOGGING_H
 #define AWB_CORE_LOGGING_H
 
-#include <QFile>
+#include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
+#include <QtLogging>
+
+/// 应用级事件日志的 category（"awb.event"）：由下方的 AWB_* 宏绑定。
+/// 声明在全局作用域——宏展开处按未限定名查找，放进命名空间就解析不到。
+Q_DECLARE_LOGGING_CATEGORY(lcAwbEvent)
+
+/// 应用级事件日志的分级宏——级别取宏名，分类固定 awb.event：行前缀会带
+/// 该分类（供按事件过滤），将来的 UI 日志通道也按它分流。模块内部的一般
+/// 日志仍用 qInfo()/qWarning() 加 [module] 前缀。
+#define AWB_DEBUG     qCDebug(lcAwbEvent)
+#define AWB_INFO      qCInfo(lcAwbEvent)
+#define AWB_WARNING   qCWarning(lcAwbEvent)
+#define AWB_CRITICAL  qCCritical(lcAwbEvent)
 
 namespace awb::core {
 
-// Rotating-file log handler. Installs a Qt
-// message handler that writes all qDebug/qInfo/qWarning/qCritical output to
-//   <dataRoot>/log/agentworkbench.log
-// When that file reaches the size limit it is rotated to
-// agentworkbench.log.1, the previous .1 becomes .2, and the oldest backup is
-// deleted, so at most maxFiles files (current + backups) exist at any time.
-//
-// Modules may declare a Qt logging category (Q_LOGGING_CATEGORY,
-// named "awb.<module>") and log through it; the category appears as a
-// prefix on the line so the log can be filtered per module.
+/// 异步滚动文件日志：install() 装上 Qt 消息处理器，把 qDebug/qInfo/
+/// qWarning/qCritical 写到 <dataRoot>/log/agentworkbench.log。
+///
+/// 写盘、轮转与 stderr 镜像全部由 spdlog 的后台线程完成——调用线程只负责
+/// 拼日志行和入队，日志量再大也不会占用调用方（通常是 UI 线程）的 IO 时间。
+/// 文件到上限后滚动：agentworkbench.log 顶成 .log.1，.1 顶成 .2，最旧的备份
+/// 删除，任意时刻最多 maxFiles 个文件（当前 + 备份）。
+///
+/// 模块可以声明 Qt logging category（Q_LOGGING_CATEGORY，命名 "awb.<module>"）
+/// 经分类输出，分类名会作为前缀写进日志行，便于按模块过滤。
 class Logging
 {
 public:
-    // Rotation policy: 5 MB per file, 3 files (current + 2 backups) → 15 MB.
+    /// 轮转策略默认值：单文件 5 MB、共 3 个文件（当前 + 2 备份）→ 15 MB。
     static constexpr qint64 DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024;
     static constexpr int DEFAULT_MAX_FILES = 3;
 
-    // Cap for the verbatim output of one command in the log.
+    /// 单条命令输出写进日志的逐字上限。
     static constexpr int DEFAULT_MAX_OUTPUT = 16 * 1024;
 
-    // Create the log directory, open the log file, and install the message
-    // handler. Call once at startup, before any qWarning/etc.
-    // `directory` overrides the default log directory; `maxFileSize` and
-    // `maxFiles` override the rotation policy. Production uses the defaults —
-    // the parameters exist so tests can exercise rotation without writing
-    // megabytes.
+    /// 建日志目录、装消息处理器、启动后台写盘线程。启动期最先调用，之后的
+    /// 任何失败都要落盘。可重复调用：旧后端先排空拆除，再建新的。
+    ///
+    /// @param directory       日志目录；空串用 Paths::logsDir()
+    /// @param maxFileSize     单文件字节上限；非正数取默认值
+    /// @param maxFiles        文件总数（含当前文件）；小于 1 按 1 处理
+    /// @param level           最低落盘级别（debug/info/warning/critical/off）；
+    ///                        非法值告警后按 debug 处理
+    /// @param mirrorToStderr  是否同时镜像到 stderr
     static void install(const QString &directory = QString(),
                         qint64 maxFileSize = DEFAULT_MAX_FILE_SIZE,
-                        int maxFiles = DEFAULT_MAX_FILES);
+                        int maxFiles = DEFAULT_MAX_FILES,
+                        const QString &level = QStringLiteral("debug"),
+                        bool mirrorToStderr = true);
 
-    // Flush, close, and restore the default message handler. Mainly for
-    // tests, which must not keep a message handler installed past the test
-    // case.
+    /// 排空队列、停掉后台线程、恢复默认消息处理器。
+    /// 退出路径必须调用：不调则队列里还没写盘的尾部日志会丢。
     static void uninstall();
 
-    // Absolute path of the current log file, for messages that point the
-    // user at the log. Empty when install() has not run yet.
+    /// 当前日志文件的绝对路径；install() 之前是空串。
     static QString logFilePath();
 
-    // Forwarders to the canonical implementations in TextUtils (kept here
-    // because the log formatting belongs with the log).
+    /// 级别名是否是 install()/settings.json 接受的取值之一
+    /// （debug、info、warning、critical、off）。Settings 用它校验
+    /// logging.level，避免两处各持一份取值清单。
+    static bool isValidLevelName(const QString &name);
+
+    /// 命令行的展示形式，转发到 TextUtils 的规范实现。
     static QString formatCommandLine(const QString &program,
                                      const QStringList &args = QStringList());
+
+    /// 输出截断，转发到 TextUtils 的规范实现。
     static QString clampOutput(const QString &text,
                                int limit = DEFAULT_MAX_OUTPUT);
 
@@ -57,20 +79,6 @@ private:
     static void messageHandler(QtMsgType type,
                                const QMessageLogContext &context,
                                const QString &msg);
-
-    // Close and rotate the current log file if it has grown too large.
-    static void rotateIfNeeded();
-
-    // Path of backup #index (1 = most recent, maxFiles - 1 = oldest).
-    static QString backupPath(int index);
-
-    static QFile s_logFile;
-    static QString s_logPath;
-    static qint64 s_maxFileSize;
-    static int s_maxFiles;
-    // Bytes written to the current file, tracked so rotation does not have to
-    // stat the file after every message.
-    static qint64 s_bytesWritten;
 };
 
 } // namespace awb::core

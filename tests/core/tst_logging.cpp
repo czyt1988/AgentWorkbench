@@ -4,9 +4,13 @@
 #include "core/TextUtils.h"
 
 #include <QDir>
+#include <QFile>
 #include <QLoggingCategory>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <thread>
+#include <vector>
 
 using awb::core::Logging;
 
@@ -99,6 +103,111 @@ private slots:
         QVERIFY2(text.contains(QStringLiteral("[awb.test]")), qPrintable(text));
         QVERIFY(text.contains(QStringLiteral("categorized hello")));
         QVERIFY(text.contains(QStringLiteral("plain hello")));
+    }
+
+    // 级别过滤：低于配置级别的消息不进文件，其余照常。
+    void testLevelFiltering()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        Logging::install(dir.path(), Logging::DEFAULT_MAX_FILE_SIZE,
+                         Logging::DEFAULT_MAX_FILES, QStringLiteral("warning"));
+        qInfo().noquote() << QStringLiteral("filtered info line");
+        qWarning().noquote() << QStringLiteral("kept warning line");
+        qCritical().noquote() << QStringLiteral("kept critical line");
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("kept warning line")),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("kept critical line")),
+                 qPrintable(text));
+        QVERIFY2(!text.contains(QStringLiteral("filtered info line")),
+                 qPrintable(text));
+    }
+
+    // 事件宏：AWB_* 绑定 awb.event 分类（写进行前缀），级别由宏名给出。
+    void testEventMacros()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        Logging::install(dir.path());
+        AWB_INFO << QStringLiteral("an event happened");
+        AWB_WARNING << QStringLiteral("a worrying event");
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("[awb.event]")), qPrintable(text));
+        QVERIFY(text.contains(QStringLiteral("an event happened")));
+        QVERIFY(text.contains(QStringLiteral("a worrying event")));
+        // 级别由宏名给出：AWB_INFO 落成 [INFO]，AWB_WARNING 落成 [WARNING]。
+        QVERIFY2(text.contains(QStringLiteral("[INFO] [awb.event]")),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("[WARNING] [awb.event]")),
+                 qPrintable(text));
+    }
+
+    // 非 ASCII 路径回归：中文目录下的日志文件必须能打开并落盘——当年否决
+    // spdlog 的原因就是窄字符 fopen 打不开这类路径（SPDLOG_WCHAR_FILENAMES
+    // 是这里能过的前提）。
+    void testNonAsciiLogPath()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString logDir = dir.path() + QStringLiteral("/日志目录");
+        QVERIFY(QDir().mkpath(logDir));
+
+        Logging::install(logDir);
+        qInfo().noquote() << QStringLiteral("written under a chinese path");
+        Logging::uninstall();
+
+        QFile f(logDir + QStringLiteral("/agentworkbench.log"));
+        QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(f.errorString()));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("written under a chinese path")),
+                 qPrintable(text));
+    }
+
+    // 并发生产者：多线程同时写日志，uninstall 排空后一条不丢、一条不重。
+    // 4×500=2000 条远小于 8192 的队列深度，不会触发丢最旧的溢出策略，
+    // 所以行数是确定值。
+    void testConcurrentProducers()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Logging::install(dir.path());
+
+        constexpr int kThreads = 4;
+        constexpr int kPerThread = 500;
+        std::vector<std::thread> producers;
+        for (int t = 0; t < kThreads; ++t) {
+            producers.emplace_back([t, kPerThread] {
+                for (int i = 0; i < kPerThread; ++i)
+                    qInfo().noquote()
+                        << QStringLiteral("concurrent line %1/%2").arg(t).arg(i);
+            });
+        }
+        for (std::thread &producer : producers)
+            producer.join();
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(f.errorString()));
+        const QString text = QString::fromUtf8(f.readAll());
+        int count = 0;
+        int from = 0;
+        const QString marker = QStringLiteral("concurrent line ");
+        while ((from = text.indexOf(marker, from)) != -1) {
+            ++count;
+            from += marker.size();
+        }
+        QCOMPARE(count, kThreads * kPerThread);
     }
 };
 
