@@ -4,6 +4,7 @@
 #include "core/TextUtils.h"
 
 #include <QDir>
+#include <QFile>
 #include <QLoggingCategory>
 #include <QTemporaryDir>
 #include <QtTest>

@@ -233,8 +233,13 @@ int main(int argc, char *argv[])
                     .utf16()),
             L"AgentWorkbench", MB_ICONERROR | MB_OK);
 #endif
+        // 排空异步日志队列再退：弹窗期间后台可能还有未写盘的尾部消息。
+        awb::core::Logging::uninstall();
         return -1;
     }
 
-    return app.exec();
+    const int exitCode = app.exec();
+    // 同上：不先 uninstall，队列里没写盘的尾部日志会随进程消失。
+    awb::core::Logging::uninstall();
+    return exitCode;
 }
