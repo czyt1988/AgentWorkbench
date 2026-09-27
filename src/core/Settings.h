@@ -43,7 +43,11 @@ struct LauncherSettings
 struct WebSettings
 {
     QString surface = QStringLiteral("embedded"); // embedded | external
-    bool freezeInactiveTabs = true;
+    // Off by default: Chromium already throttles hidden views (no rAF,
+    // slowed timers), while Frozen additionally suspends JS/websockets —
+    // agent WebUIs visibly "refresh" when resumed on tab switch. The LRU
+    // release (maxLiveTabs) still bounds memory with this off.
+    bool freezeInactiveTabs = false;
     int maxLiveTabs = 8;
     QString downloadDir; // empty = platform default (~/Downloads)
     QString chromiumFlags;
