@@ -418,21 +418,12 @@ Page {
                     Layout.fillWidth: true
                     spacing: theme.spacingS
 
-                    TextField {
+                    ATextField {
                         id: newRootField
                         Layout.fillWidth: true
                         placeholderText: qsTr("Add a skill root directory...")
-                        color: theme.textPrimary
-                        placeholderTextColor: theme.textMuted
                         font.family: theme.monoFamily
                         font.pixelSize: theme.fontSizeSmall
-                        background: Rectangle {
-                            radius: theme.radiusControl
-                            color: theme.surfaceAltBg
-                            border.color: newRootField.activeFocus
-                                          ? theme.focusRing : theme.borderSubtle
-                            border.width: newRootField.activeFocus ? 2 : 1
-                        }
                         onAccepted: {
                             if (skills.addRoot(text.trim()))
                                 text = ""
@@ -505,22 +496,13 @@ Page {
                 Layout.rightMargin: theme.spacingL
                 spacing: theme.spacingM
 
-                TextField {
+                ATextField {
                     id: flagsField
                     Layout.fillWidth: true
                     text: shell.webChromiumFlags
                     placeholderText: qsTr("Chromium flags, e.g. --disable-gpu (applies after restart)")
-                    color: theme.textPrimary
-                    placeholderTextColor: theme.textMuted
                     font.family: theme.monoFamily
                     font.pixelSize: theme.fontSizeSmall
-                    background: Rectangle {
-                        radius: theme.radiusControl
-                        color: theme.surfaceAltBg
-                        border.color: flagsField.activeFocus ? theme.focusRing
-                                                             : theme.borderSubtle
-                        border.width: flagsField.activeFocus ? 2 : 1
-                    }
                     onEditingFinished: shell.setWebChromiumFlags(text.trim())
                 }
             }

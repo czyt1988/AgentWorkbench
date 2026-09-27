@@ -83,66 +83,9 @@ Dialog {
             saveErrorPopup.open()
     }
 
-    // Label row: text + red required marker + info icon, each Label is a
-    // tooltip hover source (MouseArea child, like the home-page badges).
-    component FormLabel: RowLayout {
-        id: labelRow
-        Layout.fillWidth: true
-        property string labelText: ""
-        property bool isRequired: false
-        property string tip: ""
-        spacing: theme.spacingXs
 
-        Label {
-            text: labelRow.labelText
-            color: theme.textSecondary
-            font.pixelSize: theme.fontSizeBody
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                ToolTip.text: labelRow.tip
-                ToolTip.visible: containsMouse && labelRow.tip.length > 0
-                ToolTip.delay: 300
-                ToolTip.timeout: 10000
-            }
-        }
-        Label {
-            text: "*"
-            color: theme.danger
-            font.pixelSize: theme.fontSizeBody
-            visible: labelRow.isRequired
-        }
-        Label {
-            text: "\u2139"
-            color: theme.textDisabled
-            font.pixelSize: theme.fontSizeBody
-            visible: labelRow.tip.length > 0
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                ToolTip.text: labelRow.tip
-                ToolTip.visible: containsMouse
-                ToolTip.delay: 300
-                ToolTip.timeout: 10000
-            }
-        }
-        Item { Layout.fillWidth: true }
-    }
-
-    // Dark-themed TextField with an invalid (red border) state.
-    component FormTextField: TextField {
-        id: input
-        property bool invalid: false
-        Layout.fillWidth: true
-        color: theme.textPrimary
-        background: Rectangle {
-            radius: theme.radiusControl
-            color: theme.surfaceAltBg
-            border.color: input.invalid ? theme.danger : theme.borderSubtle
-        }
-    }
+    // Form rows use the shared AFormLabel / ATextField components
+    // (components/), with Layout.fillWidth set at each use site.
 
     component SectionLabel: Label {
         color: theme.accent
@@ -207,36 +150,39 @@ Dialog {
 
                 SectionLabel { text: qsTr("Basics") }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Name")
                     isRequired: true
                     tip: qsTr("Display name shown on the launcher card, e.g. \"Kimi Code\".")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: nameField
                     text: page.agentData.name || ""
                     placeholderText: qsTr("e.g. Kimi Code")
                     invalid: !page.nameValid
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Command")
                     isRequired: true
                     tip: qsTr("Command line that starts the agent, e.g. \"kimi web --port 58628\". It runs in the background without a visible window.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: commandField
                     text: page.agentData.command || ""
                     placeholderText: qsTr("e.g. opencode web --port 4096")
                     invalid: !page.commandValid
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Web URL")
                     isRequired: true
                     tip: qsTr("The agent's web UI address. Used as a health check to detect whether the agent is running, and opened in the browser. Keep the port in sync with the command.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: webUrlField
                     text: page.agentData.webUrl || ""
                     placeholderText: qsTr("e.g. http://127.0.0.1:4096")
@@ -249,11 +195,12 @@ Dialog {
                     font.pixelSize: theme.fontSizeSmall
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("ID")
                     tip: qsTr("Unique identifier stored in the configuration file. Leave empty to generate it from the name. It cannot be changed after creation.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: idField
                     text: page.isAdd ? "" : page.agentId
                     placeholderText: qsTr("auto-generated from name")
@@ -262,11 +209,12 @@ Dialog {
                     invalid: !page.idValid
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Config directory")
                     tip: qsTr("The agent's own configuration folder, e.g. \"%USERPROFILE%/.kimi-code\". Opened from the card's context menu. %VAR% and ~ are expanded.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: configDirField
                     text: page.agentData.configDir || ""
                     placeholderText: qsTr("e.g. %USERPROFILE%/.config/opencode")
@@ -282,7 +230,7 @@ Dialog {
 
                 SectionLabel { text: qsTr("Appearance") }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Icon")
                     tip: qsTr("Built-in icon (qrc:/icons/<name>.svg), a local file path (%VAR% and ~ expanded), or an http(s):// URL. Leave empty for the default icon. Click a built-in icon below to fill the field.")
                 }
@@ -290,7 +238,8 @@ Dialog {
                     Layout.fillWidth: true
                     spacing: theme.spacingS
 
-                    FormTextField {
+                    ATextField {
+        Layout.fillWidth: true
                         id: iconField
                         text: page.agentData.icon || ""
                         placeholderText: qsTr("qrc:/icons/<name>.svg, file path or URL")
@@ -343,14 +292,15 @@ Dialog {
                     }
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Color")
                     tip: qsTr("Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: theme.spacingS
-                    FormTextField {
+                    ATextField {
+        Layout.fillWidth: true
                         id: colorField
                         text: page.agentData.color || ""
                         placeholderText: qsTr("auto-assigned")
@@ -366,14 +316,15 @@ Dialog {
                     }
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Card color")
                     tip: qsTr("Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: theme.spacingS
-                    FormTextField {
+                    ATextField {
+        Layout.fillWidth: true
                         id: cardColorField
                         text: page.agentData.cardColor || ""
                         placeholderText: qsTr("default: surface background")
@@ -399,31 +350,34 @@ Dialog {
 
                 SectionLabel { text: qsTr("Install & Maintenance") }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Install command")
                     tip: qsTr("Command that installs the agent, e.g. \"npm install -g @kimi-code/cli\". Offered on the card when the agent is not installed.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: installField
                     text: page.agentData.installCommand || ""
                     placeholderText: qsTr("e.g. npm install -g opencode-ai")
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Update command")
                     tip: qsTr("Command that updates the agent to the latest version, e.g. \"npm update -g @kimi-code/cli\". Run from the card's context menu.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: updateField
                     text: page.agentData.updateCommand || ""
                     placeholderText: qsTr("e.g. npm update -g opencode-ai")
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Version command")
                     tip: qsTr("Command that prints the agent's version, e.g. \"kimi --version\". Run silently at startup to detect whether the agent is installed.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: versionField
                     text: page.agentData.versionCommand || ""
                     placeholderText: qsTr("e.g. opencode --version")
@@ -440,21 +394,23 @@ Dialog {
 
                 SectionLabel { text: qsTr("Advanced") }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("First-run setup command")
                     tip: qsTr("One-time command run before the agent's first launch (e.g. generating a token). Runs only once; a successful run is remembered. Leave empty for no setup.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: setupField
                     text: page.agentData.setupCommand || ""
                     placeholderText: qsTr("optional")
                 }
 
-                FormLabel {
+                AFormLabel {
                     labelText: qsTr("Token file")
                     tip: qsTr("Path to a bearer-token file (%VAR% and ~ expanded). Its content is passed to the agent on launch and appended to the Web URL as #token=... when opening the browser.")
                 }
-                FormTextField {
+                ATextField {
+        Layout.fillWidth: true
                     id: tokenFileField
                     text: page.agentData.tokenFile || ""
                     placeholderText: qsTr("optional")

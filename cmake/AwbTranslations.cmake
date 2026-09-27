@@ -39,6 +39,8 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AToastStack.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AStatusDot.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AFormLabel.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AgentAvatar.qml
     # agents QML
     ${CMAKE_SOURCE_DIR}/src/agents/qml/AgentCard.qml
