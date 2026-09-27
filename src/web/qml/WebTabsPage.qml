@@ -261,25 +261,13 @@ Item {
                         onClicked: web.openExternal(web.activeTabId)
                     }
                     // Qt Quick Controls 2 has no MenuButton type (it was a
-                    // Qt 5 Controls 1 thing) — a Button popping the menu
-                    // is the supported shape.
-                    Button {
-                        id: tabMenuButton
+                    // Qt 5 Controls 1 thing) — an icon button popping the
+                    // menu is the supported shape.
+                    AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         enabled: web.activeTabId.length > 0
-                        implicitWidth: 28
-                        implicitHeight: 28
-                        padding: 0
-                        background: Rectangle {
-                            radius: theme.radiusControl
-                            color: parent.hovered || tabMenu.opened
-                                   ? theme.surfaceHoverBg : "transparent"
-                        }
-                        contentItem: Image {
-                            source: "qrc:/icons/menu.svg"
-                            sourceSize: Qt.size(14, 14)
-                            fillMode: Image.PreserveAspectFit
-                        }
+                        iconSource: "qrc:/icons/menu.svg"
+                        tooltip: qsTr("More actions")
                         onClicked: tabMenu.popup()
                     }
 

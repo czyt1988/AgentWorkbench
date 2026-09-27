@@ -111,10 +111,9 @@ Dialog {
                 Layout.topMargin: theme.spacingXl
                 spacing: theme.spacingM
 
-                Button {
+                AButton {
+                    variant: "ghost"
                     text: qsTr("\u2190 Back")
-                    background: Rectangle { color: "transparent" }
-                    contentItem: Label { text: parent.text; color: theme.accent; font.pixelSize: theme.fontSizeSubtitle }
                     onClicked: page.close()
                 }
                 Item { Layout.fillWidth: true }
@@ -421,25 +420,18 @@ Dialog {
                     Layout.topMargin: theme.spacingL
                     Layout.alignment: Qt.AlignRight
 
-                    Button {
+                    AButton {
                         text: qsTr("Cancel")
-                        background: Rectangle { radius: theme.radiusControl; color: parent.down ? theme.surfaceAltBg : theme.surfaceBg; border.color: theme.borderSubtle }
-                        contentItem: Label { text: parent.text; color: theme.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: page.close()
                     }
-                    Button {
+                    AButton {
                         id: saveButton
-                        readonly property color accent: page.agentData.color || theme.accent
+                        variant: "primary"
+                        // The agent's own color when set; theme accent otherwise.
+                        accentColor: page.agentData.color.length > 0
+                                     ? page.agentData.color : theme.accent
                         enabled: page.formValid
                         text: qsTr("Save")
-                        background: Rectangle {
-                            radius: theme.radiusControl
-                            color: saveButton.enabled
-                                   ? (saveButton.down ? theme.pressed(saveButton.accent) : saveButton.accent)
-                                   : theme.surfaceBg
-                            border.color: theme.borderSubtle
-                        }
-                        contentItem: Label { text: parent.text; color: theme.textOnAccent; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                         onClicked: page.save()
                     }
                 }

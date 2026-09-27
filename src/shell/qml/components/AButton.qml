@@ -11,6 +11,9 @@ Button {
 
     // variant: primary | secondary | ghost | danger
     property string variant: "secondary"
+    // Fill for the primary variant — defaults to the theme accent; cards
+    // tint theirs with the agent color instead of bypassing the component.
+    property color accentColor: theme.accent
 
     implicitHeight: 32
     padding: theme.spacingM
@@ -22,9 +25,9 @@ Button {
                 return theme.alpha(theme.surfaceAltBg, 0.5)
             switch (control.variant) {
             case "primary":
-                return control.down ? theme.pressed(theme.accent)
-                                    : (control.hovered ? theme.hover(theme.accent)
-                                                       : theme.accent)
+                return control.down ? theme.pressed(control.accentColor)
+                                    : (control.hovered ? theme.hover(control.accentColor)
+                                                       : control.accentColor)
             case "danger":
                 return control.down ? theme.pressed(theme.danger)
                                     : (control.hovered ? theme.hover(theme.danger)

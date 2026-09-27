@@ -484,8 +484,10 @@ Item {
             anchors.margins: theme.spacingL
             spacing: theme.spacingS
 
-            Button {
+            AButton {
                 id: actionButton
+                variant: "primary"
+                accentColor: root.agentColor
                 width: (parent.width - 10) / 2
                 // While the agent is booting up or setting up, disable
                 // the button (no double-launch) and show a spinner in
@@ -494,19 +496,6 @@ Item {
                 enabled: !root.launching_p && !root.setupping_p
                 text: root.launching_p ? "" : (root.running_p ? qsTr("Open") : qsTr("Start"))
 
-                background: Rectangle {
-                    radius: theme.radiusControl
-                    color: parent.down ? theme.pressed(root.agentColor)
-                                       : (parent.hovered ? theme.hover(root.agentColor) : root.agentColor)
-                    opacity: (root.launching_p || root.setupping_p) ? 0.6 : 1.0
-                }
-                contentItem: Label {
-                    text: parent.text
-                    color: theme.textOnAccent
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
                 BusyIndicator {
                     anchors.centerIn: parent
                     visible: root.launching_p || root.setupping_p
@@ -522,21 +511,9 @@ Item {
                 }
             }
 
-            Button {
+            AButton {
                 text: qsTr("Configure")
                 width: (parent.width - 10) / 2
-
-                background: Rectangle {
-                    radius: theme.radiusControl
-                    color: parent.down ? theme.surfaceAltBg
-                                       : (parent.hovered ? theme.surfaceHoverBg : theme.surfaceAltBg)
-                }
-                contentItem: Label {
-                    text: parent.text
-                    color: theme.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
                 onClicked: root.configureRequested(root.agentId_p)
             }
         }
