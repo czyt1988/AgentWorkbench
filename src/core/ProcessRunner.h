@@ -33,11 +33,16 @@ public:
     // Start `program args` detached (survives this application exiting) and
     // report its PID. Pass an already-resolved absolute program for the
     // Windows .cmd/.bat wrapping decisions to stay with the caller.
+    // When `outputFile` is non-empty the child's stdout AND stderr are
+    // redirected there (truncated on each start) — the capture that lets
+    // the agents domain pick session URLs out of the agent's own console
+    // output (dsh prints its per-process token URL there).
     // On failure returns false and fills `error`.
     static bool startDetached(const QString &program, const QStringList &args,
                               qint64 *pid = nullptr, QString *error = nullptr,
                               const QString &workingDirectory = QString(),
-                              const QProcessEnvironment &env = QProcessEnvironment());
+                              const QProcessEnvironment &env = QProcessEnvironment(),
+                              const QString &outputFile = QString());
 
     // Run to completion, capturing both channels. `timeoutMs` <= 0 waits
     // forever; on timeout the process is killed, error says so and

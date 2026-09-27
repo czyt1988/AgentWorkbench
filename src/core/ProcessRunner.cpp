@@ -19,7 +19,8 @@ QString ProcessRunner::findExecutable(const QString &program)
 bool ProcessRunner::startDetached(const QString &program, const QStringList &args,
                                   qint64 *pid, QString *error,
                                   const QString &workingDirectory,
-                                  const QProcessEnvironment &env)
+                                  const QProcessEnvironment &env,
+                                  const QString &outputFile)
 {
     if (program.isEmpty()) {
         if (error)
@@ -44,6 +45,12 @@ bool ProcessRunner::startDetached(const QString &program, const QStringList &arg
         proc.setWorkingDirectory(workingDirectory);
     if (!env.isEmpty())
         proc.setProcessEnvironment(env);
+    if (!outputFile.isEmpty()) {
+        // The member startDetached() honors channel setup (the static
+        // overload does not): merge stderr into stdout and redirect both.
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        proc.setStandardOutputFile(outputFile, QIODevice::Truncate);
+    }
 
     qint64 outPid = 0;
     const bool ok = proc.startDetached(&outPid);
