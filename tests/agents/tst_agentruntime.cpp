@@ -7,6 +7,7 @@
 
 #include <QCoreApplication>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTcpServer>
 #include <QtTest>
 
@@ -15,12 +16,19 @@ using awb::agents::AgentModel;
 using awb::agents::AgentRuntime;
 
 // Launch/stop/force-stop bookkeeping and the port→PID parsing behind
-// force-stop (the logic is kept AND has cases).
+// forceStop (the logic is kept AND has cases).
 class TestAgentRuntime : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void init()
+    {
+        // launch() redirects the child's output under Paths::logsDir() —
+        // the test-mode data root, never the developer's real one.
+        QStandardPaths::setTestModeEnabled(true);
+    }
+
     // An empty startup command fails with launchFailed and tracks no PID.
     void testLaunchEmptyCommandFails()
     {
@@ -136,6 +144,77 @@ private slots:
                  "a started process must be tracked for this session");
         QVERIFY(runtime.stop(QStringLiteral("real")));
         QVERIFY(!runtime.hasLaunchedAgents());
+    }
+
+    // A launch redirects the agent's output and captures the authenticated
+    // URL printed there (dsh prints a per-process token URL): reported via
+    // sessionUrlChanged, dropped again on stop.
+    void testSessionUrlCapture()
+    {
+#ifdef Q_OS_WIN
+        const QString command =
+            QStringLiteral("cmd /c echo dsh web: "
+                           "http://127.0.0.1:39877/?token=abc123");
+#else
+        const QString command =
+            QStringLiteral("echo dsh web: http://127.0.0.1:39877/?token=abc123");
+#endif
+        if (awb::core::ProcessRunner::findExecutable(
+                command.section(QLatin1Char(' '), 0, 0))
+                .isEmpty())
+            QSKIP("no shell available to print the URL");
+
+        AgentModel model;
+        AgentRuntime runtime(&model);
+        QSignalSpy spy(&runtime, &AgentRuntime::sessionUrlChanged);
+
+        AgentDefinition def;
+        def.id = QStringLiteral("dsh-test");
+        def.command = command;
+        def.webUrl = QStringLiteral("http://127.0.0.1:39877");
+        runtime.launch(def, QString());
+
+        // The watch polls the output file every 500 ms.
+        QVERIFY2(spy.wait(10000), "the printed URL must be captured");
+        QCOMPARE(spy.first().at(0).toString(), QStringLiteral("dsh-test"));
+        QCOMPARE(spy.first().at(1).toString(),
+                 QStringLiteral("http://127.0.0.1:39877/?token=abc123"));
+        QCOMPARE(runtime.sessionUrl(QStringLiteral("dsh-test")),
+                 QStringLiteral("http://127.0.0.1:39877/?token=abc123"));
+
+        // Stopping drops the URL — the per-process token died with it.
+        runtime.stop(QStringLiteral("dsh-test"));
+        QVERIFY(runtime.sessionUrl(QStringLiteral("dsh-test")).isEmpty());
+    }
+
+    // Agents that print no URL end the watch quietly (no signal ever).
+    void testSessionUrlWatchGivesUpQuietly()
+    {
+#ifdef Q_OS_WIN
+        const QString command = QStringLiteral("cmd /c ping -n 30 127.0.0.1");
+#else
+        const QString command = QStringLiteral("sleep 30");
+#endif
+        if (awb::core::ProcessRunner::findExecutable(
+                command.section(QLatin1Char(' '), 0, 0))
+                .isEmpty())
+            QSKIP("no shell available to spawn a long-running process");
+
+        AgentModel model;
+        AgentRuntime runtime(&model);
+        QSignalSpy spy(&runtime, &AgentRuntime::sessionUrlChanged);
+
+        AgentDefinition def;
+        def.id = QStringLiteral("quiet");
+        def.command = command;
+        def.webUrl = QStringLiteral("http://127.0.0.1:39878");
+        runtime.launch(def, QString());
+
+        // No URL appears in the output; the watch must not fire.
+        QVERIFY(!spy.wait(2000));
+        QVERIFY(runtime.sessionUrl(QStringLiteral("quiet")).isEmpty());
+
+        runtime.stop(QStringLiteral("quiet"));
     }
 };
 

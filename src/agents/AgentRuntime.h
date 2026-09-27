@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QObject>
 #include <QStringList>
+#include <QTimer>
 
 namespace awb::agents {
 
@@ -17,6 +18,12 @@ class AgentModel;
 // PIDs live in memory only: an agent detected as running by the HTTP health
 // check but not started from this launcher session has no PID and can only
 // be force-stopped by port.
+//
+// Token-gated harnesses (dsh) print a per-process authenticated URL to
+// stdout instead of writing it to a token file. launch() redirects the
+// child's output to <logsDir>/output/<id>.log and watches that file until a
+// URL pointing at the agent's webUrl server shows up (sessionUrlChanged) —
+// the web surface needs it because the bare webUrl is answered with 401.
 class AgentRuntime : public QObject
 {
     Q_OBJECT
@@ -53,6 +60,11 @@ public:
     // verified directly (the logic is kept AND has cases).
     static QList<qint64> findPidsForPort(int port);
 
+    // The captured session URL for the agent (empty when none). Dropped
+    // when the agent's process is stopped — the per-process token died with
+    // it, so openWeb falls back to the configured webUrl.
+    QString sessionUrl(const QString &id) const;
+
 signals:
     // A launch/stop attempt failed. The UI shows an at-place flash on the
     // matching card plus a detailed popup.
@@ -62,7 +74,14 @@ signals:
     // quickly after a launch/stop (0.3.0 re-checked on a short timer).
     void recheckRequested();
 
+    // The launch captured the agent's authenticated session URL (dsh prints
+    // a per-process token URL to its output). Emitted at most once per
+    // launch; the URL never reaches the log.
+    void sessionUrlChanged(const QString &id, const QString &url);
+
 private:
+    void watchSessionUrl(const QString &id);
+    void dropSessionUrl(const QString &id);
 
     AgentModel *m_model;
 
@@ -73,6 +92,21 @@ private:
     // id -> launch epoch, bumped on each successful launch. Invalidates the
     // stale "launching" safety timeout of an earlier attempt.
     QHash<QString, int> m_launchEpoch;
+
+    // id -> the URL captured from that agent's output this launch.
+    QHash<QString, QString> m_sessionUrls;
+
+    // One pending output watch: what to match and how many 500 ms ticks are
+    // left before giving up (agents that print no URL).
+    struct SessionWatch {
+        QString webUrl;
+        QString tokenFile;
+        int attemptsLeft;
+    };
+    QHash<QString, SessionWatch> m_sessionUrlWatch;
+
+    // The output-polling timer while a session URL is still being sought.
+    QTimer m_sessionUrlTimer;
 };
 
 } // namespace awb::agents

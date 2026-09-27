@@ -1,13 +1,16 @@
 #include "agents/AgentRuntime.h"
 
 #include "agents/AgentModel.h"
+#include "agents/AgentUrls.h"
 #include "core/HttpProbe.h"
+#include "core/Paths.h"
 #include "core/ProcessRunner.h"
 #include "core/TextUtils.h"
 
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QIODevice>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -20,6 +23,11 @@
 namespace awb::agents {
 
 namespace {
+
+// Session-URL watch budget: 500 ms ticks for 60 s — the dsh log shows ~35 s
+// between launch and the printed URL on a cold boot.
+constexpr int kSessionUrlTickMs = 500;
+constexpr int kSessionUrlTicks = 120;
 
 // The operational log for spawned processes ("[cmd] …"), kept identical to
 // 0.3.0 so existing log-parsing expectations hold.
@@ -56,6 +64,16 @@ AgentRuntime::AgentRuntime(AgentModel *model, QObject *parent)
     : QObject(parent)
     , m_model(model)
 {
+    // Poll the redirected output for a session URL. 500 ms is gentle on the
+    // disk (a handful of reads per agent launch) while still landing the
+    // retarget well inside the first health check after launch.
+    m_sessionUrlTimer.setInterval(kSessionUrlTickMs);
+    m_sessionUrlTimer.setSingleShot(false);
+    connect(&m_sessionUrlTimer, &QTimer::timeout, this, [this]() {
+        const QList<QString> ids = m_sessionUrlWatch.keys();
+        for (const QString &id : ids)
+            watchSessionUrl(id);
+    });
 }
 
 void AgentRuntime::launch(const AgentDefinition &definition,
@@ -138,9 +156,16 @@ void AgentRuntime::launch(const AgentDefinition &definition,
 
     qint64 pid = 0;
     QString startError;
-    const bool ok = core::ProcessRunner::startDetached(execProgram, execArgs,
-                                                       &pid, &startError, cwd,
-                                                       env);
+    // Token-gated harnesses print their authenticated URL to stdout. Capture
+    // it into a per-launch log file (the health probe proves the port is up
+    // but the bare webUrl is answered with 401 — only the printed URL works).
+    const QString outputDir =
+            core::Paths::logsDir() + QStringLiteral("/output");
+    QDir().mkpath(outputDir);
+    const QString outputFile = outputDir + QLatin1Char('/') + id
+                               + QStringLiteral(".log");
+    const bool ok = core::ProcessRunner::startDetached(
+            execProgram, execArgs, &pid, &startError, cwd, env, outputFile);
     if (!ok) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("failed to start: %1").arg(startError));
@@ -151,6 +176,15 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     m_pids.insert(id, pid);
     cmdLog(QStringLiteral("launch"), id,
            QStringLiteral("started, pid %1").arg(pid));
+
+    // Same-server URLs in the output are the session URL (dsh); no match
+    // after a grace period (qwen & co. print none) ends the watch quietly.
+    if (!definition.webUrl.isEmpty()) {
+        m_sessionUrlWatch.insert(id, {definition.webUrl, definition.tokenFile,
+                                      kSessionUrlTicks});
+        if (!m_sessionUrlTimer.isActive())
+            m_sessionUrlTimer.start();
+    }
 
     // Mark the card as "launching" so the action button shows a spinner until
     // the health check confirms the server is up — or a 30s safety timeout
@@ -183,6 +217,9 @@ bool AgentRuntime::stop(const QString &id)
 
     const qint64 pid = *it;
     m_pids.erase(it);
+    // The per-process token died with the process — the bare webUrl is all
+    // that is left to open until the next launch captures a fresh URL.
+    dropSessionUrl(id);
 
     const QString killProgram = core::ProcessRunner::killProgram();
     const QStringList args = core::ProcessRunner::killProgramArgs(pid);
@@ -255,6 +292,7 @@ void AgentRuntime::forceStop(const QString &id)
     // If this launcher also tracked a PID for the agent, drop it so a later
     // normal stop() doesn't try to kill an already-dead PID.
     m_pids.remove(id);
+    dropSessionUrl(id);
 
     if (!anyOk) {
         const QString msg =
@@ -294,6 +332,9 @@ int AgentRuntime::stopAll()
             ++killed;
     }
     m_pids.clear();
+    m_sessionUrls.clear();
+    m_sessionUrlWatch.clear();
+    m_sessionUrlTimer.stop();
     appLog(QStringLiteral("stopAll"), QString(),
            QStringLiteral("terminated %1 of %2 launcher(s) started this session")
                .arg(killed)
@@ -305,6 +346,59 @@ void AgentRuntime::forget(const QString &id)
 {
     m_pids.remove(id);
     m_launchEpoch.remove(id);
+    dropSessionUrl(id);
+}
+
+QString AgentRuntime::sessionUrl(const QString &id) const
+{
+    return m_sessionUrls.value(id);
+}
+
+void AgentRuntime::watchSessionUrl(const QString &id)
+{
+    const auto it = m_sessionUrlWatch.find(id);
+    if (it == m_sessionUrlWatch.end())
+        return;
+    SessionWatch watch = it.value();
+
+    QString text;
+    {
+        QFile file(core::Paths::logsDir() + QStringLiteral("/output/")
+                    + id + QStringLiteral(".log"));
+        if (file.open(QIODevice::ReadOnly))
+            text = core::ProcessRunner::decodeOutput(file.readAll());
+    }
+
+    const QString captured = AgentUrls::sessionUrlFromOutput(text, watch.webUrl);
+    if (!captured.isEmpty()) {
+        const QString url = AgentUrls::finalUrl(captured, watch.tokenFile);
+        m_sessionUrls.insert(id, url);
+        m_sessionUrlWatch.erase(it);
+        if (m_sessionUrlWatch.isEmpty())
+            m_sessionUrlTimer.stop();
+        // The URL itself never reaches the log — it carries the token.
+        cmdLog(QStringLiteral("session-url"), id,
+               QStringLiteral("captured an authenticated URL from the "
+                              "agent output"));
+        emit sessionUrlChanged(id, url);
+        return;
+    }
+
+    if (--watch.attemptsLeft <= 0) {
+        m_sessionUrlWatch.erase(it);
+        if (m_sessionUrlWatch.isEmpty())
+            m_sessionUrlTimer.stop();
+    } else {
+        it.value() = watch;
+    }
+}
+
+void AgentRuntime::dropSessionUrl(const QString &id)
+{
+    m_sessionUrls.remove(id);
+    m_sessionUrlWatch.remove(id);
+    if (m_sessionUrlWatch.isEmpty())
+        m_sessionUrlTimer.stop();
 }
 
 QList<qint64> AgentRuntime::findPidsForPort(int port)
