@@ -41,14 +41,23 @@ void WorkbenchContext::showPage(const QString &id)
     m_nav->setCurrentPageId(id);
 }
 
+namespace {
+// The agent row for an id, or -1 (shared by the openWeb intents).
+int agentRow(const agentcatalog::AgentsFacade *agents, const QString &agentId,
+             agentcatalog::AgentDefinition *out)
+{
+    const int row = agents->agentModel()->indexOf(agentId);
+    if (row < 0 || row >= agents->agentModel()->definitions().size())
+        return -1;
+    *out = agents->agentModel()->definitions().at(row);
+    return out->webUrl.isEmpty() ? -1 : row;
+}
+} // namespace
+
 void WorkbenchContext::openWeb(const QString &agentId)
 {
-    const int row = m_agents->agentModel()->indexOf(agentId);
-    if (row < 0)
-        return;
-    const awb::agentcatalog::AgentDefinition def =
-        m_agents->agentModel()->definitions().at(row);
-    if (def.webUrl.isEmpty())
+    agentcatalog::AgentDefinition def;
+    if (agentRow(m_agents, agentId, &def) < 0)
         return;
 
     QVariantMap fields;
@@ -68,7 +77,30 @@ void WorkbenchContext::openWeb(const QString &agentId)
     fields[QStringLiteral("color")] = def.color;
     // Same-agent dedup, embedded/external policy and the external toast all
     // live in the web domain.
-    m_web->openTab(fields);
+    const QString tabId = m_web->openTab(fields);
+    // A tab exists (or was just activated): take the user to it. The
+    // external-surface path returns "" — the browser has it, and the web
+    // page is already toast-announced from the facade.
+    if (!tabId.isEmpty())
+        m_nav->setCurrentPageId(QStringLiteral("web"));
+}
+
+void WorkbenchContext::openWebExternal(const QString &agentId)
+{
+    agentcatalog::AgentDefinition def;
+    if (agentRow(m_agents, agentId, &def) < 0)
+        return;
+    // Same URL rules as openWeb (session URL first, token fragment kept —
+    // the browser needs it, the toast shows only the agent name).
+    const QString sessionUrl = m_agents->sessionUrl(def.id);
+    const QUrl url(sessionUrl.isEmpty()
+                   ? agentcatalog::AgentUrls::finalUrl(def)
+                   : sessionUrl);
+    const core::OpResult result = m_ui->openExternalUrl(url);
+    if (result.ok) {
+        m_notifications->notify(QStringLiteral("info"),
+                                tr("Opening in the browser"), def.name);
+    }
 }
 
 void WorkbenchContext::closeWeb(const QString &agentId)

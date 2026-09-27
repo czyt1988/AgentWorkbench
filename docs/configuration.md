@@ -44,7 +44,7 @@ Missing keys take their defaults in place — there is no migration code:
   "appearance": { "theme": "mocha-dark", "followSystem": false },
   "locale":  { "override": "" },
   "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
-  "web":     { "surface": "embedded", "freezeInactiveTabs": true,
+  "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
@@ -64,8 +64,11 @@ Missing keys take their defaults in place — there is no migration code:
   there if embedded views fail to start (applies after restart).
 - `web.maxLiveTabs` caps simultaneous live views (each costs roughly
   250–350 MB); excess tabs are released to a restorable state, oldest
-  inactive first. `web.freezeInactiveTabs` freezes switched-away tabs
-  instead of destroying them.
+  inactive first. `web.freezeInactiveTabs` (off by default) additionally
+  suspends JS in switched-away tabs to save CPU — resuming a frozen agent
+  WebUI visibly repaints it, and a load that was still in flight when the
+  tab was switched away stays stalled until you come back, which is why
+  the default is off. Chromium already throttles hidden views either way.
 - `skills.roots` empty = the platform default roots (`~/.agents/skills`,
   `~/.claude/skills`, `~/.codex/skills`, the ZCode plugin cache, the
   project's `.agents`/`.claude` skills). A non-empty array **completely

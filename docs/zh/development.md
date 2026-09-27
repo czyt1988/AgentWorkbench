@@ -83,6 +83,7 @@ ctest 每个模块一个可执行文件，外加架构守门：
 | `tst_theme` | 加载器校验规则、注册表覆盖行为 |
 | `tst_shell` | 导航注册、徽标、窗口持久化、剪贴板结果 |
 | `tst_web` | 标签复用、关闭语义、离线/在线转换、LRU 释放（不链接 WebEngine） |
+| `tst_workbench` | 跨域意图：`openWeb` 跳页、external surface 不建标签、浏览器打开的 URL 交接 |
 | `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
 | `tst_tools` | 工作区存储语义、懒加载树模型（roles/fetch/刷新恢复）、门面接线、QML 可调用面 |
 

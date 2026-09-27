@@ -432,10 +432,11 @@ void WebTabsFacade::wireActiveTracking()
 // released (view destroyed, tab kept). The active tab's view
 // counts toward the cap too — "视图上限" bounds ALL live views, so the
 // loop stops at maxLive live views in total, not maxLive + 1.
+// Not gated on freezeInactiveTabs: the freeze setting only controls the
+// CPU trade-off of switched-away views, while this cap is the memory
+// bound and must hold either way.
 void WebTabsFacade::applyMemoryPolicy()
 {
-    if (!m_settings->webOptions().freezeInactiveTabs)
-        return;
     const int maxLive = qMax(1, m_settings->webOptions().maxLiveTabs);
 
     QList<WebTab *> releasable; // live but inactive — candidates

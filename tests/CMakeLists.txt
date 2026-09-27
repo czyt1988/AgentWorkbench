@@ -7,6 +7,7 @@ add_subdirectory(agentcatalog)
 add_subdirectory(theme)
 add_subdirectory(shell)
 add_subdirectory(web)
+add_subdirectory(workbench)
 add_subdirectory(skillcatalog)
 add_subdirectory(tools)
 

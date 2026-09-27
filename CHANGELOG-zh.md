@@ -15,6 +15,34 @@
   与手动刷新；把树的条目拖进编辑区（插入到落点光标处）或双击文件行，即可
   插入 `` `./相对路径` `` 形式的文件引用。草稿跨页面切换与重启保留
   （`tools.json`）。
+- **Web 页「主页」按钮**：标签栏工具栏新增主页入口，可回到运行中 agent 列
+  表（无标签页状态）而不关闭任何已开标签——此前视图打开后就回不去列表，
+  后续启动的 agent 无法从 Web 页打开。点击标签、从列表打开 agent 或
+  `Ctrl+Tab` 轮换即离开该列表。
+- **启动器卡片拆分按钮**：agent 运行中，"Open" 在**应用内打开 WebUI 并跳转
+  到 Web 页**（此前标签在后台打开，还要手动切页）；旁边的箭头提供「在浏览
+  器打开」（右键菜单亦有）。
+- `tst_workbench` 测试目标：覆盖 `openWeb` 跳页契约、external surface 不建
+  标签的路径与新的浏览器打开意图。
+
+### 修复
+
+- **切换 Web 标签不再整页重绘。**两个冻结缺陷：切走时仍在加载的视图被冻结
+  （Chromium 会挂起冻结页的 JS，加载停滞，回来时加载遮罩闪盖在已渲染内容
+  上）；error/offline 状态变化尝试冻结**活动**标签（被 Qt 以"页面可见"拒
+  绝，标签卡死）。生命周期绑定现在只冻结非活动的、已稳定的标签——活动标
+  签与加载中的视图一律不冻。`web.freezeInactiveTabs` 同时改为默认**关闭**：
+  恢复冻结的 SPA 有可见重绘，Chromium 本就节流隐藏视图，需要省 CPU 的场景
+  再显式开启。`maxLiveTabs` 的 LRU 释放不再依赖该设置，内存始终有界。
+- **Web 标签按钮渲染成白块**：tab delegate 的 `required property string
+  color`（匹配模型的 `color` role）遮蔽了 delegate Rectangle 的 `color`，
+  主题绑定落到字符串上，标签底色画成默认白、文字几乎不可见。delegate 根改
+  为 Item + 内层背景 Rectangle（AgentCard 的既有模式）。
+- **Web 页运行中 agent 列表行坍塌**：`AListRow` 只有显式 `height` 没有
+  `implicitHeight`，布局驱动的列表把行压到 ~0——"Open" 按钮只剩窄条、第二
+  行不可见、明明有 agent 在跑却显示 "No agent is running"。`AListRow` 现在
+  把高度镜像进 `implicitHeight`（所有布局用法受益），运行列表也不再自设行
+  高。
 
 ### 移除
 

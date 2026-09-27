@@ -31,19 +31,24 @@ Item {
         profile: surface.hasTab
                  ? WebProfiles.createProfile(tab.agentId) : null
 
-        // Memory policy: only the active tab keeps a live view;
-        // the rest freeze (session kept) until released by the LRU.
-        // A loading view must stay Active — Frozen suspends the page, which
-        // can stall an in-flight load mid-way.
+        // Memory policy: switched-away tabs freeze (session kept) once
+        // their load settled; the LRU releases the oldest ones past
+        // web.maxLiveTabs. Two rules the old condition got wrong:
+        // a loading view must NEVER freeze — Frozen suspends the page and
+        // stalled hidden tabs in "loading" forever, so activating them
+        // flashed the loading overlay over an already-rendered page;
+        // and the ACTIVE tab must always be Active whatever its state —
+        // freezing it was rejected by Qt ("page is visible") on every
+        // error-state transition.
         // LifecycleState is a SCOPED enum: WebEngineView.Active would be
         // undefined and the assignment silently no-op every time.
         lifecycleState: {
-            if (!web.freezeInactiveTabs)
+            if (!surface.hasTab
+                    || !web.freezeInactiveTabs
+                    || web.activeTabId === tab.id
+                    || tab.state === "loading")
                 return WebEngineView.LifecycleState.Active
-            return surface.visible && web.activeTabId === tab.id
-                   && (tab.state === "loading" || tab.state === "ready")
-                   ? WebEngineView.LifecycleState.Active
-                   : WebEngineView.LifecycleState.Frozen
+            return WebEngineView.LifecycleState.Frozen
         }
 
         onUrlChanged: {

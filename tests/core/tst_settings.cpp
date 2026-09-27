@@ -64,7 +64,7 @@ private slots:
         QCOMPARE(s.launcherOptions().healthCheckIntervalMs, 3000);
         QVERIFY(s.launcherOptions().startupVersionCheck);
         QCOMPARE(s.webOptions().surface, QStringLiteral("embedded"));
-        QVERIFY(s.webOptions().freezeInactiveTabs);
+        QVERIFY(!s.webOptions().freezeInactiveTabs);
         QCOMPARE(s.webOptions().maxLiveTabs, 8);
         QVERIFY(s.skillsOptions().includePluginCaches);
         QCOMPARE(s.skillsOptions().maxDepth, 6);

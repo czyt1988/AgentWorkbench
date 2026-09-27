@@ -146,6 +146,11 @@ Item {
                 onTriggered: forceStopConfirm.open()
             }
             MenuItem {
+                text: qsTr("Open in browser")
+                enabled: root.running_p
+                onTriggered: workbench.openWebExternal(root.agentId_p)
+            }
+            MenuItem {
                 text: root.installed_p ? qsTr("Update") : qsTr("Install")
                 enabled: !root.installing_p && !root.running_p && root.installCommand_p.length > 0
                 onTriggered: {
@@ -475,7 +480,10 @@ Item {
         }
 
         // Button row anchored to the bottom of the card so there's no
-        // large empty gap below the buttons.
+        // large empty gap below the buttons. While the agent runs, the
+        // primary action is a split button: the body opens the WebUI
+        // in-app (navigating to the web page), the chevron offers
+        // "Open in browser" as the alternative.
         Row {
             id: buttonRow
             anchors.bottom: parent.bottom
@@ -488,7 +496,9 @@ Item {
                 id: actionButton
                 variant: "primary"
                 accentColor: root.agentColor
-                width: (parent.width - 10) / 2
+                width: root.running_p
+                       ? (parent.width - 10) * 0.6 - openSplit.width - parent.spacing
+                       : (parent.width - 10) / 2
                 // While the agent is booting up or setting up, disable
                 // the button (no double-launch) and show a spinner in
                 // place of the label until the health check confirms it
@@ -511,9 +521,74 @@ Item {
                 }
             }
 
+            // Split arrow: page-private micro-interaction in the AButton
+            // visual language (same primary tint, seam groove, right
+            // corners rounded) — pops the alternative open action.
+            Item {
+                id: openSplit
+                visible: root.running_p
+                width: visible ? 26 : 0
+                height: actionButton.implicitHeight
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: theme.radiusControl
+                    color: openSplitArea.containsMouse
+                           ? theme.hover(root.agentColor)
+                           : root.agentColor
+                }
+                // Square off the left corners (Rectangle cannot round
+                // per-corner): a patch of the same color covers the left
+                // rounding zone.
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: theme.radiusControl
+                    color: openSplitArea.containsMouse
+                           ? theme.hover(root.agentColor)
+                           : root.agentColor
+                }
+                // Seam between the button and the arrow.
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 1
+                    color: theme.alpha(theme.windowBg, 0.35)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    source: "qrc:/icons/chevron-down.svg"
+                    sourceSize: Qt.size(14, 14)
+                    fillMode: Image.PreserveAspectFit
+                }
+                MouseArea {
+                    id: openSplitArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    ToolTip.visible: containsMouse
+                    ToolTip.delay: 300
+                    ToolTip.timeout: 10000
+                    ToolTip.text: qsTr("More open actions")
+                    onClicked: openMenu.popup()
+                }
+            }
+
+            Menu {
+                id: openMenu
+                MenuItem {
+                    text: qsTr("Open in browser")
+                    onTriggered: workbench.openWebExternal(root.agentId_p)
+                }
+            }
+
             AButton {
                 text: qsTr("Configure")
-                width: (parent.width - 10) / 2
+                width: root.running_p
+                       ? (parent.width - 10) * 0.4
+                       : (parent.width - 10) / 2
                 onClicked: root.configureRequested(root.agentId_p)
             }
         }

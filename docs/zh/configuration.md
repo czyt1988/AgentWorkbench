@@ -34,7 +34,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   "appearance": { "theme": "mocha-dark", "followSystem": false },
   "locale":  { "override": "" },
   "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
-  "web":     { "surface": "embedded", "freezeInactiveTabs": true,
+  "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
@@ -50,8 +50,10 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   `external`。`chromiumFlags` 在 WebEngine 初始化前注入——内嵌视图无法启动
   （GPU 驱动问题）时可在此添加 `--disable-gpu`，重启后生效。
 - `web.maxLiveTabs` 限制同时存活的视图数（每个约 250–350 MB），超出后按
-  最久未用释放为可恢复状态；`web.freezeInactiveTabs` 让切走的标签冻结而非
-  销毁。
+  最久未用释放为可恢复状态；`web.freezeInactiveTabs`（默认关闭）额外挂起
+  切走标签的 JS 以省 CPU——但恢复冻结的 agent WebUI 时页面会明显重绘，且
+  切走时仍在途的加载会一直挂起到你切回来，因此默认关闭。两种情况下
+  Chromium 本身都会对隐藏页面做节流。
 - `skills.roots` 为空 = 平台默认根目录；非空即**完全取代**默认，条目为
   `{ "id", "label", "path", "kind", "enabled" }`。
 - `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
