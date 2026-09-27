@@ -38,9 +38,9 @@ src/
                 ProcessRunner、ScriptRunner、HttpProbe、PluginHost、LegacyImport
   plugin_api/   L0 插件 ABI（仅头文件，外部仓库链接它）
   theme/        L1 主题引擎：JSON 主题 → 语义令牌 → QML
-  agents/       L2：定义、持久化、进程、健康检查、CRUD + QML
+  agentcatalog/ L2：外部 agent 工具目录（定义、持久化、进程、健康检查、CRUD）+ QML
   shell/        L2 UI 框架：导航、窗口骨架、toast、A* 组件
-  skills/       L2：SKILL.md frontmatter、扫描器、模型、门面 + QML
+  skillcatalog/ L2：本机 skill 目录（SKILL.md frontmatter、扫描器、模型、门面）+ QML
   web/          L2：标签、表面、内存策略 + QML
     webengine/  L2 适配器（唯一链接 Qt WebEngine 的目标）
   workbench/    L3：跨域意图、内置页面、环境探测、插件服务
@@ -80,11 +80,11 @@ ctest 每个模块一个可执行文件，外加架构守门：
 |---|---|
 | `check_architecture` | QML 无字面色值（十六进制与数字 `Qt.rgba`）、无反向/横向模块依赖、源串全英文、core/theme 不含 UI、QML 单例方法调用均为 `Q_INVOKABLE`、属性赋值均有 `WRITE` 访问器 |
 | `tst_core` | 路径、JSON 存储、设置、日志、进程执行器、脚本执行器、HTTP 探测、插件清单、旧目录接管 |
-| `tst_agents` | 仓库同步语义、模型角色、门面 CRUD、脚本日志、URL、运行时启动/停止/强制停止 |
+| `tst_agentcatalog` | 仓库同步语义、模型角色、门面 CRUD、脚本日志、URL、运行时启动/停止/强制停止 |
 | `tst_theme` | 加载器校验规则、注册表覆盖行为 |
 | `tst_shell` | 导航注册、徽标、窗口持久化、剪贴板结果 |
 | `tst_web` | 标签复用、关闭语义、离线/在线转换、LRU 释放（不链接 WebEngine） |
-| `tst_skills` | frontmatter 解析、扫描、插件版本去重、过滤 |
+| `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
 
 可以按名字运行单个用例，例如 `./build/tst_core testRoundTrip`。
 

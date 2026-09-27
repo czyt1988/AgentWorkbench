@@ -33,7 +33,7 @@ cmake --build build
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）、`AWB_BUILD_PLUGIN_EXAMPLES`（默认 OFF，打开会构建并安装 `examples/plugins/hello`）。额外参数经 `bash scripts/build.sh -- -D…` 传入。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建，然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
-- 测试目标：`tst_core`、`tst_agents`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skills` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
+- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skillcatalog` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
 
@@ -43,9 +43,9 @@ src/
   core/          L0 基础设施：Paths、JsonStore、Settings、Logging、ProcessRunner、ScriptRunner、HttpProbe、PluginHost、LegacyImport、IconResolver、EnvExpander、TextUtils、OpResult
   plugin_api/    L0 插件 ABI（仅头文件；外部仓库链接它）
   theme/         L1 主题引擎：ThemeFile/ThemeLoader/ThemeRegistry/Theme
-  agents/        L2：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
+  agentcatalog/  L2：外部 agent 工具的目录（只编目与启动，不是 agent 实现）：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
   shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web）
-  skills/        L2：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
+  skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（唯一链接 Qt WebEngine 的目标，含 WebEngineSurface.qml）
   workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices
@@ -70,15 +70,15 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 每个 agent 对象包含：`id`、`name`、`command`、`webUrl`、`configDir`、`icon`、`color`、`cardColor`、`installCommand`、`updateCommand`、`versionCommand`、`setupCommand`、`tokenFile`。**内置** agent 的定义只来自 `config/default_agents.json`，改它并重新编译即可，不要在 C++ 中硬编码 agent 条目。与默认完全一致（无自建、无删除）时 `save()` 逐字节写入内置文件，保持可 diff。
 
-`icon` 解析在 `core::IconResolver`（fallback 由调用方给出，core 不写死应用资源路径）；环境变量展开在 `core::EnvExpander`（`%VAR%` 与 `~`）。`color` 留空时从**当前主题**的 `agentPalette` 按位置循环分配（`AgentRepository::paletteColorAt` 是回退）。配了 `tokenFile` 时，最终打开的 URL 一律由 `agents::AgentUrls::finalUrl()` 生成（追加 `#token=` 片段，不落服务器日志）——内嵌视图与外部浏览器都走它，不要另拼。
+`icon` 解析在 `core::IconResolver`（fallback 由调用方给出，core 不写死应用资源路径）；环境变量展开在 `core::EnvExpander`（`%VAR%` 与 `~`）。`color` 留空时从**当前主题**的 `agentPalette` 按位置循环分配（`AgentRepository::paletteColorAt` 是回退）。配了 `tokenFile` 时，最终打开的 URL 一律由 `agentcatalog::AgentUrls::finalUrl()` 生成（追加 `#token=` 片段，不落服务器日志）——内嵌视图与外部浏览器都走它，不要另拼。
 
 ## 约定
 
 ### 依赖方向与门禁
 
-`app → workbench → {shell, agents, skills, web, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
+`app → workbench → {shell, agentcatalog, skillcatalog, web, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
 
-1. 反向/横向 include：`src/{agents,skills,web}` 不许 include `shell/`、`workbench/` 或彼此的目录；
+1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web}` 不许 include `shell/`、`workbench/` 或彼此的目录；
 2. QML 字面颜色：不许 `#rrggbb`/`#rgb`，也不许 `Qt.rgba(<数字>, …)`（`"transparent"` 与 `Qt.rgba(theme.…)` 这类表达式允许）；
 3. i18n：`tr()`/`qsTr()` 的源串必须是 ASCII；
 4. core/theme 纯净：`src/core/`、`src/theme/` 不许出现 `QtQuick`、`QQuick*`、`QQml*`、`Qt6::Quick`、`QtWebEngine`；

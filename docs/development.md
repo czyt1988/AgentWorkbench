@@ -48,9 +48,9 @@ src/
                 ProcessRunner, ScriptRunner, HttpProbe, PluginHost, LegacyImport
   plugin_api/   L0 plugin ABI (header-only; external repos link this)
   theme/        L1 theme engine: JSON themes -> semantic tokens -> QML
-  agents/       L2: definitions, persistence, processes, health, CRUD + QML
+  agentcatalog/ L2: external-agent catalog (definitions, persistence, processes, health, CRUD) + QML
   shell/        L2 UI framework: navigation, window skeleton, toasts, A* components
-  skills/       L2: SKILL.md frontmatter, scanner, model, facade + QML
+  skillcatalog/ L2: local-skill catalog (SKILL.md frontmatter, scanner, model, facade) + QML
   web/          L2: tabs, surfaces, memory policy + QML
     webengine/  L2 adapter (the only target linking Qt WebEngine)
   workbench/    L3: cross-domain intents, built-in pages, environment, plugin services
@@ -90,11 +90,11 @@ ctest runs one executable per module plus the architecture gate:
 |---|---|
 | `check_architecture` | no literal colors in QML (hex or numeric `Qt.rgba`), no reverse/sideways module includes, English-only source strings, core/theme stay UI-free, every QML singleton method call is `Q_INVOKABLE` and every property write has a `WRITE` accessor |
 | `tst_core` | paths, JSON store, settings, logging, process runner, script runner, HTTP probe, frontmatter of plugins, legacy import |
-| `tst_agents` | repository sync semantics, model roles, facade CRUD, script logging, URLs, runtime launch/stop/force-stop |
+| `tst_agentcatalog` | repository sync semantics, model roles, facade CRUD, script logging, URLs, runtime launch/stop/force-stop |
 | `tst_theme` | loader validation rules, registry override behaviour |
 | `tst_shell` | navigation registration, badges, window persistence, clipboard results |
 | `tst_web` | tab reuse, close semantics, offline/online transitions, LRU release (no WebEngine needed) |
-| `tst_skills` | frontmatter parsing, scanning, plugin version dedup, filtering |
+| `tst_skillcatalog` | frontmatter parsing, scanning, plugin version dedup, filtering |
 
 A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 
