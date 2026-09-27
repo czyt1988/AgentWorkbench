@@ -138,6 +138,7 @@ QVariantMap NavigationModel::page(const QString &id) const
     map[QStringLiteral("order")] = p.order;
     map[QStringLiteral("badgeText")] = p.badgeText;
     map[QStringLiteral("enabled")] = p.enabled;
+    map[QStringLiteral("keepAlive")] = p.keepAlive;
     return map;
 }
 
@@ -152,6 +153,18 @@ QVariantMap NavigationModel::badges() const
     for (const PageDescriptor &p : m_pages)
         map.insert(p.id, p.badgeText);
     return map;
+}
+
+QVariantList NavigationModel::keepAlivePages() const
+{
+    // 与 page() 同构的快照，按注册（排序后）顺序返回。跳过 disabled 页：
+    // 无法经侧栏到达的页面不该占用一份常驻实例。
+    QVariantList pages;
+    for (const PageDescriptor &p : m_pages) {
+        if (p.keepAlive && p.enabled)
+            pages.append(page(p.id));
+    }
+    return pages;
 }
 
 void NavigationModel::setBadge(const QString &id, const QString &text)

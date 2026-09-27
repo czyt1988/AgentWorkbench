@@ -55,6 +55,9 @@ void BuiltinPages::registerPages()
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml");
     webPage.section = QStringLiteral("main");
     webPage.order = 20;
+    // Web 页常驻：WebEngineView 的页面状态搬不进 C++，切页销毁会让
+    // Web UI 整页重载；Workspace 对 keepAlive 页只隐藏不销毁。
+    webPage.keepAlive = true;
     m_nav->registerPage(webPage);
 
     shell::PageDescriptor skillsPage;

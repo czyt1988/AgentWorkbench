@@ -18,6 +18,10 @@ struct PageDescriptor
     int order = 0;
     QString badgeText;  // sidebar pill, empty = no badge
     bool enabled = true;
+    /// 为 true 时该页由 Workspace 常驻托管：实例化一次后切换只是隐藏，
+    /// 不再销毁。用于页面状态无法搬进 C++ 的页（Web 页的 WebEngineView
+    /// 销毁即整页重载）。常驻页的快捷键必须自行在非当前页时禁用。
+    bool keepAlive = false;
 };
 
 } // namespace awb::shell

@@ -100,6 +100,54 @@ private slots:
         QCOMPARE(spy.count(), 1);
     }
 
+    // keepAlive pages land in the keepAlivePages snapshot and expose the
+    // flag through page(); the workspace keeps them alive instead of
+    // destroying them on every switch. A keepAlive flag flipping later must
+    // re-evaluate the snapshot (pagesChanged), and disabled keepAlive pages
+    // are skipped — an unreachable page must not hold a resident instance.
+    void testKeepAlivePages()
+    {
+        NavigationModel nav;
+        PageDescriptor plain = makePage(QStringLiteral("agents"));
+        QVERIFY(nav.registerPage(plain));
+
+        PageDescriptor web = makePage(QStringLiteral("web"), 20);
+        web.keepAlive = true;
+        QVERIFY(nav.registerPage(web));
+
+        // page() exposes the flag so Workspace can tell a keepAlive current
+        // page apart from a regular one (and keep the plain Loader away
+        // from it).
+        QCOMPARE(nav.page(QStringLiteral("web"))
+                     .value(QStringLiteral("keepAlive")).toBool(), true);
+        QCOMPARE(nav.page(QStringLiteral("agents"))
+                     .value(QStringLiteral("keepAlive")).toBool(), false);
+
+        QVariantList alive = nav.keepAlivePages();
+        QCOMPARE(alive.size(), 1);
+        QCOMPARE(alive.first().toMap()
+                     .value(QStringLiteral("id")).toString(),
+                 QStringLiteral("web"));
+        QCOMPARE(alive.first().toMap()
+                     .value(QStringLiteral("source")).toString(),
+                 QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/web.qml"));
+
+        // Notifiable so a Repeater binding re-evaluates on registration.
+        QSignalSpy spy(&nav, &NavigationModel::pagesChanged);
+        PageDescriptor extra = makePage(QStringLiteral("tools"), 40);
+        extra.keepAlive = true;
+        QVERIFY(nav.registerPage(extra));
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(nav.keepAlivePages().size(), 2);
+
+        // Disabled pages are not reachable — no resident instance for them.
+        PageDescriptor off = makePage(QStringLiteral("logs"), 50);
+        off.keepAlive = true;
+        off.enabled = false;
+        QVERIFY(nav.registerPage(off));
+        QCOMPARE(nav.keepAlivePages().size(), 2);
+    }
+
     // Every method QML calls on the nav/shell singletons must be reachable
     // through the meta-object — invokeMethod is exactly how QML resolves a
     // call, and a bare Q_PROPERTY WRITE or plain method is NOT registered.

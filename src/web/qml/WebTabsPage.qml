@@ -12,6 +12,11 @@ Item {
 
     // Fullscreen hides the tab bar; Esc leaves it first.
     property bool chromeHidden: false
+    // 本页经 PageDescriptor::keepAlive 常驻（Workspace 只隐藏不销毁），
+    // 因此切到别的页面后这里的 ApplicationShortcut 仍然存活。所有全局
+    // 快捷键必须门控在「本页是当前页」上，否则 Ctrl+W / F5 / F12 会在
+    // 设置页之类的地方关掉/重载隐藏的 Web 标签。
+    readonly property bool pageCurrent: nav.currentPageId === "web"
     // Home view: the agent list (the no-tabs page) on demand, without
     // closing the open tabs — the way back to the launcher's cards while
     // views are open. Leaving it (clicking a tab, opening an agent,
@@ -522,18 +527,19 @@ Item {
     Shortcut {
         sequences: [StandardKey.Close]
         context: Qt.ApplicationShortcut
-        enabled: web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: web.closeTab(web.activeTabId)
     }
     Shortcut {
         sequence: StandardKey.Refresh
         context: Qt.ApplicationShortcut
-        enabled: web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: web.reloadTab(web.activeTabId)
     }
     Shortcut {
         sequences: [StandardKey.NextChild]
         context: Qt.ApplicationShortcut
+        enabled: page.pageCurrent
         onActivated: {
             page.homeActive = false
             web.stepActiveTab(1)
@@ -542,6 +548,7 @@ Item {
     Shortcut {
         sequences: [StandardKey.PreviousChild]
         context: Qt.ApplicationShortcut
+        enabled: page.pageCurrent
         onActivated: {
             page.homeActive = false
             web.stepActiveTab(-1)
@@ -550,26 +557,27 @@ Item {
     Shortcut {
         sequences: ["Ctrl+=", "Ctrl++"]
         context: Qt.ApplicationShortcut
-        enabled: web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: stepZoom(0.1)
     }
     Shortcut {
         sequence: "Ctrl+-"
         context: Qt.ApplicationShortcut
-        enabled: web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: stepZoom(-0.1)
     }
     Shortcut {
         sequence: "Ctrl+0"
         context: Qt.ApplicationShortcut
-        enabled: web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: web.setTabZoom(web.activeTabId, 1.0)
     }
     // F12 opens devtools — Debug builds only.
     Shortcut {
         sequence: "F12"
         context: Qt.ApplicationShortcut
-        enabled: web.devToolsEnabled && web.activeTabId.length > 0
+        enabled: page.pageCurrent && web.devToolsEnabled
+                 && web.activeTabId.length > 0
         onActivated: {
             const item = page.surfaceItems[web.activeTabId]
             if (item)
@@ -579,7 +587,7 @@ Item {
     Shortcut {
         sequence: "Esc"
         context: Qt.ApplicationShortcut
-        enabled: page.chromeHidden
+        enabled: page.pageCurrent && page.chromeHidden
         onActivated: page.chromeHidden = false
     }
 }
