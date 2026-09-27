@@ -426,6 +426,34 @@ agents/skills/web 三个领域模块才能各自独立测试。
 
 **规格同步**：`specs/01` §4.4（SkillScanner 去重键 + SkillsFacade 实际 API）、§4.5（WebTabsFacade 全量成员 + token 脱敏）、§4.7（setCurrentPageId 命名 + badges）、§4.8（PluginServices + EnvironmentService QSet + main.cpp 顺序）、§5.1 矩阵（core→plugin_api ✅）、§7.2（预留键 + 路径原样存取）、§11（tst_agents 覆盖）、`specs/02` §5（menu.svg）/§7.4（WheelHandler 滚动关闭）/§10.2（ACard/ADialog/AToolTip 保留备注）。
 
+### 手工运行发现的第五类缺陷：QML 调用面缺 Q_INVOKABLE（2026-09-27 第五轮）
+
+第四轮审查 + 7/7 ctest + 5 页 smoke 全绿之后，所有者手工运行点击侧边栏，日志出现：
+
+```
+Sidebar.qml:220: TypeError: Property 'setCurrentPageId' of object
+awb::shell::NavigationModel(...) is not a function
+```
+
+**根因**：`setCurrentPageId` 只是 `Q_PROPERTY currentPageId` 的裸写入器，不在 meta-object 方法表里——QML 把它当方法调用必然 TypeError，点击后切页静默失败。全量审计（脚本扫 QML 里每个单例别名的 `<alias>.method(` 与 `<alias>.prop =`，对照头文件的 `Q_INVOKABLE`/`WRITE`）发现同类共 **3 处**，且都是 **S4 起就存在**的既有缺陷：
+
+| QML 调用点 | 缺陷 | 影响 |
+| --- | --- | --- |
+| `nav.setCurrentPageId(...)`（Sidebar 点击、Ctrl+1..9） | 裸写入器，无 `Q_INVOKABLE` | 切页永远无效 |
+| `shell.setWebSurface(...)`（设置页表面下拉） | 无 `Q_INVOKABLE` | Embedded/External 切换静默失效 |
+| `shell.setWebChromiumFlags(...)`（设置页） | 无 `Q_INVOKABLE` | Chromium flags 编辑静默失效 |
+
+**为什么三轮自动验证都没抓到**：历轮冒烟全部用 `lastPageId` 注入加载页面、从不点击；审查也只比对了规格命名（§4.7 `setCurrentPage` vs `setCurrentPageId`），没查方法是否可调用。这正是「绿测试 ≠ 覆盖」的又一实例。
+
+**修复与防复发**（全部已验证）：
+1. 三处方法补 `Q_INVOKABLE`；
+2. `check-architecture` 新增**规则5**：QML 单例方法调用必须 `Q_INVOKABLE`、属性赋值必须有 `WRITE`——正负向均实测有效（去掉任一 `Q_INVOKABLE` 即 FAIL）；规则剥离 `//` 注释后再匹配，避免注释里同时出现 `Q_INVOKABLE` 和方法名造成假通过；
+3. `tst_shell::testQmlCalledMethodsAreInvokable` 用 `QMetaObject::invokeMethod`（QML 解析调用的真实机制）对三处方法做真实调用断言；
+4. `specs/01` §5.3 检查表补规则5、§8.2 补第4条硬约束（QML 可调用面）；
+5. moc 输出复核：`setCurrentPageId`/`setWebSurface` 已进入方法表（各 1 处）。
+
+验证：7/7 ctest 全绿（含新用例）、门禁正负向实测、`unfinished=0`。
+
 ### S0-T7 GitHub 端步骤的执行状态
 
 - [x] `mkdocs.yml` 的 `repo_url`/`repo_name`/`site_name`/语言切换路径本地修正（指向 `czyt1988/AgentWorkbench`）。

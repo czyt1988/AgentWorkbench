@@ -310,9 +310,10 @@ if (!QFile::exists(Settings::settingsFilePath()))
 | 检查 | 规则 |
 | --- | --- |
 | 反向 include | `src/{agents,skills,web}/**/*.{h,cpp}` 中不得出现 `#include "shell/`、`#include "workbench/`，也不得出现另外两个领域模块的目录名 |
-| 视觉字面量 | `src/**/qml/*.qml` 中不得出现 `#rrggbb` / `#rgb` 字面颜色（`"transparent"`、`Qt.rgba(theme.…)` 允许） |
+| 视觉字面量 | `src/**/qml/*.qml` 中不得出现 `#rrggbb` / `#rgb` 字面颜色，也不得出现 `Qt.rgba(<数字>, …)` 数字字面量（`"transparent"`、`Qt.rgba(theme.…)` 等表达式允许） |
 | i18n | `tr("…")` / `qsTr("…")` 的参数不得含非 ASCII 字符 |
-| core 纯净 | `src/core/` 与 `src/theme/` 中不得出现 `QtQuick`、`Qt6::Quick`、`QtWebEngine` |
+| core 纯净 | `src/core/` 与 `src/theme/` 中不得出现 `QtQuick`、`QQuick*`、`QQml*`、`Qt6::Quick`、`QtWebEngine`（含 `<QQuickItem>` 之类的头文件形态） |
+| QML → C++ 可调用性 | QML 中每个单例别名的 `<alias>.<method>(` 调用，必须在对应头文件里声明为 `Q_INVOKABLE`；每个 `<alias>.<prop> = …` 赋值，必须有 `Q_PROPERTY … WRITE`。裸方法/裸写入器不在 meta-object 方法表里，QML 调用即抛「…is not a function」——页面加载冒烟从不点击，抓不到这一类（04 轮手工运行发现 3 处，故立此门禁） |
 
 把这个脚本挂到 `ctest`（一个 `check_architecture` 测试）并让 `scripts/build.sh --test` 跑到它。违反规则的构建必须失败，而不是靠人记住。
 
@@ -419,6 +420,7 @@ if (!QFile::exists(Settings::settingsFilePath()))
 1. **不要**往 `AgentWorkbench` 这个 URI 里手工注册 C++ 单例——它已经是 `qt_add_qml_module` 生成的（有 qmldir 的）模块，会报 `Cannot install element ... into protected module`。C++ 全局统一放在 `AgentWorkbench.App` 这个纯 C++ URI 下。
 2. **不要**用 `engine.rootContext()->setContextProperty()`：qmlcachegen 无法分析未限定访问，会一直报 warning，且性能与可测性都更差。
 3. C++ 单例的**注册名**大写（Qt 硬性要求），QML **契约名**小写（根别名桥接）；两者都在上表中列出。
+4. **QML 要调用的每个方法都必须 `Q_INVOKABLE`**，QML 要赋值的每个属性都必须有 `WRITE` 访问器——裸方法/裸写入器不在 meta-object 方法表里，QML 调用即抛 `TypeError: Property '…' is not a function`，且**页面加载冒烟抓不到**（只有点击/改设置才触发）。`check_architecture` 规则5（§5.3）在构建期挡住这一类；`tst_shell::testQmlCalledMethodsAreInvokable` 用 `QMetaObject::invokeMethod` 复现 QML 的真实解析路径。
 
 qmlcachegen 对 `AgentWorkbench.App` 这种「只在 C++ 里注册」的 URI 无法在编译期解析，构建日志会出现 unresolved-import 类警告，属于**预期现象**，不要为了消除它改设计（除非同时引入 `.qmltypes` 生成）。
 
