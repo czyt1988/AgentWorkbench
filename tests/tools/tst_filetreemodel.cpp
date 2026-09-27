@@ -65,6 +65,35 @@ private slots:
         QVERIFY(model.data(beta, FileTreeModel::SuffixRole).toString().isEmpty());
     }
 
+    void testIconRoleFollowsNameAndSuffix()
+    {
+        makeFile(QStringLiteral("notes.md"));
+        makeDir(QStringLiteral("docs"));
+        FileTreeModel model;
+        model.setRootPath(m_root);
+
+        // role 名是 QML 的契约：delegate 的 required property 必须叫 iconSource。
+        QCOMPARE(model.roleNames().value(FileTreeModel::IconRole),
+                 QByteArrayLiteral("iconSource"));
+        QCOMPARE(model.data(childIndex(model, QModelIndex(),
+                                       QStringLiteral("notes.md")),
+                            FileTreeModel::IconRole).toString(),
+                 QStringLiteral("qrc:/icons/filetypes/markdown.svg"));
+        QCOMPARE(model.data(childIndex(model, QModelIndex(),
+                                       QStringLiteral("docs")),
+                            FileTreeModel::IconRole).toString(),
+                 QStringLiteral("qrc:/icons/foldertypes/docs.svg"));
+        // 没进映射表的名字走默认图标。
+        QCOMPARE(model.data(childIndex(model, QModelIndex(),
+                                       QStringLiteral("Beta")),
+                            FileTreeModel::IconRole).toString(),
+                 QStringLiteral("qrc:/icons/folder.svg"));
+        QCOMPARE(model.data(childIndex(model, QModelIndex(),
+                                       QStringLiteral("beta.txt")),
+                            FileTreeModel::IconRole).toString(),
+                 QStringLiteral("qrc:/icons/filetypes/text.svg"));
+    }
+
     void testLazyFetch()
     {
         FileTreeModel model;

@@ -1,6 +1,8 @@
 # awb_tools (L2 domain): the Agent Tools page — workspace memory, lazy file
 # tree, prompt draft. Depends on awb_core only — never on shell or other domains.
 qt_add_library(awb_tools STATIC
+    FileIcons.cpp
+    FileIcons.h
     FileTreeModel.cpp
     FileTreeModel.h
     ToolsFacade.cpp

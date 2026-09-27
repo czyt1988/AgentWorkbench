@@ -1,6 +1,8 @@
 #ifndef AWB_TOOLS_FILETREEMODEL_H
 #define AWB_TOOLS_FILETREEMODEL_H
 
+#include "tools/FileIcons.h"
+
 #include <QAbstractItemModel>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -33,7 +35,8 @@ public:
         PathRole,                    ///< 绝对路径（正斜杠）
         RelativePathRole,            ///< 相对工作区根的路径（正斜杠，无 ./ 前缀）
         IsDirRole,                   ///< 是否目录
-        SuffixRole                   ///< 文件后缀（小写、无点；目录为空串）
+        SuffixRole,                  ///< 文件后缀（小写、无点；目录为空串）
+        IconRole                     ///< 图标 URL（按名字/后缀查表，见 FileIcons）
     };
     Q_ENUM(Roles)
 
@@ -60,6 +63,10 @@ public:
 
     /// 与磁盘对账：只改变化的行，展开状态与未变的节点原样保留。
     void refresh();
+
+    /// 叠加用户图标配置（<dataRoot>/file_icons.json）。
+    /// 要在 setRootPath() 之前调用：之后调用不会给已渲染的行补发 dataChanged。
+    void loadUserIconFile(const QString &path);
 
     int topLevelCount() const;
 
@@ -106,6 +113,8 @@ private:
     /// 工作区根的绝对路径（正斜杠）；空串表示还没有工作区。
     QString m_rootPath;
     std::unique_ptr<Node> m_root;
+    /// 名字/后缀 → 图标；IconRole 的唯一来源。
+    FileIcons m_icons;
     QFileSystemWatcher m_watcher;
     QTimer m_watcherDebounce;
 };

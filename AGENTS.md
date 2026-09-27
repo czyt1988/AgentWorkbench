@@ -48,14 +48,14 @@ src/
   agentcatalog/  L2：外部 agent 工具的目录（只编目与启动，不是 agent 实现）：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
   shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web）
   skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
-  tools/         L2：Agent Tools 页（提示词编写台）：ToolsStore（工作区记忆 + 草稿，tools.json）、FileTreeModel（懒加载文件树 + watcher）、ToolsFacade + qml/
+  tools/         L2：Agent Tools 页（提示词编写台）：ToolsStore（工作区记忆 + 草稿，tools.json）、FileTreeModel（懒加载文件树 + watcher + 增量刷新）、FileIcons（名字/后缀 → 图标）、ToolsFacade + qml/
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（唯一链接 Qt WebEngine 的目标，含 WebEngineSurface.qml）
   workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices
 cmake/         AwbOptions.cmake、AwbTranslations.cmake（可翻译源清单）
 resources/     内置主题 JSON（mocha-dark、latte-light）
-config/        default_agents.json（打包为 Qt 资源）
-icons/         SVG 图标（打包为 Qt 资源）
+config/        default_agents.json、default_file_icons.json（打包为 Qt 资源）
+icons/         SVG 图标（打包为 Qt 资源）；filetypes/ 与 foldertypes/ 是文件树的类型图标
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
 docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
@@ -73,6 +73,8 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 每个 agent 对象包含：`id`、`name`、`command`、`webUrl`、`configDir`、`icon`、`color`、`cardColor`、`installCommand`、`updateCommand`、`versionCommand`、`setupCommand`、`tokenFile`。**内置** agent 的定义只来自 `config/default_agents.json`，改它并重新编译即可，不要在 C++ 中硬编码 agent 条目。与默认完全一致（无自建、无删除）时 `save()` 逐字节写入内置文件，保持可 diff。
 
 `icon` 解析在 `core::IconResolver`（fallback 由调用方给出，core 不写死应用资源路径）；环境变量展开在 `core::EnvExpander`（`%VAR%` 与 `~`）。`color` 留空时从**当前主题**的 `agentPalette` 按位置循环分配（`AgentRepository::paletteColorAt` 是回退）。配了 `tokenFile` 时，最终打开的 URL 一律由 `agentcatalog::AgentUrls::finalUrl()` 生成（追加 `#token=` 片段，不落服务器日志）——内嵌视图与外部浏览器都走它，不要另拼。
+
+文件树的图标也是数据不是代码：`config/default_file_icons.json` 的三张表（`fileNames`、`suffixes`、`folderNames`，键一律小写）把名字映射到图标 URL，`defaults` 给兜底；`tools::FileIcons` 负责查表（完整文件名 → 后缀 → 默认），值经 `IconResolver` 归一，因此用户能在 `<dataRoot>/file_icons.json` 里按键覆盖或追加（支持 `%VAR%`、`~` 与本机文件路径）。加一种图标 = 往 `icons/filetypes/`（或 `foldertypes/`）放一个 SVG + 在 JSON 里加一行 + 在 `app/CMakeLists.txt` 的资源清单里登记；**不要在 C++ 或 QML 里写后缀判断**。
 
 ## 约定
 

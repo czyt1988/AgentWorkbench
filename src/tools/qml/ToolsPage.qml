@@ -270,6 +270,7 @@ Item {
                             required property string path
                             required property string relativePath
                             required property bool isDir
+                            required property string iconSource
 
                             TableView.onPooled: treeRow.rebinding = true
                             TableView.onReused: treeRow.rebinding = false
@@ -367,13 +368,14 @@ Item {
                                 }
                             }
 
+                            // 图标由模型按文件名/后缀查表给出（见 FileIcons），
+                            // 页面不认识具体后缀。
                             Image {
                                 x: 4 + treeRow.depth * 16 + 18
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 16
                                 height: 16
-                                source: treeRow.isDir ? "qrc:/icons/folder.svg"
-                                                      : "qrc:/icons/file.svg"
+                                source: treeRow.iconSource
                             }
 
                             Label {

@@ -16,8 +16,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   as a lazily-loaded file tree with auto-refresh (QFileSystemWatcher,
   debounced) and manual refresh, and inserts file references as
   `` `./relative/path` `` by dragging a tree row into the editor (at the
-  drop-point cursor) or double-clicking a file row. The draft survives
+  drop-point cursor) or double-clicking a file row, and copies a row's
+  relative or absolute path from its right-click menu. The draft survives
   page switches and restarts (`tools.json`).
+- **Configurable file-tree icons**: 17 file-type and 8 folder-type icons
+  (`icons/filetypes/`, `icons/foldertypes/`), mapped by file name and suffix
+  from `config/default_file_icons.json`; `<dataRoot>/file_icons.json`
+  overrides or extends the mapping key by key, so supporting a new suffix
+  needs no code change.
 - **Web page "Home" button**: the tab-bar toolbar gains a home entry that
   brings back the running-agent list (the no-tabs page) without closing any
   open tab — previously there was no way back to the list once a view was
@@ -58,6 +64,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   showed while agents were running. `AListRow` now mirrors its height into
   `implicitHeight` (benefits every layout-managed use), and the running
   list no longer forces per-row heights itself.
+- **The Agent Tools file tree no longer flashes on refresh.** `refresh()`
+  reset the model, and TreeView answers a reset by destroying every delegate
+  and collapsing the whole tree, which the page then re-expanded from a
+  snapshot. Refresh now diffs each loaded directory against the disk and
+  emits only the rows that actually changed — an unchanged refresh emits
+  nothing at all, and expanded directories stay expanded. Expanding a
+  directory still makes TreeView recycle every visible delegate (that part is
+  Qt's doing), so the chevron rotation animation is now suppressed while a
+  row is being rebound to different data.
+- **Dropping a file reference into the prompt now lands at the caret.** The
+  drop handler added the editor's `contentX`/`contentY` to the drop position,
+  but a `TextArea` is not a `Flickable` and has neither — the sum was `NaN`,
+  `positionAt()` answered 0, and every drop inserted at the very start of the
+  prompt.
 
 ### Removed
 

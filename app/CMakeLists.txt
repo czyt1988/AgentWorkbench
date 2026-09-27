@@ -141,14 +141,61 @@ foreach(icon IN LISTS AWB_ICON_FILES)
         QT_RESOURCE_ALIAS "icons/${_name}")
 endforeach()
 
+# File-type and folder-type icons for the Agent Tools file tree. Which name or
+# suffix maps to which icon is data, not code: config/default_file_icons.json.
+set(AWB_FILETYPE_ICON_FILES
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/archive.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/cfamily.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/cmake.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/code.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/config.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/image.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/json.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/markdown.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/markup.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/pdf.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/python.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/qml.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/shell.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/style.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/table.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/text.svg
+    ${CMAKE_SOURCE_DIR}/icons/filetypes/typescript.svg
+)
+set(AWB_FOLDERTYPE_ICON_FILES
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/assets.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/build.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/config.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/deps.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/docs.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/scripts.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/src.svg
+    ${CMAKE_SOURCE_DIR}/icons/foldertypes/test.svg
+)
+foreach(icon IN LISTS AWB_FILETYPE_ICON_FILES)
+    get_filename_component(_name ${icon} NAME)
+    set_source_files_properties(${icon} PROPERTIES
+        QT_RESOURCE_ALIAS "icons/filetypes/${_name}")
+endforeach()
+foreach(icon IN LISTS AWB_FOLDERTYPE_ICON_FILES)
+    get_filename_component(_name ${icon} NAME)
+    set_source_files_properties(${icon} PROPERTIES
+        QT_RESOURCE_ALIAS "icons/foldertypes/${_name}")
+endforeach()
+
 set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_agents.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_agents.json")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_file_icons.json
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
 
 qt_add_resources(AgentWorkbench "app_resources"
     PREFIX "/"
     FILES
         ${CMAKE_SOURCE_DIR}/config/default_agents.json
+        ${CMAKE_SOURCE_DIR}/config/default_file_icons.json
         ${AWB_ICON_FILES}
+        ${AWB_FILETYPE_ICON_FILES}
+        ${AWB_FOLDERTYPE_ICON_FILES}
 )
 
 # Built-in themes.

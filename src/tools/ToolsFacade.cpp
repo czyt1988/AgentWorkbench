@@ -30,6 +30,9 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
     // watcher 触发的重扫在模型内部完成，经此转发给 QML，统一走 refreshFinished。
     connect(m_model, &FileTreeModel::refreshed, this, &ToolsFacade::refreshFinished);
 
+    // 图标表要在设根之前叠加好：模型不会为已经渲染的行补发 dataChanged。
+    m_model->loadUserIconFile(dataRoot + QStringLiteral("/file_icons.json"));
+
     applyCurrentToModel();
 }
 

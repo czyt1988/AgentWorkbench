@@ -104,6 +104,9 @@ QVariant FileTreeModel::data(const QModelIndex &index, int role) const
         return node->isDir;
     case SuffixRole:
         return node->isDir ? QString() : QFileInfo(node->name).suffix().toLower();
+    case IconRole:
+        return node->isDir ? m_icons.forFolder(node->name)
+                           : m_icons.forFile(node->name);
     }
     return QVariant();
 }
@@ -118,6 +121,7 @@ QHash<int, QByteArray> FileTreeModel::roleNames() const
         {RelativePathRole, "relativePath"},
         {IsDirRole, "isDir"},
         {SuffixRole, "suffix"},
+        {IconRole, "iconSource"},
     };
 }
 
@@ -185,6 +189,11 @@ void FileTreeModel::refresh()
 int FileTreeModel::topLevelCount() const
 {
     return m_root ? static_cast<int>(m_root->children.size()) : 0;
+}
+
+void FileTreeModel::loadUserIconFile(const QString &path)
+{
+    m_icons.loadUserFile(path);
 }
 
 void FileTreeModel::fetchChildren(const QModelIndex &parent)

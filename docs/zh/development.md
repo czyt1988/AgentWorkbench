@@ -41,7 +41,7 @@ src/
   agentcatalog/ L2：外部 agent 工具目录（定义、持久化、进程、健康检查、CRUD）+ QML
   shell/        L2 UI 框架：导航、窗口骨架、toast、A* 组件
   skillcatalog/ L2：本机 skill 目录（SKILL.md frontmatter、扫描器、模型、门面）+ QML
-  tools/        L2：Agent Tools 页（工作区记忆、懒加载文件树、提示词草稿）+ QML
+  tools/        L2：Agent Tools 页（工作区记忆、懒加载文件树、图标映射、提示词草稿）+ QML
   web/          L2：标签、表面、内存策略 + QML
     webengine/  L2 适配器（唯一链接 Qt WebEngine 的目标）
   workbench/    L3：跨域意图、内置页面、环境探测、插件服务
@@ -85,7 +85,7 @@ ctest 每个模块一个可执行文件，外加架构守门：
 | `tst_web` | 标签复用、关闭语义、离线/在线转换、LRU 释放（不链接 WebEngine） |
 | `tst_workbench` | 跨域意图：`openWeb` 跳页、external surface 不建标签、浏览器打开的 URL 交接 |
 | `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
-| `tst_tools` | 工作区存储语义、懒加载树模型（roles/fetch/刷新恢复）、门面接线、QML 可调用面 |
+| `tst_tools` | 工作区存储语义、懒加载树模型（roles/fetch/增量刷新）、图标映射、门面接线、QML 可调用面 |
 
 可以按名字运行单个用例，例如 `./build/tst_core testRoundTrip`。
 
