@@ -961,8 +961,8 @@ Command: %2
     </message>
     <message>
         <location filename="../src/workbench/BuiltinPages.cpp" line="49"/>
-        <source>Web</source>
-        <translation>Web</translation>
+        <source>Agent Web UI</source>
+        <translation>Agent Web UI</translation>
     </message>
     <message>
         <location filename="../src/workbench/BuiltinPages.cpp" line="59"/>

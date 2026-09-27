@@ -46,7 +46,7 @@ void BuiltinPages::registerPages()
 
     shell::PageDescriptor webPage;
     webPage.id = QStringLiteral("web");
-    webPage.title = tr("Web");
+    webPage.title = tr("Agent Web UI");
     webPage.iconSource = QStringLiteral("qrc:/icons/web.svg");
     webPage.source =
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml");
