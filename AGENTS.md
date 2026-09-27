@@ -130,14 +130,29 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 - 注释、标识符和日志信息也应使用英文。
 - 本地化文档（`docs/zh/`、`README-zh.md`）以及 `mkdocs.yml` 中的语言名称标签**不是**源代码——它们是正当的本地化内容，不受本规则约束。
 
+## 分支与并行开发（多工作树）
+
+**在同一台电脑上开多个工作树、让多个 agent 同时并行开发是本项目的常态**，不是例外。所有工作的终点只有一个：合并回 `dev`。
+
+- **分支模型**：`dev` 是唯一集成分支，一切工作的终点；`main` 受保护，不在其上直接开发。功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，合并回 `dev` 后删除工作分支。
+- **新任务开工作树**：从最新的 `dev` 切出工作分支、建独立工作树，每个任务/agent 一个：`git worktree add <路径> -b <分支> dev`。已有哪些工作树以 `git worktree list` 的实时输出为准（本机已知有 `C:/src/Qt/AgentLauncher`、`C:/src/Qt/agent-workbench-dev2` 等）。
+- **状态随时在变，合并前必须实时核对**：`git status` 快照和「`dev` 检出在某处」这类前提只代表看到它的那一刻——并行会话可能在你任务中途切走分支、产生在途改动。每次合并前重新执行 `git -C <目标工作树> branch --show-current` 与 `git -C <目标工作树> status --porcelain`，以实时结果为准。
+- **合并回 `dev` 按实时核对结果选路径**：
+  1. `dev` 检出在某个工作树、且该树干净 → `git -C <该工作树> merge <工作分支>`；
+  2. 该工作树有在途改动或已切到别的分支 → **不要动它**（在那里切分支 / checkout / reset 会毁掉对方的在途改动）；只要 `dev` 此刻没被任何工作树检出，就用临时工作树合并、用完即删：
+     `git worktree add <临时路径> dev && git -C <临时路径> merge --ff-only <工作分支> && git worktree remove <临时路径>`；
+  3. `dev` 被占、又无法走上述路径 → 先与用户协调，不要抢别人正在用的工作树。
+- **降低并行冲突**：动手前先把 `dev` 最新改动合并进工作分支；收尾合并前**再**合并一次 `dev`，让冲突提前暴露，而不是攒到最后一次；配合下节的原子提交纪律。
+- **冲突就地解决**：按双方改动的**意图**合并而不是机械取一侧；解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交。`translations/*.ts` 的行号差异是每次构建 lupdate 重写 location 造成的噪声，取任一侧即可。
+- **「任务完成」的定义包含「已合并回 `dev`」**——不许把冲突、分叉或「没合并回 dev」的状态留给下一个任务。
+
 ## 提交
 
 - 每完成一个完整任务就提交一次，不要只改不提交；
 - 提交信息使用 **Conventional Commits**（`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`）。
 - 版本遵循 **SemVer**，每次发版更新 `CHANGELOG.md`。
 - 只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求。
-- 分支：`main` 受保护，功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，完成后合并到`dev`分支并删除feat/fix分支。
-- **`dev` 是集成分支，「任务完成」的定义包含「已合并回 `dev`」**：动手前先合并 `dev` 的最新改动到工作分支；任务收尾时把工作分支合并回 `dev`。注意本仓库有两个链接工作树，`dev` 检出在 `C:/src/Qt/AgentLauncher`，当前目录检出的是工作分支，因此合并方向是 `git -C C:/src/Qt/AgentLauncher merge <branch>`（前提是该工作树干净；若有在途改动先与用户协调）。有冲突就地解决——按双方改动的**意图**合并而不是机械取一侧，解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交；不许把冲突、分叉或「没合并回 dev」的状态留给下一个任务。
+
 在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率。
 
 ## 不要做
