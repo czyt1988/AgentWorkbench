@@ -101,6 +101,42 @@ private slots:
         QCOMPARE(spy.count(), 1);
     }
 
+    // Every method QML calls on the nav/shell singletons must be reachable
+    // through the meta-object — invokeMethod is exactly how QML resolves a
+    // call, and a bare Q_PROPERTY WRITE or plain method is NOT registered.
+    // Regression: sidebar/Ctrl+N clicks and the settings page's surface/
+    // flags switches threw "…is not a function" because setCurrentPageId /
+    // setWebSurface / setWebChromiumFlags were not Q_INVOKABLE (found by a
+    // manual run after the review — page-load smoke never clicks).
+    void testQmlCalledMethodsAreInvokable()
+    {
+        NavigationModel nav;
+        QVERIFY(nav.registerPage(makePage(QStringLiteral("agents"))));
+        QVERIFY(nav.registerPage(makePage(QStringLiteral("settings"), 100)));
+        QVERIFY2(QMetaObject::invokeMethod(&nav, "setCurrentPageId",
+                                           Q_ARG(QString, "settings")),
+                 "nav.setCurrentPageId is not invokable — sidebar/Ctrl+N "
+                 "clicks would throw TypeError in QML");
+        QCOMPARE(nav.currentPageId(), QStringLiteral("settings"));
+
+        QVERIFY(QDir().mkpath(
+            QFileInfo(Settings::settingsFilePath()).absolutePath()));
+        QFile::remove(Settings::settingsFilePath());
+        {
+            Settings settings;
+            ShellController shell(&settings);
+            QVERIFY2(QMetaObject::invokeMethod(&shell, "setWebSurface",
+                                               Q_ARG(QString, "external")),
+                     "shell.setWebSurface is not invokable — the settings "
+                     "page's surface switch silently does nothing");
+            QCOMPARE(shell.webSurface(), QStringLiteral("external"));
+            QVERIFY(QMetaObject::invokeMethod(&shell, "setWebChromiumFlags",
+                                              Q_ARG(QString, "--disable-gpu")));
+            QCOMPARE(shell.webChromiumFlags(), QStringLiteral("--disable-gpu"));
+        }
+        QFile::remove(Settings::settingsFilePath());
+    }
+
     // Sidebar collapse and window geometry persist to settings.json and
     // come back after a fresh controller (S4-T9).
     void testSidebarStatePersists()
