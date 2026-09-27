@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <QStandardPaths>
+#include <QUrl>
 
 #include "core/Settings.h"
 #include "web/WebTabsFacade.h"
@@ -85,6 +86,20 @@ private slots:
         QCOMPARE(tab->state(), QStringLiteral("offline"));
 
         // Agent back -> loading (the surface reloads).
+        web.markOnlineForAgent(QStringLiteral("kimi-code"));
+        QCOMPARE(tab->state(), QStringLiteral("loading"));
+
+        // An error tab with the agent STILL up (e.g. HTTP 401 from a token
+        // gate) is NOT auto-reloaded — that was an endless 3s retry loop.
+        web.setTabState(id, QStringLiteral("error"));
+        web.markOnlineForAgent(QStringLiteral("kimi-code"));
+        QCOMPARE(tab->state(), QStringLiteral("error"));
+
+        // An error observed while the agent is down becomes offline, so the
+        // normal recovery path (agent back -> loading) still works.
+        web.setTabState(id, QStringLiteral("error"));
+        web.markOfflineForAgent(QStringLiteral("kimi-code"));
+        QCOMPARE(tab->state(), QStringLiteral("offline"));
         web.markOnlineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("loading"));
 
@@ -217,6 +232,41 @@ private slots:
         web.reopen(releasedId);
         QCOMPARE(web.tabs()->tabById(releasedId)->state(),
                  QStringLiteral("loading"));
+    }
+
+    // A captured session URL (dsh's per-process token) retargets an open
+    // tab: URL swap, error cleared, view reloads. Unknown agents and empty
+    // URLs are no-ops.
+    void testRetargetTabForAgent()
+    {
+        Settings settings;
+        WebTabsFacade web(&settings);
+        web.registerSurface(QStringLiteral("embedded"),
+                            QStringLiteral("qrc:/fake/Surface.qml"));
+        QVariantMap fields;
+        fields[QStringLiteral("agentId")] = QStringLiteral("dsh");
+        fields[QStringLiteral("url")] = QStringLiteral("http://127.0.0.1:3080");
+        const QString id = web.openTab(fields);
+        WebTab *tab = web.tabs()->tabById(id);
+        QVERIFY(tab);
+
+        web.setTabState(id, QStringLiteral("error"));
+        web.setTabLastError(id, QStringLiteral("Failed to load ... (HTTP 401)"));
+
+        web.retargetTabForAgent(
+            QStringLiteral("dsh"),
+            QUrl(QStringLiteral("http://127.0.0.1:3080/?token=abc")));
+        QCOMPARE(tab->url().toString(),
+                 QStringLiteral("http://127.0.0.1:3080/?token=abc"));
+        QCOMPARE(tab->state(), QStringLiteral("loading"));
+        QVERIFY(tab->lastError().isEmpty());
+
+        // No tab for the agent / invalid URL: nothing happens.
+        web.retargetTabForAgent(QStringLiteral("ghost"),
+                                QUrl(QStringLiteral("http://127.0.0.1:1")));
+        web.retargetTabForAgent(QStringLiteral("dsh"), QUrl());
+        QCOMPARE(tab->url().toString(),
+                 QStringLiteral("http://127.0.0.1:3080/?token=abc"));
     }
 };
 

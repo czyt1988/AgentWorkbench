@@ -14,14 +14,31 @@
 namespace awb::web {
 
 namespace {
-// Display form of a tab URL: the bearer-token fragment (#token=… or
-// …&token=…) never reaches a log line or a user-visible toast (it must
-// stay out of anything a third party can read).
+// Display form of a tab URL: the bearer token never reaches a log line or a
+// user-visible toast (it must stay out of anything a third party can read).
+// Both spellings are redacted: the #token=… fragment (qwen) and the
+// ?token=… query (dsh session URLs).
 QString redactedUrl(const QUrl &url)
 {
+    QString text = url.toString(QUrl::RemoveFragment);
+
+    // Drop the token= query item, keep the rest of the query.
+    const int queryStart = text.indexOf(QLatin1Char('?'));
+    if (queryStart >= 0) {
+        QStringList kept;
+        for (const QString &part : text.mid(queryStart + 1).split(QLatin1Char('&'))) {
+            if (part.startsWith(QLatin1String("token=")))
+                continue;
+            kept.append(part);
+        }
+        text = text.left(queryStart);
+        if (!kept.isEmpty())
+            text += QLatin1Char('?') + kept.join(QLatin1Char('&'));
+    }
+
     const QString fragment = url.fragment();
     if (fragment.isEmpty())
-        return url.toString(QUrl::RemoveFragment);
+        return text;
 
     // Drop only the token= part; keep any legitimate fragment text.
     QStringList parts;
@@ -33,7 +50,6 @@ QString redactedUrl(const QUrl &url)
         }
         parts.append(part);
     }
-    QString text = url.toString(QUrl::RemoveFragment);
     if (!droppedToken)
         text += QLatin1Char('#') + fragment;
     else if (!parts.isEmpty())
@@ -334,7 +350,13 @@ void WebTabsFacade::markOfflineForAgent(const QString &agentId)
     if (!tab)
         return;
     if (tab->state() == QLatin1String("ready")
-        || tab->state() == QLatin1String("loading"))
+        || tab->state() == QLatin1String("loading")
+        // An error page observed while the agent is down is really an
+        // "agent offline" page: recovery then goes through the normal
+        // offline -> loading path. A load error with the agent STILL
+        // running (HTTP 401 from a token gate) stays an error — reloading
+        // it every probe round could never succeed.
+        || tab->state() == QLatin1String("error"))
         tab->setState(QStringLiteral("offline"));
 }
 
@@ -343,16 +365,26 @@ void WebTabsFacade::markOnlineForAgent(const QString &agentId)
     WebTab *tab = m_tabs->tabForAgent(agentId);
     if (!tab)
         return;
-    // ready/offline/error/crashed + agent back -> loading.
-    // Released tabs stay released until the user restores them.
-    const QString state = tab->state();
-    if (state == QLatin1String("ready")
-        || state == QLatin1String("offline")
-        || state == QLatin1String("error")
-        || state == QLatin1String("crashed")) {
+    // offline + agent back -> loading. Released tabs stay released until
+    // the user restores them. Error/crashed are NOT auto-reloaded: the
+    // agent is up (the health probe passed), so the load itself failed —
+    // only a retarget or a manual Retry can change that outcome.
+    if (tab->state() == QLatin1String("offline")) {
         tab->setLoadProgress(0);
         tab->setState(QStringLiteral("loading"));
     }
+}
+
+void WebTabsFacade::retargetTabForAgent(const QString &agentId, const QUrl &url)
+{
+    WebTab *tab = m_tabs->tabForAgent(agentId);
+    if (!tab || url.isEmpty() || !url.isValid())
+        return;
+    tab->setLoadProgress(0);
+    tab->setLastError(QString());
+    tab->setUrl(url);
+    if (tab->state() != QLatin1String("loading"))
+        tab->setState(QStringLiteral("loading"));
 }
 
 void WebTabsFacade::closeTabsForAgent(const QString &agentId)
