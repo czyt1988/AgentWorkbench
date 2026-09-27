@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Hover detail flyout (specs/02 §7.4): full description + metadata table.
+// Hover detail flyout : full description + metadata table.
 // Opened by the card after 400 ms; closes 300 ms after the pointer leaves
 // both the card and this popup, on any key press, or on page scroll.
 Popup {
@@ -13,14 +13,17 @@ Popup {
     property string skillFilePath: ""
     property bool closePending: false
 
-    // The definition behind the path (facade lookup, 01 §4.4).
+    // The definition behind the path (facade lookup).
     readonly property var info: skills.skill(skillFilePath)
 
     modal: false
     focus: false
     padding: theme.spacingM
     width: 420
-    height: Math.min(body.implicitHeight + 2 * padding, 320)
+    // contentHeight, NOT implicitHeight: a Flickable's implicitHeight stays 0
+    // (it does not track its content), so binding the popup height to it
+    // collapsed the flyout to 2*padding and clipped every child invisible.
+    height: Math.min(body.contentHeight + 2 * padding, 320)
     closePolicy: Popup.NoAutoClose
 
     background: Rectangle {
@@ -56,11 +59,9 @@ Popup {
         id: flyoutHostHover
     }
 
-    // Any key press closes it (02 §7.4).
-    Keys.onPressed: function(event) {
-        flyout.close()
-        event.accepted = true
-    }
+    // Key-press close lives on the card, not here: Keys can only
+    // attach to an Item, and a Popup is a QObject — attaching it here just
+    // logged "Could not attach Keys property … is not an Item" once per card.
 
     contentItem: Flickable {
         id: body
@@ -112,7 +113,7 @@ Popup {
                 color: theme.separator
             }
 
-            // Metadata table (02 §7.4).
+            // Metadata table.
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
@@ -169,7 +170,7 @@ Popup {
                 }
             }
 
-            // Extra frontmatter scalars (02 §7.4).
+            // Extra frontmatter scalars.
             Repeater {
                 model: {
                     const extras = flyout.info.extras || {}

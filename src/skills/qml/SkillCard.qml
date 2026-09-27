@@ -5,7 +5,7 @@ import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
-// One skill card (specs/02 §7.3): 340x160, click copies the directory path,
+// One skill card : 340x160, click copies the directory path,
 // right-click offers the copy/open actions, hover opens the detail flyout.
 Item {
     id: card
@@ -23,7 +23,7 @@ Item {
     width: theme.cardMinWidth + 80 // spec width 340
     height: 160
 
-    // --- Hover flyout (400 ms, 02 §7.4) ---------------------------------
+    // --- Hover flyout (400 ms) ---------------------------------
     Timer {
         id: hoverTimer
         interval: 400
@@ -31,15 +31,15 @@ Item {
     }
 
     // Open with edge-aware placement: sit right of the card, flip left/up
-    // when the window edge would clip it (02 §7.4).
+    // when the window edge would clip it.
     function openFlyout() {
         const pos = card.mapToItem(null, 0, 0)
         const win = card.Window.window
         if (!win)
             return
         const gap = theme.spacingM
-        // height is 0 before the first open — assume the 320 max for the
-        // flip test so the first open still avoids the edge.
+        // height is content-driven now, but keep the 320 fallback in case
+        // the popup has not been laid out yet (flip test must not use 0).
         const fh = flyout.height > 1 ? flyout.height : 320
         flyout.x = (pos.x + card.width + gap + flyout.width > win.width)
                    ? -(flyout.width + gap) : card.width + gap
@@ -83,7 +83,7 @@ Item {
                 }
             }
 
-            // Description, up to three lines (02 §7.3). maximumLineCount
+            // Description, up to three lines. maximumLineCount
             // already elides after the third line, so implicitHeight is the
             // right height — no extra clamp (lineHeight is a multiplier, not
             // pixels; using it as a pixel cap collapsed this to ~4 px).
@@ -107,7 +107,7 @@ Item {
                 color: theme.separator
             }
 
-            // Path + copy button (02 §7.3).
+            // Path + copy button.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: theme.spacingS
@@ -148,11 +148,15 @@ Item {
         }
     }
 
-    // Scrolling the grid closes the flyout immediately (02 §7.4) — the
+    // Scrolling the grid closes the flyout immediately — the
     // wheel gesture over THIS card; scrolling elsewhere is covered by the
     // hover-out path above.
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        // blocking:false — with the default (true) the handler swallowed the
+        // wheel over the card and the ScrollView behind never scrolled; the
+        // flyout still closes via onWheel while the event keeps propagating.
+        blocking: false
         onWheel: function(event) {
             if (flyout.opened)
                 flyout.close()
@@ -173,7 +177,7 @@ Item {
         }
     }
 
-    // Keyboard: Tab reaches the card (02 §7.4 — focus also shows the
+    // Keyboard: Tab reaches the card (— focus also shows the
     // flyout), Enter copies the path, Ctrl+Enter opens the folder.
     // activeFocusOnTab, NOT focus: true — every delegate setting focus
     // would make the last-created card steal the page's initial focus.
@@ -187,7 +191,7 @@ Item {
     Keys.onReturnPressed: copyPath()
     Keys.onEnterPressed: copyPath()
     Keys.onPressed: function(event) {
-        // Any key closes the flyout first (02 §7.4); the NEXT press acts.
+        // Any key closes the flyout first ; the NEXT press acts.
         if (flyout.opened) {
             flyout.close()
             event.accepted = true
@@ -263,7 +267,7 @@ Item {
     SkillDetailFlyout {
         id: flyout
         skillFilePath: card.skillFilePath
-        // Sit below-right of the card, flipping when off-screen (02 §7.4).
+        // Sit below-right of the card, flipping when off-screen.
         x: card.width + theme.spacingM
         y: 0
     }

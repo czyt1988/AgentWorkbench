@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The launcher page (specs/02 §8): header with page actions, search +
+// The launcher page : header with page actions, search +
 // display filter, and the card grid. Card interactions are unchanged from
 // 0.3.0 (AgentCard.qml).
 Item {
@@ -15,10 +15,16 @@ Item {
     property int displayFilter: 0
     property int shownCount: 0
 
+    // shownCount is derived from the hidden counter delegates' `matches`
+    // property, never from card visibility: Item.visible reads back the
+    // *effective* visibility, so a card created inside the ScrollView
+    // (hidden while shownCount === 0) can never read visible=true —
+    // counting cards deadlocked shownCount at 0 and pinned the
+    // "No matching launchers" empty state over a fully configured model.
     function recountShown() {
         let n = 0
-        for (const child of flow.children) {
-            if (child.visible)
+        for (const child of counterBox.children) {
+            if (child.matches === true)
                 ++n
         }
         page.shownCount = n
@@ -96,13 +102,22 @@ Item {
         }
 
         // --- Empty states -------------------------------------------------
-        // Total number of configured launchers (hidden counter).
+        // Hidden counters: total configured launchers, and per-row match
+        // state. `matches` mirrors exactly what the card's visible binding
+        // computes, but lives on an always-hidden delegate so recountShown()
+        // can bootstrap without depending on the ScrollView's visibility.
         Item {
+            id: counterBox
             visible: false
             Repeater {
                 id: totalRepeater
                 model: agents.model
-                delegate: Item { width: 0; height: 0 }
+                delegate: Item {
+                    width: 0
+                    height: 0
+                    readonly property bool matches: page.matchesFilter(model)
+                    onMatchesChanged: Qt.callLater(page.recountShown)
+                }
             }
         }
 
@@ -154,7 +169,6 @@ Item {
                     delegate: AgentCard {
                         width: theme.cardMinWidth
                         visible: page.matchesFilter(model)
-                        onVisibleChanged: Qt.callLater(page.recountShown)
                         onConfigureRequested: function(id) {
                             editDialog.openFor(id)
                         }
@@ -169,7 +183,7 @@ Item {
     }
 
     // Central error display for launch/stop failures. The matching card
-    // also flashes red for at-place feedback (specs/02 §8.2).
+    // also flashes red for at-place feedback.
     Popup {
         id: errorPopup
         property string message: ""
