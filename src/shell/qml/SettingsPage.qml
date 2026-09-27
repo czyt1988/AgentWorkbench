@@ -229,71 +229,62 @@ Page {
                 Repeater {
                     model: agents.model
 
-                    delegate: Rectangle {
+                    delegate: AListRow {
+                        rowHeight: 60
                         Layout.fillWidth: true
-                        height: 60
-                        radius: theme.radiusControl
-                        color: theme.surfaceBg
                         // Rows are delegates; deleting an agent while its
                         // status-dot tooltip is showing must not freeze the
                         // shared tooltip on screen.
                         Component.onDestruction: ToolTip.hide()
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: theme.spacingM
-                            anchors.rightMargin: theme.spacingS
-                            spacing: theme.spacingM
+                        Image {
+                            source: model.icon
+                            sourceSize: Qt.size(28, 28)
+                            fillMode: Image.PreserveAspectFit
+                        }
 
-                            Image {
-                                source: model.icon
-                                sourceSize: Qt.size(28, 28)
-                                fillMode: Image.PreserveAspectFit
+                        ColumnLayout {
+                            spacing: theme.spacingXs
+                            Layout.fillWidth: true
+
+                            Label {
+                                text: model.name
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeBody
+                                font.bold: true
                             }
-
-                            ColumnLayout {
-                                spacing: theme.spacingXs
+                            Label {
                                 Layout.fillWidth: true
-
-                                Label {
-                                    text: model.name
-                                    color: theme.textPrimary
-                                    font.pixelSize: theme.fontSizeBody
-                                    font.bold: true
-                                }
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: model.command
-                                    color: theme.textMuted
-                                    font.pixelSize: theme.fontSizeSmall
-                                    elide: Text.ElideMiddle
-                                }
+                                text: model.command
+                                color: theme.textMuted
+                                font.pixelSize: theme.fontSizeSmall
+                                elide: Text.ElideMiddle
                             }
+                        }
 
-                            // Running-state dot (tooltip built in —
-                            // never color-only).
-                            AStatusDot {
-                                diameter: 10
-                                on: model.running
-                                tooltip: model.running ? qsTr("Running")
-                                                       : qsTr("Stopped")
-                            }
+                        // Running-state dot (tooltip built in —
+                        // never color-only).
+                        AStatusDot {
+                            diameter: 10
+                            on: model.running
+                            tooltip: model.running ? qsTr("Running")
+                                                   : qsTr("Stopped")
+                        }
 
-                            AButton {
-                                text: qsTr("Edit")
-                                onClicked: page.openEditor(model.agentId)
-                            }
-                            AButton {
-                                variant: "danger"
-                                text: qsTr("Delete")
-                                onClicked: {
-                                    deleteConfirmPopup.pendingId = model.agentId
-                                    deleteConfirmPopup.pendingName = model.name
-                                    deleteConfirmPopup.pendingRunning = model.running
-                                    deleteConfirmPopup.pendingBuiltin =
-                                        agents.isDefaultAgent(model.agentId)
-                                    deleteConfirmPopup.open()
-                                }
+                        AButton {
+                            text: qsTr("Edit")
+                            onClicked: page.openEditor(model.agentId)
+                        }
+                        AButton {
+                            variant: "danger"
+                            text: qsTr("Delete")
+                            onClicked: {
+                                deleteConfirmPopup.pendingId = model.agentId
+                                deleteConfirmPopup.pendingName = model.name
+                                deleteConfirmPopup.pendingRunning = model.running
+                                deleteConfirmPopup.pendingBuiltin =
+                                    agents.isDefaultAgent(model.agentId)
+                                deleteConfirmPopup.open()
                             }
                         }
                     }
@@ -360,55 +351,44 @@ Page {
                     // Property (not roots()): re-evaluates when a root is
                     // added/removed/toggled via the NOTIFY signal.
                     model: skills.roots
-                    delegate: Rectangle {
+                    delegate: AListRow {
                         required property var modelData
 
+                        rowHeight: 44
                         Layout.fillWidth: true
-                        height: 44
-                        radius: theme.radiusControl
-                        color: theme.surfaceBg
-                        border.color: theme.borderSubtle
-                        border.width: 1
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: theme.spacingM
-                            anchors.rightMargin: theme.spacingS
-                            spacing: theme.spacingM
-
-                            ColumnLayout {
-                                spacing: 0
-                                Layout.fillWidth: true
-                                Label {
-                                    text: modelData.label
-                                    color: theme.textPrimary
-                                    font.pixelSize: theme.fontSizeBody
-                                    font.bold: true
-                                }
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: modelData.path
-                                    color: theme.textMuted
-                                    font.pixelSize: theme.fontSizeCaption
-                                    font.family: theme.monoFamily
-                                    elide: Text.ElideMiddle
-                                }
+                        ColumnLayout {
+                            spacing: 0
+                            Layout.fillWidth: true
+                            Label {
+                                text: modelData.label
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeBody
+                                font.bold: true
                             }
                             Label {
-                                text: page.kindLabel(modelData.kind)
-                                color: theme.textSecondary
+                                Layout.fillWidth: true
+                                text: modelData.path
+                                color: theme.textMuted
                                 font.pixelSize: theme.fontSizeCaption
+                                font.family: theme.monoFamily
+                                elide: Text.ElideMiddle
                             }
-                            Switch {
-                                checked: modelData.enabled
-                                onToggled: skills.setRootEnabled(
-                                    modelData.id, checked)
-                            }
-                            AIconButton {
-                                iconSource: "qrc:/icons/close.svg"
-                                tooltip: qsTr("Remove this root")
-                                onClicked: skills.removeRoot(modelData.id)
-                            }
+                        }
+                        Label {
+                            text: page.kindLabel(modelData.kind)
+                            color: theme.textSecondary
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+                        Switch {
+                            checked: modelData.enabled
+                            onToggled: skills.setRootEnabled(
+                                modelData.id, checked)
+                        }
+                        AIconButton {
+                            iconSource: "qrc:/icons/close.svg"
+                            tooltip: qsTr("Remove this root")
+                            onClicked: skills.removeRoot(modelData.id)
                         }
                     }
                 }
@@ -571,46 +551,35 @@ Page {
 
                 Repeater {
                     model: workbench.pluginList()
-                    delegate: Rectangle {
+                    delegate: AListRow {
                         required property var modelData
 
+                        rowHeight: 56
                         Layout.fillWidth: true
-                        height: 56
-                        radius: theme.radiusControl
-                        color: theme.surfaceBg
-                        border.color: theme.borderSubtle
-                        border.width: 1
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: theme.spacingM
-                            anchors.rightMargin: theme.spacingS
-                            spacing: theme.spacingM
-
-                            ColumnLayout {
-                                spacing: 0
+                        ColumnLayout {
+                            spacing: 0
+                            Layout.fillWidth: true
+                            Label {
+                                text: (modelData.name || modelData.id)
+                                      + "  v" + (modelData.version || "?")
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeBody
+                                font.bold: true
+                            }
+                            Label {
                                 Layout.fillWidth: true
-                                Label {
-                                    text: (modelData.name || modelData.id)
-                                          + "  v" + (modelData.version || "?")
-                                    color: theme.textPrimary
-                                    font.pixelSize: theme.fontSizeBody
-                                    font.bold: true
-                                }
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: modelData.description || ""
-                                    color: theme.textMuted
-                                    font.pixelSize: theme.fontSizeCaption
-                                    elide: Text.ElideRight
-                                }
+                                text: modelData.description || ""
+                                color: theme.textMuted
+                                font.pixelSize: theme.fontSizeCaption
+                                elide: Text.ElideRight
                             }
-                            // Effective on the next start.
-                            Switch {
-                                checked: modelData.enabled
-                                onToggled: workbench.setPluginEnabled(
-                                    modelData.id, checked)
-                            }
+                        }
+                        // Effective on the next start.
+                        Switch {
+                            checked: modelData.enabled
+                            onToggled: workbench.setPluginEnabled(
+                                modelData.id, checked)
                         }
                     }
                 }

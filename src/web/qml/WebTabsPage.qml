@@ -357,50 +357,39 @@ Item {
                     Repeater {
                         id: runningList
                         model: agents.model
-                        delegate: Rectangle {
+                        delegate: AListRow {
                             Layout.fillWidth: true
                             visible: model.running
                             height: visible ? 48 : 0
                             onVisibleChanged: Qt.callLater(page.recountRunning)
-                            radius: theme.radiusControl
-                            color: theme.surfaceBg
-                            border.color: theme.borderSubtle
-                            border.width: 1
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: theme.spacingM
-                                anchors.rightMargin: theme.spacingS
-                                spacing: theme.spacingM
-
-                                AgentAvatar {
-                                    iconSource: model.icon
-                                    agentColor: model.color
-                                    running: model.running
+                            AgentAvatar {
+                                iconSource: model.icon
+                                agentColor: model.color
+                                running: model.running
+                            }
+                            ColumnLayout {
+                                spacing: 0
+                                Layout.fillWidth: true
+                                Label {
+                                    text: model.name
+                                    color: theme.textPrimary
+                                    font.pixelSize: theme.fontSizeBody
+                                    font.bold: true
                                 }
-                                ColumnLayout {
-                                    spacing: 0
+                                Label {
+                                    text: model.webUrl
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeSmall
+                                    font.family: theme.monoFamily
+                                    elide: Text.ElideMiddle
                                     Layout.fillWidth: true
-                                    Label {
-                                        text: model.name
-                                        color: theme.textPrimary
-                                        font.pixelSize: theme.fontSizeBody
-                                        font.bold: true
-                                    }
-                                    Label {
-                                        text: model.webUrl
-                                        color: theme.textMuted
-                                        font.pixelSize: theme.fontSizeSmall
-                                        font.family: theme.monoFamily
-                                        elide: Text.ElideMiddle
-                                        Layout.fillWidth: true
-                                    }
                                 }
-                                AButton {
-                                    variant: "primary"
-                                    text: qsTr("Open")
-                                    onClicked: workbench.openWeb(model.agentId)
-                                }
+                            }
+                            AButton {
+                                variant: "primary"
+                                text: qsTr("Open")
+                                onClicked: workbench.openWeb(model.agentId)
                             }
                         }
                     }
