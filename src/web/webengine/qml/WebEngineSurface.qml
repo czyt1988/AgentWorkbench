@@ -35,12 +35,15 @@ Item {
         // the rest freeze (session kept) until released by the LRU.
         // A loading view must stay Active — Frozen suspends the page, which
         // can stall an in-flight load mid-way.
+        // LifecycleState is a SCOPED enum: WebEngineView.Active would be
+        // undefined and the assignment silently no-op every time.
         lifecycleState: {
             if (!web.freezeInactiveTabs)
-                return WebEngineView.Active
+                return WebEngineView.LifecycleState.Active
             return surface.visible && web.activeTabId === tab.id
                    && (tab.state === "loading" || tab.state === "ready")
-                   ? WebEngineView.Active : WebEngineView.Frozen
+                   ? WebEngineView.LifecycleState.Active
+                   : WebEngineView.LifecycleState.Frozen
         }
 
         onUrlChanged: {
@@ -79,9 +82,18 @@ Item {
                 web.setTabState(tab.id, "ready")
             } else if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
                 console.error("WebEngine: failed to load",
-                              String(loadingInfo.url))
-                web.setTabLastError(tab.id, qsTr("Failed to load %1")
-                                               .arg(String(loadingInfo.url)))
+                              String(loadingInfo.url),
+                              "domain:", loadingInfo.errorDomain,
+                              "code:", loadingInfo.errorCode)
+                // A positive error code is the HTTP status (e.g. 401 from a
+                // token-gated harness); net errors are negative.
+                web.setTabLastError(tab.id,
+                    loadingInfo.errorCode > 0
+                        ? qsTr("Failed to load %1 (HTTP %2)")
+                              .arg(String(loadingInfo.url))
+                              .arg(loadingInfo.errorCode)
+                        : qsTr("Failed to load %1")
+                              .arg(String(loadingInfo.url)))
                 web.setTabState(tab.id, "error")
             } else if (loadingInfo.status === WebEngineView.LoadStoppedStatus) {
                 // A deliberate stop (toolbar ✕ / overlay Cancel) settles the
