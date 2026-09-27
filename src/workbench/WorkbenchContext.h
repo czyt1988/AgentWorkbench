@@ -56,8 +56,13 @@ public:
     Q_INVOKABLE void showPage(const QString &id);
 
     // Cross-domain intents (S5): open the agent's WebUI as a tab — the
-    // surface policy (embedded/external) lives in WebTabsFacade.
+    // surface policy (embedded/external) lives in WebTabsFacade. Opening
+    // in-app also navigates to the web page (the launcher's default
+    // "Open" path). openWebExternal bypasses the policy and hands the
+    // URL to the system browser without creating a tab (the card's
+    // split-button alternative).
     Q_INVOKABLE void openWeb(const QString &agentId);
+    Q_INVOKABLE void openWebExternal(const QString &agentId);
     Q_INVOKABLE void closeWeb(const QString &agentId);
     Q_INVOKABLE void reloadWeb(const QString &agentId);
     // Restart an agent (offline overlay, launcher cards).
