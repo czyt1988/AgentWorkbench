@@ -42,6 +42,7 @@ plugins:
             - Configuration: configuration.md
             - Plugins: plugins.md
             - Development: development.md
+            - Coding standard: standards/coding-standard.md
             - WebEngine embedding (research): research/webengine-embedding.md
         - locale: zh
           name: 中文
@@ -52,6 +53,7 @@ plugins:
             - 配置: configuration.md
             - 插件: plugins.md
             - 开发: development.md
+            - 编程规范: standards/coding-standard.md
             - WebEngine 内嵌调研: research/webengine-embedding.md
 
 markdown_extensions:

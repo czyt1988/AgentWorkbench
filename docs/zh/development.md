@@ -122,3 +122,4 @@ mkdocs serve
   `awb_workbench`。
 - 运行态通过向 `webUrl` 做 HTTP 健康检查来检测，不要新增进程嗅探逻辑。
 - 停止按钮只会结束本次会话内由此启动器启动的进程树；对于其它途径启动、仅被健康检查识别为运行中的 agent，保持其自管生命周期。
+- 代码风格、命名与注释规则见[编程规范](standards/coding-standard.md)。
