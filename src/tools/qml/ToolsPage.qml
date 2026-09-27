@@ -8,7 +8,7 @@ import AgentWorkbench.App
 // Agent Tools 页：提示词编写台。解决两个痛点——引用文件要手拼相对路径、
 // 在 agent CLI 里误触回车把半成品发送出去。本页没有发送动作：回车只换行，
 // 写好后点 Copy 粘贴进目标 agent；右侧文件树浏览当前工作区，
-// 双击文件行把 `./相对路径` 插到编辑区光标处。
+// 把文件行拖进编辑区（或双击文件行）即插入 `./相对路径` 引用。
 Item {
     id: page
 
@@ -196,6 +196,27 @@ Item {
                 // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
                 Component.onCompleted: text = tools.draft
                 onTextChanged: tools.draft = text
+
+                // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
+                DropArea {
+                    anchors.fill: parent
+
+                    onEntered: function(drag) {
+                        drag.accept(Qt.CopyAction)
+                    }
+                    onDropped: function(drop) {
+                        // 只接受文件树来的行：编辑区自身的选区拖动
+                        // （source 为空）不在此列。
+                        if (!drop.source || !drop.source.isFileReferenceDrag)
+                            return
+                        // positionAt 要的是内容坐标；未滚动时 contentX/Y 为 0。
+                        const pos = promptEditor.positionAt(
+                                    drop.x + promptEditor.contentX,
+                                    drop.y + promptEditor.contentY)
+                        promptEditor.insert(pos, drop.text)
+                        drop.acceptProposedAction()
+                    }
+                }
             }
 
             Rectangle {
@@ -251,6 +272,9 @@ Item {
                             implicitWidth: fileTree.width
                             implicitHeight: 28
 
+                            // DropArea 据此识别拖拽来源（见编辑区的 onDropped）。
+                            readonly property bool isFileReferenceDrag: true
+
                             required property TreeView treeView
                             required property bool isTreeNode
                             required property bool expanded
@@ -265,6 +289,20 @@ Item {
                             required property string relativePath
                             required property bool isDir
 
+                            // 拖出文件引用：Automatic 型拖拽，Drag.active 置真
+                            // 即开始（mimeData 在会话开始时求值）。
+                            Drag.dragType: Drag.Automatic
+                            Drag.supportedActions: Qt.CopyAction
+                            Drag.mimeData: {
+                                "text/plain": tools.fileReference(treeRow.relativePath)
+                            }
+                            Drag.active: rowDragHandler.active
+
+                            DragHandler {
+                                id: rowDragHandler
+                                target: null
+                            }
+
                             // 悬停高亮：读树时逐行反馈落点。
                             Rectangle {
                                 anchors.fill: parent
@@ -278,8 +316,7 @@ Item {
                             }
 
                             // 单击目录：先兜底 fetch 再切换展开（TreeView 不保证
-                            // 替懒加载模型驱动 fetchMore）。文件双击插入见
-                            // onDoubleTapped。
+                            // 替懒加载模型驱动 fetchMore）。
                             TapHandler {
                                 onSingleTapped: {
                                     if (treeRow.isDir) {
@@ -287,6 +324,19 @@ Item {
                                                     treeView.index(treeRow.row,
                                                                    treeRow.column))
                                         treeView.toggleExpanded(treeRow.row)
+                                    }
+                                }
+                            }
+
+                            // 双击文件：在编辑区光标处插入引用（目录的双击被
+                            // 两次单击的展开/收起抵消）。
+                            TapHandler {
+                                onDoubleTapped: {
+                                    if (!treeRow.isDir) {
+                                        promptEditor.insert(
+                                                    promptEditor.cursorPosition,
+                                                    tools.fileReference(
+                                                        treeRow.relativePath))
                                     }
                                 }
                             }

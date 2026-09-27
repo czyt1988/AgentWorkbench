@@ -1680,7 +1680,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="169"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="353"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="403"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
@@ -1695,22 +1695,22 @@ Command: %2
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="221"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="242"/>
         <source>Files</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="338"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="388"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="351"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="401"/>
         <source>No workspace selected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="352"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="402"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation type="unfinished"></translation>
     </message>

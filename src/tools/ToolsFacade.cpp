@@ -100,6 +100,13 @@ void ToolsFacade::refresh()
     m_model->refresh();
 }
 
+QString ToolsFacade::fileReference(const QString &relativePath) const
+{
+    if (relativePath.isEmpty())
+        return QString();
+    return QStringLiteral("`./") + relativePath + QStringLiteral("`");
+}
+
 void ToolsFacade::setCurrentWorkspace(const QString &path)
 {
     // 空串 = 清空当前工作区（树随之清空）；列表外路径不接受（QML 只会传列表项）。

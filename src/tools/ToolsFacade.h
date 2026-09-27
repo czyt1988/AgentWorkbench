@@ -50,6 +50,10 @@ public:
     /// 重扫文件树；结果经 refreshFinished 广播（异步形状，当前实现同步完成）。
     Q_INVOKABLE void refresh();
 
+    /// 生成拖拽/双击插入编辑区的文件引用文本：`./相对路径`（反引号包裹，
+    /// 正斜杠分隔）。空路径返回空串。
+    Q_INVOKABLE QString fileReference(const QString &relativePath) const;
+
     // Q_PROPERTY WRITE 侧。
     void setCurrentWorkspace(const QString &path);
     void setDraft(const QString &text);

@@ -122,6 +122,21 @@ private slots:
     // ToolsPage.qml 调用的方法面：走 QMetaObject::invokeMethod 复现 QML 的
     // 真实解析路径（同 tst_shell::testQmlCalledMethodsAreInvokable 的做法，
     // 抓「声明了但没进 metaobject 方法表」这类只在线上点击时爆的缺陷）。
+    void testFileReferenceFormat()
+    {
+        ToolsFacade facade(Paths::dataRoot());
+
+        // 用户确认的插入格式：反引号包裹的 ./相对路径（正斜杠）。
+        QCOMPARE(facade.fileReference(QStringLiteral("src/app.cpp")),
+                 QStringLiteral("`./src/app.cpp`"));
+        QCOMPARE(facade.fileReference(QStringLiteral("docs/guide.md")),
+                 QStringLiteral("`./docs/guide.md`"));
+        // 目录引用与文件同格式。
+        QCOMPARE(facade.fileReference(QStringLiteral("src")),
+                 QStringLiteral("`./src`"));
+        QVERIFY(facade.fileReference(QString()).isEmpty());
+    }
+
     void testQmlCalledMethodsAreInvokable()
     {
         QDir(m_ws->path()).mkdir(QStringLiteral("sub"));
