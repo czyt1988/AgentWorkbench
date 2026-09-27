@@ -12,20 +12,6 @@ Item {
     readonly property var kinds: ["agents", "claude", "codex", "plugin",
                                   "project", "custom"]
 
-    // Facet labels must go through literal qsTr() calls — qsTr(modelData)
-    // is invisible to lupdate and would never be translated.
-    function kindLabel(kind) {
-        switch (kind) {
-        case "agents": return qsTr("Agents")
-        case "claude": return qsTr("Claude")
-        case "codex": return qsTr("Codex")
-        case "plugin": return qsTr("Plugin")
-        case "project": return qsTr("Project")
-        case "custom": return qsTr("Custom")
-        default: return kind
-        }
-    }
-
     function applyFacet(kind) {
         if (kind.length === 0) {
             skills.model.activeKinds = []
@@ -83,7 +69,7 @@ Item {
                     model: page.kinds
                     delegate: AButton {
                         required property string modelData
-                        text: page.kindLabel(modelData)
+                        text: skills.kindLabel(modelData)
                         variant: skills.model.activeKinds.includes(modelData)
                                  ? "primary" : "ghost"
                         onClicked: page.applyFacet(modelData)

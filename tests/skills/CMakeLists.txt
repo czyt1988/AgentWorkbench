@@ -3,6 +3,7 @@ qt_add_executable(tst_skills
     tst_skills_main.cpp
     tst_skillfrontmatter.cpp
     tst_skillscanner.cpp
+    tst_skillsfacade.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
 )
 

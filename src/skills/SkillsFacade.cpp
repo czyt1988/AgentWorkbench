@@ -225,6 +225,25 @@ core::OpResult SkillsFacade::revealSkillFile(const QString &skillFilePath)
 #endif
 }
 
+QString SkillsFacade::kindLabel(const QString &kind) const
+{
+    // One shared mapping (the Settings and Skills pages both bind facets
+    // and root rows through it); unknown kinds pass through unchanged.
+    if (kind == QLatin1String("agents"))
+        return tr("Agents");
+    if (kind == QLatin1String("claude"))
+        return tr("Claude");
+    if (kind == QLatin1String("codex"))
+        return tr("Codex");
+    if (kind == QLatin1String("plugin"))
+        return tr("Plugin");
+    if (kind == QLatin1String("project"))
+        return tr("Project");
+    if (kind == QLatin1String("custom"))
+        return tr("Custom");
+    return kind;
+}
+
 QVariantMap SkillsFacade::skill(const QString &skillFilePath) const
 {
     QVariantMap map;

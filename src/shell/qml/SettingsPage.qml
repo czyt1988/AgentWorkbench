@@ -16,20 +16,6 @@ Page {
         editDialog.openFor(agentId)
     }
 
-    // Root-kind labels go through literal qsTr() calls (qsTr of a dynamic
-    // string is invisible to lupdate).
-    function kindLabel(kind) {
-        switch (kind) {
-        case "agents": return qsTr("Agents")
-        case "claude": return qsTr("Claude")
-        case "codex": return qsTr("Codex")
-        case "plugin": return qsTr("Plugin")
-        case "project": return qsTr("Project")
-        case "custom": return qsTr("Custom")
-        default: return kind
-        }
-    }
-
     AgentEditDialog {
         id: editDialog
     }
@@ -295,7 +281,7 @@ Page {
                             }
                         }
                         Label {
-                            text: page.kindLabel(modelData.kind)
+                            text: skills.kindLabel(modelData.kind)
                             color: theme.textSecondary
                             font.pixelSize: theme.fontSizeCaption
                         }

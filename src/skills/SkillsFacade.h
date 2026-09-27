@@ -66,6 +66,12 @@ public:
     // The definition behind a SKILL.md path (for the hover flyout).
     Q_INVOKABLE QVariantMap skill(const QString &skillFilePath) const;
 
+    // Display label for a skill root kind ("agents" -> "Agents", …).
+    // Single source for the Settings and Skills pages — the literal
+    // switch was previously duplicated in QML, invisible to lupdate
+    // maintenance.
+    Q_INVOKABLE QString kindLabel(const QString &kind) const;
+
 signals:
     void scanningChanged();
     void statsChanged();
