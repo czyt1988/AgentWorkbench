@@ -16,6 +16,26 @@ qt_standard_project_setup(REQUIRES 6.5)
 # the subdirectories that branch on them.
 include(cmake/AwbOptions.cmake)
 
+# Third-party: spdlog, the async backend of core::Logging. It is a git
+# submodule; fail early with the fix instead of a confusing error from
+# add_subdirectory. WCHAR filenames are required: non-ASCII user profiles
+# (C:\Users\陈宗衍\…) must open through wide-char APIs, never narrow ones.
+if (NOT EXISTS "${CMAKE_SOURCE_DIR}/third_party/spdlog/CMakeLists.txt")
+    message(FATAL_ERROR
+        "spdlog submodule is missing. Run:\n"
+        "  git submodule update --init third_party/spdlog")
+endif()
+set(SPDLOG_BUILD_EXAMPLE OFF)
+set(SPDLOG_BUILD_TESTS OFF)
+set(SPDLOG_BUILD_BENCH OFF)
+set(SPDLOG_INSTALL OFF)
+set(SPDLOG_WCHAR_FILENAMES ON)
+add_subdirectory(third_party/spdlog EXCLUDE_FROM_ALL)
+
+# Fill QMessageLogContext (file:line/function) for every qInfo/qWarning call
+# so source locations stay in the log in release builds too.
+add_compile_definitions(QT_MESSAGELOGCONTEXT)
+
 # Layered modules, bottom-up:
 #   core -> theme -> {shell, agentcatalog, skillcatalog, web, tools} -> workbench -> app
 add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)
