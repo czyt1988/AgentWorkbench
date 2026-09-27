@@ -137,6 +137,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 - 版本遵循 **SemVer**，每次发版更新 `CHANGELOG.md`。
 - 只提交本次任务相关的文件——这个仓库的工作区经常有其它在途改动，不要用 `git add -A`。除非用户明确要求。
 - 分支：`main` 受保护，功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，完成后合并到`dev`分支并删除feat/fix分支。
+- **`dev` 是集成分支，「任务完成」的定义包含「可干净合并回 `dev`」**：动手前先从 `dev` 合并最新改动到工作分支；任务收尾时把工作分支合并回 `dev`（`git checkout dev && git merge <branch>`，若 `dev` 受工作区状态限制无法检出，就在工作分支上反向合并 `dev` 消除分叉）。有冲突就地解决——按双方改动的**意图**合并而不是机械取一侧，解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交；不许把冲突或分叉留给下一个任务。
 在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率。
 
 ## 不要做
