@@ -131,15 +131,12 @@ Item {
                                     anchors.rightMargin: theme.spacingS
                                     spacing: theme.spacingXs
 
-                                    // Status dot (never color-only: tooltip
-                                    // below carries the text state).
-                                    Rectangle {
-                                        width: 8
-                                        height: 8
-                                        radius: theme.radiusPill
-                                        color: {
-                                            if (state === "offline")
-                                                return theme.neutralOff
+                                    // Status dot (never color-only: the tab
+                                    // tooltip carries the text state).
+                                    AStatusDot {
+                                        diameter: 8
+                                        on: state !== "offline"
+                                        onColor: {
                                             if (state === "crashed"
                                                 || state === "error")
                                                 return theme.danger

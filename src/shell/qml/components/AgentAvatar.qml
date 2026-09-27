@@ -25,15 +25,14 @@ Item {
     }
 
     // Status dot, bottom-right.
-    Rectangle {
+    AStatusDot {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        width: 8
-        height: 8
-        radius: theme.radiusPill
-        color: control.running ? control.agentColor : theme.neutralOff
-        border.color: theme.surfaceBg
-        border.width: 1
+        diameter: 8
+        on: control.running
+        onColor: control.agentColor
+        ringColor: theme.surfaceBg
+        ringWidth: 1
     }
 
     HoverHandler { id: hover }

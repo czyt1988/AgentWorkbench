@@ -270,24 +270,13 @@ Page {
                                 }
                             }
 
-                            // Running-state dot with tooltip (never
-                            // color-only).
-                            Rectangle {
-                                width: 10
-                                height: 10
-                                radius: theme.radiusPill
-                                color: model.running ? theme.success : theme.neutralOff
-                                ToolTip.visible: dotArea.containsMouse
-                                ToolTip.delay: 300
-                                ToolTip.timeout: 10000
-                                ToolTip.text: model.running ? qsTr("Running")
-                                                            : qsTr("Stopped")
-
-                                MouseArea {
-                                    id: dotArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                }
+                            // Running-state dot (tooltip built in —
+                            // never color-only).
+                            AStatusDot {
+                                diameter: 10
+                                on: model.running
+                                tooltip: model.running ? qsTr("Running")
+                                                       : qsTr("Stopped")
                             }
 
                             AButton {

@@ -334,13 +334,11 @@ Item {
                 fillMode: Image.PreserveAspectFit
             }
 
-            Rectangle {
+            AStatusDot {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 12
-                height: 12
-                radius: 6
-                color: root.running_p ? root.agentColor : theme.neutralOff
-                Behavior on color { ColorAnimation { duration: theme.durationNormal } }
+                diameter: 12
+                on: root.running_p
+                onColor: root.agentColor
             }
         }
 

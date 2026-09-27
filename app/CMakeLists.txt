@@ -10,7 +10,7 @@
 set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
                SettingsPage)
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
-                   AEmptyState ASectionHeader AToastStack
+                   AEmptyState ASectionHeader AToastStack AStatusDot
                    AgentAvatar)
 set(_agents_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skills_qml SkillGridPage SkillCard SkillDetailFlyout)
