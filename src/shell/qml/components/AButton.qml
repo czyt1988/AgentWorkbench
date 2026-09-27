@@ -59,62 +59,77 @@ Button {
     }
 
     contentItem: Item {
-        Row {
+        // 尺寸必须经 implicitWidth/implicitHeight 汇报给控件：Button 的隐式
+        // 宽度取自 contentItem 的隐式尺寸，Item 不像 Text 自带隐式宽度，
+        // 必须显式绑定（否则所有按钮塌缩到只剩内边距的固定宽度）。
+        // 下拉按钮在文字两侧各预留一份（箭头区 + 间距）：文字按整按钮
+        // 视觉居中时，右侧也不会与贴右缘的箭头区重叠。
+        implicitWidth: label.implicitWidth
+                       + (control.dropdown
+                          ? 2 * (chevronZone.width + theme.spacingXs)
+                          : 0)
+        implicitHeight: label.implicitHeight
+
+        Text {
+            id: label
+            // 锚定在 contentItem 整体居中：文字相对按钮视觉居中。下拉
+            // 箭头不与文字一起参与居中，否则文字会偏左。
             anchors.centerIn: parent
-            spacing: theme.spacingXs
-
-            Text {
-                id: label
-                text: control.text
-                color: {
-                    switch (control.variant) {
-                    case "primary":
-                        return theme.textOnAccent
-                    case "danger":
-                        return theme.windowBg
-                    default:
-                        return theme.textPrimary
-                    }
+            text: control.text
+            color: {
+                switch (control.variant) {
+                case "primary":
+                    return theme.textOnAccent
+                case "danger":
+                    return theme.windowBg
+                default:
+                    return theme.textPrimary
                 }
-                font.pixelSize: theme.fontSizeBody
-                font.bold: control.variant === "primary" || control.variant === "danger"
-                elide: Text.ElideRight
-                // 超长文字在此宽度内省略，而不是把箭头区挤出去。
-                width: Math.min(implicitWidth,
-                                control.availableWidth
-                                - (control.dropdown
-                                   ? chevronZone.width + theme.spacingXs
-                                   : 0))
             }
+            font.pixelSize: theme.fontSizeBody
+            font.bold: control.variant === "primary" || control.variant === "danger"
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+            // 超长文字在此宽度内省略，避免与右缘箭头区重叠。
+            width: Math.min(
+                implicitWidth,
+                control.availableWidth
+                - (control.dropdown
+                   ? 2 * (chevronZone.width + theme.spacingXs)
+                   : 0))
+        }
 
-            // 箭头点击区。MouseArea 是 control 的后代，先于控件收到按下
-            // 事件，点击不会传给按钮本体，两个动作因此干净地分开。
-            Item {
-                id: chevronZone
-                visible: control.dropdown
-                width: 18
-                height: label.implicitHeight
+        // 箭头区贴按钮右缘（工具栏按钮惯例：下拉箭头靠最右，而非跟在
+        // 文字后居中）。MouseArea 是 control 的后代，先于控件收到按下
+        // 事件，点击不会传给按钮本体，两个动作因此干净地分开。
+        Item {
+            id: chevronZone
+            visible: control.dropdown
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 18
+            height: label.implicitHeight
 
-                Rectangle {
-                    anchors.fill: parent
-                    radius: theme.radiusPill
-                    color: chevronArea.containsMouse || control.menuOpen
-                           ? theme.alpha(theme.windowBg, 0.3)
-                           : "transparent"
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text: "\u25BC"
-                    color: label.color
-                    font.pixelSize: theme.fontSizeCaption
-                }
-                MouseArea {
-                    id: chevronArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: control.dropdownActivated()
-                }
+            Rectangle {
+                anchors.fill: parent
+                radius: theme.radiusPill
+                color: chevronArea.containsMouse || control.menuOpen
+                       ? theme.alpha(theme.windowBg, 0.3)
+                       : "transparent"
+            }
+            Text {
+                anchors.centerIn: parent
+                text: "\u25BC"
+                color: label.color
+                font.pixelSize: theme.fontSizeCaption
+            }
+            MouseArea {
+                id: chevronArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: control.dropdownActivated()
             }
         }
     }
