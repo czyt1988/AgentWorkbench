@@ -16,6 +16,13 @@
 #   3. i18n: tr()/qsTr() source strings must be ASCII.
 #   4. core purity: src/core/ and src/theme/ must not pull in Qt Quick,
 #      QML or WebEngine (QQuick*, QQml*, QtQuick, Qt6::Quick, QtWebEngine).
+#   5. QML → C++ callability: every singleton.<method>( call in QML must be
+#      Q_INVOKABLE (or a slot/signal) in the declaring header, and every
+#      singleton.<prop> = write needs a Q_PROPERTY WRITE. A bare method or
+#      property accessor is NOT in the meta-object method table — QML throws
+#      "…is not a function" / "read-only property" at click time, which
+#      page-load smoke never exercises (this exact gap hid three broken
+#      sidebar/settings interactions until a manual run found them).
 
 set -u
 
@@ -87,6 +94,72 @@ for dir in src/core src/theme; do
             fail "UI framework reference in $file (core/theme must stay UI-free):"$'\n'"$hits"
         fi
     done < <(find "$dir" -name '*.h' -o -name '*.cpp' 2>/dev/null)
+done
+
+# --- 5. QML → C++ 可调用性 --------------------------------------------------
+# QML can only call Q_INVOKABLE/slot methods on a C++ object: a bare method
+# (or a Q_PROPERTY WRITE used as a method) is not in the meta-object method
+# table and throws "…is not a function" at click time. Page-load smoke never
+# exercises clicks, so this rule is the gate for that whole bug class.
+#
+# Every `<alias>.<method>(` in QML must resolve to Q_INVOKABLE <method>( in
+# the header that declares the alias's type; `<alias>.<prop> =` writes must
+# have a Q_PROPERTY WRITE. QML-defined ids (page, card, flyout, model …)
+# are intentionally NOT in the alias list — they resolve to QML functions.
+alias_header() {
+    case "$1" in
+        theme) echo "src/theme/Theme.h" ;;
+        nav) echo "src/shell/NavigationModel.h" ;;
+        shell) echo "src/shell/ShellController.h" ;;
+        ui) echo "src/shell/UiServices.h" ;;
+        notifications) echo "src/shell/Notifications.h" ;;
+        agents) echo "src/agents/AgentsFacade.h" ;;
+        web) echo "src/web/WebTabsFacade.h" ;;
+        skills) echo "src/skills/SkillsFacade.h" ;;
+        workbench) echo "src/workbench/WorkbenchContext.h" ;;
+        environment) echo "src/workbench/EnvironmentService.h" ;;
+        WebProfiles) echo "src/web/webengine/WebEngineProfileStore.h" ;;
+        agents.model) echo "src/agents/AgentModel.h" ;;
+        skills.model) echo "src/skills/SkillModel.h" ;;
+        web.model) echo "src/web/WebTabsModel.h" ;;
+        *) echo "" ;;
+    esac
+}
+
+ALIASES="theme nav shell ui notifications agents web skills workbench environment WebProfiles agents.model skills.model web.model"
+QML_FILES="$(find qml src examples -name '*.qml' 2>/dev/null)"
+for alias in $ALIASES; do
+    hdr="$(alias_header "$alias")"
+    [ -n "$hdr" ] || continue
+    # Flatten to one line AND strip line comments first — otherwise a
+    # comment mentioning Q_INVOKABLE next to a method name creates a false
+    # pass (comments are not declarations).
+    flat="$(sed -E 's|//.*||' "$hdr" | tr '\n' ' ')"
+    alias_re="${alias//./\\.}"
+
+    # (a) method calls: alias.method( — must be Q_INVOKABLE in that header.
+    # QAbstractItemModel's own Q_INVOKABLEs are grandfathered for *.model.
+    while IFS= read -r m; do
+        [ -n "$m" ] || continue
+        if printf '%s' "$flat" | grep -qP "Q_INVOKABLE[^;]*\b\Q$m\E\s*\("; then
+            continue
+        fi
+        case "$alias" in
+            *.model)
+                case "$m" in rowCount|index|parent|headerData) continue ;; esac
+                ;;
+        esac
+        fail "QML calls ${alias}.${m}() but ${hdr} has no Q_INVOKABLE ${m}(…) — QML cannot invoke a plain method (TypeError at click time)"
+    done < <(grep -rhoP "\b${alias_re}\.\K[A-Za-z_][A-Za-z0-9_]*(?=\s*\()" $QML_FILES 2>/dev/null | sort -u)
+
+    # (b) property writes: alias.prop = — must have a WRITE accessor.
+    while IFS= read -r p; do
+        [ -n "$p" ] || continue
+        if printf '%s' "$flat" | grep -qP "Q_PROPERTY[^)]*\b\Q$p\E\b[^)]*WRITE"; then
+            continue
+        fi
+        fail "QML assigns ${alias}.${p} = … but ${hdr} has no WRITE accessor (read-only property; TypeError at click time)"
+    done < <(grep -rhoP "\b${alias_re}\.\K[A-Za-z_][A-Za-z0-9_]*(?=\s*=(?!=))" $QML_FILES 2>/dev/null | sort -u)
 done
 
 if [[ $status -eq 0 ]]; then
