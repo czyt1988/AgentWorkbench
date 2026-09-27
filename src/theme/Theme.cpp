@@ -21,7 +21,7 @@ Theme::Theme(core::Settings *settings, ThemeRegistry *registry,
                 if (key == QLatin1String("appearance.theme"))
                     loadCurrent();
             });
-    // Hot reload: a theme file changed on disk (02 §9.1).
+    // Hot reload: a theme file changed on disk.
     connect(m_registry, &ThemeRegistry::changed, this, &Theme::loadCurrent);
 }
 
@@ -30,14 +30,13 @@ void Theme::loadCurrent()
     ThemeFile file = m_registry->theme(m_settings->themeId());
     if (!file.isValid()) {
         // Unknown theme id: fall back to the dark default and warn
-        // (01-architecture.md §7.2).
         qWarning().noquote() << QStringLiteral(
             "Theme: theme \"%1\" is unknown; falling back to mocha-dark")
             .arg(m_settings->themeId());
         file = m_registry->theme(QStringLiteral("mocha-dark"));
     }
     // Always swap and notify: even for the same id the values on disk may
-    // have changed (hot reload, 02 §9.1).
+    // have changed (hot reload).
     m_current = file;
     emit changed();
 }
@@ -75,7 +74,7 @@ void Theme::applyTheme(const QString &id)
     if (id == m_settings->themeId())
         return;
     // Validate before persisting: saving an unknown id would silently fall
-    // back to mocha-dark on every start (01 §7.2 — unknown → fallback+warn
+    // back to mocha-dark on every start (unknown → fallback+warn
     // is for hand-edited settings, not for the picker).
     if (!m_registry->theme(id).isValid()) {
         qWarning().noquote() << QStringLiteral(
@@ -106,7 +105,7 @@ QColor Theme::alpha(const QColor &color, qreal a) const
 
 QColor Theme::hover(const QColor &color) const
 {
-    // Dark themes lighten, light themes darken (02 §9.3).
+    // Dark themes lighten, light themes darken.
     const qreal step = 0.08;
     QColor result = color;
     const qreal h = result.hueF(), s = result.saturationF();

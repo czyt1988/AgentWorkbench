@@ -5,8 +5,8 @@
 
 namespace awb::core {
 
-// Resolve an icon string from configuration into a displayable image URL
-// (01-architecture.md §4.1): qrc:/, http(s):// and file:// pass through;
+// Resolve an icon string from configuration into a displayable image URL.
+// qrc:/, http(s):// and file:// pass through;
 // an existing local file becomes a file:/// URL; anything else (including
 // empty) falls back to `fallback`.
 //

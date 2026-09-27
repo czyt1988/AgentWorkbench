@@ -135,9 +135,9 @@ mkdocs serve
 ## Contributing
 
 Pull requests welcome. Keep agent definitions in `agents.json` rather than
-hard-coding them in C++. The refactor specifications live in [`specs/`](specs/)
-and are authoritative for module boundaries and UI contracts; see
-[AGENTS.md](AGENTS.md) for build commands and project conventions.
+hard-coding them in C++. See [AGENTS.md](AGENTS.md) for the module layout,
+build commands and project conventions, and the [docs](docs/) site for the
+user-facing guides.
 
 ## License
 

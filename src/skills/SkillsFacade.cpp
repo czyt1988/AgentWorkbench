@@ -45,7 +45,7 @@ QAbstractItemModel *SkillsFacade::model() const
 QString SkillsFacade::statsText() const
 {
     const SkillScanner::Stats stats = m_scanner->lastStats();
-    // One line: count + scan time + skipped roots (02 §7.5 footer).
+    // One line: count + scan time + skipped roots (footer).
     QString text = tr("%n skill(s) found", "", m_model->totalCount());
     if (stats.elapsedMs > 0 || stats.skillCount > 0) {
         text += QStringLiteral(" · ")
@@ -97,7 +97,7 @@ bool SkillsFacade::addRoot(const QString &path)
     if (path.trimmed().isEmpty())
         return false;
     // Serialize the effective list plus the new entry (a non-empty
-    // skills.roots fully replaces the defaults — 02 §7.2).
+    // skills.roots fully replaces the defaults.
     QJsonArray array;
     const auto write = [&array](const SkillRoot &root) {
         QJsonObject o;

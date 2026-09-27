@@ -6,16 +6,16 @@ import QtWebEngine
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The embedded view for one tab (specs/02 §6.3/§6.4): the WebEngineView
+// The embedded view for one tab: the WebEngineView
 // plus its state overlays. All platform events (popups, downloads,
 // fullscreen, crashes, permissions) are handled here — "no click does
-// nothing" (specs/03 S5-T4).
+// nothing".
 Item {
     id: surface
 
     // The WebTab this view renders (a role of the tabs model).
     property var tab: null
-    // Fullscreen hides the tab bar (02 §6.4); Esc leaves it first.
+    // Fullscreen hides the tab bar; Esc leaves it first.
     signal fullScreenToggled(bool active)
 
     readonly property bool hasTab: tab !== null && tab !== undefined
@@ -31,7 +31,7 @@ Item {
         profile: surface.hasTab
                  ? WebProfiles.createProfile(tab.agentId) : null
 
-        // Memory policy (02 §6.5): only the active tab keeps a live view;
+        // Memory policy: only the active tab keeps a live view;
         // the rest freeze (session kept) until released by the LRU.
         lifecycleState: {
             if (!web.freezeInactiveTabs)
@@ -54,7 +54,7 @@ Item {
                 web.setTabProgress(tab.id, loadProgress)
         }
         // Qt 6 has no loadFinished — load results arrive via loadingChanged
-        // with a LoadStatus enum (02 §6.3 state machine).
+        // with a LoadStatus enum (state machine).
         onLoadingChanged: function(loadingInfo) {
             if (!surface.hasTab)
                 return
@@ -74,7 +74,7 @@ Item {
             }
         }
         // Do NOT auto-reload after a renderer crash — crash loops are worse
-        // than a manual reload (02 §6.4).
+        // than a manual reload.
         onRenderProcessTerminated: function(status, exitCode) {
             console.error("WebEngine: render process terminated", status,
                           exitCode)
@@ -85,7 +85,7 @@ Item {
         }
 
         // --- Popups: loopback -> new in-app tab; anything else -> system
-        // browser (02 §6.4). request.accepted is mandatory or the request
+        // browser. request.accepted is mandatory or the request
         // fails silently.
         onNewWindowRequested: function(request) {
             request.accepted = true
@@ -107,7 +107,7 @@ Item {
             surface.fullScreenToggled(request.fullScreen)
         }
 
-        // --- Permissions: all denied in v1, with a visible notice (02 §6.4).
+        // --- Permissions: all denied in v1, with a visible notice.
         onFeaturePermissionRequested: function(securityOrigin, feature) {
             view.rejectFeature(feature)
             workbench.notify("warning", qsTr("Permission denied"),
@@ -115,7 +115,7 @@ Item {
         }
     }
 
-    // --- DevTools in a separate window (Debug builds only, 02 §6.6) --------
+    // --- DevTools in a separate window (Debug builds only) --------
     Window {
         id: devToolsWindow
         width: 900
@@ -136,12 +136,12 @@ Item {
         devToolsWindow.requestActivate()
     }
 
-    // Toolbar "stop loading" (02 §6.1: ⟳ 重载/✕ 停止加载).
+    // Toolbar "stop loading" (⟳ 重载/✕ 停止加载).
     function stopLoading() {
         view.stop()
     }
 
-    // --- Downloads (02 §6.4): Qt 6 moved downloadRequested from the view
+    // --- Downloads: Qt 6 moved downloadRequested from the view
     // onto the profile — always accepted, into web.downloadDir.
     Connections {
         target: view.profile
@@ -164,7 +164,7 @@ Item {
         }
     }
 
-    // --- State overlays (02 §6.3) -------------------------------------------
+    // --- State overlays -------------------------------------------
     Rectangle {
         id: overlay
         anchors.fill: parent

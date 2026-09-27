@@ -1,5 +1,5 @@
 # awb_shell (L2, UI framework): window skeleton and generic UI facilities.
-# Knows nothing about agents/skills/web (specs/01-architecture.md §4.7).
+# Knows nothing about agents/skills/web.
 qt_add_library(awb_shell STATIC
     NavigationModel.cpp
     NavigationModel.h

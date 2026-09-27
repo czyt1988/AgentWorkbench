@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The Skills page (specs/02 §7): search, source facets, sort, the card
+// The Skills page: search, source facets, sort, the card
 // grid, skeleton while scanning, and the partial-failure footer.
 Item {
     id: page
@@ -54,7 +54,7 @@ Item {
             }
         }
 
-        // --- Toolbar: search + facets + sort (02 §7.5) --------------------
+        // --- Toolbar: search + facets + sort --------------------
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
@@ -104,7 +104,7 @@ Item {
             }
         }
 
-        // --- Skeleton while scanning (02 §7.5) -----------------------------
+        // --- Skeleton while scanning -----------------------------
         Flow {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
@@ -190,7 +190,7 @@ Item {
             }
         }
 
-        // --- Footer: stats + partial failures (02 §7.5) ---------------------
+        // --- Footer: stats + partial failures ---------------------
         Label {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL

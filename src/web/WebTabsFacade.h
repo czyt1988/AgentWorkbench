@@ -17,9 +17,9 @@ class WebSurfaceRegistry;
 class WebTab;
 class WebTabsModel;
 
-// The QML facade for the web feature (01-architecture.md §4.5): tab
+// The QML facade for the web feature: tab
 // lifecycle, surface selection and the memory policy (freeze inactive,
-// LRU-release past maxLiveTabs — 02 §6.5). Strategy comes from
+// LRU-release past maxLiveTabs. Strategy comes from
 // Settings::webOptions().
 class WebTabsFacade : public QObject
 {
@@ -31,7 +31,7 @@ class WebTabsFacade : public QObject
     // rowCount() method, which has no notify signal.
     Q_PROPERTY(int tabCount READ tabCount NOTIFY tabCountChanged)
     // State of the active tab ("loading" | "ready" | …, empty when no tab):
-    // drives the toolbar's reload/stop toggle (02 §6.1).
+    // drives the toolbar's reload/stop toggle.
     Q_PROPERTY(QString activeState READ activeState NOTIFY activeStateChanged)
     Q_PROPERTY(bool devToolsEnabled READ devToolsEnabled CONSTANT)
     Q_PROPERTY(bool freezeInactiveTabs READ freezeInactiveTabs NOTIFY
@@ -60,15 +60,15 @@ public:
 
     // Like openTab, but ALWAYS opens a new tab — used for loopback popups
     // (OAuth windows, target=_blank on the same agent) where the same-agent
-    // dedup of openTab would be wrong (02 §6.4).
+    // dedup of openTab would be wrong.
     Q_INVOKABLE QString openDetachedTab(const QString &agentId,
                                         const QString &url,
                                         const QString &title);
 
     // Open a tab for {agentId, url, title, icon, color}. A tab for the same
     // agent already open is activated instead of duplicated. With the
-    // `external` surface this opens the system browser and creates no tab
-    // (02 §6.7). Returns the tab id (empty for the external path).
+    // `external` surface this opens the system browser and creates no tab.
+    // Returns the tab id (empty for the external path).
     Q_INVOKABLE QString openTab(const QVariantMap &fields);
     Q_INVOKABLE void closeTab(const QString &id);
     Q_INVOKABLE void activateTab(const QString &id);
@@ -94,7 +94,7 @@ public:
     Q_INVOKABLE void setTabZoom(const QString &id, double zoom);
     Q_INVOKABLE void setTabUrl(const QString &id, const QString &url);
 
-    // Cross-domain rules wired by BuiltinPages (01 §4.8).
+    // Cross-domain rules wired by BuiltinPages.
     void markOfflineForAgent(const QString &agentId);
     void markOnlineForAgent(const QString &agentId);
     void closeTabsForAgent(const QString &agentId);
@@ -109,7 +109,7 @@ signals:
     void activeStateChanged();
     // web.freezeInactiveTabs / web.downloadDir changed in settings.json.
     void policyChanged();
-    // Info-level notice for the external-surface path (02 §6.7); the
+    // Info-level notice for the external-surface path; the
     // workbench turns it into a toast (wired in BuiltinPages).
     void externalOpened(const QString &url);
 

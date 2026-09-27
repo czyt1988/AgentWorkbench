@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Toast stack (specs/02 §12): at most three visible, queued behind them;
+// Toast stack: at most three visible, queued behind them;
 // each toast auto-dismisses after its level's duration, and the timer
 // pauses while the pointer is over it.
 ColumnLayout {
@@ -29,7 +29,7 @@ ColumnLayout {
             border.color: theme.borderSubtle
             clip: true
 
-            // Left color bar by level (specs/02 §12).
+            // Left color bar by level.
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top

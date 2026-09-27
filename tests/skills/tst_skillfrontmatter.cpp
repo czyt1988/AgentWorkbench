@@ -7,7 +7,7 @@
 using awb::skills::SkillFrontmatter;
 using awb::skills::SkillFrontmatterParser;
 
-// specs/03 S6-T1: quotes, folded/literal scalars, multi-line indentation,
+// Covers quotes, folded/literal scalars, multi-line indentation,
 // BOM, CRLF, missing frontmatter, colons inside values.
 class TestSkillFrontmatter : public QObject
 {
@@ -46,7 +46,7 @@ private slots:
                  QStringLiteral("1.2.3"));
     }
 
-    // A colon inside the description must not split the key (S6-T1).
+    // A colon inside the description must not split the key.
     void testColonInValue()
     {
         const SkillFrontmatter result = SkillFrontmatterParser::parse(

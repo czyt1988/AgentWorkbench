@@ -1,11 +1,11 @@
-# L4 executable (specs/01-architecture.md §4.9): assembly + the QML module
+# L4 executable: assembly + the QML module
 # + every embedded resource. No business logic lives here.
 #
 # All module QML is compiled into the executable through qt_add_qml_module
-# with stable aliases (§8.1), so a page URL looks like
+# with stable aliases, so a page URL looks like
 #   qrc:/qt/qml/AgentWorkbench/agents/AgentGridPage.qml
 # Resources are never put into static libraries (qrc initializers in static
-# libraries get dropped by the linker — specs/03 §7).
+# libraries get dropped by the linker.
 
 set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
                SettingsPage)
@@ -85,7 +85,7 @@ if (AWB_ENABLE_WEBENGINE)
                                                  Qt6::WebEngineQuick)
 endif()
 
-# The QML module shared by every page/component (specs/01 §8.1).
+# The QML module shared by every page/component.
 qt_add_qml_module(AgentWorkbench
     URI AgentWorkbench
     VERSION 1.0
@@ -137,7 +137,7 @@ qt_add_resources(AgentWorkbench "app_resources"
         ${AWB_ICON_FILES}
 )
 
-# Built-in themes (specs/02 §9.1).
+# Built-in themes.
 set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
     PROPERTIES QT_RESOURCE_ALIAS "mocha-dark.json")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json

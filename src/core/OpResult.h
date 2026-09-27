@@ -8,7 +8,7 @@ namespace awb::core {
 
 // Result of a fallible synchronous operation. Crossing a module boundary
 // never throws — a failure travels as { ok = false, error = <readable
-// reason> } (01-architecture.md §6). Q_GADGET so QML can read `.ok` and
+// reason> }. Q_GADGET so QML can read `.ok` and
 // `.error` off Q_INVOKABLE results (e.g. UiServices::copyText).
 struct OpResult
 {

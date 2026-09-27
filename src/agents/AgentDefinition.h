@@ -5,9 +5,8 @@
 
 namespace awb::agents {
 
-// The persisted fields of an agent — everything written to agents.json
-// (01-architecture.md §4.3). Runtime state lives in AgentState and is
-// never persisted here.
+// The persisted fields of an agent — everything written to agents.json.
+// Runtime state lives in AgentState and is never persisted here.
 struct AgentDefinition
 {
     QString id;

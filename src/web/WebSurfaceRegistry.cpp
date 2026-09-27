@@ -7,7 +7,6 @@ WebSurfaceRegistry::WebSurfaceRegistry(QObject *parent)
 {
     // The external surface always exists: it hands the URL to the system
     // browser and the page degrades to a list of running agents
-    // (02-ui-specification.md §6.7).
     m_surfaces.insert(QStringLiteral("external"), QString());
 }
 

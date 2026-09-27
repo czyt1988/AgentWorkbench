@@ -10,7 +10,7 @@
 namespace awb::shell {
 
 // Page registry + list model behind the sidebar and the workspace host
-// (01-architecture.md §4.7). Duplicate ids are rejected with a warning —
+// Duplicate ids are rejected with a warning —
 // the shell never guesses which page the caller meant.
 class NavigationModel : public QAbstractListModel
 {

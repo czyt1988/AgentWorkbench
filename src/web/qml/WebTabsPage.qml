@@ -4,13 +4,13 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The Web page (specs/02 §6): its own tab bar serves as the page header,
+// The Web page: its own tab bar serves as the page header,
 // the body hosts one surface per tab, and the empty state lists running
 // agents with one-click open.
 Item {
     id: page
 
-    // Fullscreen hides the tab bar (02 §6.4); Esc leaves it first.
+    // Fullscreen hides the tab bar; Esc leaves it first.
     property bool chromeHidden: false
     // Loaded surface items by tab id — the toolbar reaches the active one
     // (devtools lives on the surface).
@@ -30,14 +30,14 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // --- Tab bar (the page header, 02 §6.1) --------------------------
+        // --- Tab bar (the page header) --------------------------
         Rectangle {
             Layout.fillWidth: true
             visible: !page.chromeHidden
             height: visible ? theme.tabBarHeight : 0
             color: theme.chromeBg
 
-            // Bottom separator (02 §6.1: 下边框 theme.separator).
+            // Bottom separator (下边框 theme.separator).
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
@@ -88,7 +88,7 @@ Item {
                                                  ? theme.surfaceHoverBg
                                                  : theme.tabInactiveBg)
 
-                                // Active tab: 2px accent bar on top (02 §6.2).
+                                // Active tab: 2px accent bar on top.
                                 Rectangle {
                                     visible: tabButton.active
                                     anchors.top: parent.top
@@ -124,7 +124,7 @@ Item {
                                         }
                                     }
 
-                                    // Tab icon, 16px (02 §6.2): the agent
+                                    // Tab icon, 16px: the agent
                                     // icon, falling back to web.svg.
                                     Image {
                                         width: 16
@@ -147,7 +147,7 @@ Item {
                                         elide: Text.ElideMiddle
                                     }
 
-                                    // Busy indicator while loading (02 §6.2).
+                                    // Busy indicator while loading.
                                     BusyIndicator {
                                         visible: state === "loading"
                                         running: visible
@@ -191,7 +191,7 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     // Middle click must be ACCEPTED, or the
-                                    // button never reaches the handlers (02 §6.2).
+                                    // button never reaches the handlers.
                                     acceptedButtons: Qt.LeftButton
                                                      | Qt.MiddleButton
                                     onClicked: function(mouse) {
@@ -220,13 +220,13 @@ Item {
                     }
                 }
 
-                // --- Toolbar (acts on the active tab, 02 §6.1) -----------
+                // --- Toolbar (acts on the active tab) -----------
                 Row {
                     spacing: theme.spacingXs
                     rightPadding: theme.spacingS
 
                     // ⟳ reload / ✕ stop — the button follows the active
-                    // tab's state (02 §6.1).
+                    // tab's state.
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: web.activeState === "loading"
@@ -246,7 +246,7 @@ Item {
                         }
                     }
                     // "Open in browser" stays visible at all times — the
-                    // escape hatch must never be hidden (02 §6.7).
+                    // escape hatch must never be hidden.
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: "qrc:/icons/external-link.svg"
@@ -324,7 +324,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Running agents with one-click open (02 §6.1 empty state).
+            // Running agents with one-click open (empty state).
             Flickable {
                 id: emptyState
                 anchors.fill: parent
@@ -442,7 +442,7 @@ Item {
                     visible: web.activeTabId === tabId
                              && emptyState.visible === false
 
-                    // Released: grey placeholder until restored (02 §6.3).
+                    // Released: grey placeholder until restored.
                     Rectangle {
                         anchors.fill: parent
                         visible: tabHost.state === "released"
@@ -490,7 +490,7 @@ Item {
         }
     }
 
-    // --- Shortcuts (02 §6.6, ApplicationShortcut so Chromium never eats
+    // --- Shortcuts (ApplicationShortcut so Chromium never eats
     // them) ---------------------------------------------------------------
     function stepZoom(delta) {
         const id = web.activeTabId
@@ -542,7 +542,7 @@ Item {
         enabled: web.activeTabId.length > 0
         onActivated: web.setTabZoom(web.activeTabId, 1.0)
     }
-    // F12 opens devtools — Debug builds only (02 §6.6).
+    // F12 opens devtools — Debug builds only.
     Shortcut {
         sequence: "F12"
         context: Qt.ApplicationShortcut

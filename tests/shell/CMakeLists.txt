@@ -1,4 +1,4 @@
-# tst_shell — window-skeleton suite (specs/01 §11).
+# tst_shell — window-skeleton suite.
 # Single test class -> plain QTEST_MAIN (needs a QApplication for the
 # clipboard, which the shared registry runner's QCoreApplication cannot
 # provide).

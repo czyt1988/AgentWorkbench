@@ -67,8 +67,8 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 新建主题的最小流程：把内置主题复制到 `<数据目录>/themes/<你的 id>.json`，
 改 `id`/`name`/`variant` 与颜色，保存——界面立即热重载——然后在
 **设置 → 外观** 中选择它。文件名与 `id` 不符会跳过并记警告；未知令牌忽略；
-缺失令牌回退同 variant 的内置主题。全部令牌见
-`specs/02-ui-specification.md` §9——QML 只引用 `theme.<令牌>`。
+缺失令牌回退同 variant 的内置主题。全部令牌即内置主题文件用的那一套——
+QML 只引用 `theme.<令牌>`。
 
 ## agent 条目
 

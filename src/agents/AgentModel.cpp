@@ -53,7 +53,7 @@ QVariant AgentModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> AgentModel::roleNames() const
 {
-    // Byte-compatible with 0.3.0 (specs/03 S2-T1): names AND order.
+    // Byte-compatible with 0.3.0: names AND order.
     return {
         { IdRole,        "agentId" },
         { NameRole,      "name" },

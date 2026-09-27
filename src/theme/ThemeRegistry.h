@@ -11,7 +11,7 @@ namespace awb::theme {
 
 // Available themes: built-ins from :/themes/*.json plus user themes from
 // <dataRoot>/themes/*.json, where a user file with the same id overrides
-// the built-in (01-architecture.md §4.2). Watches the user directory and
+// the built-in. Watches the user directory and
 // its files so a saved theme file reloads live.
 class ThemeRegistry : public QObject
 {

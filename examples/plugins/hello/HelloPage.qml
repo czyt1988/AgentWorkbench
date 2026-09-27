@@ -5,7 +5,7 @@ import AgentWorkbench
 import AgentWorkbench.App
 
 // The example plugin's page: proof that a plugin can contribute UI through
-// the same path the built-in pages use (specs/01 §9.4).
+// the same path the built-in pages use.
 Rectangle {
     id: page
 

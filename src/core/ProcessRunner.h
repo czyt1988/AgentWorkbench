@@ -19,7 +19,7 @@ struct ProcessResult
     QString error; // non-empty when the process did not start or timed out
 };
 
-// Mechanism layer for external commands (01-architecture.md §4.1). No
+// Mechanism layer for external commands. No
 // business knowledge: which command to run and what its output means stays
 // with the calling module.
 class ProcessRunner

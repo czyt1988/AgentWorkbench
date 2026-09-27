@@ -16,7 +16,7 @@ namespace awb::web {
 namespace {
 // Display form of a tab URL: the bearer-token fragment (#token=… or
 // …&token=…) never reaches a log line or a user-visible toast (it must
-// stay out of anything a third party can read; 01 §4.7).
+// stay out of anything a third party can read).
 QString redactedUrl(const QUrl &url)
 {
     const QString fragment = url.fragment();
@@ -143,7 +143,7 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
         return {};
 
     // Surface policy: `external` hands the URL to the system browser and
-    // creates no tab (02 §6.7); `embedded` needs the WebEngine surface to
+    // creates no tab; `embedded` needs the WebEngine surface to
     // be registered, otherwise it degrades to external as well.
     QString kind = m_settings->webOptions().surface;
     if (kind == QLatin1String("embedded")
@@ -166,7 +166,7 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
         return {};
     }
 
-    // Same agent already open -> activate instead of duplicating (S5-T1).
+    // Same agent already open -> activate instead of duplicating.
     if (WebTab *existing = m_tabs->tabForAgent(agentId)) {
         activateTab(existing->id());
         qInfo().noquote() << QStringLiteral(
@@ -216,7 +216,7 @@ QString WebTabsFacade::openDetachedTab(const QString &agentId,
 void WebTabsFacade::closeTab(const QString &id)
 {
     // Closing destroys the view — the agent process keeps running
-    // (02 §6.2); session data survives in the per-agent profile.
+    // session data survives in the per-agent profile.
     if (m_tabs->activeTabId() == id) {
         const int row = m_tabs->rowOfTab(id);
         m_tabs->removeTab(id);
@@ -270,8 +270,8 @@ void WebTabsFacade::openExternal(const QString &id)
     WebTab *tab = tabForId(id);
     if (!tab)
         return;
-    // The escape hatch must work even when the embedded view is broken
-    // (02 §6.7). The browser needs the token fragment; the log line must
+    // The escape hatch must work even when the embedded view is broken.
+    // The browser needs the token fragment; the log line must
     // not have it.
     qInfo().noquote() << QStringLiteral(
         "WebTabs: opened %1 in the system browser")
@@ -343,7 +343,7 @@ void WebTabsFacade::markOnlineForAgent(const QString &agentId)
     WebTab *tab = m_tabs->tabForAgent(agentId);
     if (!tab)
         return;
-    // ready/offline/error/crashed + agent back -> loading (02 §6.3).
+    // ready/offline/error/crashed + agent back -> loading.
     // Released tabs stay released until the user restores them.
     const QString state = tab->state();
     if (state == QLatin1String("ready")
@@ -397,7 +397,7 @@ void WebTabsFacade::wireActiveTracking()
 }
 
 // LRU release: past maxLiveTabs, the least recently used INACTIVE tab is
-// released (view destroyed, tab kept — 02 §6.5). The active tab's view
+// released (view destroyed, tab kept). The active tab's view
 // counts toward the cap too — "视图上限" bounds ALL live views, so the
 // loop stops at maxLive live views in total, not maxLive + 1.
 void WebTabsFacade::applyMemoryPolicy()

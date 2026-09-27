@@ -1,4 +1,4 @@
-# tst_core — infrastructure suite for awb_core (specs/01 §11).
+# tst_core — infrastructure suite for awb_core.
 qt_add_executable(tst_core
     tst_core_main.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp

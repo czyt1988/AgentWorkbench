@@ -43,13 +43,12 @@
 int main(int argc, char *argv[])
 {
     // 1) Logging first: any later failure must be on disk
-    //    (01-architecture.md §4.9).
     QGuiApplication::setApplicationName(QStringLiteral("AgentWorkbench"));
     awb::core::Logging::install();
 
     // Settings are read before QGuiApplication: the user's Chromium flags
     // must be injected BEFORE QtWebEngineQuick::initialize(), which itself
-    // has to run before QGuiApplication (specs/01 §4.9). The first-run save
+    // has to run before QGuiApplication. The first-run save
     // is deferred until after LegacyImport::runOnce — writing settings.json
     // early would make its untouched-check (data root holds nothing but
     // log/) fail forever.
@@ -69,7 +68,7 @@ int main(int argc, char *argv[])
         qputenv("QTWEBENGINE_CHROMIUM_FLAGS", chromiumFlags);
 #ifdef AWB_ENABLE_WEBENGINE
     // GPU/driver problems are worked around through web.chromiumFlags
-    // (02 §6.7); a hard failure logs and continues degraded.
+    // a hard failure logs and continues degraded.
     QtWebEngineQuick::initialize();
 #endif
 
@@ -78,8 +77,8 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
-    // Load locale-appropriate translation from embedded :/i18n/ resources.
-    // locale.override forces a locale; empty follows the system (01 §7.2).
+    // Load locale-appropriate translation from embedded:/i18n/ resources.
+    // locale.override forces a locale; empty follows the system.
     QTranslator translator;
     const QString forcedLocale = settings.locale().overrideName;
     const QLocale locale = forcedLocale.isEmpty() ? QLocale()
@@ -90,13 +89,12 @@ int main(int argc, char *argv[])
 
     // Adopt a pre-0.4 ~/.AgentLauncher data directory on the first start
     // after the upgrade, before anything else touches the data root
-    // (01-architecture.md §7.3).
     QString legacyNotice;
     const bool legacyImported = awb::core::LegacyImport::runOnce(
         awb::core::Paths::dataRoot(), &legacyNotice);
     // First run: materialize default settings.json only now — before this,
     // the data root had to stay empty (except log/) for the legacy adoption
-    // check above (specs/01 §7.3).
+    // check above.
     if (!QFile::exists(awb::core::Settings::settingsFilePath()))
         settings.save();
 
@@ -122,7 +120,7 @@ int main(int argc, char *argv[])
                                                &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
-    // Plugins (specs/01 §9): discover manifests always (for the settings
+    // Plugins: discover manifests always (for the settings
     // list), load libraries only when the user opted in — failures log and
     // never block startup. This runs BEFORE BuiltinPages restores the last
     // page, so a plugin page id survives a restart.
@@ -155,7 +153,7 @@ int main(int argc, char *argv[])
             if (!enabledIds.contains(manifest.id))
                 continue;
             // resolve() flips the flag loadEnabled() filters on — discover()
-            // leaves it false (specs/01 §9: disabled until the user opts in).
+            // leaves it false (disabled until the user opts in).
             awb::core::PluginHost::Manifest copy = manifest;
             copy.enabled = true;
             enabled.append(copy);
@@ -169,14 +167,14 @@ int main(int argc, char *argv[])
 
 #ifdef AWB_ENABLE_WEBENGINE
     // The embedded surface registers itself with the web domain; profiles
-    // are exposed to QML for the per-agent views (specs/01 §4.6).
+    // are exposed to QML for the per-agent views.
     awb::web::WebEngineSurfaceProvider webSurface(&webTabs);
     awb::web::WebEngineProfileStore profileStore;
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebProfiles",
                                  &profileStore);
 #endif
 
-    // 4) Register the QML globals (specs/01 §8.2): uppercase type names on
+    // 4) Register the QML globals: uppercase type names on
     //    the AgentWorkbench.App URI; the QML-facing lowercase names are
     //    root aliases in MainWindow.qml.
     qRegisterMetaType<awb::core::OpResult>();

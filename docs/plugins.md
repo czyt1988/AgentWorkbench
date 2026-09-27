@@ -97,7 +97,7 @@ The `Services` interface is the only way a plugin touches the host:
 | `themeColor` | read-only theme token access (`#rrggbb`) |
 | `settingsValue` | read-only access to a small set of settings keys |
 
-Rules of the ABI (specs/01 §9):
+Rules of the ABI:
 
 - only Qt types cross the boundary — never a host C++ class;
 - a broken manifest, a version mismatch or a failed load is **logged and

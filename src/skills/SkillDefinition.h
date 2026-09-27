@@ -7,7 +7,7 @@
 
 namespace awb::skills {
 
-// One discovered skill (01-architecture.md §4.4).
+// One discovered skill.
 struct SkillDefinition
 {
     QString name;         // frontmatter name, falls back to the directory

@@ -4,11 +4,11 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The window skeleton (specs/02 §2): sidebar + workspace + status bar,
+// The window skeleton: sidebar + workspace + status bar,
 // global shortcuts, exit confirmation and the toast overlay.
 //
 // Root aliases bridge the uppercase singleton type names to the lowercase
-// contract names (specs/01 §8.2) — every descendant resolves `theme.`,
+// contract names — every descendant resolves `theme.`,
 // `nav.` … through this root.
 ApplicationWindow {
     id: window
@@ -29,7 +29,7 @@ ApplicationWindow {
     height: shell.windowHeight
     minimumWidth: 1024
     minimumHeight: 640
-    // Brand name, deliberately not translated (02-ui-specification.md §13).
+    // Brand name, deliberately not translated.
     title: shell.windowTitle.length > 0 ? shell.windowTitle
                                         : "AgentWorkbench"
     color: theme.windowBg
@@ -48,7 +48,7 @@ ApplicationWindow {
         }
     }
 
-    // --- Global shortcuts (specs/02 §11) ---------------------------------
+    // --- Global shortcuts ---------------------------------
     Shortcut {
         sequence: "Ctrl+B"
         onActivated: shell.sidebarCollapsed = !shell.sidebarCollapsed
@@ -57,7 +57,7 @@ ApplicationWindow {
         sequence: "Ctrl+,"
         onActivated: workbench.showPage("settings")
     }
-    // Ctrl+1…9 switch to the Nth page in order (specs/02 §11).
+    // Ctrl+1…9 switch to the Nth page in order.
     function goToPageNumber(n) {
         const ids = nav.pageIdsInOrder()
         if (n >= 0 && n < ids.length)
@@ -170,7 +170,7 @@ ApplicationWindow {
         }
     }
 
-    // --- Legacy data import notice (one-shot, 01 §7.3) --------------------
+    // --- Legacy data import notice (one-shot) --------------------
     Popup {
         id: legacyImportPopup
         anchors.centerIn: parent

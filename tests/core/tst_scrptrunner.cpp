@@ -51,7 +51,7 @@ private slots:
 
     // Starting a new run under the same key invalidates the previous one:
     // its process is killed and its callbacks are dropped — the "epoch"
-    // mechanism (specs/01 §4.1).
+    // mechanism.
     void testStaleRunIsInvalidated()
     {
         ScriptRunner runner;

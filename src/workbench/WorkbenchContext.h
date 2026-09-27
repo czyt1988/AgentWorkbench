@@ -23,15 +23,15 @@ class WebTabsFacade;
 
 namespace awb::workbench {
 
-// The QML global `workbench`: cross-domain intents and generic actions
-// (01-architecture.md §4.8). It is the only place allowed to talk to more
+// The QML global `workbench`: cross-domain intents and generic actions.
+// It is the only place allowed to talk to more
 // than one domain — e.g. openWeb needs the agent's URL and the web/UI side.
 class WorkbenchContext : public QObject
 {
     Q_OBJECT
 
     Q_PROPERTY(QString currentPageId READ currentPageId NOTIFY currentPageChanged)
-    // One-shot legacy-import notice for the startup popup (01 §7.3);
+    // One-shot legacy-import notice for the startup popup;
     // empty on every normal start.
     Q_PROPERTY(QString legacyImportNotice READ legacyImportNotice
                NOTIFY legacyImportNoticeChanged)
@@ -63,7 +63,7 @@ public:
     // Restart an agent (offline overlay, launcher cards).
     Q_INVOKABLE void launchAgent(const QString &agentId);
 
-    // Generic actions (01 §4.8).
+    // Generic actions.
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void notify(const QString &level, const QString &title,
                             const QString &text);
@@ -72,16 +72,16 @@ public:
     Q_INVOKABLE void openConfigDir(const QString &agentId);
     Q_INVOKABLE void quit();
 
-    // --- Plugins (experimental, specs/01 §9) -------------------------------
+    // --- Plugins (experimental) -------------------------------
     // Discovered plugins for the settings list:
     // [{id,name,version,description,enabled}]. Effective on the NEXT start —
-    // libraries are loaded once at boot (specs/03 S7-T3).
+    // libraries are loaded once at boot.
     Q_INVOKABLE QVariantList pluginList() const;
     Q_INVOKABLE void setPluginEnabled(const QString &id, bool enabled);
-    // Master switch in Settings -> Plugins (default off, §9.3).
+    // Master switch in Settings -> Plugins (default off).
     Q_INVOKABLE bool pluginsEnabled() const;
     Q_INVOKABLE void setPluginsEnabled(bool enabled);
-    // The trust notice the settings page must show (§9.3).
+    // The trust notice the settings page must show.
     Q_INVOKABLE QString pluginTrustNotice() const;
     void setDiscoveredPlugins(const QVariantList &plugins);
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Architecture checks (specs/01-architecture.md §5.3). Pure shell + grep;
+# Architecture checks. Pure shell + grep;
 # exit code 0 = clean, non-zero = a rule was broken. Wired into ctest as the
 # `check_architecture` test, so a violating build fails instead of relying
 # on people remembering the rules.

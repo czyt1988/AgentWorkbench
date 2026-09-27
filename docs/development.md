@@ -62,7 +62,6 @@ examples/     example plugin (AWB_BUILD_PLUGIN_EXAMPLES)
 tests/        one test target per module + check_architecture
 scripts/      build.sh, package.sh, check-architecture.sh
 docs/         MkDocs site (English + zh/)
-specs/        refactor specifications (architecture / UI / migration plan)
 ```
 
 ## Build options
@@ -101,8 +100,7 @@ A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 
 ## Architecture
 
-The layering and dependency rules are specified in
-`specs/01-architecture.md` — the short version:
+The layering and dependency rules, in short:
 
 - **Layers**: `app → workbench → {shell, agents, skills, web, theme} → core`.
   Domain modules never depend on each other; cross-domain behaviour lives in

@@ -1,5 +1,5 @@
 # awb_plugin_api (L0): the plugin ABI — a header-only interface target
-# that external repositories link against (specs/01-architecture.md §9).
+# that external repositories link against.
 # Depends on Qt Core only; never on any host module.
 add_library(awb_plugin_api INTERFACE)
 

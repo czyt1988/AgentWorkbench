@@ -11,7 +11,7 @@ class ScriptRunner;
 
 namespace awb::workbench {
 
-// Python / Node.js detection for the status bar (01-architecture.md §4.8).
+// Python / Node.js detection for the status bar.
 // QML global name: `environment` (registered in main.cpp).
 class EnvironmentService : public QObject
 {

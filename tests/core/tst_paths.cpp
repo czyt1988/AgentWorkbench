@@ -40,7 +40,7 @@ private slots:
                      QStandardPaths::AppConfigLocation));
     }
 
-    // setDataRootForTesting() wins over everything else (specs/01 §4.1).
+    // setDataRootForTesting wins over everything else.
     void testSetDataRootForTesting()
     {
         QTemporaryDir tmp;

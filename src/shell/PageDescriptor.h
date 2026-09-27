@@ -5,7 +5,7 @@
 
 namespace awb::shell {
 
-// One workspace page as seen by the shell (01-architecture.md §4.7).
+// One workspace page as seen by the shell.
 // Registered by BuiltinPages (or, later, by a plugin) — the shell itself
 // knows nothing about agents, skills or web.
 struct PageDescriptor

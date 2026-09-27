@@ -8,8 +8,8 @@
 
 namespace awb::shell {
 
-// Generic UI operations the pages need but must not implement themselves
-// (01-architecture.md §4.7): clipboard, external URLs, file manager.
+// Generic UI operations the pages need but must not implement themselves.
+// Clipboard, external URLs, the file manager.
 // QML only talks to facades — never to Qt directly.
 class UiServices : public QObject
 {

@@ -6,7 +6,7 @@
 
 namespace awb::core {
 
-// Small text helpers shared across modules (01-architecture.md §4.1).
+// Small text helpers shared across modules.
 class TextUtils
 {
 public:

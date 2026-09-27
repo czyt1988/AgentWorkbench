@@ -3,7 +3,7 @@ import QtQuick.Controls
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Icon-only button (specs/02 §10.2): 28px (large 44), hover fill derived
+// Icon-only button: 28px (large 44), hover fill derived
 // from the icon color, tooltip required.
 Button {
     id: control
@@ -26,7 +26,7 @@ Button {
         color: control.down ? theme.alpha(theme.textMuted, 0.28)
                             : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
                                                : "transparent")
-        // Keyboard focus ring (02 §10.1/§14).
+        // Keyboard focus ring.
         border.color: control.activeFocus ? theme.focusRing : "transparent"
         border.width: control.activeFocus ? 2 : 0
     }

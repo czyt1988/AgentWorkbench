@@ -4,7 +4,7 @@
 #include <QString>
 #include <QStringList>
 
-// The plugin ABI (specs/01-architecture.md §9). Rules:
+// The plugin ABI. Rules:
 //  - only Qt types cross this boundary — never a host C++ class;
 //  - every plugin exports the two extern "C" symbols below;
 //  - `apiVersion` must match ApiVersion or the host refuses to load.
@@ -23,7 +23,7 @@ namespace awb::plugin {
 // The ABI version this header describes. Bump on any breaking change.
 constexpr int ApiVersion = 1;
 
-// One sidebar page contributed by a plugin (specs/01 §9.2). Plain Qt value
+// One sidebar page contributed by a plugin. Plain Qt value
 // types only — no host classes across the boundary.
 struct PageDescriptor
 {
@@ -35,10 +35,10 @@ struct PageDescriptor
     int order = 50;
 };
 
-// Host services handed to the plugin at registration time
-// (specs/01 §9.3). Pure virtual: the host implements, the plugin calls.
+// Host services handed to the plugin at registration time.
+// Pure virtual: the host implements, the plugin calls.
 // The same registration path serves built-in pages and plugins
-// (specs/01 §9.1) — there is no separate "plugin mode".
+// — there is no separate "plugin mode".
 class Services
 {
 public:

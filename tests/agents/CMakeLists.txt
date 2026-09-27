@@ -1,6 +1,6 @@
-# tst_agents — the agents domain suite (specs/01 §11): repository sync
+# tst_agents — the agents domain suite: repository sync
 # semantics, model roles, facade CRUD, script logging, URL/token handling,
-# runtime launch/stop/force-stop (S2-T4).
+# runtime launch/stop/force-stop.
 qt_add_executable(tst_agents
     tst_agents_main.cpp
     tst_agentmodel.cpp

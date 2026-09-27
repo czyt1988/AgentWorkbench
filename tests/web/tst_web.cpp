@@ -12,7 +12,7 @@ using awb::web::WebTabsModel;
 
 // Web tabs without Qt WebEngine: the embedded surface is registered
 // manually so openTab() takes the tab path instead of the external
-// fallback (specs/01 §11: tst_web runs in any configuration).
+// fallback (tst_web runs in any configuration).
 class TestWebTabs : public QObject
 {
     Q_OBJECT
@@ -39,7 +39,7 @@ private slots:
         QVERIFY(!first.isEmpty());
         QCOMPARE(web.tabs()->rowCount(), 1);
 
-        // Opening the same agent again activates the existing tab (S5-T1).
+        // Opening the same agent again activates the existing tab.
         const QString second = web.openTab(fields);
         QCOMPARE(second, first);
         QCOMPARE(web.tabs()->rowCount(), 1);
@@ -66,7 +66,7 @@ private slots:
         web.closeTab(QStringLiteral("missing")); // no crash
     }
 
-    // The offline/online cross-domain rules (02 §6.3).
+    // The offline/online cross-domain rules.
     void testOfflineOnlineTransitions()
     {
         Settings settings;
@@ -99,7 +99,7 @@ private slots:
         web.markOnlineForAgent(QStringLiteral("ghost"));
     }
 
-    // Surface resolution (S5-T1): registered kinds resolve, unknown kinds
+    // Surface resolution: registered kinds resolve, unknown kinds
     // come back empty, `external` always exists.
     void testSurfaceUrlResolution()
     {
@@ -175,7 +175,7 @@ private slots:
     }
 
     // Past maxLiveTabs the least recently used inactive view is released
-    // (tab kept, state "released" — 02 §6.5).
+    // (tab kept, state "released").
     void testLruRelease()
     {
         Settings settings;

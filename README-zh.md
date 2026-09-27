@@ -99,7 +99,7 @@ mkdocs serve
 
 ## 贡献
 
-欢迎提交 PR。请把 agent 定义放在 `agents.json` 中，不要硬编码进 C++。重构规格在 [`specs/`](specs/) 目录，是模块边界与 UI 契约的权威来源；构建命令与项目约定见 [AGENTS.md](AGENTS.md)。
+欢迎提交 PR。请把 agent 定义放在 `agents.json` 中，不要硬编码进 C++。模块边界、构建命令与项目约定见 [AGENTS.md](AGENTS.md)，使用说明见 [docs](docs/) 站点。
 
 ## 协议
 

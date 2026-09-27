@@ -9,7 +9,7 @@ namespace awb::theme {
 
 namespace {
 
-// Top-level keys of a theme file (02-ui-specification.md §9.2).
+// Top-level keys of a theme file.
 const QSet<QString> kTopLevelKeys = {
     QStringLiteral("id"),          QStringLiteral("name"),
     QStringLiteral("variant"),     QStringLiteral("author"),
@@ -133,7 +133,7 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
     }
 
     // Fill missing tokens from the baseline of the same variant, so a theme
-    // only has to declare what it changes (02 §9.2).
+    // only has to declare what it changes.
     if (baseline.isValid()) {
         for (auto it = baseline.colors.constBegin();
              it != baseline.colors.constEnd(); ++it) {

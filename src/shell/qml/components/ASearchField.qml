@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Search input with leading icon and a clear button (specs/02 §10.2).
+// Search input with leading icon and a clear button.
 TextField {
     id: control
 

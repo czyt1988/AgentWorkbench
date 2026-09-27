@@ -28,7 +28,7 @@ QList<SkillRoot> SkillRoots::defaults()
     roots.append(codex);
 
     // ZCode plugin caches: multiple marketplaces/plugins/versions at once —
-    // wildcard path, deduped by the scanner (02 §7.2).
+    // wildcard path, deduped by the scanner.
     SkillRoot plugin;
     plugin.id = QStringLiteral("zcode-plugins");
     plugin.label = QStringLiteral("ZCode plugins");
@@ -38,8 +38,8 @@ QList<SkillRoot> SkillRoots::defaults()
     plugin.dedupeScope = QStringLiteral("marketplace-plugin");
     roots.append(plugin);
 
-    // Project skills: only when a working directory concept exists (02 §7.2
-    // marks this as optional for v1 — included when the directories exist).
+    // Project skills: only when a working directory concept exists.
+    // Optional for v1 — included when the directories exist.
     SkillRoot projectAgents;
     projectAgents.id = QStringLiteral("project-agents");
     projectAgents.label = QStringLiteral("Project (.agents)");

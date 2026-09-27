@@ -8,7 +8,7 @@
 
 namespace awb::skills {
 
-// One scan root (01-architecture.md §4.4). `path` may contain wildcards
+// One scan root. `path` may contain wildcards
 // (the ZCode plugin cache entry does) — the scanner expands them.
 struct SkillRoot
 {
@@ -23,7 +23,7 @@ struct SkillRoot
     bool isValid() const { return !id.isEmpty() && !path.isEmpty(); }
 };
 
-// The default root list (02-ui-specification.md §7.2) and conversion of
+// The default root list and conversion of
 // `skills.roots` entries from settings.json.
 class SkillRoots
 {

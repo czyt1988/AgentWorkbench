@@ -92,7 +92,7 @@ AWB_PLUGIN_EXPORT int awb_plugin_register(awb::plugin::Services *services)
 | `themeColor` | 只读的主题令牌访问（`#rrggbb`） |
 | `settingsValue` | 只读访问一小部分设置键 |
 
-ABI 规则（specs/01 §9）：
+ABI 规则：
 
 - 只有 Qt 类型跨边界——绝不传宿主 C++ 类；
 - 清单损坏、版本不符或加载失败**只记日志并跳过**——插件永远不能阻止应用

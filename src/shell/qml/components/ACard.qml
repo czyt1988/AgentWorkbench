@@ -2,7 +2,7 @@ import QtQuick
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Card container (specs/02 §10.2): surface background, card radius, subtle
+// Card container: surface background, card radius, subtle
 // border with an optional hover state.
 Rectangle {
     id: control

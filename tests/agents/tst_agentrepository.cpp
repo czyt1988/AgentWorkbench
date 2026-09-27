@@ -170,7 +170,7 @@ private slots:
     // 0.4.0: the root "title" field no longer drives the window title (it
     // moved to settings.json). Loading ignores the field, saving must not
     // write it back, and a leftover value is reported once a settings file
-    // exists to move it to (03-migration-plan.md S0-T6).
+    // exists to move it to.
     void testTitleIsIgnored()
     {
         QTemporaryDir tmp;

@@ -50,7 +50,7 @@ private slots:
         QFile::remove(Settings::settingsFilePath());
     }
 
-    // No file yet: every value is the documented default (specs/01 §7.2),
+    // No file yet: every value is the documented default,
     // and save() writes a complete file.
     void testDefaults()
     {
@@ -103,7 +103,7 @@ private slots:
     }
 
     // Missing keys take defaults, values of the wrong type take defaults and
-    // are reported (specs/01 §7.2).
+    // are reported.
     void testPartialAndInvalidValues()
     {
         writeSettingsFile(R"({

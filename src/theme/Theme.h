@@ -17,9 +17,9 @@ namespace awb::theme {
 
 class ThemeRegistry;
 
-// The QML global `theme` (01-architecture.md §4.2): semantic tokens as
-// named, NOTifiable properties (names are the contract in
-// 02-ui-specification.md §9), plus dynamic helpers. Every token updates
+// The QML global `theme`: semantic tokens as
+// named, NOTifiable properties (names are the contract), plus dynamic
+// helpers. Every token updates
 // together through the single `changed` signal, so switching a theme
 // re-binds the whole UI at runtime.
 class Theme : public QObject
@@ -107,7 +107,7 @@ public:
     Q_INVOKABLE QColor color(const QString &name) const;
     Q_INVOKABLE double metric(const QString &name) const;
 
-    // Derived colors (02 §9.3): alpha overlay, hover/press shading whose
+    // Derived colors: alpha overlay, hover/press shading whose
     // direction depends on the variant. QML must use these instead of
     // Qt.darker/Qt.lighter.
     Q_INVOKABLE QColor alpha(const QColor &color, qreal a) const;

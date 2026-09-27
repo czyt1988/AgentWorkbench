@@ -23,12 +23,12 @@ class AgentRuntime;
 class AgentScripts;
 class AgentStateStore;
 
-// The QML facade for the agents feature (01-architecture.md §4.3): it
+// The QML facade for the agents feature: it
 // aggregates repository, model, runtime, scripts and health monitor, and
 // keeps the Q_INVOKABLE/signature names of the 0.3.0 `launcher` object so
 // the existing QML only needs its prefix renamed (`launcher.` -> `agents.`).
 //
-// openWeb is NOT a facade method (01 §4.3): opening the web UI is the
+// openWeb is NOT a facade method: opening the web UI is the
 // cross-domain workbench intent `workbench.openWeb(id)`. openConfigDir
 // stays — WorkbenchContext delegates to it. Python/Node detection lives
 // in EnvironmentService.
@@ -39,7 +39,7 @@ class AgentsFacade : public QObject
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
 
 public:
-    // `theme` supplies the agent auto-assignment palette (specs/01 §4.3);
+    // `theme` supplies the agent auto-assignment palette;
     // nullptr uses the built-in palette (unit tests).
     AgentsFacade(core::Settings *settings, const QString &dataRoot,
                  theme::Theme *theme = nullptr, QObject *parent = nullptr);
@@ -92,7 +92,6 @@ signals:
     void installFinished(const QString &id, bool success, const QString &message);
 
     // Health transition relay (BuiltinPages wires it to the web tabs —
-    // 01-architecture.md §4.8).
     void runningChanged(const QString &id, bool running);
     // An agent was deleted from the configuration (BuiltinPages closes its
     // tabs).

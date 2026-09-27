@@ -5,7 +5,7 @@ import AgentWorkbench.App
 import AgentWorkbench
 
 // Page header: title + subtitle on the left, page actions on the right
-// (specs/02 §2.2). Every page renders its own header except the Web page.
+// Every page renders its own header except the Web page.
 RowLayout {
     id: control
 

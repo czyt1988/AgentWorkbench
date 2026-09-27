@@ -43,7 +43,7 @@ PluginServices::PluginServices(shell::NavigationModel *nav,
 
 void PluginServices::registerPage(const plugin::PageDescriptor &page)
 {
-    // The SAME registration path as the built-in pages (specs/01 §9.1) —
+    // The SAME registration path as the built-in pages —
     // duplicate ids are rejected inside NavigationModel.
     shell::PageDescriptor shell;
     shell.id = page.id;
@@ -105,7 +105,7 @@ QString PluginServices::themeColor(const QString &token)
 
 QString PluginServices::settingsValue(const QString &key)
 {
-    // Read-only, a small known-key surface (specs/01 §9.1: plugins never
+    // Read-only, a small known-key surface (plugins never
     // write settings or agents.json).
     if (key == QLatin1String("appearance.theme"))
         return m_settings->themeId();

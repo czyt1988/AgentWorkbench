@@ -7,7 +7,7 @@
 
 namespace awb::core {
 
-// Asynchronous HTTP health probe (01-architecture.md §4.1).
+// Asynchronous HTTP health probe.
 //
 // Semantics are fixed: ANY HTTP response (including 4xx/5xx) = reachable;
 // connection refused or timeout = not reachable. No process sniffing —

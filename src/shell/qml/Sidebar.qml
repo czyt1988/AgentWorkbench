@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// The sidebar: "where to go", never a business action (specs/02 §3).
+// The sidebar: "where to go", never a business action.
 // Renders the navigation model grouped by section, with badges, keyboard
 // hints and a collapse handle at the bottom.
 Rectangle {
@@ -14,8 +14,8 @@ Rectangle {
     property bool collapsed: false
 
     color: theme.sidebarBg
-    // Expanded width: window.sidebarWidth from settings (01 §7.2/§4.7 —
-    // ShellController owns it), falling back to the theme token when the
+    // Expanded width: window.sidebarWidth from settings (ShellController
+    // owns it), falling back to the theme token when the
     // key is explicitly cleared (0). Both default to 240.
     width: collapsed ? theme.sidebarCollapsedWidth
                      : (shell.sidebarWidth > 0 ? shell.sidebarWidth
@@ -120,7 +120,6 @@ Rectangle {
             id: row
 
             // Divider + gap above the first row of every non-main section
-            // (specs/02 §3.1).
             readonly property bool firstInSection:
                 index === nav.rowOfFirstInSection(model.section)
             readonly property bool needsDivider:
@@ -143,7 +142,7 @@ Rectangle {
                 color: theme.separator
             }
 
-            // Active background + 3px accent bar (specs/02 §3.2).
+            // Active background + 3px accent bar.
             Rectangle {
                 anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
                 anchors.left: parent.left
@@ -220,7 +219,7 @@ Rectangle {
                 onClicked: nav.setCurrentPageId(model.pageId)
             }
 
-            // Collapsed state: tooltip with the page title (specs/02 §3.2).
+            // Collapsed state: tooltip with the page title.
             ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
             ToolTip.delay: 300
             ToolTip.text: model.title

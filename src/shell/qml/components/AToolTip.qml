@@ -3,7 +3,7 @@ import QtQuick.Controls
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Unified tooltip styling (specs/02 §10.2): themed background, 300 ms
+// Unified tooltip styling: themed background, 300 ms
 // delay, max width 360.
 ToolTip {
     id: control

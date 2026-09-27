@@ -5,8 +5,8 @@
 
 namespace awb::core {
 
-// The single source of truth for where the application keeps user data
-// (01-architecture.md §4.1). Everything else asks Paths — no other module
+// The single source of truth for where the application keeps user data.
+// Everything else asks Paths — no other module
 // may derive the data root itself.
 //
 // Non-ASCII user profiles (C:\Users\陈宗衍\…) are handled by using

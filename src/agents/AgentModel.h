@@ -12,7 +12,7 @@ namespace awb::agents {
 
 // List model over agents: the persisted definitions plus a per-id runtime
 // state map. Role names and order are byte-compatible with 0.3.0 so the
-// card QML keeps working unchanged (specs/03 S2-T1).
+// card QML keeps working unchanged.
 class AgentModel : public QAbstractListModel
 {
     Q_OBJECT

@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Empty state (specs/02 §10.2): icon + title + description + action button.
+// Empty state: icon + title + description + action button.
 // The root is a plain Item — layout-managed, so it must not carry anchors
 // (that would be undefined behavior); the column centers itself inside.
 Item {

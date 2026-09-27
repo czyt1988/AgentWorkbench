@@ -8,7 +8,7 @@
 
 namespace awb::theme {
 
-// Parse + validate one theme JSON file (01-architecture.md §4.2):
+// Parse + validate one theme JSON file:
 //   - unknown keys            -> WARN and ignore
 //   - missing token           -> take the value from `baseline` (the
 //                                built-in theme of the SAME variant)

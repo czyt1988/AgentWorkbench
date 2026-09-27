@@ -9,10 +9,10 @@ class QWebEngineProfile;
 
 namespace awb::web {
 
-// One persistent QWebEngineProfile per agent (01-architecture.md §4.6):
+// One persistent QWebEngineProfile per agent:
 // storageName = "awb-<agentId>", storagePath = WebProfilePaths::profileDir
 // — cookies and localStorage survive restarts, and two agents on the same
-// host but different ports never share a cookie jar (02 §6.5).
+// host but different ports never share a cookie jar.
 //
 // Exposed to QML as the `WebProfiles` singleton (call createProfile).
 class WebEngineProfileStore : public QObject

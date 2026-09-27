@@ -8,8 +8,8 @@ namespace awb::web {
 
 class WebTabsFacade;
 
-// Registers the `embedded` surface with the web domain's surface registry
-// (specs/01 §4.6). Constructed by the application only when the build
+// Registers the `embedded` surface with the web domain's surface registry.
+// Constructed by the application only when the build
 // includes WebEngine (AWB_ENABLE_WEBENGINE).
 class WebEngineSurfaceProvider : public QObject
 {

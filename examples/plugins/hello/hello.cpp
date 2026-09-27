@@ -1,6 +1,6 @@
-// The smallest possible AgentWorkbench plugin (specs/01 §9.4): it exports
+// The smallest possible AgentWorkbench plugin: it exports
 // the two C entry points and registers one page through the SAME
-// registration path the built-in pages use (§9.1).
+// registration path the built-in pages use.
 //
 // Build with -DAWB_BUILD_PLUGIN_EXAMPLES=ON; the build copies the DLL and
 // plugin.json into <dataRoot>/plugins/hello/, where the host discovers it.

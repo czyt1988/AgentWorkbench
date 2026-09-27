@@ -73,7 +73,7 @@ void AgentRepository::load()
         //0.4.0: the root "title" field no longer drives the window title —
         // that lives in settings.json now. Hint users who still have one,
         // but only once a settings file exists; before that there is
-        // nowhere to move it to (03-migration-plan.md S0-T6).
+        // nowhere to move it to.
         const QString legacyTitle = QJsonDocument::fromJson(data)
                                         .object()
                                         .value(QStringLiteral("title"))
@@ -219,7 +219,7 @@ bool AgentRepository::assignPaletteColors()
 QString AgentRepository::paletteColorFor(int index) const
 {
     // Prefer the current theme's agentPalette; fall back to the built-in
-    // Mocha array (specs/03 S3-T1).
+    // Mocha array.
     if (m_agentPalette.isEmpty())
         return paletteColorAt(index);
     const int size = m_agentPalette.size();
@@ -230,7 +230,7 @@ QString AgentRepository::paletteColorAt(int index)
 {
     // Catppuccin Mocha palette — vibrant colors that read well on the dark
     // card background (#313244). S3 replaces this with the current theme's
-    // agentPalette (specs/03 S2-T2).
+    // agentPalette.
     static const QStringList palette = {
         QStringLiteral("#f38ba8"), // Red
         QStringLiteral("#fab387"), // Peach
@@ -249,7 +249,7 @@ QString AgentRepository::paletteColorAt(int index)
 QString AgentRepository::resolveIcon(const QString &raw)
 {
     // The application-level fallback lives here; core never hardcodes an
-    // app resource path (01-architecture.md §4.1).
+    // app resource path.
     return core::IconResolver::resolve(raw,
                                        QStringLiteral("qrc:/icons/default.svg"));
 }

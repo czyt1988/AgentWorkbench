@@ -9,7 +9,6 @@ namespace awb::agents {
 
 // URL and token handling for agents. Shared by the embedded view and the
 // external browser so both open exactly the same URL
-// (01-architecture.md §4.3).
 class AgentUrls
 {
 public:

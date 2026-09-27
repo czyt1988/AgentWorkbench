@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Full add/edit form for one launcher, as a dialog (specs/02 §8.1).
+// Full add/edit form for one launcher, as a dialog.
 // Empty agentId = add mode.
 // NOTE: do not name the agent map property `data` — it collides with
 // QQuickItem's built-in `data` group and silently breaks field bindings.
@@ -20,7 +20,7 @@ Dialog {
     focus: true
     padding: 0
     width: 640
-    // Bounded by the screen; the form scrolls internally (specs/02 §8.1).
+    // Bounded by the screen; the form scrolls internally.
     height: Math.min(scrollView.implicitHeight, Screen.height - 120)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 

@@ -12,11 +12,11 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Netwo
 
 qt_standard_project_setup(REQUIRES 6.5)
 
-# Build options (specs/01 §10): AWB_ENABLE_WEBENGINE etc. Must come before
+# Build options: AWB_ENABLE_WEBENGINE etc. Must come before
 # the subdirectories that branch on them.
 include(cmake/AwbOptions.cmake)
 
-# Layered modules, bottom-up (specs/01-architecture.md §3):
+# Layered modules, bottom-up:
 #   core -> theme -> {shell, agents, web} -> workbench -> app
 add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)
 add_subdirectory(src/core)      # L0 infrastructure
@@ -28,20 +28,20 @@ add_subdirectory(src/skills)    # L2 skills browser
 add_subdirectory(src/workbench) # L3 application layer
 
 # Translations: lupdate syncs .ts from source, lrelease compiles .qm.
-# The scan list lives in cmake/AwbTranslations.cmake (specs/01 §10).
+# The scan list lives in cmake/AwbTranslations.cmake.
 include(cmake/AwbTranslations.cmake)
 qt6_create_translation(QM_FILES
     ${AWB_TS_SOURCES}
     translations/agentworkbench_zh_CN.ts
 )
-# Example plugin (specs/01 §9.4): compiled only on demand; a POST_BUILD
+# Example plugin: compiled only on demand; a POST_BUILD
 # step installs it into the developer's plugins directory so it can be
 # enabled in Settings -> Plugins.
 if (AWB_BUILD_PLUGIN_EXAMPLES)
     add_subdirectory(examples/plugins/hello)
 endif()
 
-# L4 executable: assembly + QML module + all embedded resources (§4.9).
+# L4 executable: assembly + QML module + all embedded resources.
 add_subdirectory(app)
 
 # Compiled translations, embedded under :/i18n/. Kept in the same directory
@@ -60,7 +60,7 @@ qt_add_resources(AgentWorkbench "i18n"
 # --- Unit tests ---------------------------------------------------------------
 # Isolated from the real user config via QStandardPaths test mode (see
 # tests/). One executable per module, registered with ctest under the same
-# name (specs/01 §11). Disable with -DBUILD_TESTING=OFF (e.g. if the Qt
+# name. Disable with -DBUILD_TESTING=OFF (e.g. if the Qt
 # installation lacks the Test component).
 option(BUILD_TESTING "Build the unit tests" ON)
 

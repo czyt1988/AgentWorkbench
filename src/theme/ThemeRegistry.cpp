@@ -133,7 +133,7 @@ void ThemeRegistry::scan()
         if (!ThemeLoader::parse(json, fileName.section(QLatin1Char('.'), 0, 0),
                                 baseline(variant), file))
             continue;
-        // Same id overrides the built-in (02 §9.1).
+        // Same id overrides the built-in.
         m_themes.insert(file.id, file);
         m_sources.insert(file.id, path);
     }

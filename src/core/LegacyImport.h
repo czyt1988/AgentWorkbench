@@ -7,11 +7,11 @@ namespace awb::core {
 
 // One-time adoption of the pre-0.4 AgentLauncher data directory
 // (~/.AgentLauncher) into the new data root (~/.AgentWorkbench).
-// Contract: 01-architecture.md §7.3.
+// Contract:
 //
 // The legacy directory is copied, never moved or deleted, and the import
 // runs at most once: as soon as the new data root holds anything besides
-// the log directory (Logging installs first, see §4.9), it is left alone.
+// the log directory (Logging installs first, see), it is left alone.
 class LegacyImport
 {
 public:

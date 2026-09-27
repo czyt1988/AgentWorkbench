@@ -87,8 +87,8 @@ Minimal workflow for a new theme: copy a built-in file to
 colors, save — the UI reloads immediately (hot reload) — then pick it in
 **Settings → Appearance**. A file whose name does not equal its `id` is
 skipped with a warning; unknown tokens are ignored; missing tokens fall
-back to the built-in theme of the same variant. The full token list lives
-in `specs/02-ui-specification.md` §9 — the QML only ever references
+back to the built-in theme of the same variant. The full token list is the
+one the built-in theme files use — the QML only ever references
 `theme.<token>`.
 
 ## Agent entry

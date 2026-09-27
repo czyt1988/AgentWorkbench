@@ -32,7 +32,7 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
 
 void BuiltinPages::registerPages()
 {
-    // Page list and metadata: 02-ui-specification.md §5. The `web` and
+    // Page list and metadata: The `web` and
     // `skills` pages join in S5/S6 through this same registration path.
     shell::PageDescriptor launcher;
     launcher.id = QStringLiteral("agents");
@@ -78,7 +78,6 @@ void BuiltinPages::registerPages()
 void BuiltinPages::wireBadges()
 {
     // Launcher badge = number of running agents (hidden at 0) —
-    // 02-ui-specification.md §3.2.
     auto update = [this]() {
         const QList<awb::agents::AgentDefinition> &definitions =
             m_agents->agentModel()->definitions();
@@ -105,7 +104,7 @@ void BuiltinPages::wireBadges()
 
 void BuiltinPages::wireWebRules()
 {
-    // Cross-domain rules (01 §4.8): agent stopped -> tab offline; agent
+    // Cross-domain rules: agent stopped -> tab offline; agent
     // back -> reload; agent deleted -> close its tab. The external-surface
     // notice becomes a toast.
     connect(m_agents, &agents::AgentsFacade::runningChanged, this,
@@ -125,7 +124,7 @@ void BuiltinPages::wireWebRules()
                     url);
             });
 
-    // Web tab count badge (02 §3.2).
+    // Web tab count badge.
     auto updateWebBadge = [this]() {
         const int count = m_web->model() ? m_web->model()->rowCount() : 0;
         m_nav->setBadge(QStringLiteral("web"),
@@ -140,7 +139,7 @@ void BuiltinPages::wireWebRules()
 
 void BuiltinPages::wirePagePersistence()
 {
-    // Restore the last visited page once (03-migration-plan.md S4-T9) and
+    // Restore the last visited page once and
     // persist every switch.
     const QString last = m_shell->lastPageId();
     if (!last.isEmpty())

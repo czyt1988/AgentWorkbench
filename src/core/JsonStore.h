@@ -8,8 +8,8 @@
 
 namespace awb::core {
 
-// JSON file I/O for every configuration file the application writes
-// (01-architecture.md §4.1): atomic saves via QSaveFile, consistent
+// JSON file I/O for every configuration file the application writes.
+// Atomic saves via QSaveFile, consistent
 // indentation, and read failures that degrade to an empty object plus a
 // log line instead of taking the app down.
 class JsonStore

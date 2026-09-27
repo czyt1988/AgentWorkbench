@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Status bar (specs/02 §2.1): runtime badges on the left, activity counts
+// Status bar: runtime badges on the left, activity counts
 // in the middle, app version on the right. Height = theme.statusBarHeight.
 Rectangle {
     id: statusBar

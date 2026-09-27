@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Modal dialog skeleton (specs/02 §10.2): centered, overlay background,
+// Modal dialog skeleton: centered, overlay background,
 // Esc closes, focus starts on the first interactive child.
 Dialog {
     id: control

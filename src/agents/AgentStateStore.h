@@ -6,9 +6,8 @@
 
 namespace awb::agents {
 
-// agent_state.json: which agents have completed their one-time setup
-// (01-architecture.md §4.3). Loaded once, written atomically via
-// core::JsonStore.
+// agent_state.json: which agents have completed their one-time setup.
+// Loaded once, written atomically via core::JsonStore.
 class AgentStateStore
 {
 public:

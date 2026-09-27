@@ -8,9 +8,8 @@
 
 namespace awb::web {
 
-// One open Web tab (01-architecture.md §4.5). All properties are NOTifiable
+// One open Web tab. All properties are NOTifiable
 // so the tab bar and the surface rebind when the state machine advances
-// (02-ui-specification.md §6.3).
 class WebTab : public QObject
 {
     Q_OBJECT

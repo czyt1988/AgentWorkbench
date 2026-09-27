@@ -1,6 +1,6 @@
 #include "awbtest.h"
 
-// Entry point of the agents test suite (specs/01 §11): every registered
+// Entry point of the agents test suite: every registered
 // class runs in sequence under the single `tst_agents` target.
 int main(int argc, char *argv[])
 {

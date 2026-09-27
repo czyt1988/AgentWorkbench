@@ -5,7 +5,7 @@ import AgentWorkbench.App
 import AgentWorkbench
 
 // The workspace host: one page at a time, loaded by source from the
-// navigation model (specs/01 §8.3). Switching destroys the previous page;
+// navigation model. Switching destroys the previous page;
 // state that must survive lives in C++.
 Rectangle {
     id: workspace

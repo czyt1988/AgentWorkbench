@@ -37,7 +37,7 @@ private slots:
     }
 
     // Empty or unresolvable input falls back to the caller-provided icon —
-    // core never hardcodes an application resource path (specs/01 §4.1).
+    // core never hardcodes an application resource path.
     void testFallbackIsCallerProvided()
     {
         QCOMPARE(IconResolver::resolve(QString(), kFallback), kFallback);

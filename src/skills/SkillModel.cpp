@@ -119,7 +119,7 @@ void SkillModel::refilter()
         filtered.append(skill);
     }
 
-    // Sorting: name (locale-aware, 02 §7.5), most recently modified first,
+    // Sorting: name (locale-aware), most recently modified first,
     // or grouped by source kind then name.
     if (m_sortMode == QLatin1String("modified")) {
         std::sort(filtered.begin(), filtered.end(),

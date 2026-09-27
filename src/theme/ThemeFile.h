@@ -8,9 +8,8 @@
 
 namespace awb::theme {
 
-// One parsed theme JSON file (01-architecture.md §4.2). Token names are
-// the contract defined in 02-ui-specification.md §9; values may differ per
-// theme.
+// One parsed theme JSON file. Token names are the contract the QML pages
+// rely on; values may differ per theme.
 struct ThemeFile
 {
     QString id;      // empty = invalid / unusable file

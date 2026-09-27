@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The settings page (specs/02 §5, specs/03 S4-T7): grouped sections in a
+// The settings page: grouped sections in a
 // scrollable column. It hosts the application-level settings; the launcher
 // list stays here for continuity with 0.3.0.
 Page {
@@ -267,7 +267,7 @@ Page {
                             }
 
                             // Running-state dot with tooltip (never
-                            // color-only, specs/02 §14).
+                            // color-only).
                             Rectangle {
                                 width: 10
                                 height: 10
@@ -343,7 +343,7 @@ Page {
                 }
             }
 
-            // --- Skills (specs/03 S6-T6) ------------------------------------
+            // --- Skills ------------------------------------
             ASectionHeader {
                 text: qsTr("Skills")
                 Layout.leftMargin: theme.spacingL
@@ -495,7 +495,6 @@ Page {
                     textRole: "text"
                     valueRole: "value"
                     // Without WebEngine only the external surface exists
-                    // (02 §6.7).
                     model: web.engineAvailable
                            ? [{ text: qsTr("Embedded (in-app)"), value: "embedded" },
                               { text: qsTr("External (system browser)"), value: "external" }]
@@ -541,14 +540,14 @@ Page {
                 wrapMode: Text.WordWrap
             }
 
-            // --- Plugins (experimental, specs/01 §9) --------------------------
+            // --- Plugins (experimental) --------------------------
             ASectionHeader {
                 text: qsTr("Plugins")
                 Layout.leftMargin: theme.spacingL
                 Layout.rightMargin: theme.spacingL
             }
 
-            // Trust notice — required by specs/01 §9.3.
+            // Trust notice — required by
             Label {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL
@@ -630,7 +629,7 @@ Page {
                                     elide: Text.ElideRight
                                 }
                             }
-                            // Effective on the next start (§9.3).
+                            // Effective on the next start.
                             Switch {
                                 checked: modelData.enabled
                                 onToggled: workbench.setPluginEnabled(

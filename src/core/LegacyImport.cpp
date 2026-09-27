@@ -25,8 +25,7 @@ bool copyFileIfAbsent(const QString &src, const QString &dst)
 
 // A data root holding nothing but its log directory counts as untouched:
 // Logging::install() creates that directory before anything else runs
-// (01-architecture.md §4.9), so on the first start after an upgrade the
-// only entry present is `log/`. Every other entry means the new version
+// so on the first start after an upgrade the only entry present is `log/`. Every other entry means the new version
 // has already written user data here — do not import over it.
 bool isUntouched(const QString &root)
 {

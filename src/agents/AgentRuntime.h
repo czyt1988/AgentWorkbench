@@ -12,7 +12,7 @@ namespace awb::agents {
 class AgentModel;
 
 // The agent's own long-running process: launch, stop, force-stop, and the
-// session-scoped PID bookkeeping (01-architecture.md §4.3).
+// session-scoped PID bookkeeping.
 //
 // PIDs live in memory only: an agent detected as running by the HTTP health
 // check but not started from this launcher session has no PID and can only
@@ -50,7 +50,7 @@ public:
 
     // Return the PIDs of processes listening on the given TCP port. The
     // port→PID parsing behind forceStop(); public so the mapping can be
-    // verified directly (specs/03 S2-T4: the logic is kept AND has cases).
+    // verified directly (the logic is kept AND has cases).
     static QList<qint64> findPidsForPort(int port);
 
 signals:

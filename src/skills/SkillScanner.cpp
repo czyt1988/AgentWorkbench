@@ -96,7 +96,7 @@ void expandPattern(const QString &pattern, QStringList &out)
 }
 
 // Fixed prefix before the first wildcard of a root path (used to derive
-// "<plugin>/<version>" from the cache layout, 02 §7.2 row 4).
+// "<plugin>/<version>" from the cache layout).
 QString fixedPrefix(const QString &path)
 {
     const QStringList segments = path.split(QLatin1Char('/'));
@@ -127,7 +127,7 @@ QList<SkillRoot> SkillScanner::roots() const
 void SkillScanner::setRootEnabled(const QString &id, bool enabled)
 {
     // Persist the full effective list so toggles survive a restart even
-    // when the user never customized the roots (02 §7.2: a non-empty
+    // when the user never customized the roots (a non-empty
     // skills.roots completely replaces the defaults).
     const QList<SkillRoot> current =
         m_roots.isEmpty() ? SkillRoots::defaults() : m_roots;
@@ -195,7 +195,7 @@ SkillRoot SkillScanner::effectiveRoot(const SkillRoot &configured) const
 {
     // The one place placeholders become real paths: settings store paths
     // RAW ("~", "%PWD%", wildcards) so persisting them back never bakes in
-    // an expansion (02 §7.2). Wildcards are expanded further downstream
+    // an expansion. Wildcards are expanded further downstream
     // by expandWildcards().
     SkillRoot root = configured;
     root.path.replace(QStringLiteral("%PWD%"),
@@ -288,7 +288,7 @@ void SkillScanner::scanDirectory(const QString &dirPath, const SkillRoot &root,
         skill.sizeBytes = skillInfo.size();
 
         // Plugin cache layout: <base>/<marketplace>/<plugin>/<version>/
-        // skills/<skill> (02 §7.2 row 4). Everything before the "skills"
+        // skills/<skill> (row 4). Everything before the "skills"
         // segment identifies the source; the last of those segments is the
         // version, the rest the plugin id (marketplace/plugin).
         if (root.kind == QLatin1String("plugin") && !base.isEmpty()
@@ -328,9 +328,9 @@ void SkillScanner::scanDirectory(const QString &dirPath, const SkillRoot &root,
     }
 }
 
-// Same plugin, several versions in the cache: keep the highest only
-// (01 §4.4 / 02 §7.2). Skills from non-plugin roots are untouched, and
-// same-named skills from different roots all stay (02 §7.2 dedup rule).
+// Same plugin, several versions in the cache: keep the highest only.
+// Skills from non-plugin roots are untouched, and
+// same-named skills from different roots all stay (dedup rule).
 void SkillScanner::dedupePluginVersions(Stats &stats)
 {
     QHash<QString, int> bestIndex; // "<rootId>|<pluginId>|<skill name>"

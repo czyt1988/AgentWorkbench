@@ -1,4 +1,4 @@
-# tst_web — web tabs suite (specs/01 §11). Deliberately does NOT link
+# tst_web — web tabs suite. Deliberately does NOT link
 # Qt WebEngine, so it runs in any configuration.
 qt_add_executable(tst_web
     tst_web.cpp

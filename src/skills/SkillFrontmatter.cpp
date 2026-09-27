@@ -88,7 +88,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
 {
     SkillFrontmatter result;
 
-    // Tolerate a UTF-8 BOM and CRLF/CR line endings (01 §4.4).
+    // Tolerate a UTF-8 BOM and CRLF/CR line endings.
     QByteArray body = content;
     if (body.startsWith("\xEF\xBB\xBF"))
         body.remove(0, 3);
@@ -186,7 +186,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         const QString rest = match.captured(3).trimmed();
 
         if (!currentKey.isEmpty() && indent > currentIndent) {
-            // Nested scalar key -> flatten as parent.child (01 §4.4).
+            // Nested scalar key -> flatten as parent.child.
             const QString flatKey = currentKey + QLatin1Char('.') + key;
             if (rest.isEmpty()) {
                 currentKey = flatKey;

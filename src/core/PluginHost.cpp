@@ -15,7 +15,7 @@ namespace awb::core {
 namespace {
 
 // Parse one plugin.json; invalid manifests return an invalid Manifest
-// (empty id) — the caller logs and skips (specs/01 §9.3).
+// (empty id) — the caller logs and skips.
 PluginHost::Manifest parseManifest(const QString &path)
 {
     PluginHost::Manifest manifest;

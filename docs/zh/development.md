@@ -52,7 +52,6 @@ examples/     示例插件（AWB_BUILD_PLUGIN_EXAMPLES）
 tests/        每模块一个测试目标 + check_architecture
 scripts/      build.sh、package.sh、check-architecture.sh
 docs/         MkDocs 站点（英文 + zh/）
-specs/        重构规格（架构 / 界面 / 实施计划）
 ```
 
 ## 构建选项
@@ -91,7 +90,7 @@ ctest 每个模块一个可执行文件，外加架构守门：
 
 ## 架构
 
-分层与依赖规则以 `specs/01-architecture.md` 为准，简述：
+分层与依赖规则简述：
 
 - **分层**：`app → workbench → {shell, agents, skills, web, theme} → core`。
   领域模块之间零依赖，跨域行为写在 `awb_workbench`。

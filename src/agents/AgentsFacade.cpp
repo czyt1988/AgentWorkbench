@@ -78,7 +78,7 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
           m_model, settings->launcherOptions().healthCheckIntervalMs, this))
 {
     // Configuration: built-ins from the shipped default, user agents on top.
-    // Auto-assignment colors come from the current theme (specs/03 S3-T1).
+    // Auto-assignment colors come from the current theme.
     if (theme)
         m_repo->setAgentPalette(theme->agentPalette());
     m_repo->load();
@@ -92,7 +92,7 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
     connect(m_runtime, &AgentRuntime::recheckRequested, m_health,
             &AgentHealthMonitor::recheckNow);
     // Health transitions leave the domain so BuiltinPages can apply the
-    // cross-domain rules (tab offline/online — 01 §4.8).
+    // cross-domain rules (tab offline/online).
     connect(m_health, &AgentHealthMonitor::runningChanged, this,
             &AgentsFacade::runningChanged);
 
@@ -181,7 +181,7 @@ void AgentsFacade::forceStop(const QString &id)
 }
 
 // openWeb deliberately absent: opening the web UI is the cross-domain
-// workbench intent `workbench.openWeb(id)` (01 §4.3), never a facade call.
+// workbench intent `workbench.openWeb(id)`, never a facade call.
 
 void AgentsFacade::openConfigDir(const QString &id)
 {

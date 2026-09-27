@@ -1,4 +1,4 @@
-# Translatable source list for lupdate/lrelease (specs/01-architecture.md §10).
+# Translatable source list for lupdate/lrelease.
 # One .ts file (translations/agentworkbench_zh_CN.ts) covers the whole app;
 # every source with tr()/translate()/qsTr() must appear here, so add new
 # files to this list rather than to the qt6_create_translation() call.

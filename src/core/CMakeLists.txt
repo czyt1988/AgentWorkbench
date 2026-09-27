@@ -1,6 +1,6 @@
 # awb_core (L0): infrastructure with no business knowledge and no UI
 # dependency. Public include root is src/, so consumers write
-# `#include "core/Paths.h"` (01-architecture.md §6).
+# `#include "core/Paths.h"`.
 qt_add_library(awb_core STATIC
     EnvExpander.cpp
     EnvExpander.h

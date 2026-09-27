@@ -44,7 +44,6 @@ private slots:
     }
 
     // A duplicate id is rejected and logged; the first page stays
-    // (specs/03 S4-T1).
     void testDuplicatePageRejected()
     {
         NavigationModel nav;
@@ -138,7 +137,7 @@ private slots:
     }
 
     // Sidebar collapse and window geometry persist to settings.json and
-    // come back after a fresh controller (S4-T9).
+    // come back after a fresh controller.
     void testSidebarStatePersists()
     {
         QVERIFY(QDir().mkpath(
@@ -164,7 +163,7 @@ private slots:
         QFile::remove(Settings::settingsFilePath());
     }
 
-    // Clipboard writes report success and failure as OpResult (S4-T1).
+    // Clipboard writes report success and failure as OpResult.
     void testClipboardResult()
     {
         UiServices ui;

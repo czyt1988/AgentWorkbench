@@ -1,4 +1,4 @@
-# The example plugin (specs/01 §9.4): a SHARED library exporting the two
+# The example plugin: a SHARED library exporting the two
 # C entry points, with its own QML shipped as a plugin-side resource
 # (shared-library qrc initializers run on load — unlike static libraries).
 qt_add_library(awb_example_hello SHARED

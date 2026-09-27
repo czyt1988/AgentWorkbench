@@ -1,5 +1,5 @@
-# awb_web_webengine (L2 adapter): the only target linking Qt WebEngine
-# (specs/01-architecture.md §5.1). The program still builds with
+# awb_web_webengine (L2 adapter): the only target linking Qt WebEngine.
+# The program still builds with
 # AWB_ENABLE_WEBENGINE=OFF — the external surface takes over.
 qt_add_library(awb_web_webengine STATIC
     WebEngineProfileStore.cpp

@@ -1,6 +1,6 @@
 # awb_agents (L2 domain): agent definitions, persistence, process
 # lifecycle, health checks and one-shot commands. Depends on awb_core only
-# (no Qt Quick, no other domain modules — specs/01-architecture.md §5.1).
+# (no Qt Quick, no other domain modules).
 qt_add_library(awb_agents STATIC
     AgentDefinition.h
     AgentHealthMonitor.cpp

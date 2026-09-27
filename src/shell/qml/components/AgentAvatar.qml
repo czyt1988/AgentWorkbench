@@ -3,9 +3,9 @@ import QtQuick.Controls
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Agent icon + status dot (specs/02 §10.2), shared by launcher cards and
+// Agent icon + status dot, shared by launcher cards and
 // (from S5) web tabs. Status is never color-only: a tooltip carries the
-// text state as well (specs/02 §14).
+// text state as well.
 Item {
     id: control
 

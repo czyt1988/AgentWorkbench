@@ -31,7 +31,7 @@ private slots:
         Paths::setDataRootForTesting(QString());
     }
 
-    // Both built-ins are listed, in a stable order (02 §9.1).
+    // Both built-ins are listed, in a stable order.
     void testBuiltinsListed()
     {
         ThemeRegistry registry;

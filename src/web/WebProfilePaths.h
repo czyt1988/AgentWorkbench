@@ -5,7 +5,7 @@
 
 namespace awb::web {
 
-// Per-agent persistent profile locations (01-architecture.md §4.5).
+// Per-agent persistent profile locations.
 //
 // One profile per agent is a HARD requirement: Chromium indexes cookies by
 // host and IGNORES the port, so a shared profile would cross-contaminate

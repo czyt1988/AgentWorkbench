@@ -6,7 +6,7 @@
 namespace awb::agents {
 
 // The runtime-only fields of an agent — they exist only in memory and are
-// never written to agents.json (01-architecture.md §4.3).
+// never written to agents.json.
 struct AgentState
 {
     bool running = false;

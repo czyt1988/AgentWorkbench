@@ -68,7 +68,7 @@ private slots:
     }
 
     // The role names must stay byte-compatible with 0.3.0 so the card QML
-    // keeps working unchanged (specs/03 S2-T1).
+    // keeps working unchanged.
     void testRoleNamesUnchanged()
     {
         AgentModel model;

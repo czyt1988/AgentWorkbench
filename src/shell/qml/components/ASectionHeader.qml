@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Settings section header (specs/02 §10.2): subtitle + bottom separator.
+// Settings section header: subtitle + bottom separator.
 ColumnLayout {
     id: control
 

@@ -23,7 +23,7 @@ private slots:
         QVERIFY(m_baseline.isValid());
     }
 
-    // Unknown keys are ignored with a warning, never fatal (02 §9.2).
+    // Unknown keys are ignored with a warning, never fatal.
     void testUnknownKeysIgnored()
     {
         QJsonObject json = baseJson();
@@ -62,7 +62,7 @@ private slots:
         QCOMPARE(out.agentPalette, m_baseline.agentPalette);
     }
 
-    // An unparseable color falls back to the baseline (02 §9.2).
+    // An unparseable color falls back to the baseline.
     void testInvalidColorFallsBack()
     {
         QJsonObject json = baseJson();

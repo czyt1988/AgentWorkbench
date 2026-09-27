@@ -9,7 +9,7 @@
 namespace awb::agents {
 
 // agents.json: read/write plus the built-in sync semantics of 0.3.0
-// (01-architecture.md §4.3). The data root is injected at construction —
+// The data root is injected at construction —
 // no global state inside the module.
 class AgentRepository
 {
@@ -60,7 +60,7 @@ public:
     static QString slugFromName(const QString &name);
 
     // The palette used for auto-assigning colors to agents without one.
-    // Injected from the current theme's agentPalette (specs/03 S3-T1);
+    // Injected from the current theme's agentPalette;
     // when empty, the built-in Mocha array is used.
     void setAgentPalette(const QStringList &palette) { m_agentPalette = palette; }
 
@@ -69,7 +69,7 @@ public:
     static QString paletteColorAt(int index);
 
     // Position-based color for a NEW agent: prefers the injected theme
-    // palette, falls back to the built-in Mocha array (specs/03 S3-T1).
+    // palette, falls back to the built-in Mocha array.
     QString paletteColorFor(int index) const;
 
     // Resolve an icon string for display; the application-level fallback

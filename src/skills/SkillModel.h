@@ -10,8 +10,8 @@
 
 namespace awb::skills {
 
-// The skill list with client-side filtering, source facets and sorting
-// (01-architecture.md §4.4). The full scan result is kept master-side so
+// The skill list with client-side filtering, source facets and sorting.
+// The full scan result is kept master-side so
 // changing a filter never needs a rescan.
 class SkillModel : public QAbstractListModel
 {
@@ -19,11 +19,11 @@ class SkillModel : public QAbstractListModel
 
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText
                NOTIFY filterChanged)
-    // Selected kinds; empty = "All" (02 §7.5 facets are multi-select with
+    // Selected kinds; empty = "All" (facets are multi-select with
     // "All" mutually exclusive — the page passes an empty set for All).
     Q_PROPERTY(QStringList activeKinds READ activeKinds WRITE setActiveKinds
                NOTIFY filterChanged)
-    // name | modified | kind (02 §7.5)
+    // name | modified | kind
     Q_PROPERTY(QString sortMode READ sortMode WRITE setSortMode
                NOTIFY filterChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
@@ -66,7 +66,7 @@ public:
 
     int totalCount() const { return m_all.size(); }
 
-    // The i18n-aware "%n skill(s) found" argument (02 §7.5).
+    // The i18n-aware "%n skill(s) found" argument.
     Q_INVOKABLE int visibleCount() const { return rowCount(); }
 
 signals:

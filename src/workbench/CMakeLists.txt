@@ -1,5 +1,5 @@
 # awb_workbench (L3): composition root intents — the only module allowed to
-# depend on every domain (specs/01-architecture.md §4.8).
+# depend on every domain.
 qt_add_library(awb_workbench STATIC
     BuiltinPages.cpp
     BuiltinPages.h

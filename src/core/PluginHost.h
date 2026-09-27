@@ -11,11 +11,11 @@ class QLibrary;
 
 namespace awb::core {
 
-// Plugin discovery and loading (01-architecture.md §4.1, §9). Scans
+// Plugin discovery and loading. Scans
 // <dataRoot>/plugins/*/plugin.json, validates the API version, and loads
 // the entry dynamic library through the two exported C symbols.
 //
-// Safety rules (§9.3): a broken manifest, a version mismatch or a failed
+// Safety rules: a broken manifest, a version mismatch or a failed
 // load is LOGGED and skipped — a plugin can never keep the app from
 // starting. Everything runs in the host process; there is no sandbox, so
 // plugins are disabled by default and users opt in per plugin.

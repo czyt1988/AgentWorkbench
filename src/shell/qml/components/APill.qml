@@ -3,7 +3,7 @@ import QtQuick.Controls
 import AgentWorkbench.App
 import AgentWorkbench
 
-// Pill badge (specs/02 §10.2): rounded capsule on the badge background.
+// Pill badge: rounded capsule on the badge background.
 Rectangle {
     id: control
 

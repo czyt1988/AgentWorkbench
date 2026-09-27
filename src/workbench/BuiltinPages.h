@@ -22,7 +22,7 @@ class SkillsFacade;
 namespace awb::workbench {
 
 // Registers the built-in pages into the shell's NavigationModel and wires
-// the cross-domain rules (01-architecture.md §4.8): sidebar badges from
+// the cross-domain rules: sidebar badges from
 // agent state, current-page persistence. Later stages add their pages
 // through the same path (S5: web, S6: skills, S7: plugins).
 class BuiltinPages : public QObject

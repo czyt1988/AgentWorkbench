@@ -11,9 +11,9 @@ class Settings;
 namespace awb::shell {
 
 // Window-level state — every value is persisted in settings.json through
-// core::Settings (01-architecture.md §4.7): sidebar collapse/width, window
+// core::Settings: sidebar collapse/width, window
 // size, the last visited page. Restarting restores the previous session's
-// shape (03-migration-plan.md S4-T9).
+// shape.
 class ShellController : public QObject
 {
     Q_OBJECT
@@ -48,7 +48,7 @@ public:
     QString lastPageId() const;
     void setLastPageId(const QString &id);
 
-    // Web options (02 §6.7): surface policy + Chromium flags.
+    // Web options: surface policy + Chromium flags.
     // Q_INVOKABLE — same reason as NavigationModel::setCurrentPageId: these
     // have no WRITE accessor, so QML could not call them as methods (the
     // settings page's surface/flags edits silently did nothing).

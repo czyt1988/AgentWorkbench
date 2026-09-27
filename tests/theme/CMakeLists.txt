@@ -1,4 +1,4 @@
-# tst_theme — theme engine suite (specs/01 §11): loader validation rules
+# tst_theme — theme engine suite: loader validation rules
 # and registry built-in/user override behaviour.
 qt_add_executable(tst_theme
     tst_theme_main.cpp

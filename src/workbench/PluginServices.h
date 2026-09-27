@@ -20,7 +20,7 @@ class WebTabsFacade;
 
 namespace awb::workbench {
 
-// The host-side implementation of plugin::Services (specs/01 §9.3): the
+// The host-side implementation of plugin::Services: the
 // bridge between the plugin ABI and the shell/theme/web facilities. Lives
 // in the application layer because it is the only layer allowed to touch
 // every module.

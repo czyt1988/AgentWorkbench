@@ -15,7 +15,7 @@ using awb::agents::AgentModel;
 using awb::agents::AgentRuntime;
 
 // Launch/stop/force-stop bookkeeping and the port→PID parsing behind
-// force-stop (specs/03 S2-T4: the logic is kept AND has cases).
+// force-stop (the logic is kept AND has cases).
 class TestAgentRuntime : public QObject
 {
     Q_OBJECT

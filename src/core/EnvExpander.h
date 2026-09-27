@@ -6,7 +6,7 @@
 namespace awb::core {
 
 // Path expansion shared by every module: %VAR% (Windows style) environment
-// variables and a leading ~ for the home directory (01-architecture.md §4.1).
+// variables and a leading ~ for the home directory.
 class EnvExpander
 {
 public:

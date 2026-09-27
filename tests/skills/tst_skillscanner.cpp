@@ -19,7 +19,7 @@ using awb::skills::SkillModel;
 using awb::skills::SkillRoot;
 using awb::skills::SkillScanner;
 
-// specs/03 S6-T3: multi-root scanning, plugin multi-version dedup, a
+// Covers multi-root scanning, plugin multi-version dedup, a
 // missing root never fails the scan. Uses fixed text samples in temp dirs —
 // never the machine's real skill directories.
 class TestSkillScanner : public QObject
@@ -69,7 +69,7 @@ private slots:
     }
 
     // Multiple versions of the same plugin in the cache: only the highest
-    // survives; unrelated plugins are untouched (02 §7.2).
+    // survives; unrelated plugins are untouched.
     void testPluginVersionDedup()
     {
         QTemporaryDir tmp;
@@ -214,7 +214,7 @@ private slots:
         QVERIFY(!names.contains(QStringLiteral("deep")));
     }
 
-    // Filtering: search + kind facets + sort on the model (02 §7.5).
+    // Filtering: search + kind facets + sort on the model.
     void testModelFilterAndSort()
     {
         QList<SkillDefinition> skills;

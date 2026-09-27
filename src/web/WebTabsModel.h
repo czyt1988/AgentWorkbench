@@ -8,7 +8,7 @@
 
 namespace awb::web {
 
-// The tab list model behind the tab bar (01-architecture.md §4.5).
+// The tab list model behind the tab bar.
 // Surfaces report their progress/title back through the mutators below.
 class WebTabsModel : public QAbstractListModel
 {

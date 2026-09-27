@@ -20,7 +20,7 @@ class TestAgentScripts : public QObject
 private slots:
     // End-to-end check of the command log: launching an install really runs
     // `cmd /c <installCommand>`, and the log then carries the command line,
-    // the exit code and the command's own output (specs/03 §5:
+    // the exit code and the command's own output (see
     // testInstallCommandIsLogged).
     void testInstallCommandIsLogged()
     {

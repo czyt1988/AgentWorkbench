@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench.App
 import AgentWorkbench
 
-// The app-wide button (specs/02 §10.2): themed variants, fixed height,
+// The app-wide button: themed variants, fixed height,
 // tokenized radius — no bare Rectangle buttons anywhere else.
 Button {
     id: control
@@ -37,7 +37,7 @@ Button {
                                                        : theme.surfaceAltBg)
             }
         }
-        // Keyboard focus ring (02 §10.1/§14): 2px focusRing, drawn whenever
+        // Keyboard focus ring: 2px focusRing, drawn whenever
         // the button has active focus — not only during keyboard navigation.
         border.color: control.activeFocus ? theme.focusRing
                       : (control.variant === "secondary" ? theme.borderSubtle

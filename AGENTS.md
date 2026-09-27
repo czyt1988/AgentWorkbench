@@ -6,16 +6,6 @@
 
 AgentWorkbench（0.4.0 起由 AgentLauncher 改名而来）是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：左侧边栏 + 右侧工作区的外壳，内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题与实验性插件。它**配置化驱动**：agent 的定义（命令、Web 地址、配置目录、颜色）都在 `agents.json` 里，应用设置在 `settings.json` 里，而不是写在 C++ 中。
 
-## 规格（必读）
-
-重构规格在 `specs/` 下，**动手改代码前先读**：
-
-- `specs/01-architecture.md` — 分层、模块划分、依赖规则、配置与数据文件、插件化基础。§5.3 是门禁规则表、§8.2 是 QML 绑定硬约束、§11 是测试策略。
-- `specs/02-ui-specification.md` — 窗口骨架、侧边栏、各页面、主题文件与令牌规格。
-- `specs/03-migration-plan.md` — 分阶段实施计划、文件与测试迁移映射、验收清单与历轮审查发现。
-
-规格里的模块名、目标名、路径、公开类型名、配置键名、主题令牌名是契约：实现要与规格一致；确需改动时先改规格并写清理由。规格与代码冲突时以规格为准。实施状态与人工验收记录追加在 `specs/03-migration-plan.md`；面向使用者的文档在 `docs/`（MkDocs 站点，英文 + `docs/zh/`）。
-
 ## 构建
 
 ```bash
@@ -64,7 +54,6 @@ icons/         SVG 图标（打包为 Qt 资源）
 examples/      示例插件（examples/plugins/hello）
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
 docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
-specs/         重构规格（架构 / 界面 / 实施计划，见上文）
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
 scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 ```
@@ -75,7 +64,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 单元测试在 `QStandardPaths::setTestModeEnabled(true)` 下运行——测试模式不重定向 `HomeLocation`，因此 `dataRoot()` 改用测试模式对应位置；需要固定目录的测试用 `Paths::setDataRootForTesting()` 注入 `QTemporaryDir`。**任何测试都不许读写开发者真实的数据目录。**
 
-`settings.json` 的键位表见 `specs/01` §7.2，读写只经 `core::Settings`，禁止在别处直接读这个文件；缺键取默认值、未知键记警告，**没有迁移代码，也不要加**。`agents.json` 根级 `title` 字段已停用（窗口标题来自 `window.title`，残留值会记一条 INFO）。根级可选的 `removed` 数组记录用户删除的内置 agent id；内置 agent 每次启动都按随包默认重新生成，靠这个列表保持删除状态。
+`settings.json` 的键位表就是 `core::Settings` 里的那组结构体（`WindowSettings` 等），读写只经 `core::Settings`，禁止在别处直接读这个文件；缺键取默认值、未知键记警告，**没有迁移代码，也不要加**。`agents.json` 根级 `title` 字段已停用（窗口标题来自 `window.title`，残留值会记一条 INFO）。根级可选的 `removed` 数组记录用户删除的内置 agent id；内置 agent 每次启动都按随包默认重新生成，靠这个列表保持删除状态。
 
 每个 agent 对象包含：`id`、`name`、`command`、`webUrl`、`configDir`、`icon`、`color`、`cardColor`、`installCommand`、`updateCommand`、`versionCommand`、`setupCommand`、`tokenFile`。**内置** agent 的定义只来自 `config/default_agents.json`，改它并重新编译即可，不要在 C++ 中硬编码 agent 条目。与默认完全一致（无自建、无删除）时 `save()` 逐字节写入内置文件，保持可 diff。
 
@@ -85,7 +74,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 ### 依赖方向与门禁
 
-`app → workbench → {shell, agents, skills, web, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败（§5.3）：
+`app → workbench → {shell, agents, skills, web, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
 
 1. 反向/横向 include：`src/{agents,skills,web}` 不许 include `shell/`、`workbench/` 或彼此的目录；
 2. QML 字面颜色：不许 `#rrggbb`/`#rgb`，也不许 `Qt.rgba(<数字>, …)`（`"transparent"` 与 `Qt.rgba(theme.…)` 这类表达式允许）；

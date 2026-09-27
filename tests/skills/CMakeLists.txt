@@ -1,4 +1,4 @@
-# tst_skills — frontmatter parsing + scanning (specs/01 §11).
+# tst_skills — frontmatter parsing + scanning.
 qt_add_executable(tst_skills
     tst_skills_main.cpp
     tst_skillfrontmatter.cpp

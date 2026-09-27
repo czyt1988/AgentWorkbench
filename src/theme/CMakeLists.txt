@@ -1,5 +1,5 @@
 # awb_theme (L1): theme JSON -> semantic tokens -> QML properties.
-# Links Qt Core + Gui (QColor) only — no Qt Quick (specs/01 §4.2).
+# Links Qt Core + Gui (QColor) only — no Qt Quick.
 qt_add_library(awb_theme STATIC
     Theme.cpp
     Theme.h

@@ -1,6 +1,5 @@
 # awb_skills (L2 domain): discovery and presentation of local skills.
 # Depends on awb_core/awb_theme only — never on shell or other domains
-# (specs/01-architecture.md §5.1).
 qt_add_library(awb_skills STATIC
     SkillDefinition.h
     SkillFrontmatter.cpp

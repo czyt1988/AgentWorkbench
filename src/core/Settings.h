@@ -10,8 +10,8 @@
 
 namespace awb::core {
 
-// settings.json value types. Defaults come from 01-architecture.md §7.2;
-// missing keys take them, unknown keys are ignored with a warning, and
+// settings.json value types. Missing keys take these defaults, unknown
+// keys are ignored with a warning, and
 // there is deliberately no migration code — add a key, add its default.
 struct WindowSettings
 {
@@ -69,7 +69,7 @@ struct PluginsSettings
     QStringList disabledIds;
 };
 
-// Typed access layer for settings.json (01-architecture.md §4.1/§7.2).
+// Typed access layer for settings.json.
 // The application must not read settings.json anywhere else.
 class Settings : public QObject
 {
@@ -90,7 +90,7 @@ public:
     const LoggingSettings &loggingOptions() const { return m_logging; }
     const PluginsSettings &pluginsOptions() const { return m_plugins; }
 
-    // Spec-named shortcuts (01-architecture.md §4.1).
+    // Spec-named shortcuts.
     QString themeId() const;
     QString windowTitle() const;
     QJsonArray skillsRoots() const;

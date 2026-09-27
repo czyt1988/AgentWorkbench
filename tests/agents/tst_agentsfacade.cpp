@@ -21,7 +21,7 @@ class TestAgentsFacade : public QObject
 
 private slots:
     // CRUD coverage of the 0.3.0 `launcher` API, now on `agents`
-    // (specs/03 §5: testLauncherCrud).
+    // (testLauncherCrud).
     void testLauncherCrud()
     {
         QTemporaryDir tmp;

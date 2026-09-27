@@ -14,8 +14,8 @@ namespace awb::agents {
 class AgentModel;
 class AgentStateStore;
 
-// One-shot commands for agents — install / update / version / setup
-// (01-architecture.md §4.3). Each command runs through core::ScriptRunner
+// One-shot commands for agents — install / update / version / setup.
+// Each command runs through core::ScriptRunner
 // under a "<operation>:<id>" key; this class owns the per-operation rules
 // (log lines, card state, user-facing signals) that were part of the 0.3.0
 // AgentLauncher.

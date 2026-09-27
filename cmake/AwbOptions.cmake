@@ -1,8 +1,8 @@
-# Build options for AgentWorkbench (specs/01-architecture.md §10).
+# Build options for AgentWorkbench.
 #
 # AWB_ENABLE_WEBENGINE: embedded Web views via Qt WebEngine. WebEngine only
 # ships for MSVC — combining ON with MinGW must fail at configure time with
-# a readable message, not with a wall of linker errors (§10, specs/03 S5-T2).
+# a readable message, not with a wall of linker errors.
 
 option(AWB_ENABLE_WEBENGINE "Embed agent WebUIs with Qt WebEngine" ON)
 option(AWB_BUILD_PLUGIN_EXAMPLES "Build the example plugins (dev only)" OFF)

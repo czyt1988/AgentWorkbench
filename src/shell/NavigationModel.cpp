@@ -7,7 +7,7 @@
 namespace awb::shell {
 
 namespace {
-// Sidebar sections in display order (02-ui-specification.md §3.1).
+// Sidebar sections in display order.
 int sectionRank(const QString &section)
 {
     if (section == QLatin1String("main"))

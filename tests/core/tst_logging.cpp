@@ -83,7 +83,6 @@ private slots:
 
     // Modules log through their own Qt category ("awb.<module>") and the
     // handler writes it as a line prefix so the log is filterable per module
-    // (specs/01 §4.1).
     void testCategoryPrefix()
     {
         QTemporaryDir dir;

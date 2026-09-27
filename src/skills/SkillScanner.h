@@ -15,9 +15,8 @@ namespace awb::skills {
 
 // Walks the configured roots and finds skills: any directory containing a
 // SKILL.md counts as one skill and is not descended into further
-// (01-architecture.md §4.4).
 //
-// Rules (specs/03 S6-T3):
+// Rules:
 //  - a root that is missing or unreadable is skipped with a warning — one
 //    bad root never fails the scan;
 //  - the plugin cache holds several versions of the same plugin; only the

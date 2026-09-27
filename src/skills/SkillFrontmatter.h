@@ -6,7 +6,7 @@
 
 namespace awb::skills {
 
-// Parsed frontmatter of a SKILL.md (01-architecture.md §4.4).
+// Parsed frontmatter of a SKILL.md.
 struct SkillFrontmatter
 {
     bool valid = false; // a leading `---` block was found and parsed
@@ -17,7 +17,7 @@ struct SkillFrontmatter
     QHash<QString, QString> extras;
 };
 
-// A very small YAML subset parser (specs/03 S6-T1): only the leading `---`
+// A very small YAML subset parser: only the leading `---`
 // block, `key: value` scalars, single/double quotes, `>`/`|` block scalars
 // with indented continuation, BOM/CRLF tolerance. Nested mappings are
 // flattened (`metadata.author` style keys); lists appear as part of the

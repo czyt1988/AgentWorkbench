@@ -13,8 +13,8 @@ namespace awb::agents {
 
 class AgentModel;
 
-// HTTP health polling for every agent with a webUrl (01-architecture.md
-// §4.3). Semantics stay with core::HttpProbe: any HTTP response = running,
+// HTTP health polling for every agent with a webUrl.
+// Semantics stay with core::HttpProbe: any HTTP response = running,
 // refused/timeout = stopped. Only transitions are reported — the log tells
 // the story of when an agent came up or went down, not every poll.
 class AgentHealthMonitor : public QObject

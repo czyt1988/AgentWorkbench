@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This release reworks the project from **AgentLauncher** into
 **AgentWorkbench**: a sidebar + workspace shell around the launcher, plus
 embedded Web tabs, a Skill browser, config-file-driven themes and
-experimental plugins. The design lives in the `specs/` directory.
+experimental plugins.
 
 ### Added
 
@@ -95,7 +95,7 @@ experimental plugins. The design lives in the `specs/` directory.
   a UA that misreports `Windows NT 6.2`; use "Open in browser" for affected
   pages.
 - IME candidate windows, fractional-DPI sharpness and drag-and-drop need the
-  manual acceptance pass (specs/03 §6.2).
+  manual acceptance pass.
 
 ## [0.3.0] - 2026-09-10
 

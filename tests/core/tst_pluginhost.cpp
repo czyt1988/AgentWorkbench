@@ -32,7 +32,7 @@ public:
 
 } // namespace
 
-// Plugin discovery and load policy (01-architecture.md §9): manifests are
+// Plugin discovery and load policy: manifests are
 // parsed without loading anything, a broken manifest only hides itself,
 // an API-version mismatch is refused, and nothing loads until the user
 // opts in.
@@ -132,7 +132,7 @@ private slots:
     }
 
     // A manifest targeting another API version is refused before any
-    // library is touched (01 §9.3: mismatch → log + skip).
+    // library is touched (mismatch → log + skip).
     void testApiVersionMismatchIsRefused()
     {
         PluginHost::Manifest manifest;
@@ -149,7 +149,7 @@ private slots:
     }
 
     // A discovered plugin starts disabled: loadEnabled() must not touch it
-    // until the user opts in (01 §9.2: disabled by default).
+    // until the user opts in (disabled by default).
     void testDisabledPluginsAreNotLoaded()
     {
         QTemporaryDir tmp;

@@ -10,7 +10,7 @@ namespace awb::core {
 
 namespace {
 
-// Warn about keys that are not part of the schema (§7.2: unknown keys are
+// Warn about keys that are not part of the schema (unknown keys are
 // ignored and logged, never fatal).
 void warnUnknownKeys(const QJsonObject &obj, const QSet<QString> &known,
                      const QString &where)

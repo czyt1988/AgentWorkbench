@@ -11,7 +11,7 @@
 namespace awb::core {
 
 // Streaming execution of one-shot commands (install / update / version /
-// setup — 01-architecture.md §4.1).
+// setup.
 //
 // A run is identified by `key` (usually the agent id). Starting a new run
 // with the same key invalidates every pending callback of the previous run

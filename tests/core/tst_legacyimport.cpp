@@ -17,7 +17,7 @@ class TestLegacyImport : public QObject
 private slots:
     // One-time adoption of the legacy ~/.AgentLauncher directory: files are
     // copied into the new data root, the legacy directory survives, and a
-    // second call is a no-op (01-architecture.md §7.3).
+    // second call is a no-op.
     void testImportOnce()
     {
         QTemporaryDir tmp;

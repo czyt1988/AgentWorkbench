@@ -7,7 +7,7 @@
 
 namespace awb::core {
 
-// Rotating-file log handler (01-architecture.md §4.1). Installs a Qt
+// Rotating-file log handler. Installs a Qt
 // message handler that writes all qDebug/qInfo/qWarning/qCritical output to
 //   <dataRoot>/log/agentworkbench.log
 // When that file reaches the size limit it is rotated to

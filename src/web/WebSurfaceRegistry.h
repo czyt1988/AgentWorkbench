@@ -7,7 +7,7 @@
 
 namespace awb::web {
 
-// kind -> QML component URL (01-architecture.md §4.5). `external` is
+// kind -> QML component URL. `external` is
 // registered by awb_web itself (it always exists); `embedded` is registered
 // by awb_web_webengine when the build includes WebEngine.
 class WebSurfaceRegistry : public QObject
