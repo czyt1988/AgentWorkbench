@@ -1619,79 +1619,100 @@ Command: %2
 <context>
     <name>ToolsPage</name>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="34"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="35"/>
         <source>Nothing to copy</source>
         <translation>没有可复制的内容</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="35"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="36"/>
         <source>The editor is empty.</source>
         <translation>编辑区是空的。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="39"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="40"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="40"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="41"/>
         <source>The prompt is on the clipboard.</source>
         <translation>提示词已复制到剪贴板。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="49"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="50"/>
         <source>Could not add the workspace</source>
         <translation>无法添加工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="55"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="76"/>
         <source>Choose a workspace folder</source>
         <translation>选择工作区文件夹</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="64"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="85"/>
         <source>Agent Tools</source>
         <translation>Agent 工具</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="65"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="86"/>
         <source>Compose prompts without accidentally sending them</source>
         <translation>安心编写提示词，不会误触发送</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="68"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="89"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="82"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="103"/>
         <source>Workspace</source>
         <translation>工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="133"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="154"/>
         <source>Remove this workspace</source>
         <translation>移除此工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="139"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="160"/>
         <source>Could not remove the workspace</source>
         <translation>无法移除工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="148"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="169"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="353"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="154"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="175"/>
         <source>Refresh the file tree</source>
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="174"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="195"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="221"/>
+        <source>Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="338"/>
+        <source>The workspace folder is empty or unavailable.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="351"/>
+        <source>No workspace selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="352"/>
+        <source>Add a folder to browse its files and insert references into the prompt.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

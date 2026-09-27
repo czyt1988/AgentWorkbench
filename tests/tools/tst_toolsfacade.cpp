@@ -119,6 +119,51 @@ private slots:
         QCOMPARE(finished.count(), 1);
     }
 
+    // ToolsPage.qml 调用的方法面：走 QMetaObject::invokeMethod 复现 QML 的
+    // 真实解析路径（同 tst_shell::testQmlCalledMethodsAreInvokable 的做法，
+    // 抓「声明了但没进 metaobject 方法表」这类只在线上点击时爆的缺陷）。
+    void testQmlCalledMethodsAreInvokable()
+    {
+        QDir(m_ws->path()).mkdir(QStringLiteral("sub"));
+        ToolsFacade facade(Paths::dataRoot());
+        QVERIFY(facade.addWorkspace(m_ws->path()).ok);
+
+        QVERIFY2(QMetaObject::invokeMethod(&facade, "addWorkspace",
+                                           Q_ARG(QString, m_ws->path())),
+                 "tools.addWorkspace is not invokable");
+        QVERIFY2(QMetaObject::invokeMethod(&facade, "refresh"),
+                 "tools.refresh is not invokable");
+        // Q_PROPERTY WRITE 侧走属性系统（QML 赋值的真实路径），
+        // 方法名调用只对 Q_INVOKABLE 生效而 WRITE 不要求。
+        QVERIFY2(facade.setProperty("currentWorkspace", m_ws->path()),
+                 "tools.currentWorkspace is not a writable property");
+        QVERIFY2(facade.setProperty("draft", QStringLiteral("typed")),
+                 "tools.draft is not a writable property");
+        QCOMPARE(facade.draft(), QStringLiteral("typed"));
+
+        awb::tools::FileTreeModel *model = facade.fileTreeModel();
+        const QModelIndex first = model->index(0, 0);
+        QVERIFY2(first.isValid(), "fixture row missing");
+        QVERIFY2(QMetaObject::invokeMethod(model, "setNodeExpanded",
+                                           Q_ARG(QModelIndex, first),
+                                           Q_ARG(bool, true)),
+                 "tools.model.setNodeExpanded is not invokable");
+        QVERIFY2(QMetaObject::invokeMethod(model, "fetchChildren",
+                                           Q_ARG(QModelIndex, first)),
+                 "tools.model.fetchChildren is not invokable");
+        QModelIndex sub;
+        QVERIFY2(QMetaObject::invokeMethod(model, "indexByPath",
+                                           Q_RETURN_ARG(QModelIndex, sub),
+                                           Q_ARG(QString, QStringLiteral("sub"))),
+                 "tools.model.indexByPath is not invokable");
+        QVERIFY(sub.isValid());
+
+        // removeWorkspace 放最后：它会清掉当前工作区，树随之变空。
+        QVERIFY2(QMetaObject::invokeMethod(&facade, "removeWorkspace",
+                                           Q_ARG(QString, m_ws->path())),
+                 "tools.removeWorkspace is not invokable");
+    }
+
 private:
     std::unique_ptr<QTemporaryDir> m_dir;
     std::unique_ptr<QTemporaryDir> m_ws;

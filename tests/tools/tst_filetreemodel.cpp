@@ -124,13 +124,14 @@ private slots:
         QVERIFY(!model.hasChildren(empty));
     }
 
-    void testRefreshSeesChangesAndKeepsFetched()
+    void testRefreshSeesChangesAndRestoresExpanded()
     {
         FileTreeModel model;
         model.setRootPath(m_root);
         const QModelIndex beta = model.index(0, 0);
         model.fetchMore(beta);
-        // 展开目录本身已足够：refresh 恢复的是整条已读取链。
+        // 只有 QML 上报过展开的目录才会被 refresh 恢复（视图经 setNodeExpanded 记录）。
+        model.setNodeExpanded(beta, true);
 
         makeFile(QStringLiteral("new.txt"));
         makeFile(QStringLiteral("Beta/extra.txt"));
@@ -140,6 +141,7 @@ private slots:
         QCOMPARE(refreshed.count(), 1);
 
         QCOMPARE(model.rowCount(QModelIndex()), 5);
+        QCOMPARE(model.restoredExpandedPaths(), QStringList{QStringLiteral("Beta")});
         // reset 之后旧索引失效，一律经 indexByPath 重新取。
         const QModelIndex betaAgain = model.indexByPath(QStringLiteral("Beta"));
         QVERIFY(betaAgain.isValid());
@@ -153,8 +155,41 @@ private slots:
         QCOMPARE(model.data(model.indexByPath(QStringLiteral("new.txt")),
                             FileTreeModel::NameRole),
                  QStringLiteral("new.txt"));
-        // reset 之前的旧索引不作断言：isValid() 只做结构检查，reset 后仍为
-        // true，但 internalPointer 指向已释放的旧节点，使用即未定义行为。
+    }
+
+    void testSetNodeExpandedClearsSubtree()
+    {
+        makeDir(QStringLiteral("Zeta/deep"));
+        makeFile(QStringLiteral("Zeta/deep/leaf.md"));
+        FileTreeModel model;
+        model.setRootPath(m_root);
+
+        const QModelIndex zeta = model.indexByPath(QStringLiteral("Zeta"));
+        model.fetchChildren(zeta);
+        model.setNodeExpanded(zeta, true);
+        const QModelIndex deep = model.indexByPath(QStringLiteral("Zeta/deep"));
+        model.fetchChildren(deep);
+        model.setNodeExpanded(deep, true);
+
+        // 收起父目录必须连子树一起清：否则 refresh 会把看不见的子树也恢复。
+        model.setNodeExpanded(zeta, false);
+        model.refresh();
+        QVERIFY(model.restoredExpandedPaths().isEmpty());
+    }
+
+    void testStaleIndexAfterRefreshIsIgnored()
+    {
+        FileTreeModel model;
+        model.setRootPath(m_root);
+        const QModelIndex beta = model.index(0, 0);
+        model.fetchMore(beta);
+        model.setNodeExpanded(beta, true);
+        model.refresh();
+
+        // reset 之后旧索引的 internalPointer 指向已释放节点；setNodeExpanded
+        // 必须靠代数识别并静默丢弃，而不是解引用它。
+        model.setNodeExpanded(beta, true);
+        QCOMPARE(model.restoredExpandedPaths(), QStringList{QStringLiteral("Beta")});
     }
 
     void testIndexByPathFetchesIntermediates()
