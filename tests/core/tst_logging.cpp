@@ -9,6 +9,9 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <thread>
+#include <vector>
+
 using awb::core::Logging;
 
 Q_LOGGING_CATEGORY(lcAwbTest, "awb.test")
@@ -148,6 +151,63 @@ private slots:
                  qPrintable(text));
         QVERIFY2(text.contains(QStringLiteral("[WARNING] [awb.event]")),
                  qPrintable(text));
+    }
+
+    // 非 ASCII 路径回归：中文目录下的日志文件必须能打开并落盘——当年否决
+    // spdlog 的原因就是窄字符 fopen 打不开这类路径（SPDLOG_WCHAR_FILENAMES
+    // 是这里能过的前提）。
+    void testNonAsciiLogPath()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString logDir = dir.path() + QStringLiteral("/日志目录");
+        QVERIFY(QDir().mkpath(logDir));
+
+        Logging::install(logDir);
+        qInfo().noquote() << QStringLiteral("written under a chinese path");
+        Logging::uninstall();
+
+        QFile f(logDir + QStringLiteral("/agentworkbench.log"));
+        QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(f.errorString()));
+        const QString text = QString::fromUtf8(f.readAll());
+        QVERIFY2(text.contains(QStringLiteral("written under a chinese path")),
+                 qPrintable(text));
+    }
+
+    // 并发生产者：多线程同时写日志，uninstall 排空后一条不丢、一条不重。
+    // 4×500=2000 条远小于 8192 的队列深度，不会触发丢最旧的溢出策略，
+    // 所以行数是确定值。
+    void testConcurrentProducers()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Logging::install(dir.path());
+
+        constexpr int kThreads = 4;
+        constexpr int kPerThread = 500;
+        std::vector<std::thread> producers;
+        for (int t = 0; t < kThreads; ++t) {
+            producers.emplace_back([t, kPerThread] {
+                for (int i = 0; i < kPerThread; ++i)
+                    qInfo().noquote()
+                        << QStringLiteral("concurrent line %1/%2").arg(t).arg(i);
+            });
+        }
+        for (std::thread &producer : producers)
+            producer.join();
+        Logging::uninstall();
+
+        QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));
+        QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(f.errorString()));
+        const QString text = QString::fromUtf8(f.readAll());
+        int count = 0;
+        int from = 0;
+        const QString marker = QStringLiteral("concurrent line ");
+        while ((from = text.indexOf(marker, from)) != -1) {
+            ++count;
+            from += marker.size();
+        }
+        QCOMPARE(count, kThreads * kPerThread);
     }
 };
 
