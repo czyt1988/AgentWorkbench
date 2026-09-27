@@ -4,6 +4,27 @@ All notable changes to **AgentWorkbench** (called AgentLauncher up to 0.3.0) are
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Tools page**: a prompt-composing workbench for agent CLI users —
+  draft prompts on the left (Enter only inserts a newline, nothing is ever
+  sent from the page; Copy puts the draft on the clipboard), browse the
+  workspace on the right. Remembers up to 20 workspace folders (MRU,
+  per-entry removal, native folder picker), renders the current workspace
+  as a lazily-loaded file tree with auto-refresh (QFileSystemWatcher,
+  debounced) and manual refresh, and inserts file references as
+  `` `./relative/path` `` by dragging a tree row into the editor (at the
+  drop-point cursor) or double-clicking a file row. The draft survives
+  page switches and restarts (`tools.json`).
+
+### Removed
+
+- The `examples/plugins/hello` example plugin and the
+  `AWB_BUILD_PLUGIN_EXAMPLES` build option; the plugin documentation now
+  uses inline examples instead.
+
 ## [0.4.0] - 2026-09-27
 
 This release reworks the project from **AgentLauncher** into

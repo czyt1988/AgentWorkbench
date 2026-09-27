@@ -35,7 +35,7 @@ cmake --build build
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建，然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
-- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skillcatalog` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
+- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skillcatalog`、`tst_tools` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
 
@@ -48,6 +48,7 @@ src/
   agentcatalog/  L2：外部 agent 工具的目录（只编目与启动，不是 agent 实现）：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
   shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web）
   skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
+  tools/         L2：Agent Tools 页（提示词编写台）：ToolsStore（工作区记忆 + 草稿，tools.json）、FileTreeModel（懒加载文件树 + watcher）、ToolsFacade + qml/
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（唯一链接 Qt WebEngine 的目标，含 WebEngineSurface.qml）
   workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices
@@ -77,9 +78,9 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 ### 依赖方向与门禁
 
-`app → workbench → {shell, agentcatalog, skillcatalog, web, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
+`app → workbench → {shell, agentcatalog, skillcatalog, web, tools, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
 
-1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web}` 不许 include `shell/`、`workbench/` 或彼此的目录；
+1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web,tools}` 不许 include `shell/`、`workbench/` 或彼此的目录；
 2. QML 字面颜色：不许 `#rrggbb`/`#rgb`，也不许 `Qt.rgba(<数字>, …)`（`"transparent"` 与 `Qt.rgba(theme.…)` 这类表达式允许）；
 3. i18n：`tr()`/`qsTr()` 的源串必须是 ASCII；
 4. core/theme 纯净：`src/core/`、`src/theme/` 不许出现 `QtQuick`、`QQuick*`、`QQml*`、`Qt6::Quick`、`QtWebEngine`；
@@ -89,7 +90,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 - 页面只用 `theme.*` 语义令牌，绝不写字面颜色；深浅色都必须可读。
 - C++ 全局注册在 `AgentWorkbench.App` 这个纯 C++ URI 上，且**类型名必须大写**（Qt ≥6 拒绝小写单例名）。不要往 `AgentWorkbench` URI 手工注册单例（那是 `qt_add_qml_module` 生成的有 qmldir 的模块，会报 protected module），也不要用 `setContextProperty`。
-- QML 侧的契约名是 `MainWindow.qml` 根部的**小写别名**：`theme`、`nav`、`shell`、`ui`、`toasts`、`agents`、`web`、`skills`、`workbench`、`environment`（`WebProfiles` 只在 `WebEngineSurface.qml` 内部直接用，没有别名）。页面 QML 用 `import AgentWorkbench` 拿 `components/` 里的共享组件。
+- QML 侧的契约名是 `MainWindow.qml` 根部的**小写别名**：`theme`、`nav`、`shell`、`ui`、`toasts`、`agents`、`web`、`skills`、`tools`、`workbench`、`environment`（`WebProfiles` 只在 `WebEngineSurface.qml` 内部直接用，没有别名）。页面 QML 用 `import AgentWorkbench` 拿 `components/` 里的共享组件。
 - **QML 要调用的每个方法都必须 `Q_INVOKABLE`（或槽/信号），要赋值的每个属性都必须有 `WRITE`**：裸方法/裸写入器不在 meta-object 方法表里，QML 调用即抛「is not a function」/「read-only property」，而按页面加载的冒烟（改 `lastPageId` 注入）从不点击，抓不到——已有三处此类缺陷（切页、Web 表面切换、Chromium flags）因此长期静默失效。`check_architecture` 规则5 在构建期挡，`tst_shell::testQmlCalledMethodsAreInvokable` 用 `QMetaObject::invokeMethod` 复现 QML 的真实解析路径。
 - 构建日志里 `AgentWorkbench.App` 的 unresolved-import 警告是 qmlcachegen 对纯 C++ URI 的**预期现象**，不要为了消除它改设计。
 - 新增/移动 `.qml` 要同时改两处：`app/CMakeLists.txt` 的清单（`QT_RESOURCE_ALIAS` 决定 URL，形如 `qrc:/qt/qml/AgentWorkbench/<area>/<Name>.qml`）与 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`（若文件里有 `qsTr()`）。
@@ -115,7 +116,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 ### 测试
 
-- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（6 个测试目标 + `check_architecture`）。
+- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（7 个测试目标 + `check_architecture`）。
 - 一个模块一个可执行；多个测试类经 `tests/awbtest.h` 的 `AWB_TEST(Class)` 注册，由 `awbtest_runner.cpp` 依次执行（`tst_shell` 单类且需要 `QApplication`，用 `QTEST_MAIN`）。
 - **用例必须写在 `private slots:` 里**：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
 - 测试不许依赖网络、本机已安装的 agent 工具或真实数据目录。

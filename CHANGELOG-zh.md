@@ -4,6 +4,23 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，本项目遵循[语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
 
+## [未发布]
+
+### 新增
+
+- **Agent Tools 页**：面向 agent CLI 用户的提示词编写台——左侧起草提示词
+  （回车只换行，本页从不发送任何内容；Copy 把草稿放进剪贴板），右侧浏览
+  工作区。最多记忆 20 个常用工作区文件夹（MRU、逐项移除、系统文件夹选择
+  器），当前工作区渲染为懒加载文件树，带自动刷新（QFileSystemWatcher 防抖）
+  与手动刷新；把树的条目拖进编辑区（插入到落点光标处）或双击文件行，即可
+  插入 `` `./相对路径` `` 形式的文件引用。草稿跨页面切换与重启保留
+  （`tools.json`）。
+
+### 移除
+
+- `examples/plugins/hello` 示例插件与 `AWB_BUILD_PLUGIN_EXAMPLES` 构建选项；
+  插件文档改用内联示例。
+
 ## [0.4.0] - 2026-09-27
 
 本次版本把 AgentLauncher 重构为 **AgentWorkbench**：从单页卡片网格升级为「侧边栏 + 工作区」的工作台外壳，并新增内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题与实验性插件支持。

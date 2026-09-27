@@ -62,6 +62,7 @@
 | `AButton` | 文字按钮 | 一切文字按钮（variant: primary/secondary/ghost/danger；primary 可经 `accentColor` 注入运行期颜色，如 agent 着色） |
 | `AIconButton` | 图标按钮 | 一切图标按钮（tooltip 必填） |
 | `ATextField` | 单行输入框 | 一切文本输入（含 `invalid` 红边与 2px 焦点环；高度 32 与 AButton 对齐） |
+| `ATextArea` | 多行编辑器 | 一切多行文本输入（外观契约与 ATextField 一致：surface-alt 背景/焦点环/invalid） |
 | `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |

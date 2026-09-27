@@ -51,6 +51,7 @@ src/
   agentcatalog/ L2: external-agent catalog (definitions, persistence, processes, health, CRUD) + QML
   shell/        L2 UI framework: navigation, window skeleton, toasts, A* components
   skillcatalog/ L2: local-skill catalog (SKILL.md frontmatter, scanner, model, facade) + QML
+  tools/        L2: Agent Tools page (workspace memory, lazy file tree, prompt draft) + QML
   web/          L2: tabs, surfaces, memory policy + QML
     webengine/  L2 adapter (the only target linking Qt WebEngine)
   workbench/    L3: cross-domain intents, built-in pages, environment, plugin services
@@ -93,6 +94,7 @@ ctest runs one executable per module plus the architecture gate:
 | `tst_shell` | navigation registration, badges, window persistence, clipboard results |
 | `tst_web` | tab reuse, close semantics, offline/online transitions, LRU release (no WebEngine needed) |
 | `tst_skillcatalog` | frontmatter parsing, scanning, plugin version dedup, filtering |
+| `tst_tools` | workspace store semantics, lazy tree model (roles/fetch/refresh restore), facade wiring, QML invokable surface |
 
 A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 
@@ -100,7 +102,7 @@ A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 
 The layering and dependency rules, in short:
 
-- **Layers**: `app → workbench → {shell, agents, skills, web, theme} → core`.
+- **Layers**: `app → workbench → {shell, agents, skills, tools, web, theme} → core`.
   Domain modules never depend on each other; cross-domain behaviour lives in
   `awb_workbench`.
 - **Config-driven**: `agents.json` and `settings.json` own the state; the UI
