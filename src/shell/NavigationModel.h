@@ -5,6 +5,7 @@
 
 #include <QAbstractListModel>
 #include <QList>
+#include <QVariantList>
 #include <QVariantMap>
 
 namespace awb::shell {
@@ -26,6 +27,10 @@ class NavigationModel : public QAbstractListModel
     // `nav.badges["agents"]` — the `page(id)` invokable has no notify
     // signal, so a badge change never re-evaluated that binding.
     Q_PROPERTY(QVariantMap badges READ badges NOTIFY badgesChanged)
+    // 描述符列表（与 page() 同构），只含 keepAlive 且 enabled 的页，
+    // 供 Workspace 的常驻 Repeater 实例化。是 Q_PROPERTY 而非 Q_INVOKABLE：
+    // 注册/注销（pagesChanged）时绑定需要自动重新求值。
+    Q_PROPERTY(QVariantList keepAlivePages READ keepAlivePages NOTIFY pagesChanged)
 
 public:
     enum Roles {
@@ -60,6 +65,9 @@ public:
 
     // Snapshot for the `badges` Q_PROPERTY (see above).
     QVariantMap badges() const;
+
+    // Snapshot for the `keepAlivePages` Q_PROPERTY (see above).
+    QVariantList keepAlivePages() const;
 
     QString currentPageId() const { return m_currentId; }
     // Q_INVOKABLE: a bare Q_PROPERTY WRITE is not in the meta-object method
