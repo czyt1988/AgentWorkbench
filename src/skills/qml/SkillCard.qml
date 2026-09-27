@@ -23,6 +23,14 @@ Item {
     width: theme.cardMinWidth + 80 // spec width 340
     height: 160
 
+    // Cards are model delegates: search/filter/rescan destroys them while
+    // hovered, and the ToolTip attached property shares ONE visual tooltip
+    // per window. When the hovered owner dies, its `ToolTip.visible`
+    // binding dies with it and nothing ever hides the shared tooltip again
+    // — it froze on screen. Hide it on destruction; every tooltip also
+    // sets a timeout so even a missed case self-heals.
+    Component.onDestruction: ToolTip.hide()
+
     // --- Hover flyout (400 ms) ---------------------------------
     Timer {
         id: hoverTimer
@@ -124,6 +132,7 @@ Item {
                         hoverEnabled: true
                         ToolTip.visible: containsMouse
                         ToolTip.delay: 300
+                        ToolTip.timeout: 10000
                         ToolTip.text: card.pathText
                     }
                 }

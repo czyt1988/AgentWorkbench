@@ -104,6 +104,7 @@ Dialog {
                 ToolTip.text: labelRow.tip
                 ToolTip.visible: containsMouse && labelRow.tip.length > 0
                 ToolTip.delay: 300
+                ToolTip.timeout: 10000
             }
         }
         Label {
@@ -124,6 +125,7 @@ Dialog {
                 ToolTip.text: labelRow.tip
                 ToolTip.visible: containsMouse
                 ToolTip.delay: 300
+                ToolTip.timeout: 10000
             }
         }
         Item { Layout.fillWidth: true }

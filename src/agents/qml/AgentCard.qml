@@ -8,6 +8,11 @@ Item {
     id: root
     height: theme.cardHeight
 
+    // Cards are model delegates; agents CRUD/refilter destroys them while
+    // hovered and the shared tooltip's `visible` binding dies with the
+    // hovered child — hide it here so it cannot freeze on screen.
+    Component.onDestruction: ToolTip.hide()
+
     // Alias model roles to distinct local properties (avoids shadowing by
     // Rectangle.color etc.).
     property string agentId_p: agentId
@@ -234,6 +239,7 @@ Item {
                     ToolTip.text: qsTr("Install")
                     ToolTip.visible: containsMouse
                     ToolTip.delay: 300
+                    ToolTip.timeout: 10000
                     onClicked: {
                         if (root.running_p) {
                             root.flashMessage = qsTr("Please close before installing")
@@ -292,6 +298,7 @@ Item {
                         ToolTip.text: qsTr("Update")
                         ToolTip.visible: containsMouse
                         ToolTip.delay: 300
+                        ToolTip.timeout: 10000
                         onClicked: {
                         if (root.running_p) {
                             root.flashMessage = qsTr("Please close before updating")
@@ -460,6 +467,7 @@ Item {
                     ToolTip.text: qsTr("Hide output")
                     ToolTip.visible: containsMouse
                     ToolTip.delay: 300
+                    ToolTip.timeout: 10000
                     onClicked: {
                         root.consoleVisible = false
                         consoleHideTimer.stop()
@@ -577,6 +585,7 @@ Item {
                 ToolTip.text: qsTr("Close")
                 ToolTip.visible: containsMouse && !root.stopping
                 ToolTip.delay: 300
+                ToolTip.timeout: 10000
                 onClicked: {
                     root.stopping = true
                     if (!agents.stop(root.agentId_p))
