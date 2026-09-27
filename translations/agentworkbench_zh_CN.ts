@@ -665,78 +665,78 @@
 <context>
     <name>AgentGridPage</name>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="45"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="51"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="46"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="52"/>
         <source>Launch AI coding agents and open their web UI</source>
         <translation>启动 AI 编程代理并打开其 Web 界面</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="50"/>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="116"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="56"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="131"/>
         <source>Add Launcher</source>
         <translation>添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="54"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="60"/>
         <source>Restore Defaults</source>
         <translation>恢复默认</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="73"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="79"/>
         <source>Search launchers...</source>
         <translation>搜索启动器…</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="81"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="87"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="86"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="92"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="91"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="97"/>
         <source>Not installed</source>
         <translation>未安装</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="114"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="129"/>
         <source>No launchers configured yet</source>
         <translation>还没有配置启动器</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="115"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="130"/>
         <source>Add your first AI coding agent, or restore the built-in defaults.</source>
         <translation>添加第一个 AI 编码 agent，或恢复内置默认项。</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="125"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="140"/>
         <source>No matching launchers</source>
         <translation>没有匹配的启动器</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="126"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="141"/>
         <source>No launcher matches the current search or filter.</source>
         <translation>没有启动器匹配当前的搜索或过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="127"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="142"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="197"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="211"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="219"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="233"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -975,7 +975,7 @@ Command: %2
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="124"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="123"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
@@ -983,7 +983,7 @@ Command: %2
 <context>
     <name>LegacyImport</name>
     <message>
-        <location filename="../src/core/LegacyImport.cpp" line="101"/>
+        <location filename="../src/core/LegacyImport.cpp" line="100"/>
         <source>Imported configuration from the previous AgentLauncher installation.</source>
         <translation>已导入旧版 AgentLauncher 的配置。</translation>
     </message>
@@ -1214,17 +1214,17 @@ Command: %2
         <translation>同一插件的缓存可能保留多个版本，只列出最高的一个。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="546"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="545"/>
         <source>Plugins</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="570"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="569"/>
         <source>Enable plugins (experimental)</source>
         <translation>启用插件（实验性）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="585"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="584"/>
         <source>No plugins found. Drop one into the plugins folder (Settings -&gt; data directory).</source>
         <translation>未发现插件。将其放入插件目录（设置 → 数据目录）即可。</translation>
     </message>
@@ -1243,23 +1243,23 @@ Command: %2
         <translation>表面</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="500"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="499"/>
         <source>Embedded (in-app)</source>
         <translation>内嵌（应用内）</translation>
     </message>
     <message>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="500"/>
         <location filename="../src/shell/qml/SettingsPage.qml" line="501"/>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="502"/>
         <source>External (system browser)</source>
         <translation>外部（系统浏览器）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="519"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="518"/>
         <source>Chromium flags, e.g. --disable-gpu (applies after restart)</source>
         <translation>Chromium 启动参数，例如 --disable-gpu（重启后生效）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="538"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="537"/>
         <source>If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app &apos;Open in browser&apos; action always works as a fallback.</source>
         <translation>如果内嵌视图无法启动（GPU 驱动问题），在此添加 --disable-gpu。应用内的“在浏览器打开”始终可用作兜底。</translation>
     </message>
@@ -1268,17 +1268,17 @@ Command: %2
         <translation type="vanished">内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="646"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="645"/>
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="666"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="665"/>
         <source>Open data folder</source>
         <translation>打开数据目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="682"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="681"/>
         <source>Restore default launchers</source>
         <translation>恢复默认启动器</translation>
     </message>
@@ -1310,51 +1310,51 @@ Command: %2
     </message>
     <message>
         <location filename="../src/skills/qml/SkillCard.qml" line="132"/>
-        <location filename="../src/skills/qml/SkillCard.qml" line="215"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="219"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="206"/>
-        <location filename="../src/skills/qml/SkillCard.qml" line="223"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="210"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="227"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="209"/>
-        <location filename="../src/skills/qml/SkillCard.qml" line="226"/>
-        <location filename="../src/skills/qml/SkillCard.qml" line="238"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="213"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="230"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="242"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="219"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="223"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="231"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="235"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="235"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="239"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="244"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="248"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="248"/>
-        <location filename="../src/skills/qml/SkillCard.qml" line="257"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="252"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="261"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillCard.qml" line="253"/>
+        <location filename="../src/skills/qml/SkillCard.qml" line="257"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -1362,22 +1362,22 @@ Command: %2
 <context>
     <name>SkillDetailFlyout</name>
     <message>
-        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="123"/>
+        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="124"/>
         <source>SKILL.md</source>
         <translation>SKILL.md</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="144"/>
+        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="145"/>
         <source>Modified</source>
         <translation>修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="158"/>
+        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="159"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="209"/>
+        <location filename="../src/skills/qml/SkillDetailFlyout.qml" line="210"/>
         <source>Click the card to copy the path</source>
         <translation>点击卡片即可复制路径</translation>
     </message>
@@ -2061,7 +2061,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="222"/>
+        <location filename="../app/main.cpp" line="220"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
