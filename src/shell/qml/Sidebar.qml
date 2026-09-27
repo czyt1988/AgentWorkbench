@@ -7,6 +7,11 @@ import AgentWorkbench
 // The sidebar: "where to go", never a business action.
 // Renders the navigation model grouped by section, with badges, keyboard
 // hints and a collapse handle at the bottom.
+//
+// Layout (fixed): workflow pages (sections main/extensions) scroll in the
+// middle; system pages (section system, e.g. Settings) are PINNED to the
+// bottom, separated from the workflow list by a divider — they stay at the
+// bottom no matter how long the list grows (see designs.md).
 Rectangle {
     id: sidebar
 
@@ -23,6 +28,122 @@ Rectangle {
 
     Behavior on width {
         NumberAnimation { duration: theme.durationNormal }
+    }
+
+    // One navigation row. `pinned` picks the render zone: false = the
+    // scrollable list (sections main/extensions), true = the bottom footer
+    // (section system). Both zones repeat over the whole model; each row
+    // hides itself when it belongs to the other zone.
+    component NavRow: Item {
+        id: row
+
+        property bool pinned: false
+
+        readonly property bool isSystem: model.section === "system"
+        // Divider + gap above the first row of every non-main section —
+        // only in the scrollable list; the footer zone is isolated by its
+        // own separator above it.
+        readonly property bool firstInSection:
+            index === nav.rowOfFirstInSection(model.section)
+        readonly property bool needsDivider:
+            !pinned && firstInSection && model.section !== "main"
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
+        visible: model.enabled && (pinned === isSystem)
+
+        Rectangle {
+            visible: row.needsDivider
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: theme.spacingS
+            anchors.rightMargin: theme.spacingS
+            height: 1
+            color: theme.separator
+        }
+
+        // Active background + 3px accent bar.
+        Rectangle {
+            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: theme.spacingS
+            anchors.rightMargin: theme.spacingS
+            height: 36
+            radius: theme.radiusControl
+            color: nav.currentPageId === model.pageId ? theme.surfaceBg
+                                                      : (rowMouse.containsMouse
+                                                         ? theme.surfaceHoverBg
+                                                         : "transparent")
+            Behavior on color { ColorAnimation { duration: theme.durationFast } }
+        }
+        Item {
+            id: dividerSpace
+            visible: false
+            anchors.top: parent.top
+            height: row.needsDivider ? 9 : 0
+        }
+        Rectangle {
+            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.left: parent.left
+            width: 3
+            height: 36
+            radius: 1
+            visible: nav.currentPageId === model.pageId
+            color: theme.accent
+        }
+
+        RowLayout {
+            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.left: parent.left
+            anchors.leftMargin: sidebar.collapsed ? theme.spacingS
+                                                  : theme.spacingM
+            anchors.right: parent.right
+            anchors.rightMargin: theme.spacingS
+            height: 36
+            spacing: theme.spacingS
+
+            Item {
+                Layout.alignment: Qt.AlignVCenter
+                width: 24
+                height: 24
+                Image {
+                    anchors.centerIn: parent
+                    source: model.iconSource
+                    sourceSize: Qt.size(18, 18)
+                    fillMode: Image.PreserveAspectFit
+                }
+            }
+            Label {
+                visible: !sidebar.collapsed
+                Layout.fillWidth: true
+                text: model.title
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                elide: Text.ElideRight
+            }
+            APill {
+                visible: !sidebar.collapsed && model.badgeText.length > 0
+                text: model.badgeText
+            }
+        }
+
+        MouseArea {
+            id: rowMouse
+            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 36
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: nav.setCurrentPageId(model.pageId)
+        }
+
+        // Collapsed state: tooltip with the page title.
+        ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
+        ToolTip.delay: 300
+        ToolTip.text: model.title
     }
 
     ColumnLayout {
@@ -63,9 +184,9 @@ Rectangle {
             color: theme.separator
         }
 
-        // --- Scrollable page list (one repeater; the model is already
-        // sorted by section + order, and each row draws the divider for a
-        // new non-main section above itself) -----------------------------
+        // --- Scrollable workflow list (sections main + extensions; the
+        // model is already sorted by section + order, and each row draws
+        // the divider for a new non-main section above itself) ------------
         Flickable {
             id: flick
             Layout.fillWidth: true
@@ -82,17 +203,53 @@ Rectangle {
 
                 Repeater {
                     model: nav
-                    delegate: navRow
+                    NavRow {}
                 }
             }
         }
 
-        Rectangle {
+        // --- Pinned system zone (Settings & friends), isolated from the
+        // workflow list by the divider above and fixed at the bottom.
+        // The zone itself is NOT gated on rendered geometry (childrenRect):
+        // at startup the delegates have no size yet, so childrenRect is 0,
+        // the zone hides, the outer layout then never sizes it and the
+        // binding deadlocks with the zone invisible forever. The separators
+        // hide via implicitHeight instead — a layout's implicit size is
+        // computed from the children's preferred sizes and does not depend
+        // on the subtree ever being rendered.
+        ColumnLayout {
+            id: pinnedZone
             Layout.fillWidth: true
-            Layout.leftMargin: theme.spacingS
-            Layout.rightMargin: theme.spacingS
-            height: 1
-            color: theme.separator
+            spacing: 0
+
+            Rectangle {
+                visible: pinnedColumn.implicitHeight > 0
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingS
+                Layout.rightMargin: theme.spacingS
+                height: 1
+                color: theme.separator
+            }
+
+            ColumnLayout {
+                id: pinnedColumn
+                Layout.fillWidth: true
+                spacing: 0
+
+                Repeater {
+                    model: nav
+                    NavRow { pinned: true }
+                }
+            }
+
+            Rectangle {
+                visible: pinnedColumn.implicitHeight > 0
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingS
+                Layout.rightMargin: theme.spacingS
+                height: 1
+                color: theme.separator
+            }
         }
 
         // --- Collapse handle ---------------------------------------------
@@ -110,119 +267,6 @@ Rectangle {
                                            : qsTr("Collapse sidebar")
                 onClicked: shell.sidebarCollapsed = !shell.sidebarCollapsed
             }
-        }
-    }
-
-    Component {
-        id: navRow
-
-        Item {
-            id: row
-
-            // Divider + gap above the first row of every non-main section
-            readonly property bool firstInSection:
-                index === nav.rowOfFirstInSection(model.section)
-            readonly property bool needsDivider:
-                firstInSection && model.section !== "main"
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
-            Layout.topMargin: firstInSection && model.section === "system"
-                              ? theme.spacingL : 0
-            visible: model.enabled
-
-            Rectangle {
-                visible: row.needsDivider
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: theme.spacingS
-                anchors.rightMargin: theme.spacingS
-                height: 1
-                color: theme.separator
-            }
-
-            // Active background + 3px accent bar.
-            Rectangle {
-                anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: theme.spacingS
-                anchors.rightMargin: theme.spacingS
-                height: 36
-                radius: theme.radiusControl
-                color: nav.currentPageId === model.pageId ? theme.surfaceBg
-                                                          : (rowMouse.containsMouse
-                                                             ? theme.surfaceHoverBg
-                                                             : "transparent")
-                Behavior on color { ColorAnimation { duration: theme.durationFast } }
-            }
-            Item {
-                id: dividerSpace
-                visible: false
-                anchors.top: parent.top
-                height: row.needsDivider ? 9 : 0
-            }
-            Rectangle {
-                anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
-                anchors.left: parent.left
-                width: 3
-                height: 36
-                radius: 1
-                visible: nav.currentPageId === model.pageId
-                color: theme.accent
-            }
-
-            RowLayout {
-                anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
-                anchors.left: parent.left
-                anchors.leftMargin: sidebar.collapsed ? theme.spacingS
-                                                      : theme.spacingM
-                anchors.right: parent.right
-                anchors.rightMargin: theme.spacingS
-                height: 36
-                spacing: theme.spacingS
-
-                Item {
-                    Layout.alignment: Qt.AlignVCenter
-                    width: 24
-                    height: 24
-                    Image {
-                        anchors.centerIn: parent
-                        source: model.iconSource
-                        sourceSize: Qt.size(18, 18)
-                        fillMode: Image.PreserveAspectFit
-                    }
-                }
-                Label {
-                    visible: !sidebar.collapsed
-                    Layout.fillWidth: true
-                    text: model.title
-                    color: theme.textPrimary
-                    font.pixelSize: theme.fontSizeBody
-                    elide: Text.ElideRight
-                }
-                APill {
-                    visible: !sidebar.collapsed && model.badgeText.length > 0
-                    text: model.badgeText
-                }
-            }
-
-            MouseArea {
-                id: rowMouse
-                anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 36
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: nav.setCurrentPageId(model.pageId)
-            }
-
-            // Collapsed state: tooltip with the page title.
-            ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
-            ToolTip.delay: 300
-            ToolTip.text: model.title
         }
     }
 }
