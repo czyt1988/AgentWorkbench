@@ -58,12 +58,8 @@ void FileIcons::loadUserFile(const QString &path)
 {
     if (path.isEmpty() || !QFile::exists(path))
         return;
-    const QJsonObject root = core::JsonStore::readFile(path);
-    if (root.isEmpty()) {
-        qWarning() << "[tools] ignoring unreadable file icon config:" << path;
-        return;
-    }
-    merge(root);
+    // 读不出来时 JsonStore 自己记一条警告并给出空对象，这里保持已有映射即可。
+    merge(core::JsonStore::readFile(path));
 }
 
 QString FileIcons::forFile(const QString &fileName) const
