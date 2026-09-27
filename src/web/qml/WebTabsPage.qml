@@ -98,6 +98,31 @@ Item {
                                     color: theme.accent
                                 }
 
+                                // Declared BEFORE the content row: the
+                                // close × (inside the row) must sit ABOVE
+                                // this full-size MouseArea, or every click
+                                // on it merely activated the tab.
+                                MouseArea {
+                                    id: tabMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    // Middle click must be ACCEPTED, or the
+                                    // button never reaches the handlers.
+                                    acceptedButtons: Qt.LeftButton
+                                                     | Qt.MiddleButton
+                                    onClicked: function(mouse) {
+                                        if (mouse.button === Qt.MiddleButton)
+                                            web.closeTab(tabButton.tabId)
+                                        else
+                                            web.activateTab(tabButton.tabId)
+                                    }
+                                    onDoubleClicked: function(mouse) {
+                                        if (mouse.button === Qt.LeftButton)
+                                            web.reloadTab(tabButton.tabId)
+                                    }
+                                }
+
                                 RowLayout {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
@@ -185,29 +210,9 @@ Item {
                                     color: theme.accent
                                 }
 
-                                MouseArea {
-                                    id: tabMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    // Middle click must be ACCEPTED, or the
-                                    // button never reaches the handlers.
-                                    acceptedButtons: Qt.LeftButton
-                                                     | Qt.MiddleButton
-                                    onClicked: function(mouse) {
-                                        if (mouse.button === Qt.MiddleButton)
-                                            web.closeTab(tabButton.tabId)
-                                        else
-                                            web.activateTab(tabButton.tabId)
-                                    }
-                                    onDoubleClicked: function(mouse) {
-                                        if (mouse.button === Qt.LeftButton)
-                                            web.reloadTab(tabButton.tabId)
-                                    }
-                                }
-
                                 ToolTip.visible: tabMouse.containsMouse
                                 ToolTip.delay: 300
+                                ToolTip.timeout: 10000
                                 ToolTip.text: state === "offline"
                                               ? qsTr("This agent is not running")
                                               : state === "crashed"
@@ -215,6 +220,10 @@ Item {
                                                 : state === "error"
                                                   ? qsTr("Failed to load the page")
                                                   : title
+                                // The shared tooltip outlives this delegate:
+                                // hide it when the tab row (and its hover
+                                // source) goes away, or it stays on screen.
+                                Component.onDestruction: ToolTip.hide()
                             }
                         }
                     }
