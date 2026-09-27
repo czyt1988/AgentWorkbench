@@ -139,3 +139,4 @@ Open `http://127.0.0.1:8000`. The site is bilingual (English default, 中文 und
 - The stop button terminates only the process tree that this launcher started
   in the current session; agents detected as running but started elsewhere are
   left to their own lifecycle.
+- Code style, naming and comment rules: see the [Coding standard](standards/coding-standard.md).

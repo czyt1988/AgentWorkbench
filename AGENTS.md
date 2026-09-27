@@ -8,6 +8,8 @@ AgentWorkbench 是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：
 
 **界面设计原则固化在仓库根目录的 `designs.md`**（布局骨架、侧栏钉底规则、组件复用目录与已知重复清单）。**任何涉及 UI/QML 的任务，动手前先读 `designs.md`**——本文只管 QML 技术契约，布局与视觉一致性以它为准。
 
+**代码风格与注释规范固化在 `docs/zh/standards/coding-standard.md`**（文件与命名、C++/Qt/QML 写法、Doxygen 注释规范：注释用中文，头文件写简略说明、`.cpp` 写详细说明，信号/枚举/类写在头文件）。**任何写代码的任务，动手前先读它并按它写**——新代码与你改动到的类、函数都必须符合该规范，不要凭习惯另起一套风格。英文版见 `docs/standards/coding-standard.md`。
+
 ## 构建
 
 ```bash
@@ -130,7 +132,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 - 翻译文件位于 `translations/`。构建时通过 `cmake/AwbTranslations.cmake` 里的源清单运行 `lupdate`（从源码同步 `.ts`）和 `lrelease`（编译 `.qm`）。编译出的 `.qm` 以 Qt 资源形式嵌入在 `:/i18n/` 下。**新增可翻译文件时把它加进 `AWB_TS_SOURCES`**，不要改 `qt6_create_translation` 调用本身。
 - `app/main.cpp` 安装 `QTranslator`，根据系统区域设置自动加载（前缀 `agentworkbench`）。
 - 添加新语言：创建 `translations/agentworkbench_<locale>.ts`，把它加入 `AWB_TS_SOURCES`，然后构建（lupdate 会填充内容）。填写翻译后重新构建。
-- 注释、标识符和日志信息也应使用英文。
+- **注释用中文，其余一律英文**：标识符、日志信息与提交信息用英文；代码注释（含 Doxygen 文档注释）按 `docs/zh/standards/coding-standard.md` 的规定用中文。注释不是面向用户的字符串，与上一条不冲突。
 - 本地化文档（`docs/zh/`、`README-zh.md`）以及 `mkdocs.yml` 中的语言名称标签**不是**源代码——它们是正当的本地化内容，不受本规则约束。
 
 ## 分支与并行开发（多工作树）
@@ -166,6 +168,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 - 不要让领域模块互相 include；不要用 `setContextProperty`；不要往 `AgentWorkbench` URI 手工注册单例。
 - 不要给 `settings.json`/`agents.json` 加版本迁移代码——内置定义每次启动都按随包默认重新生成。
 - 不要为了消除 qmlcachegen 的 unresolved-import 警告去改 QML 注册设计。
+- 不要在注释里复述代码（「设置名称」这类），也不要为了统一注释格式去做整文件/全库的机械重排——并行工作树下会制造大面积冲突；只规范你改动到的类与函数。
 - 除非明确要求，不要运行 `git push`（提交规则见上一节「提交」）。
 
 ## 停止 agent
