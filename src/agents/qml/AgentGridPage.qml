@@ -151,6 +151,10 @@ Item {
             id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // Match the search row's side margins so the first card never
+            // sits flush against the sidebar.
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
             // Only when there is something to show: with zero cards both
             // this (fillHeight) and the empty state (fillHeight) competed
             // for the same column height.

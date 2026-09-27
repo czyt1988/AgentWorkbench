@@ -731,12 +731,12 @@
         <translation>清除过滤</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="190"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="194"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../src/agents/qml/AgentGridPage.qml" line="193"/>
+        <location filename="../src/agents/qml/AgentGridPage.qml" line="197"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
