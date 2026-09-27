@@ -43,7 +43,7 @@
 ### 右侧主区规则
 
 - 主区顶部**可以**有一个工具栏式的区域（`PageHeader`：标题 + 副标题 + 页面级动作；或 Web 页那种标签栏），但**不是每个页面都必须有**——空状态页、简单列表页可以没有。取舍标准：该页是否有页面级的动作或过滤需求。
-- 工具栏下方才是主体（卡片网格、表单、列表）。页面状态必须能毁掉重建（切换页面时 Loader 销毁旧页），跨页状态放 C++。**唯一例外**：注册时声明 `PageDescriptor::keepAlive` 的页（目前只有 Web 页）由 Workspace 常驻托管——切换只隐藏不销毁，因为 WebEngineView 的页面状态搬不进 C++、销毁即整页重载；常驻页的 `ApplicationShortcut` 必须自行在非当前页时禁用（参考 WebTabsPage 的 `pageCurrent`）。
+- 工具栏下方才是主体（卡片网格、表单、列表）。页面状态必须能毁掉重建（切换页面时 Loader 销毁旧页），跨页状态放 C++。**唯一例外**：注册时声明 `PageDescriptor::keepAlive` 的页（目前只有 Web 页）由 Workspace 常驻托管——切换只隐藏不销毁，因为 WebEngineView 的页面状态搬不进 C++、销毁即整页重载；常驻页的 `ApplicationShortcut` 必须自行在非当前页时禁用（参考 WebTabsPage 的 `pageCurrent`）。常驻页**以 0x0 创建、变可见后才拿到真实尺寸**，必然经历一次布局重排——布局子项的尺寸必须经 `implicitWidth`/`implicitHeight` 提供，直接绑定 `width`/`height` 会被重排覆盖成 0（Web 页 tab bar 曾因此整条消失）。
 - 页面外围留白统一 `theme.spacingL`，不要自造边距。
 
 ## 2. 视觉语言
@@ -130,6 +130,6 @@ ColumnLayout {
 - [ ] 没有新增字面颜色 / `Qt.rgba(<数字>)`；深浅主题都检查过。
 - [ ] 通用件先查 §3 的表；没有旁路 `AButton`/`ADialog` 写裸件。
 - [ ] 状态不只靠颜色表达；tooltip 文案是英文源串 + `qsTr()`。
-- [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用。
+- [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用；布局内子项尺寸经 `implicitWidth`/`implicitHeight` 提供（0x0 创建后的重排会踩掉直接 `width`/`height` 绑定）。
 - [ ] `bash scripts/build.sh --test` 全绿（含 `check_architecture`）。
 - [ ] 若新增/移动了 `.qml`：同步 `app/CMakeLists.txt` 清单与 `AWB_TS_SOURCES`（AGENTS.md「QML 契约」）。

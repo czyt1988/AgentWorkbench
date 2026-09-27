@@ -44,7 +44,13 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             visible: !page.chromeHidden
-            height: visible ? theme.tabBarHeight : 0
+            // 尺寸经 implicitHeight 提供：ColumnLayout 重排时按子项的
+            // implicitHeight 决定高度，直接绑定 height 会被覆盖。本页经
+            // PageDescriptor::keepAlive 常驻，以 0x0 创建、变可见后才拿到
+            // 真实尺寸，必然触发一次重排——tab bar 曾因此被踩成 0 高而
+            // 整条消失（chromeHidden 时 visible 为 false，布局会跳过本
+            // 项，效果与旧 height 归 0 一致）。
+            implicitHeight: theme.tabBarHeight
             color: theme.chromeBg
 
             // Bottom separator (下边框 theme.separator).
