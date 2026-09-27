@@ -1711,11 +1711,11 @@ Command: %2
     </message>
     <message>
         <source>Copy relative path</source>
-        <translation type="vanished">复制相对路径</translation>
+        <translation>复制相对路径</translation>
     </message>
     <message>
         <source>Copy absolute path</source>
-        <translation type="vanished">复制绝对路径</translation>
+        <translation>复制绝对路径</translation>
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="368"/>
