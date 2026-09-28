@@ -37,8 +37,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `tst_workbench` test target covering the `openWeb` navigation contract,
   the external-surface no-tab path and the new browser-open intent.
 
+- **Draggable editor/tree split on the Agent Tools page**: the prompt
+  editor and the file tree are separated by a draggable handle (themed,
+  with a wider hit area), the tree keeping its preferred width and the
+  editor filling the rest.
+- **Global UI font setting** (`appearance.fontFamily` in settings.json,
+  default "Microsoft YaHei"): applied before the engine starts via
+  `QGuiApplication::setFont` and propagated at runtime through
+  `ApplicationWindow.font`; a missing family falls back to the system
+  default. Configurable from Settings -> Appearance ("Theme default" +
+  every installed family). Rationale: Win10's default fallback rendered
+  the whole UI in SimSun.
 ### Changed
 
+- **Settings redesigned as sectioned pages**: a fixed navigation column
+  (Appearance / Launchers / Environment / Skills / Web / Plugins /
+  Advanced) on the left and one section's page at a time on the right
+  (StackLayout, pages stay instantiated so half-typed input survives
+  switching) — previously one long scroll carried all seven sections.
+  Dialogs moved into the section pages that use them.
 - **Sidebar footer redesign**: system pages (Settings) no longer render as
   full-width rows pinned above the collapse handle — they are icon-only
   buttons (tooltip shows the title, `AIconButton` gains an `active` state
@@ -50,6 +67,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Agent Tools "Add Folder" did nothing on Qt 5**: the facade invokables
+  returned `core::OpResult` written in short form, but the gadget's
+  automatic metatype registration name is the fully qualified
+  `awb::core::OpResult`; the QML call path resolves return types by that
+  name, found nothing and threw "Unknown method return type" (the SkillCard
+  copy/open actions were silently dead the same way). All Q_INVOKABLE
+  declarations are now fully qualified, a shared test guard
+  (`awbUnresolvedQmlCallTypes`) fails on any unresolvable type, and an
+  end-to-end QJSEngine test reproduces the script call path. Qt 6 resolves
+  through templates and was never affected.
+- **Text in the prompt editor could not be selected with the mouse**:
+  `TextEdit.selectByMouse` defaults to false and no Controls 2 style flips
+  it; `ATextArea` now enables it (Ctrl+C over a selection always worked).
+- **Startup "Qt Quick Layouts: Detected recursive rearrange" warnings**:
+  the empty-state component's inner container was a ColumnLayout whose
+  height auto-follow + WordWrap description + first real geometry stacked
+  three synchronous rearranges (one past Qt 5's allowed depth). The inner
+  container is now a plain Column positioner — verified zero warnings over
+  repeated launches on the tools/agents/skills/settings/web pages.
+- **Skills page flooded with "Binding loop detected for contentHeight"**:
+  the SkillDetailFlyout height read its contentItem Flickable's
+  contentHeight, which fed back into the contentItem size. The popup now
+  takes its implicit height from a ColumnLayout contentItem and the
+  Flickable caps via Layout.preferredHeight; contentHeight is backfilled
+  asynchronously (Qt.callLater).
+- **The settings theme picker showed an empty box after re-entering the
+  page** (and showed opaque theme names like "Catppuccin Mocha (Dark)"):
+  `currentIndex` was bound to `indexOfValue(themeId)`, which evaluated to
+  -1 before the ComboBox's delegate model was ready and never re-ran. The
+  index is computed by iterating the NOTIFIABLE `theme.availableThemes`
+  list instead, and the combo shows a short Dark/Light label (full name in
+  a tooltip).
 - **Switching Web tabs no longer repaints the whole page.** Two freeze
   bugs: a view that was still loading when its tab was switched away got
   `Frozen` (Chromium suspends a frozen page's JS, so the load stalled until

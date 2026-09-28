@@ -29,6 +29,21 @@
 - `tst_workbench` 测试目标：覆盖 `openWeb` 跳页契约、external surface 不建
   标签的路径与新的浏览器打开意图。
 
+- **Agent Tools 页编辑区/文件树可拖拽分割**：中间分割条可拖动（主题化
+  外观、加宽命中区），文件树保持首选宽度，编辑区吃剩余宽度。
+- **全局字体设置**（settings.json 的 `appearance.fontFamily`，默认
+  "Microsoft YaHei"）：引擎启动前经 `QGuiApplication::setFont` 应用、
+  运行时经 `ApplicationWindow.font` 传播；本机没有该字体时自动回退系
+  统默认。设置 → 外观里可选（"跟随主题" + 本机全部字体族）。动机：
+  Win10 默认回退把整个 UI 渲染成宋体。
+
+### 变更
+
+- **设置页重构为分页**：左侧固定导航列（外观/启动器/环境/Skills/Web/
+  插件/高级），右侧一次只显示一个分区（StackLayout，页面常驻，切页不
+  丢半截输入）——此前七个分区挤在一个长滚动页里；对话框移入各自的分
+  区页。
+
 ### 修复
 
 - **切换 Web 标签不再整页重绘。**两个冻结缺陷：切走时仍在加载的视图被冻结
@@ -56,6 +71,32 @@
 - **把文件引用拖进提示词编辑区，现在落在光标处。**落点计算里加了编辑区的
   `contentX`/`contentY`，但 `TextArea` 不是 `Flickable`、没有这两个属性——
   相加得到 `NaN`，`positionAt()` 返回 0，于是每次都插到文首。
+
+- **Qt 5 下 Agent Tools 的 "Add Folder" 点击无响应**：门面 Q_INVOKABLE
+  的返回类型写的是短名 `core::OpResult`，而 gadget 的自动元类型注册名
+  是全限定 `awb::core::OpResult`，QML 调用端按名字解析返回类型查不到
+  就抛 "Unknown method return type"（SkillCard 的复制/打开操作同样静默
+  失效）。全部声明改为全限定名；新增共享测试守卫
+  （`awbUnresolvedQmlCallTypes`）在类型解析失败时让测试挂掉，另有
+  QJSEngine 端到端测试复现脚本调用路径。Qt 6 走模板解析，不受影响。
+- **提示词编辑区无法用鼠标选中文字**：`TextEdit.selectByMouse` 默认
+  false 且 Controls 2 样式不覆盖；`ATextArea` 现在显式开启（有选区时
+  Ctrl+C 一直可用）。
+- **启动时 "Qt Quick Layouts: Detected recursive rearrange" 警告**：
+  空态组件的内层容器是 ColumnLayout，「高度自动跟随 + WordWrap 描述文
+  字 + 宿主首次拿到真实尺寸」叠出第三层同步重排（超出 Qt 5 允许的深度
+  两层）。内层容器改为普通 Column positioner——tools/agents/skills/
+  settings/web 各页反复启动验证零警告。
+- **Skills 页刷屏 "Binding loop detected for contentHeight"**：
+  SkillDetailFlyout 的高度读了 contentItem（Flickable）的
+  contentHeight，与 contentItem 尺寸互馈。弹层改为从 ColumnLayout
+  contentItem 取隐式高度、Flickable 经 Layout.preferredHeight 封顶，
+  contentHeight 异步回填（Qt.callLater）。
+- **设置页主题选择框重进后是空的**（且显示 "Catppuccin Mocha (Dark)"
+  这类难懂名称）：`currentIndex` 绑了 `indexOfValue(themeId)`，在
+  ComboBox 的 delegateModel 就绪前求值成 -1 且永不重算。改为遍历带
+  NOTIFY 的 `theme.availableThemes` 计算 index；下拉显示 Dark/Light 短
+  标签（完整名称进 tooltip）。
 
 ### 移除
 

@@ -1006,88 +1006,266 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="117"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="123"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="125"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="131"/>
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="137"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="143"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="147"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="153"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="156"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="162"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="168"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="174"/>
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="170"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="176"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
 </context>
 <context>
-    <name>SettingsPage</name>
+    <name>SettingsAdvancedPage</name>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="27"/>
-        <source>Delete Launcher</source>
-        <translation>删除启动器</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="28"/>
-        <source>Remove &quot;%1&quot; from the launcher list?</source>
-        <translation>从启动器列表中移除&quot;%1&quot;？</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="41"/>
-        <source>The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.</source>
-        <translation>该 Agent 正在运行。删除不会终止进程；如需停止请使用其自身的停止命令。</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="49"/>
-        <source>This is a built-in launcher. You can bring it back later with &quot;Restore default launchers&quot;.</source>
-        <translation>这是内置启动器。之后可通过&quot;恢复默认启动器&quot;找回。</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="30"/>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="186"/>
-        <source>Delete</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="31"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="64"/>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="15"/>
         <source>Save failed</source>
         <translation>保存失败</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="65"/>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="16"/>
         <source>Could not write the configuration file:</source>
         <translation>无法写入配置文件：</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="67"/>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="18"/>
         <source>OK</source>
         <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="33"/>
+        <source>Advanced</source>
+        <translation>高级</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="34"/>
+        <source>Configuration storage and reset actions</source>
+        <translation>配置文件存储与重置操作</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="52"/>
+        <source>Open data folder</source>
+        <translation>打开数据文件夹</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAdvancedPage.qml" line="68"/>
+        <source>Restore default launchers</source>
+        <translation>恢复默认启动器</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsAppearancePage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="20"/>
+        <source>Appearance</source>
+        <translation>外观</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="21"/>
+        <source>Colors and typography of the application</source>
+        <translation>应用程序的配色与字体</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="32"/>
+        <source>Theme</source>
+        <translation>主题</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="86"/>
+        <source>Font</source>
+        <translation>字体</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="100"/>
+        <source>Theme default</source>
+        <translation>跟随主题</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsAppearancePage.qml" line="127"/>
+        <source>The font applies to the whole application; &quot;Theme default&quot; follows the theme or the system font.</source>
+        <translation>字体应用于整个应用程序；“跟随主题”表示使用主题或系统字体。</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsEnvironmentPage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="19"/>
+        <source>Environment</source>
+        <translation>环境</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="20"/>
+        <source>Runtimes used by the agents&apos; setup commands</source>
+        <translation>Agent 初始化命令使用的运行时</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="32"/>
+        <source>Python %1</source>
+        <translation>Python %1</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="33"/>
+        <source>Python not found</source>
+        <translation>未找到 Python</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="41"/>
+        <source>Node.js %1</source>
+        <translation>Node.js %1</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="42"/>
+        <source>Node.js not found</source>
+        <translation>未找到 Node.js</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="48"/>
+        <source>Re-detect</source>
+        <translation>重新检测</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsLaunchersPage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="24"/>
+        <source>Delete Launcher</source>
+        <translation>删除启动器</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="25"/>
+        <source>Remove &quot;%1&quot; from the launcher list?</source>
+        <translation>从启动器列表中移除“%1”？</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="27"/>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="144"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="28"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="38"/>
+        <source>The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.</source>
+        <translation>该 agent 正在运行。删除它不会停止进程；如需停止请使用它自己的命令。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="46"/>
+        <source>This is a built-in launcher. You can bring it back later with &quot;Restore default launchers&quot;.</source>
+        <translation>这是内置启动器。之后可通过“恢复默认启动器”找回。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="61"/>
+        <source>Save failed</source>
+        <translation>保存失败</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="62"/>
+        <source>Could not write the configuration file:</source>
+        <translation>无法写入配置文件：</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="64"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="79"/>
+        <source>Launchers</source>
+        <translation>启动器</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="80"/>
+        <source>The agents available on the launcher page</source>
+        <translation>启动器页面上可用的 agent</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="82"/>
+        <source>Add Launcher</source>
+        <translation>添加启动器</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="134"/>
+        <source>Running</source>
+        <translation>运行中</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="135"/>
+        <source>Stopped</source>
+        <translation>已停止</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="139"/>
+        <source>Edit</source>
+        <translation>编辑</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsPage</name>
+    <message>
+        <source>Delete Launcher</source>
+        <translation type="vanished">删除启动器</translation>
+    </message>
+    <message>
+        <source>Remove &quot;%1&quot; from the launcher list?</source>
+        <translation type="vanished">从启动器列表中移除&quot;%1&quot;？</translation>
+    </message>
+    <message>
+        <source>The agent is currently running. Deleting it does not stop the process; stop it via its own command if needed.</source>
+        <translation type="vanished">该 Agent 正在运行。删除不会终止进程；如需停止请使用其自身的停止命令。</translation>
+    </message>
+    <message>
+        <source>This is a built-in launcher. You can bring it back later with &quot;Restore default launchers&quot;.</source>
+        <translation type="vanished">这是内置启动器。之后可通过&quot;恢复默认启动器&quot;找回。</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="vanished">删除</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="vanished">取消</translation>
+    </message>
+    <message>
+        <source>Save failed</source>
+        <translation type="vanished">保存失败</translation>
+    </message>
+    <message>
+        <source>Could not write the configuration file:</source>
+        <translation type="vanished">无法写入配置文件：</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="vanished">确定</translation>
     </message>
     <message>
         <source>← Back</source>
@@ -1118,178 +1296,251 @@ Command: %2
         <translation type="vanished">自定义</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="82"/>
         <source>Settings</source>
-        <translation>设置</translation>
+        <translation type="vanished">设置</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="83"/>
         <source>Appearance, launchers and application options</source>
-        <translation>外观、启动器与应用选项</translation>
+        <translation type="vanished">外观、启动器与应用选项</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="88"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="20"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="101"/>
         <source>Theme</source>
-        <translation>主题</translation>
+        <translation type="vanished">主题</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="118"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="21"/>
         <source>Launchers</source>
         <translation>启动器</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="123"/>
         <source>Add Launcher</source>
-        <translation>添加启动器</translation>
+        <translation type="vanished">添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="176"/>
         <source>Running</source>
-        <translation>运行中</translation>
+        <translation type="vanished">运行中</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="177"/>
         <source>Stopped</source>
-        <translation>已停止</translation>
+        <translation type="vanished">已停止</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="181"/>
         <source>Edit</source>
-        <translation>编辑</translation>
+        <translation type="vanished">编辑</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="202"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="22"/>
         <source>Environment</source>
         <translation>环境</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="216"/>
         <source>Python %1</source>
-        <translation>Python %1</translation>
+        <translation type="vanished">Python %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="217"/>
         <source>Python not found</source>
-        <translation>未找到 Python</translation>
+        <translation type="vanished">未找到 Python</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="225"/>
         <source>Node.js %1</source>
-        <translation>Node.js %1</translation>
+        <translation type="vanished">Node.js %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="226"/>
         <source>Node.js not found</source>
-        <translation>未找到 Node.js</translation>
+        <translation type="vanished">未找到 Node.js</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="232"/>
         <source>Re-detect</source>
-        <translation>重新检测</translation>
+        <translation type="vanished">重新检测</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="239"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="23"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="244"/>
         <source>Rescan</source>
-        <translation>重新扫描</translation>
+        <translation type="vanished">重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="296"/>
         <source>Remove this root</source>
-        <translation>移除该根目录</translation>
+        <translation type="vanished">移除该根目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="310"/>
         <source>Add a skill root directory...</source>
-        <translation>添加 Skill 根目录…</translation>
+        <translation type="vanished">添加 Skill 根目录…</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="319"/>
         <source>Add</source>
-        <translation>添加</translation>
+        <translation type="vanished">添加</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="338"/>
         <source>Plugin caches keep several versions of the same plugin; only the highest is listed.</source>
-        <translation>同一插件的缓存可能保留多个版本，只列出最高的一个。</translation>
+        <translation type="vanished">同一插件的缓存可能保留多个版本，只列出最高的一个。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="407"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="25"/>
         <source>Plugins</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="431"/>
         <source>Enable plugins (experimental)</source>
-        <translation>启用插件（实验性）</translation>
+        <translation type="vanished">启用插件（实验性）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="446"/>
         <source>No plugins found. Drop one into the plugins folder (Settings -&gt; data directory).</source>
-        <translation>未发现插件。将其放入插件目录（设置 → 数据目录）即可。</translation>
+        <translation type="vanished">未发现插件。将其放入插件目录（设置 → 数据目录）即可。</translation>
     </message>
     <message>
         <source>Skill root directories and scanning options arrive with the Skills page.</source>
         <translation type="vanished">Skill 根目录与扫描选项将随 Skills 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="347"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="24"/>
         <source>Web</source>
         <translation>Web</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="360"/>
         <source>Surface</source>
-        <translation>表面</translation>
+        <translation type="vanished">表面</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="370"/>
         <source>Embedded (in-app)</source>
-        <translation>内嵌（应用内）</translation>
+        <translation type="vanished">内嵌（应用内）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="371"/>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="372"/>
         <source>External (system browser)</source>
-        <translation>外部（系统浏览器）</translation>
+        <translation type="vanished">外部（系统浏览器）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="389"/>
         <source>Chromium flags, e.g. --disable-gpu (applies after restart)</source>
-        <translation>Chromium 启动参数，例如 --disable-gpu（重启后生效）</translation>
+        <translation type="vanished">Chromium 启动参数，例如 --disable-gpu（重启后生效）</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="399"/>
         <source>If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app &apos;Open in browser&apos; action always works as a fallback.</source>
-        <translation>如果内嵌视图无法启动（GPU 驱动问题），在此添加 --disable-gpu。应用内的“在浏览器打开”始终可用作兜底。</translation>
+        <translation type="vanished">如果内嵌视图无法启动（GPU 驱动问题），在此添加 --disable-gpu。应用内的“在浏览器打开”始终可用作兜底。</translation>
     </message>
     <message>
         <source>Embedded/external surface options arrive with the Web page.</source>
         <translation type="vanished">内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="496"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="26"/>
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="516"/>
         <source>Open data folder</source>
-        <translation>打开数据目录</translation>
+        <translation type="vanished">打开数据目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="532"/>
         <source>Restore default launchers</source>
-        <translation>恢复默认启动器</translation>
+        <translation type="vanished">恢复默认启动器</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsPluginsPage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsPluginsPage.qml" line="19"/>
+        <source>Plugins</source>
+        <translation>插件</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPluginsPage.qml" line="20"/>
+        <source>Experimental extensions dropped into the plugins folder</source>
+        <translation>放入插件文件夹的实验性扩展</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPluginsPage.qml" line="42"/>
+        <source>Enable plugins (experimental)</source>
+        <translation>启用插件（实验性）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsPluginsPage.qml" line="57"/>
+        <source>No plugins found. Drop one into the plugins folder (Settings -&gt; data directory).</source>
+        <translation>未找到插件。把插件放入插件文件夹（设置 → 数据目录）。</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsSkillsPage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="20"/>
+        <source>Skills</source>
+        <translation>Skills</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="21"/>
+        <source>Directories scanned for SKILL.md entries</source>
+        <translation>扫描 SKILL.md 条目的目录</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="23"/>
+        <source>Rescan</source>
+        <translation>重新扫描</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="74"/>
+        <source>Remove this root</source>
+        <translation>移除此根目录</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="88"/>
+        <source>Add a skill root directory...</source>
+        <translation>添加 skill 根目录...</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="97"/>
+        <source>Add</source>
+        <translation>添加</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="116"/>
+        <source>Plugin caches keep several versions of the same plugin; only the highest is listed.</source>
+        <translation>插件缓存会保留同一插件的多个版本，仅列出最高版本。</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsWebPage</name>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="19"/>
+        <source>Web</source>
+        <translation>Web</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="20"/>
+        <source>How agent web UIs are displayed</source>
+        <translation>Agent Web 界面的显示方式</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="31"/>
+        <source>Surface</source>
+        <translation>显示方式</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="41"/>
+        <source>Embedded (in-app)</source>
+        <translation>内嵌（应用内）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="42"/>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="43"/>
+        <source>External (system browser)</source>
+        <translation>外部（系统浏览器）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="60"/>
+        <source>Chromium flags, e.g. --disable-gpu (applies after restart)</source>
+        <translation>Chromium 旗标，如 --disable-gpu（重启后生效）</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsWebPage.qml" line="70"/>
+        <source>If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app &apos;Open in browser&apos; action always works as a fallback.</source>
+        <translation>如果内嵌视图无法启动（GPU 驱动问题），在这里加 --disable-gpu。应用内的“在浏览器中打开”始终可用作后备。</translation>
     </message>
 </context>
 <context>
@@ -1371,22 +1622,22 @@ Command: %2
 <context>
     <name>SkillDetailFlyout</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="124"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="157"/>
         <source>SKILL.md</source>
         <translation>SKILL.md</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="146"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="179"/>
         <source>Modified</source>
         <translation>修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="160"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="193"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="217"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="250"/>
         <source>Click the card to copy the path</source>
         <translation>点击卡片即可复制路径</translation>
     </message>
@@ -1609,6 +1860,19 @@ Command: %2
     </message>
 </context>
 <context>
+    <name>Theme</name>
+    <message>
+        <location filename="../src/theme/Theme.cpp" line="75"/>
+        <source>Dark</source>
+        <translation>深色</translation>
+    </message>
+    <message>
+        <location filename="../src/theme/Theme.cpp" line="77"/>
+        <source>Light</source>
+        <translation>浅色</translation>
+    </message>
+</context>
+<context>
     <name>ToolsFacade</name>
     <message>
         <location filename="../src/tools/ToolsFacade.cpp" line="84"/>
@@ -1690,7 +1954,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="130"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="399"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="418"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
@@ -1700,37 +1964,37 @@ Command: %2
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="167"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="186"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="214"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="233"/>
         <source>Files</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="329"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="348"/>
         <source>Copy relative path</source>
         <translation>复制相对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="333"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="352"/>
         <source>Copy absolute path</source>
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="384"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="403"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="397"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="416"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="398"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="417"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>
@@ -2276,7 +2540,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="250"/>
+        <location filename="../app/main.cpp" line="265"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
