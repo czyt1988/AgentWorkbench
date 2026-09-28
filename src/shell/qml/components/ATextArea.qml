@@ -16,6 +16,9 @@ TextArea {
     selectionColor: theme.selectionBg
     font.pixelSize: theme.fontSizeBody
     wrapMode: TextArea.Wrap
+    // TextEdit 的 selectByMouse 默认 false（Controls2 各风格也不覆盖）：
+    // 不显式打开，用户能输入却无法用鼠标选中文字复制。
+    selectByMouse: true
 
     background: Rectangle {
         radius: theme.radiusControl
