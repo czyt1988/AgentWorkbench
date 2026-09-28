@@ -1,7 +1,9 @@
 #include "tools/ToolsFacade.h"
 
+#include "tools/FileTreeFlatModel.h"
 #include "tools/FileTreeModel.h"
 
+#include <QDebug>
 #include <QFileInfo>
 #include <QDir>
 #include <QTimer>
@@ -18,6 +20,7 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
     : QObject(parent)
     , m_store(dataRoot)
     , m_model(new FileTreeModel(this))
+    , m_flatModel(new FileTreeFlatModel(this))
     , m_draftTimer(new QTimer(this))
 {
     m_store.load();
@@ -33,6 +36,10 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
     // 图标表要在设根之前叠加好：模型不会为已经渲染的行补发 dataChanged。
     m_model->loadUserIconFile(dataRoot + QStringLiteral("/file_icons.json"));
 
+    // QML 的树视图消费扁平投影（Qt 5/Qt 6 同一份 delegate，见
+    // FileTreeFlatModel）。
+    m_flatModel->setSourceModel(m_model);
+
     applyCurrentToModel();
 }
 
@@ -45,7 +52,7 @@ ToolsFacade::~ToolsFacade()
 
 QAbstractItemModel *ToolsFacade::model() const
 {
-    return m_model;
+    return m_flatModel;
 }
 
 FileTreeModel *ToolsFacade::fileTreeModel() const

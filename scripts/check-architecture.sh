@@ -124,7 +124,7 @@ alias_header() {
         agents.model) echo "src/agentcatalog/AgentModel.h" ;;
         skills.model) echo "src/skillcatalog/SkillModel.h" ;;
         web.model) echo "src/web/WebTabsModel.h" ;;
-        tools.model) echo "src/tools/FileTreeModel.h" ;;
+        tools.model) echo "src/tools/FileTreeFlatModel.h" ;;
         *) echo "" ;;
     esac
 }

@@ -13,6 +13,7 @@ class QTimer;
 
 namespace awb::tools {
 
+class FileTreeFlatModel;
 class FileTreeModel;
 
 /// Agent Tools 页的 QML 门面：工作区记忆、当前工作区、提示词草稿与文件树模型。
@@ -22,6 +23,8 @@ class ToolsFacade : public QObject
 {
     Q_OBJECT
 
+    /// 树的扁平投影（FileTreeFlatModel）：QML 的 ListView 消费它，Qt 5/Qt 6
+    /// 共用同一份 delegate。树源经 fileTreeModel() 暴露给测试与内部。
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
     /// 工作区绝对路径列表，MRU 在前；ComboBox 直接绑定。
     Q_PROPERTY(QVariantList workspaces READ workspaces NOTIFY workspacesChanged)
@@ -73,6 +76,7 @@ private:
 
     ToolsStore m_store;
     FileTreeModel *m_model;
+    FileTreeFlatModel *m_flatModel;
     QString m_draft;
     QTimer *m_draftTimer;
 };

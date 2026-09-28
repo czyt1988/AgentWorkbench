@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
@@ -20,16 +19,6 @@ Item {
         return -1
     }
 
-    // file:///C:/x%20y -> C:/x y（FolderDialog 给的是 URL，含百分号转义）。
-    function toLocalPath(folderUrl) {
-        let text = folderUrl.toString()
-        if (text.startsWith("file:///"))
-            text = text.substring(8)
-        else if (text.startsWith("file://"))
-            text = text.substring(7)
-        return decodeURIComponent(text)
-    }
-
     function copyDraft() {
         if (tools.draft.length === 0) {
             workbench.notify("info", qsTr("Nothing to copy"),
@@ -41,20 +30,17 @@ Item {
                          qsTr("The prompt is on the clipboard."))
     }
 
-    function addWorkspaceFromDialog() {
-        const path = toLocalPath(folderDialog.selectedFolder)
+    // 选目录走 ui.pickFolder（C++ 的原生 IFileOpenDialog，Qt 5/Qt 6 同一实
+    // 现与同一行为；QML FolderDialog 是 Qt 6 QuickDialogs2 独有）。返回的本
+    // 就是本地路径，取消时为空串。
+    function addWorkspaceViaDialog() {
+        const path = ui.pickFolder(qsTr("Choose a workspace folder"))
         if (path.length === 0)
             return
         const result = tools.addWorkspace(path)
         if (!result.ok)
             workbench.notify("error", qsTr("Could not add the workspace"),
                              result.error)
-    }
-
-    FolderDialog {
-        id: folderDialog
-        title: qsTr("Choose a workspace folder")
-        onAccepted: page.addWorkspaceFromDialog()
     }
 
     ColumnLayout {
@@ -142,7 +128,7 @@ Item {
 
             AButton {
                 text: qsTr("Add Folder...")
-                onClicked: folderDialog.open()
+                onClicked: page.addWorkspaceViaDialog()
             }
 
             AIconButton {
@@ -230,7 +216,10 @@ Item {
                         font.pixelSize: theme.fontSizeSmall
                     }
 
-                    TreeView {
+                    // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model 暴露）：
+                    // Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本统一用
+                    // ListView + depth/expanded role 渲染同一份数据。
+                    ListView {
                         id: fileTree
 
                         Layout.fillWidth: true
@@ -245,35 +234,36 @@ Item {
                         delegate: Item {
                             id: treeRow
 
-                            implicitWidth: fileTree.width
-                            implicitHeight: 28
+                            width: fileTree.width
+                            height: 28
 
                             // DropArea 据此识别拖拽来源（见编辑区的 onDropped）。
                             readonly property bool isFileReferenceDrag: true
-                            // 行被回收进池子到再次被复用之间为真。一次展开/收起
-                            // 会让 TreeView 把所有可见行回收再复用（实测：50 行
-                            // 全部 pooled+reused），这期间 role 换成别行的值，
-                            // 动画要闭嘴，否则整棵树的箭头会一起转一遍。
+                            // 行被回收进池子到再次被复用之间为真。模型 reset
+                            // 期间 role 会短暂换值，动画要闭嘴，否则整棵树的
+                            // 箭头会一起转一遍。
                             property bool rebinding: false
 
-                            required property TreeView treeView
-                            required property bool isTreeNode
-                            required property bool expanded
-                            required property bool hasChildren
-                            required property int depth
-                            required property int row
-                            required property int column
-                            // role 注入：TreeView delegate 里 model 上下文与
-                            // required property 混用会静默取不到值，role 一律
-                            // 经 required property 声明。
+                            // role 一律经 required property 声明（模型上下文
+                            // 与之混用会静默取不到值）。
                             required property string name
                             required property string path
                             required property string relativePath
                             required property bool isDir
                             required property string iconSource
+                            required property int depth
+                            required property bool expanded
+                            required property bool hasChildren
 
-                            TableView.onPooled: treeRow.rebinding = true
-                            TableView.onReused: treeRow.rebinding = false
+                            // ListView 没有 TableView 的池化信号：reset 期间
+                            // 用模型的计数变化闭动画。
+                            Connections {
+                                target: tools.model
+                                function onModelReset() {
+                                    treeRow.rebinding = true
+                                }
+                            }
+                            Component.onCompleted: treeRow.rebinding = false
 
                             // 拖出文件引用：Automatic 型拖拽，Drag.active 置真
                             // 即开始（mimeData 在会话开始时求值）。
@@ -301,17 +291,12 @@ Item {
                                 id: rowHover
                             }
 
-                            // 单击目录：先兜底 fetch 再切换展开。Qt 6.7 的
-                            // TreeView 也会经内部 proxy 替懒加载模型驱动
-                            // fetchMore，但那是实现细节，不去依赖它。
+                            // 单击目录：切换展开（fetch 兜底在模型的
+                            // toggleExpanded 内部完成）。
                             TapHandler {
                                 onSingleTapped: {
-                                    if (treeRow.isDir) {
-                                        tools.model.fetchChildren(
-                                                    treeView.index(treeRow.row,
-                                                                   treeRow.column))
-                                        treeView.toggleExpanded(treeRow.row)
-                                    }
+                                    if (treeRow.isDir)
+                                        tools.model.toggleExpanded(index)
                                 }
                             }
 
@@ -357,7 +342,7 @@ Item {
                                 width: 14
                                 height: 14
                                 source: "qrc:/icons/chevron-right.svg"
-                                visible: treeRow.isTreeNode && treeRow.hasChildren
+                                visible: treeRow.hasChildren
                                 rotation: treeRow.expanded ? 90 : 0
 
                                 Behavior on rotation {
@@ -394,7 +379,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: tools.currentWorkspace.length > 0
-                                 && tools.model.topLevelCount === 0
+                                 && tools.model.visibleCount === 0
                         Layout.margins: theme.spacingM
                         text: qsTr("The workspace folder is empty or unavailable.")
                         color: theme.textMuted
@@ -412,7 +397,7 @@ Item {
                         title: qsTr("No workspace selected")
                         description: qsTr("Add a folder to browse its files and insert references into the prompt.")
                         actionText: qsTr("Add Folder...")
-                        onActionClicked: folderDialog.open()
+                        onActionClicked: page.addWorkspaceViaDialog()
                     }
                 }
             }
