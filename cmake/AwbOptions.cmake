@@ -14,5 +14,12 @@ if (AWB_ENABLE_WEBENGINE AND WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 if (AWB_ENABLE_WEBENGINE)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS WebEngineQuick)
+    # The Quick WebEngine component is named WebEngineQuick since Qt 6 and
+    # plain WebEngine on Qt 5; both resolve to $AWB_WEBENGINE_TARGET
+    # (cmake/AwbQtCompat.cmake) for linking.
+    if (QT_VERSION_MAJOR EQUAL 6)
+        find_package(Qt6 6.5 REQUIRED COMPONENTS WebEngineQuick)
+    else()
+        find_package(Qt5 5.15 REQUIRED COMPONENTS WebEngine)
+    endif()
 endif()

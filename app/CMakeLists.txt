@@ -1,8 +1,9 @@
 # L4 executable: assembly + the QML module
 # + every embedded resource. No business logic lives here.
 #
-# All module QML is compiled into the executable through qt_add_qml_module
-# with stable aliases, so a page URL looks like
+# All module QML is compiled into the executable through awb_add_qml_module
+# (qt_add_qml_module on Qt 6, a generated qmldir+qrc on Qt 5) with stable
+# aliases, so a page URL looks like
 #   qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml
 # Resources are never put into static libraries (qrc initializers in static
 # libraries get dropped by the linker.
@@ -63,7 +64,7 @@ foreach(name IN LISTS _tools_qml)
         QT_RESOURCE_ALIAS "tools/${name}.qml")
 endforeach()
 
-qt_add_executable(AgentWorkbench
+add_executable(AgentWorkbench
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/app.rc
 )
@@ -80,30 +81,45 @@ target_link_libraries(AgentWorkbench PRIVATE
     awb_tools
     awb_web
     awb_workbench
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Qml
-    Qt6::Quick
-    Qt6::QuickControls2
-    Qt6::QuickDialogs2
-    Qt6::Network
+    Qt::Core
+    Qt::Gui
+    Qt::Qml
+    Qt::Quick
+    Qt::QuickControls2
+    Qt::Network
 )
 
 if (AWB_ENABLE_WEBENGINE)
     target_compile_definitions(AgentWorkbench PRIVATE AWB_ENABLE_WEBENGINE=1)
     target_link_libraries(AgentWorkbench PRIVATE awb_web_webengine
-                                                 Qt6::WebEngineQuick)
+                                                 ${AWB_WEBENGINE_TARGET})
 endif()
 
-# The QML module shared by every page/component.
-qt_add_qml_module(AgentWorkbench
+# The QML module shared by every page/component. awb_add_qml_module (from
+# cmake/AwbQtCompat.cmake) is qt_add_qml_module on Qt 6; on Qt 5 it embeds the
+# same files under the same aliases plus a generated qmldir so the
+# qrc:/qt/qml/AgentWorkbench/... URLs resolve identically.
+awb_add_qml_module(AgentWorkbench
     URI AgentWorkbench
     VERSION 1.0
-    NO_CACHEGEN
     QML_FILES ${AWB_QML_FILES}
 )
 
 # --- Embedded resources (executable only, never a library) -------------------
+# Compiled translations, embedded under :/i18n/. The alias + embed live here
+# (same directory scope as the target) on both Qt versions; the .qm paths in
+# QM_FILES come from the qt_create_translation() call in the root CMakeLists.
+# The target dependency guarantees lrelease finishes before rcc reads the .qm
+# (they are registered in different directories).
+add_dependencies(AgentWorkbench awb_translations)
+set_source_files_properties(${QM_FILES} PROPERTIES
+    QT_RESOURCE_ALIAS "agentworkbench_zh_CN.qm")
+awb_add_resources(AgentWorkbench "i18n"
+    PREFIX "/i18n"
+    FILES
+        ${QM_FILES}
+)
+
 set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/app-icon.png
     ${CMAKE_SOURCE_DIR}/icons/bot.svg
@@ -188,7 +204,7 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_agents.json
 set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_file_icons.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
 
-qt_add_resources(AgentWorkbench "app_resources"
+awb_add_resources(AgentWorkbench "app_resources"
     PREFIX "/"
     FILES
         ${CMAKE_SOURCE_DIR}/config/default_agents.json
@@ -204,7 +220,7 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json
 set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json
     PROPERTIES QT_RESOURCE_ALIAS "latte-light.json")
 
-qt_add_resources(AgentWorkbench "theme_resources"
+awb_add_resources(AgentWorkbench "theme_resources"
     PREFIX "/themes"
     FILES
         ${CMAKE_SOURCE_DIR}/resources/themes/mocha-dark.json

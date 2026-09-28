@@ -1,7 +1,7 @@
 # awb_web (L2 domain): tab model, surface selection, memory policy.
 # Links awb_core/awb_theme only — no WebEngine here; the heavy adapter is
 # the sibling webengine/ target.
-qt_add_library(awb_web STATIC
+add_library(awb_web STATIC
     WebProfilePaths.cpp
     WebProfilePaths.h
     WebSurfaceRegistry.cpp
@@ -20,9 +20,9 @@ target_link_libraries(awb_web
     PUBLIC
         awb_core
         awb_theme
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Network
+        Qt::Core
+        Qt::Gui
+        Qt::Network
 )
 
 # The WebEngine adapter — the only target allowed to link

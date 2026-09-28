@@ -1,5 +1,5 @@
 # tst_core — infrastructure suite for awb_core.
-qt_add_executable(tst_core
+add_executable(tst_core
     tst_core_main.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
     tst_envexpander.cpp
@@ -19,9 +19,9 @@ target_include_directories(tst_core PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 
 target_link_libraries(tst_core PRIVATE
     awb_core
-    Qt6::Core
-    Qt6::Network
-    Qt6::Test
+    Qt::Core
+    Qt::Network
+    Qt::Test
 )
 
 add_test(NAME tst_core COMMAND tst_core)

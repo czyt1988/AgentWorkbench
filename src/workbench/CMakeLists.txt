@@ -1,6 +1,6 @@
 # awb_workbench (L3): composition root intents — the only module allowed to
 # depend on every domain.
-qt_add_library(awb_workbench STATIC
+add_library(awb_workbench STATIC
     BuiltinPages.cpp
     BuiltinPages.h
     EnvironmentService.cpp
@@ -22,6 +22,6 @@ target_link_libraries(awb_workbench
         awb_theme
         awb_tools
         awb_web
-        Qt6::Core
-        Qt6::Gui
+        Qt::Core
+        Qt::Gui
 )

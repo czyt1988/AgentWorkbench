@@ -1,7 +1,7 @@
 # awb_core (L0): infrastructure with no business knowledge and no UI
 # dependency. Public include root is src/, so consumers write
 # `#include "core/Paths.h"`.
-qt_add_library(awb_core STATIC
+add_library(awb_core STATIC
     EnvExpander.cpp
     EnvExpander.h
     HttpProbe.cpp
@@ -39,6 +39,6 @@ target_link_libraries(awb_core PRIVATE spdlog::spdlog)
 
 target_link_libraries(awb_core
     PUBLIC
-        Qt6::Core
-        Qt6::Network
+        Qt::Core
+        Qt::Network
 )

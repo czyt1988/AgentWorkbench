@@ -1,7 +1,7 @@
 # Unit tests, one executable per module.
 # Every target below is also a ctest test of the same name, so
 # `ctest -R tst_core` runs a module and `ctest -R tst_agentcatalog` another.
-# BUILD_TESTING and Qt6::Test come from the top-level CMakeLists.txt.
+# BUILD_TESTING and Qt::Test come from the top-level CMakeLists.txt.
 add_subdirectory(core)
 add_subdirectory(agentcatalog)
 add_subdirectory(theme)

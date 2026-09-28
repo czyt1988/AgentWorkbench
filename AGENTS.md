@@ -32,7 +32,7 @@ cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
 
-- 需要 Qt 6.5+（模块：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools；内嵌 Web 另需 WebEngineQuick，只有 MSVC 有）。
+- 需要 Qt 6.5+，或 Qt 5.15.16 LTS 兜底（模块同名：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools；内嵌 Web 另需 WebEngineQuick——Qt 5 里组件叫 WebEngine）。两个大版本的差异全部集中在 `cmake/AwbQtCompat.cmake` 与 `#if QT_VERSION` 分支：Qt 5 路线的验证基准是 **5.15.16 LTS**（内嵌 Web 依赖的 lifecycleState/对话框请求等 WebEngine backport 在 LTS 补丁版里，开源 5.15.0/2 未必齐全）。Qt 5 构建的 QML 源在配置期自动改写补上 import 版本号（Qt 5 编译器要求库 import 带版本），资源/qmldir 用生成的 qrc 镜像 Qt 6 的 `/qt/qml/AgentWorkbench/` URL。
 - 需要 CMake 3.16+，C++17。
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。

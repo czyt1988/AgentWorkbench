@@ -1,5 +1,5 @@
 # tst_skillcatalog — frontmatter parsing + scanning.
-qt_add_executable(tst_skillcatalog
+add_executable(tst_skillcatalog
     tst_skills_main.cpp
     tst_skillfrontmatter.cpp
     tst_skillscanner.cpp
@@ -13,9 +13,9 @@ target_link_libraries(tst_skillcatalog PRIVATE
     awb_skillcatalog
     awb_core
     awb_theme
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Test
+    Qt::Core
+    Qt::Gui
+    Qt::Test
 )
 
 add_test(NAME tst_skillcatalog COMMAND tst_skillcatalog)

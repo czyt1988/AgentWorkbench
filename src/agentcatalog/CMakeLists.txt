@@ -1,7 +1,7 @@
 # awb_agentcatalog (L2 domain): agent definitions, persistence, process
 # lifecycle, health checks and one-shot commands. Depends on awb_core only
 # (no Qt Quick, no other domain modules).
-qt_add_library(awb_agentcatalog STATIC
+add_library(awb_agentcatalog STATIC
     AgentDefinition.h
     AgentHealthMonitor.cpp
     AgentHealthMonitor.h
@@ -28,6 +28,6 @@ target_link_libraries(awb_agentcatalog
     PUBLIC
         awb_core
         awb_theme
-        Qt6::Core
-        Qt6::Gui
+        Qt::Core
+        Qt::Gui
 )
