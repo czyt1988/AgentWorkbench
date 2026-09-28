@@ -157,21 +157,6 @@ Item {
         }
     }
 
-    // Scrolling the grid closes the flyout immediately — the
-    // wheel gesture over THIS card; scrolling elsewhere is covered by the
-    // hover-out path above.
-    WheelHandler {
-        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        // blocking:false — with the default (true) the handler swallowed the
-        // wheel over the card and the ScrollView behind never scrolled; the
-        // flyout still closes via onWheel while the event keeps propagating.
-        blocking: false
-        onWheel: function(event) {
-            if (flyout.opened)
-                flyout.close()
-        }
-    }
-
     MouseArea {
         id: mouseArea
         anchors.fill: parent
@@ -183,6 +168,15 @@ Item {
                 contextMenu.popup()
             else
                 card.copyPath()
+        }
+        // 滚轮划过卡片时立即收起 flyout（在别处滚动由上方的 hover-out 路径
+        // 覆盖）。wheel.accepted 置 false 让事件继续传给背后的 ScrollView——
+        // 不用 WheelHandler.blocking 做这件事：该属性 Qt 6.2 才引入，Qt 5 下
+        // 对它赋值会让整个 SkillCard 连同 Skills 页加载失败。
+        onWheel: function(wheel) {
+            if (flyout.opened)
+                flyout.close()
+            wheel.accepted = false
         }
     }
 

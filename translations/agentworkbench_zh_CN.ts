@@ -1319,51 +1319,51 @@ Command: %2
     </message>
     <message>
         <location filename="../src/skillcatalog/qml/SkillCard.qml" line="141"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="228"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="222"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="219"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="236"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="213"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="230"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="222"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="239"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="216"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="233"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="245"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="232"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="226"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="244"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="238"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="248"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="242"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="257"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="261"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="264"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="266"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="260"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
