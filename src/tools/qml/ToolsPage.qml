@@ -151,19 +151,38 @@ Item {
         }
 
         // --- Body: prompt editor (left) + workspace file tree (right) ----
-        RowLayout {
+        // SplitView：中间分割条可拖，编辑区吃剩余宽度。最小宽保证两边
+        // 都不会被拖到不可用；preferred 是初始/复位宽度。
+        SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: theme.spacingL
             Layout.rightMargin: theme.spacingL
             Layout.bottomMargin: theme.spacingL
-            spacing: theme.spacingL
+            orientation: Qt.Horizontal
+
+            handle: Rectangle {
+                id: splitHandle
+                implicitWidth: theme.spacingXs
+                implicitHeight: implicitWidth
+                color: SplitHandle.pressed ? theme.accent
+                       : (SplitHandle.hovered ? theme.borderStrong
+                                              : theme.borderSubtle)
+                // 视觉只有一条 4px 的线，命中区放大到 12px 才好抓。
+                // 引用必须走 id：mask 在首次求值时尚未重父级到 handle，
+                // parent 是 null。
+                containmentMask: Item {
+                    x: (splitHandle.width - width) / 2
+                    width: 12
+                    height: splitHandle.height
+                }
+            }
 
             ATextArea {
                 id: promptEditor
 
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 260
                 placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
                 // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
                 Component.onCompleted: text = tools.draft
@@ -194,8 +213,8 @@ Item {
             Rectangle {
                 id: treePanel
 
-                Layout.preferredWidth: 360
-                Layout.fillHeight: true
+                SplitView.preferredWidth: 360
+                SplitView.minimumWidth: 220
                 color: theme.surfaceBg
                 radius: theme.radiusControl
                 border.color: theme.borderSubtle
