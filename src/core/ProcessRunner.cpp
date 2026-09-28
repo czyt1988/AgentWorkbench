@@ -2,7 +2,14 @@
 
 #include <QProcess>
 #include <QStandardPaths>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QStringDecoder>
+#else
+// QTextCodec 在 Qt 5 属 QtCore、在 Qt 6 被移去 Core5Compat，decodeOutput
+// 的两个版本各用各的解码器。
+#include <QTextCodec>
+#endif
 
 namespace awb::core {
 
@@ -123,14 +130,72 @@ bool ProcessRunner::killTree(qint64 pid)
     return startDetached(killProgram(), killProgramArgs(pid), &outPid);
 }
 
+QStringList ProcessRunner::splitCommand(const QString &command)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return QProcess::splitCommand(command);
+#else
+    // 与 QProcess::splitCommand 同一套规则：空白分词、双引号成组、
+    // 反斜杠仅转义引号自身、成对的引号字面量（"" -> "）。奇数引号这类
+    // 非法输入 Qt 6 返回空表，这里保持一致。
+    QStringList tokens;
+    QString current;
+    bool inQuote = false;
+    bool tokenStarted = false;
+    bool escaped = false;
+    int quoteCount = 0;
+    const int size = command.size();
+    for (int i = 0; i < size; ++i) {
+        const QChar c = command.at(i);
+        if (escaped) {
+            current += c;
+            escaped = false;
+        } else if (c == QLatin1Char('\\') && inQuote
+                   && i + 1 < size
+                   && command.at(i + 1) == QLatin1Char('"')) {
+            escaped = true;
+        } else if (c == QLatin1Char('"')) {
+            ++quoteCount;
+            inQuote = !inQuote;
+            tokenStarted = true;
+        } else if (!inQuote && c.isSpace()) {
+            if (tokenStarted) {
+                tokens.append(current);
+                current.clear();
+                tokenStarted = false;
+            }
+        } else {
+            current += c;
+            tokenStarted = true;
+        }
+    }
+    if (quoteCount % 2 != 0)
+        return {};
+    if (tokenStarted)
+        tokens.append(current);
+    return tokens;
+#endif
+}
+
 QString ProcessRunner::decodeOutput(const QByteArray &data)
 {
     if (data.isEmpty())
         return {};
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QStringDecoder decoder(QStringDecoder::Utf8);
     const QString result = decoder.decode(data);
     if (!decoder.hasError())
         return result;
+#else
+    // QTextDecoder::toUnicode 带 ConverterState，invalidChars 记录非法序列数，
+    // 与 QStringDecoder::hasError 的判据等价。
+    QTextCodec::ConverterState state;
+    const QString result = QTextCodec::codecForName("UTF-8")
+                               ->toUnicode(data.constData(), data.size(),
+                                           &state);
+    if (state.invalidChars == 0)
+        return result;
+#endif
     return QString::fromLocal8Bit(data);
 }
 

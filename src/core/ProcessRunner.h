@@ -60,6 +60,11 @@ public:
     static QString killProgram();
     static QStringList killProgramArgs(qint64 pid);
 
+    // Split a raw command line into program + arguments, honoring double
+    // quotes ("a b" stays one token, \" is a literal quote). QProcess gained
+    // this as QProcess::splitCommand in Qt 6; this is the portable twin.
+    static QStringList splitCommand(const QString &command);
+
     // Decode bytes captured from a child process (npm/node/PowerShell etc.).
     // Modern CLI tools emit UTF-8; invalid sequences fall back to the system
     // locale codec (e.g. GBK on zh-CN Windows) so legacy cmd output still

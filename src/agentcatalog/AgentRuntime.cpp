@@ -8,6 +8,7 @@
 #include "core/TextUtils.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -85,8 +86,10 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     // left showing stale console output.
     m_model->setConsoleOutput(id, QString());
 
-    // Split command into program + arguments on whitespace.
-    const QStringList parts = QProcess::splitCommand(definition.command);
+    // Split command into program + arguments on whitespace. The portable
+    // ProcessRunner twin is used on both Qt versions (QProcess::splitCommand
+    // itself is Qt 6 only).
+    const QStringList parts = core::ProcessRunner::splitCommand(definition.command);
     if (parts.isEmpty()) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("skipped, the startup command is empty"));

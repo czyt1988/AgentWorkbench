@@ -12,6 +12,7 @@
 #include "theme/Theme.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QFile>
 #include <QDir>

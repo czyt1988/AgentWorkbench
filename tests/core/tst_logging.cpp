@@ -3,6 +3,7 @@
 #include "core/Logging.h"
 #include "core/TextUtils.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QLoggingCategory>

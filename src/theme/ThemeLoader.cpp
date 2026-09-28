@@ -1,5 +1,6 @@
 #include "theme/ThemeLoader.h"
 
+#include <QDebug>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>

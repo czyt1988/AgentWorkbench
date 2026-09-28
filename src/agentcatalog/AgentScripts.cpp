@@ -7,6 +7,7 @@
 #include "core/TextUtils.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QTimer>
 
 namespace awb::agentcatalog {

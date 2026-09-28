@@ -78,10 +78,13 @@ int awbRunRegisteredTests(int argc, char *argv[])
 
         QStringList matched = functionFilters;
         if (!functionFilters.isEmpty()) {
-            matched.removeIf([test](const QString &name) {
-                return test->metaObject()->indexOfMethod(
-                           qPrintable(name + QStringLiteral("()"))) < 0;
-            });
+            // QStringList::removeIf 是 Qt 6.1+ 的 API；这里用迭代删除保持
+            // Qt 5 兼容。
+            for (int i = matched.size() - 1; i >= 0; --i) {
+                if (test->metaObject()->indexOfMethod(
+                        qPrintable(matched.at(i) + QStringLiteral("()"))) < 0)
+                    matched.removeAt(i);
+            }
             if (matched.isEmpty()) {
                 delete test;
                 continue;
@@ -102,7 +105,9 @@ int awbRunRegisteredTests(int argc, char *argv[])
         for (QByteArray &bytes : storage)
             args.append(bytes.data());
 
-        status |= QTest::qExec(test, args.size(), args.data());
+        // QList::data() 是 Qt 6 的 API；Qt 5 用取首元素地址的老写法
+        // （storage 至少含 program 一项，列表不为空）。
+        status |= QTest::qExec(test, args.size(), &args.first());
         delete test;
     }
     return status;

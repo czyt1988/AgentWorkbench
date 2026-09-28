@@ -5,6 +5,7 @@
 #include "core/Settings.h"
 #include "skillcatalog/SkillFrontmatter.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>

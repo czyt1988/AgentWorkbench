@@ -3,6 +3,7 @@
 #include "core/Settings.h"
 #include "theme/ThemeRegistry.h"
 
+#include <QDebug>
 #include <QVariantMap>
 
 namespace awb::theme {

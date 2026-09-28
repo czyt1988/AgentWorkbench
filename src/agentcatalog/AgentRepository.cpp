@@ -3,6 +3,7 @@
 #include "core/IconResolver.h"
 #include "core/JsonStore.h"
 
+#include <QDebug>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>

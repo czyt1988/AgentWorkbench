@@ -4,6 +4,7 @@
 #include "core/Logging.h"
 #include "core/Paths.h"
 
+#include <QDebug>
 #include <QJsonObject>
 #include <QSet>
 

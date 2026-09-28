@@ -155,7 +155,10 @@ void ScriptRunner::run(const QString &key, const QString &program,
 
     // Normal completion (including a timeout kill, which arrives here with
     // a non-zero exit code).
-    connect(proc, &QProcess::finished, this,
+    // Qt 5.15 的 QProcess::finished 是重载信号（弃用的单参版仍在），
+    // qOverload 按参数表消歧，两版通用。
+    connect(proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+            this,
             [this, key, epoch, proc, timeoutMs](int exitCode,
                                                 QProcess::ExitStatus) {
                 if (!isCurrent(key, epoch, proc))

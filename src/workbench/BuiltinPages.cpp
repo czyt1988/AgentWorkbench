@@ -110,7 +110,7 @@ void BuiltinPages::wireBadges()
 
     const awb::agentcatalog::AgentModel *model = m_agents->agentModel();
     connect(model, &awb::agentcatalog::AgentModel::dataChanged, this,
-            [update](const QModelIndex &, const QModelIndex &, const QList<int> &roles) {
+            [update](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
                 if (roles.isEmpty()
                     || roles.contains(awb::agentcatalog::AgentModel::RunningRole))
                     update();

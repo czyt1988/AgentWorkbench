@@ -4,7 +4,10 @@
 #include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
+// QtLogging 汇总头是 Qt 6.5 引入的；QLoggingCategory 已足够。
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #include <QtLogging>
+#endif
 
 /// 应用级事件日志的 category（"awb.event"）：由下方的 AWB_* 宏绑定。
 /// 声明在全局作用域——宏展开处按未限定名查找，放进命名空间就解析不到。

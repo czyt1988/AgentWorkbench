@@ -1,5 +1,6 @@
 #include "shell/NavigationModel.h"
 
+#include <QDebug>
 #include <QVariantMap>
 
 #include <algorithm>

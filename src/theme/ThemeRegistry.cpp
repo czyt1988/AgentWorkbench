@@ -3,6 +3,7 @@
 #include "core/Paths.h"
 #include "theme/ThemeLoader.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>

@@ -7,6 +7,7 @@
 #include "web/WebTabsModel.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QStringList>
 #include <QUrl>
@@ -422,7 +423,7 @@ void WebTabsFacade::wireActiveTracking()
     // (state, title, progress …) — re-read activeState in QML.
     connect(m_tabs, &QAbstractItemModel::dataChanged, this,
             [this](const QModelIndex &topLeft, const QModelIndex &,
-                   const QList<int> &) {
+                   const QVector<int> &) {
                 if (topLeft.row() == m_tabs->activeIndex())
                     emit activeStateChanged();
             });
