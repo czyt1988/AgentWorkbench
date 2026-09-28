@@ -10,7 +10,7 @@ Dialog {
     id: control
 
     property alias titleText: titleLabel.text
-    default property alias contentData: contentColumn.data
+    default property alias dialogContent: contentColumn.data
 
     // danger: red title + red border, for destructive confirmations and
     // error alerts.

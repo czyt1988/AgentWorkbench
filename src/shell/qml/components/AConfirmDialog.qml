@@ -20,7 +20,7 @@ ADialog {
     signal cancelled()
 
     // Message + caller-provided detail rows + buttons.
-    contentData: [
+    dialogContent: [
         ColumnLayout {
             Layout.fillWidth: true
             spacing: theme.spacingM

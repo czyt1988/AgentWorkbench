@@ -10,7 +10,10 @@ Rectangle {
     id: statusBar
 
     color: theme.chromeBg
-    height: theme.statusBarHeight
+    // 布局子项（ColumnLayout 里）经 implicitHeight 提供尺寸：直接绑
+    // height 会与布局的重分配互相触发，Qt 5 的 Layouts 引擎因此报
+    // "recursive rearrange"（Qt 6 容忍了这种写法）。
+    implicitHeight: theme.statusBarHeight
 
     RowLayout {
         anchors.fill: parent

@@ -29,7 +29,8 @@ Item {
 
     function recountRunning() {
         let n = 0
-        for (const child of runningList.children) {
+        for (let i = 0; i < runningList.children.length; ++i) {
+            const child = runningList.children[i]
             if (child.visible && child.height > 0)
                 ++n
         }

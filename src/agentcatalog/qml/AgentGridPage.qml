@@ -23,8 +23,8 @@ Item {
     // "No matching launchers" empty state over a fully configured model.
     function recountShown() {
         let n = 0
-        for (const child of counterBox.children) {
-            if (child.matches === true)
+        for (let i = 0; i < counterBox.children.length; ++i) {
+            if (counterBox.children[i].matches === true)
                 ++n
         }
         page.shownCount = n

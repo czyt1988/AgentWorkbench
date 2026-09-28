@@ -18,7 +18,7 @@ ADialog {
 
     signal dismissed()
 
-    contentData: [
+    dialogContent: [
         ColumnLayout {
             Layout.fillWidth: true
             spacing: theme.spacingM
