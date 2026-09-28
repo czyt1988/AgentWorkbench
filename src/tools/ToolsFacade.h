@@ -43,12 +43,15 @@ public:
     QString currentWorkspace() const;
     QString draft() const;
 
+    /// 返回类型必须写全限定名：Qt 5 的 moc 按头文件书写形式记录返回类型名，
+    /// QML 调用端按 QMetaType 注册名（即类全名 awb::core::OpResult）解析；
+    /// 短名解析不到注册表就抛 "Unknown method return type"，按钮静默无响应。
     /// 校验目录存在后交给 ToolsStore（MRU + 上限淘汰），并把树根切到新工作区。
     /// 失败带可展示的原因（目录不存在 / 落盘失败）。
-    Q_INVOKABLE core::OpResult addWorkspace(const QString &path);
+    Q_INVOKABLE awb::core::OpResult addWorkspace(const QString &path);
 
     /// 移除一个工作区；移除的是当前项时树根顺延到队首剩余项。
-    Q_INVOKABLE core::OpResult removeWorkspace(const QString &path);
+    Q_INVOKABLE awb::core::OpResult removeWorkspace(const QString &path);
 
     /// 重扫文件树；结果经 refreshFinished 广播（异步形状，当前实现同步完成）。
     Q_INVOKABLE void refresh();

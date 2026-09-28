@@ -54,14 +54,17 @@ public:
     Q_INVOKABLE bool addRoot(const QString &path);
     Q_INVOKABLE bool removeRoot(const QString &id);
 
+    // 返回类型必须写全限定名：Qt 5 的 moc 按头文件书写形式记录返回类型名，
+    // QML 调用端按 QMetaType 注册名（即类全名 awb::core::OpResult）解析；
+    // 短名解析不到注册表就抛 "Unknown method return type"，调用静默失效。
     // Copy the skill directory path to the clipboard; the caller shows the
     // toast from the OpResult.
-    Q_INVOKABLE core::OpResult copyPath(const QString &skillFilePath);
-    Q_INVOKABLE core::OpResult copySkillFile(const QString &skillFilePath);
-    Q_INVOKABLE core::OpResult copyName(const QString &skillFilePath);
+    Q_INVOKABLE awb::core::OpResult copyPath(const QString &skillFilePath);
+    Q_INVOKABLE awb::core::OpResult copySkillFile(const QString &skillFilePath);
+    Q_INVOKABLE awb::core::OpResult copyName(const QString &skillFilePath);
 
-    Q_INVOKABLE core::OpResult openFolder(const QString &skillFilePath);
-    Q_INVOKABLE core::OpResult revealSkillFile(const QString &skillFilePath);
+    Q_INVOKABLE awb::core::OpResult openFolder(const QString &skillFilePath);
+    Q_INVOKABLE awb::core::OpResult revealSkillFile(const QString &skillFilePath);
 
     // The definition behind a SKILL.md path (for the hover flyout).
     Q_INVOKABLE QVariantMap skill(const QString &skillFilePath) const;

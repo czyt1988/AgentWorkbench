@@ -29,6 +29,7 @@ target_link_libraries(tst_tools PRIVATE
     awb_tools
     awb_core
     Qt::Core
+    Qt::Qml
     Qt::Test
 )
 

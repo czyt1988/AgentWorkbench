@@ -18,18 +18,21 @@ class UiServices : public QObject
 public:
     explicit UiServices(QObject *parent = nullptr);
 
+    // 返回类型必须写全限定名：Qt 5 的 moc 按头文件书写形式记录返回类型名，
+    // QML 调用端按 QMetaType 注册名（即类全名 awb::core::OpResult）解析；
+    // 短名解析不到注册表就抛 "Unknown method return type"，调用静默失效。
     // Copy to the system clipboard. Failure (e.g. no clipboard service)
     // comes back as OpResult so the caller can show the reason.
-    Q_INVOKABLE core::OpResult copyText(const QString &text);
+    Q_INVOKABLE awb::core::OpResult copyText(const QString &text);
 
     // Open a URL/path with the system handler (browser, file association).
-    Q_INVOKABLE core::OpResult openExternalUrl(const QUrl &url);
+    Q_INVOKABLE awb::core::OpResult openExternalUrl(const QUrl &url);
 
     // Reveal a file in the file manager (explorer /select on Windows).
-    Q_INVOKABLE core::OpResult revealFile(const QString &path);
+    Q_INVOKABLE awb::core::OpResult revealFile(const QString &path);
 
     // Open a folder in the file manager.
-    Q_INVOKABLE core::OpResult openFolder(const QString &path);
+    Q_INVOKABLE awb::core::OpResult openFolder(const QString &path);
 
     /// 弹系统「选文件夹」对话框，返回所选目录；取消返回空串。
     ///

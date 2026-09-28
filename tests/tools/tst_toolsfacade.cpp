@@ -5,6 +5,7 @@
 #include "tools/ToolsFacade.h"
 
 #include <QDir>
+#include <QJSEngine>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -168,6 +169,49 @@ private slots:
         QVERIFY2(QMetaObject::invokeMethod(&facade, "removeWorkspace",
                                            Q_ARG(QString, m_ws->path())),
                  "tools.removeWorkspace is not invokable");
+    }
+
+    // QML 调用端按 moc 记录的类型名查 QMetaType 注册表（见
+    // awbUnresolvedQmlCallTypes 的说明）；注册序与 app/main.cpp 一致。
+    void testQmlMethodTypesResolve()
+    {
+        qRegisterMetaType<awb::core::OpResult>();
+        ToolsFacade facade(Paths::dataRoot());
+        const QStringList failures = awbUnresolvedQmlCallTypes(&facade);
+        QVERIFY2(failures.isEmpty(),
+                 qPrintable(failures.join(QLatin1String("\n"))));
+    }
+
+    // 端到端复现 QML 的真实调用路径（newQObject → CallPrecise 的按名
+    // 解析 → gadget 返回值包装成 JS 对象）：声明写成短名（core::OpResult）
+    // 时这里抛 "Unknown method return type"（Qt 5），与线上按钮点击同源。
+    // QJSEngine 持有 facade 的延迟引用：引擎必须先于 facade 析构，
+    // 否则进程退出阶段卡在 QV4 的清理上。
+    void testAddWorkspaceCallableFromScript()
+    {
+        qRegisterMetaType<awb::core::OpResult>();
+        QJSEngine engine;
+        {
+            ToolsFacade facade(Paths::dataRoot());
+            const QJSValue tools = engine.newQObject(&facade);
+            // QJSValue::call 在 Qt 5.15 是非 const 成员，这里不能声明成 const。
+            QJSValue call = engine.evaluate(
+                QStringLiteral("(function(tools, path) {"
+                               "  const result = tools.addWorkspace(path);"
+                               "  return result.ok + '|' + result.error;"
+                               "})"));
+
+            const QJSValue added = call.call(
+                QJSValueList() << tools << QJSValue(m_ws->path()));
+            QVERIFY2(!added.isError(), qPrintable(added.toString()));
+            QCOMPARE(added.toString(), QLatin1String("true|"));
+
+            const QJSValue rejected = call.call(
+                QJSValueList() << tools
+                               << QJSValue(QStringLiteral("/no/such/dir")));
+            QVERIFY2(!rejected.isError(), qPrintable(rejected.toString()));
+            QVERIFY(rejected.toString().startsWith(QLatin1String("false|")));
+        }
     }
 
 private:

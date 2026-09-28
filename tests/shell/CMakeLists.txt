@@ -6,6 +6,9 @@ add_executable(tst_shell
     tst_shell.cpp
 )
 
+# 只为 awbtest.h（QML 方法类型守卫）：tst_shell 不经共享注册表跑。
+target_include_directories(tst_shell PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+
 target_link_libraries(tst_shell PRIVATE
     awb_shell
     awb_core

@@ -43,6 +43,18 @@ private slots:
                  QStringLiteral("future-kind"));
         QCOMPARE(facade.kindLabel(QString()), QString());
     }
+    // QML 调用端按 moc 记录的类型名查 QMetaType 注册表（守卫的完整说明
+    // 见 awbUnresolvedQmlCallTypes——SkillCard 直接调用这些方法，短名声明
+    // 会让它们全部静默失效）；注册序与 app/main.cpp 一致。
+    void testQmlMethodTypesResolve()
+    {
+        qRegisterMetaType<awb::core::OpResult>();
+        Settings settings;
+        SkillsFacade facade(&settings);
+        const QStringList failures = awbUnresolvedQmlCallTypes(&facade);
+        QVERIFY2(failures.isEmpty(),
+                 qPrintable(failures.join(QLatin1String("\n"))));
+    }
 };
 
 AWB_TEST(TestSkillsFacade)

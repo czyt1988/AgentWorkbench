@@ -1,3 +1,5 @@
+#include "awbtest.h"
+
 #include "core/Settings.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
@@ -177,11 +179,23 @@ private slots:
                      "shell.setWebSurface is not invokable — the settings "
                      "page's surface switch silently does nothing");
             QCOMPARE(shell.webSurface(), QStringLiteral("external"));
-            QVERIFY(QMetaObject::invokeMethod(&shell, "setWebChromiumFlags",
-                                              Q_ARG(QString, "--disable-gpu")));
+        QVERIFY(QMetaObject::invokeMethod(&shell, "setWebChromiumFlags",
+                                          Q_ARG(QString, "--disable-gpu")));
             QCOMPARE(shell.webChromiumFlags(), QStringLiteral("--disable-gpu"));
         }
         QFile::remove(Settings::settingsFilePath());
+    }
+
+    // UiServices 的 Q_INVOKABLE 返回 OpResult：QML 调用端按 moc 记录的
+    // 类型名查 QMetaType 注册表（守卫的完整说明见
+    // awbUnresolvedQmlCallTypes）；注册序与 app/main.cpp 一致。
+    void testUiServicesQmlMethodTypesResolve()
+    {
+        qRegisterMetaType<awb::core::OpResult>();
+        UiServices ui;
+        const QStringList failures = awbUnresolvedQmlCallTypes(&ui);
+        QVERIFY2(failures.isEmpty(),
+                 qPrintable(failures.join(QLatin1String("\n"))));
     }
 
     // Sidebar collapse and window geometry persist to settings.json and
