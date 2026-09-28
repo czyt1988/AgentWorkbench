@@ -20,12 +20,18 @@
 #include "workbench/WorkbenchContext.h"
 
 #ifdef AWB_ENABLE_WEBENGINE
+#include "web/webengine/WebEngineCompat.h"
 #include "web/webengine/WebEngineProfileStore.h"
 #include "web/webengine/WebEngineSurfaceProvider.h"
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QtWebEngineQuick>
+#else
+#include <QtWebEngine>
+#endif
 #endif
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -73,13 +79,22 @@ int main(int argc, char *argv[])
 #ifdef AWB_ENABLE_WEBENGINE
     // GPU/driver problems are worked around through web.chromiumFlags
     // a hard failure logs and continues degraded.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QtWebEngineQuick::initialize();
+#else
+    QtWebEngine::initialize();
+#endif
 #endif
 
     QGuiApplication app(argc, argv);
     app.setApplicationVersion(QStringLiteral("0.4.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
+    // The flat fallback style: Qt 6 renamed "Default" to "Basic".
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QQuickStyle::setStyle(QStringLiteral("Basic"));
+#else
+    QQuickStyle::setStyle(QStringLiteral("Default"));
+#endif
 
     // Load locale-appropriate translation from embedded:/i18n/ resources.
     // locale.override forces a locale; empty follows the system.
@@ -172,11 +187,15 @@ int main(int argc, char *argv[])
 
 #ifdef AWB_ENABLE_WEBENGINE
     // The embedded surface registers itself with the web domain; profiles
-    // are exposed to QML for the per-agent views.
+    // are exposed to QML for the per-agent views. WebEngineCompat bridges
+    // the member names/enum shapes that differ between Qt 5 and Qt 6.
     awb::web::WebEngineSurfaceProvider webSurface(&webTabs);
     awb::web::WebEngineProfileStore profileStore;
+    awb::web::WebEngineCompat webEngineCompat;
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebProfiles",
                                  &profileStore);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebEngineCompat",
+                                 &webEngineCompat);
 #endif
 
     // 4) Register the QML globals: uppercase type names on
@@ -211,6 +230,11 @@ int main(int argc, char *argv[])
     // runtime on end-user machines).
     engine.addImportPath(QCoreApplication::applicationDirPath()
                          + QStringLiteral("/qml"));
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // Qt 5 无 qt_add_qml_module，AgentWorkbench 模块经 qrc:/qt/qml/ 下的
+    // 生成 qmldir 注册（见 cmake/AwbQtCompat.cmake），导入路径补上它。
+    engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
 
     engine.load(QUrl(
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/shell/MainWindow.qml")));

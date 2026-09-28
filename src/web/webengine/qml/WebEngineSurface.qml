@@ -169,8 +169,10 @@ Item {
         }
 
         // --- Permissions: all denied in v1, with a visible notice.
+        // denyFeature 经 WebEngineCompat：Qt 6 是 view.rejectFeature，
+        // Qt 5 是 grantFeaturePermission(origin, feature, false)。
         onFeaturePermissionRequested: function(securityOrigin, feature) {
-            view.rejectFeature(feature)
+            WebEngineCompat.denyFeature(view, securityOrigin, feature)
             workbench.notify("warning", qsTr("Permission denied"),
                              qsTr("This page requested a browser permission; the current version does not support it."))
         }
@@ -395,6 +397,8 @@ Item {
     }
 
     // --- DevTools in a separate window (Debug builds only) --------
+    // devToolsUrl/devToolsView 两版名字不同，经 WebEngineCompat 取版本中立
+    // 的地址；Qt 5 那边另有 attachDevTools 挂接检查器视图。
     Window {
         id: devToolsWindow
         width: 900
@@ -404,12 +408,15 @@ Item {
         color: theme.windowBg
 
         WebEngineView {
+            id: devToolsView
             anchors.fill: parent
-            url: devToolsWindow.visible ? view.devToolsUrl : ""
+            url: devToolsWindow.visible ? WebEngineCompat.devToolsUrl(view)
+                                        : ""
         }
     }
 
     function openDevTools() {
+        WebEngineCompat.attachDevTools(view, devToolsView)
         devToolsWindow.show()
         devToolsWindow.raise()
         devToolsWindow.requestActivate()
@@ -420,22 +427,25 @@ Item {
         view.stop()
     }
 
-    // --- Downloads: Qt 6 moved downloadRequested from the view
-    // onto the profile — always accepted, into web.downloadDir.
+    // --- Downloads: both Qt versions expose the signal on the profile;
+    // the item type is WebEngineDownloadRequest (Qt 6) / WebEngineDownloadItem
+    // (Qt 5), so the state enum constants come from WebEngineCompat. Always
+    // accepted, into web.downloadDir.
     Connections {
         target: view.profile
         enabled: view.profile !== null
         function onDownloadRequested(download) {
-            download.directory = web.downloadDir
+            download.downloadDirectory = web.downloadDir
             download.accept()
             workbench.notify("info", qsTr("Download started"),
                              download.downloadFileName)
             download.stateChanged.connect(function() {
-                if (download.state === WebEngineDownloadRequest.DownloadCompleted) {
+                if (download.state === WebEngineCompat.downloadCompleted) {
                     workbench.notify("success", qsTr("Download finished"),
                                      String(download.path))
-                } else if (download.state === WebEngineDownloadRequest.DownloadCancelled
-                           || download.state === WebEngineDownloadRequest.DownloadInterrupted) {
+                } else if (download.state === WebEngineCompat.downloadCancelled
+                           || download.state
+                              === WebEngineCompat.downloadInterrupted) {
                     workbench.notify("warning", qsTr("Download interrupted"),
                                      download.downloadFileName)
                 }

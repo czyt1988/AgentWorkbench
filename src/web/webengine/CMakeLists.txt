@@ -1,7 +1,9 @@
 # awb_web_webengine (L2 adapter): the only target linking Qt WebEngine.
 # The program still builds with
 # AWB_ENABLE_WEBENGINE=OFF — the external surface takes over.
-qt_add_library(awb_web_webengine STATIC
+add_library(awb_web_webengine STATIC
+    WebEngineCompat.cpp
+    WebEngineCompat.h
     WebEngineProfileStore.cpp
     WebEngineProfileStore.h
     WebEngineSurfaceProvider.cpp
@@ -10,9 +12,17 @@ qt_add_library(awb_web_webengine STATIC
 
 target_include_directories(awb_web_webengine PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
+# On Qt 5 QQuickWebEngineView itself is private API (only QQuickWebEngineProfile
+# ships in the public include dir); WebEngineCompat needs it for the version
+# bridging, so the private include dirs are added on that branch only.
+if (QT_VERSION_MAJOR EQUAL 5)
+    target_include_directories(awb_web_webengine
+        PRIVATE ${Qt5WebEngine_PRIVATE_INCLUDE_DIRS})
+endif()
+
 target_link_libraries(awb_web_webengine
     PUBLIC
         awb_web
-        Qt6::Core
-        Qt6::WebEngineQuick
+        Qt::Core
+        ${AWB_WEBENGINE_TARGET}
 )
