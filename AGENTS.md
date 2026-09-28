@@ -23,6 +23,8 @@ bash scripts/build.sh --help       # 全部选项
 
 其它常用选项：`--target NAME` 只构建一个目标、`--no-tests` 配置时关掉测试目标（`-DBUILD_TESTING=OFF`，打包用）、`--run` 构建后启动应用、`--clean` 删除构建目录重建、`--print-exe` 打印可执行文件路径。
 
+Qt 探测顺序：`QT_PREFIX`/`--qt` → 构建目录 CMake 缓存里的前缀 → 各盘常见根目录（含 Qt 在线安装器的 `<盘>/Qt/<组>/<版本>/<编译器>` 嵌套布局）→ `PATH` 上的 `qmake`/`qtpaths` → 逐盘限时扫描（`AWB_QT_DEEP_SEARCH=0` 跳过，`QT_DEEP_TIMEOUT` 设每盘秒数）。**一个可用的 Qt 6 都找不到时它不会静默停留**：会列出探测到的每个安装及不可用原因（版本低于 6.5、无 `lib/cmake/Qt6` 等），有终端时询问前缀，非交互运行（agent/CI）则以该报告直接失败退出。
+
 需要手工执行时的等价命令（前提是自己已经准备好 MSVC 环境，例如在「x64 本机工具命令提示符」中运行）：
 
 ```bash

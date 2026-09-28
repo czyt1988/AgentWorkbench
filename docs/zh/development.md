@@ -18,6 +18,8 @@ bash scripts/build.sh --release    # Release 构建到 build-release/
 bash scripts/build.sh --help       # 查看全部选项
 ```
 
+Qt 的解析顺序：`QT_PREFIX`（或 `--qt`）→ 构建目录 CMake 缓存里记录的前缀 → 常见安装位置（`<盘>/Qt`、`<盘>/Program Files/Qt`、`%USERPROFILE%/Qt`、`%LOCALAPPDATA%/Programs/Qt`）→ `PATH` 上的 `qmake`/`qtpaths` → 最后是逐盘限时扫描（`AWB_QT_DEEP_SEARCH=0` 跳过扫描，`QT_DEEP_TIMEOUT` 设置每块盘的秒数预算）。版本低于要求的 6.5 会被判为不可用，绝不静默采用。一个可用的都找不到时，脚本会列出它见到的每个 Qt 安装及不可用原因，并在有终端时询问路径；无人值守运行（agent、CI）直接以该报告失败退出，不会阻塞。
+
 Windows + MSVC 下，从 Git Bash 调用编译器需要一个加载 `vcvars64.bat` 的 `.bat` 包装：用 `eval "$(cmd /c ... set)"` 把该环境导入 Git Bash 是行不通的，cmd 收到的是转义后的引号，`cl.exe` 始终进不了 `PATH`。脚本会自动生成这个包装脚本（`build/.build-agentworkbench.bat`）。
 
 手工构建依然可行，但需要自己先准备好 MSVC 环境（例如在「x64 本机工具命令提示符」中运行）：

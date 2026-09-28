@@ -22,6 +22,16 @@ bash scripts/build.sh --release    # Release build in build-release/
 bash scripts/build.sh --help       # all options
 ```
 
+Qt is resolved in this order: `QT_PREFIX` (or `--qt`), the prefix recorded in
+the build directory's CMake cache, the usual install locations (`<drive>/Qt`,
+`<drive>/Program Files/Qt`, `%USERPROFILE%/Qt`, `%LOCALAPPDATA%/Programs/Qt`),
+a `qmake`/`qtpaths` on `PATH`, and finally a time-capped scan of each drive
+(`AWB_QT_DEEP_SEARCH=0` skips it, `QT_DEEP_TIMEOUT` sets the per-drive budget in
+seconds). An installation older than the required 6.5 is rejected rather than
+used silently. When nothing usable is found, the script lists every Qt it saw
+and why it cannot be used, and on a terminal asks for the prefix — an
+unattended run (agent, CI) fails with that report instead of blocking.
+
 On Windows with MSVC, driving the compiler from Git Bash needs a `.bat` wrapper
 that loads `vcvars64.bat`: importing that environment into Git Bash with
 `eval "$(cmd /c ... set)"` does not work, because `cmd` receives the escaped
