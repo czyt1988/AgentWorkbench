@@ -9,7 +9,10 @@
 # libraries get dropped by the linker.
 
 set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
-               SettingsPage)
+               SettingsPage
+               SettingsAppearancePage SettingsLaunchersPage
+               SettingsEnvironmentPage SettingsSkillsPage SettingsWebPage
+               SettingsPluginsPage SettingsAdvancedPage)
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow

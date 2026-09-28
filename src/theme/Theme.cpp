@@ -65,6 +65,14 @@ QVariantList Theme::availableThemes() const
         entry[QStringLiteral("id")] = file.id;
         entry[QStringLiteral("name")] = file.name;
         entry[QStringLiteral("variant")] = file.variant;
+        // 选择框里显示的短标签：用户只需要分辨深浅，主题全名进 tooltip。
+        // 未知 variant 回退到主题名，第三方主题不会因此显示成空白。
+        if (file.variant == QLatin1String("dark"))
+            entry[QStringLiteral("display")] = tr("Dark");
+        else if (file.variant == QLatin1String("light"))
+            entry[QStringLiteral("display")] = tr("Light");
+        else
+            entry[QStringLiteral("display")] = file.name;
         result.append(entry);
     }
     return result;

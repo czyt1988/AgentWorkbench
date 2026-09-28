@@ -29,6 +29,13 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/Toasts.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsAppearancePage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsLaunchersPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsEnvironmentPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsSkillsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsWebPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsPluginsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsAdvancedPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
@@ -49,6 +56,8 @@ set(AWB_TS_SOURCES
     # web QML
     ${CMAKE_SOURCE_DIR}/src/web/qml/WebTabsPage.qml
     ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/WebEngineSurface.qml
+    # theme
+    ${CMAKE_SOURCE_DIR}/src/theme/Theme.cpp
     # skill catalog + QML
     ${CMAKE_SOURCE_DIR}/src/skillcatalog/SkillsFacade.cpp
     ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillGridPage.qml
