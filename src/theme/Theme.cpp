@@ -4,6 +4,7 @@
 #include "theme/ThemeRegistry.h"
 
 #include <QDebug>
+#include <QFontDatabase>
 #include <QVariantMap>
 
 namespace awb::theme {
@@ -21,6 +22,9 @@ Theme::Theme(core::Settings *settings, ThemeRegistry *registry,
             [this](const QString &key) {
                 if (key == QLatin1String("appearance.theme"))
                     loadCurrent();
+                else if (key == QLatin1String("appearance.fontFamily"))
+                    // 主题文件没变，只需让 family 令牌的绑定刷新。
+                    emit changed();
             });
     // Hot reload: a theme file changed on disk.
     connect(m_registry, &ThemeRegistry::changed, this, &Theme::loadCurrent);
@@ -417,12 +421,38 @@ double Theme::toastWidth() const
 
 QString Theme::family() const
 {
+    // 设置覆盖优先：用户在设置页选的字体（appearance.fontFamily）优先于
+    // 主题 JSON 的 fonts.family；两者都空 = 跟随系统默认。
+    const QString override = m_settings->fontFamily();
+    if (!override.isEmpty())
+        return override;
     return m_current.fonts.value(QStringLiteral("family"));
 }
 
 QString Theme::monoFamily() const
 {
     return m_current.fonts.value(QStringLiteral("monoFamily"));
+}
+
+QStringList Theme::fontFamilies() const
+{
+    // Qt 6 起 QFontDatabase 只剩静态接口，Qt 5 是实例接口。
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return QFontDatabase::families();
+#else
+    QFontDatabase db;
+    return db.families();
+#endif
+}
+
+void Theme::setFontFamily(const QString &family)
+{
+    // 与 applyTheme 对称：写设置 + 落盘，valueChanged 走构造时连好的
+    // 槽发 changed()（family 令牌随之重绑）。
+    if (family == m_settings->fontFamily())
+        return;
+    m_settings->setFontFamily(family);
+    m_settings->save();
 }
 
 } // namespace awb::theme

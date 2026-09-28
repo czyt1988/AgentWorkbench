@@ -4,6 +4,7 @@ add_executable(tst_theme
     tst_theme_main.cpp
     tst_themeloader.cpp
     tst_themeregistry.cpp
+    tst_themefontfamily.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
 )
 

@@ -27,6 +27,10 @@ struct AppearanceSettings
 {
     QString theme = QStringLiteral("mocha-dark");
     bool followSystem = false;
+    // UI 全局字体族：主题未覆盖时的应用字体。默认微软雅黑（Win10 的
+    // 宋体回退太丑）；本机没有该字体时 QFont 的族匹配自动回退系统默认。
+    // 空串 = 跟随主题/系统默认。
+    QString fontFamily = QStringLiteral("Microsoft YaHei");
 };
 
 struct LocaleSettings
@@ -100,6 +104,7 @@ public:
 
     // Spec-named shortcuts.
     QString themeId() const;
+    QString fontFamily() const;
     QString windowTitle() const;
     QJsonArray skillsRoots() const;
 
@@ -108,6 +113,7 @@ public:
     void setWindowTitle(const QString &title);
     void setThemeId(const QString &id);
     void setFollowSystem(bool on);
+    void setFontFamily(const QString &family);
     void setWindowSize(int width, int height);
     void setSidebarCollapsed(bool collapsed);
     void setLastPageId(const QString &pageId);

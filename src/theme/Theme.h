@@ -89,6 +89,8 @@ class Theme : public QObject
     Q_PROPERTY(double toastWidth READ toastWidth NOTIFY changed)
     Q_PROPERTY(QString family READ family NOTIFY changed)
     Q_PROPERTY(QString monoFamily READ monoFamily NOTIFY changed)
+    // 本机可用字体族（外观页的字体选择框用；进程内静态）。
+    Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
 
 public:
     Theme(core::Settings *settings, ThemeRegistry *registry,
@@ -102,6 +104,10 @@ public:
     // Switch the theme at runtime: writes appearance.theme to settings.json
     // and re-binds every token.
     Q_INVOKABLE void applyTheme(const QString &id);
+
+    // Switch the global UI font at runtime: writes appearance.fontFamily
+    // (empty = follow the theme / system default) and re-binds family.
+    Q_INVOKABLE void setFontFamily(const QString &family);
 
     // Dynamic token lookup (for components that iterate tokens).
     Q_INVOKABLE QColor color(const QString &name) const;
@@ -172,6 +178,7 @@ public:
     double toastWidth() const;
     QString family() const;
     QString monoFamily() const;
+    QStringList fontFamilies() const;
 
 signals:
     void changed();

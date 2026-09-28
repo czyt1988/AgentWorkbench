@@ -34,6 +34,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFont>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QLocale>
@@ -105,6 +106,20 @@ int main(int argc, char *argv[])
     if (translator.load(locale, QStringLiteral("agentworkbench"),
                         QStringLiteral("_"), QStringLiteral(":/i18n")))
         app.installTranslator(&translator);
+
+    // Global UI font, applied before the engine exists: family only, the
+    // platform point size is kept. A missing family (e.g. Microsoft YaHei
+    // on non-Windows) falls back to the system default via QFont matching;
+    // later runtime switches are driven by MainWindow's font.family
+    // binding on theme.family.
+    {
+        const QString fontFamily = settings.appearance().fontFamily;
+        if (!fontFamily.isEmpty()) {
+            QFont font = app.font();
+            font.setFamily(fontFamily);
+            app.setFont(font);
+        }
+    }
 
     // Adopt a pre-0.4 ~/.AgentLauncher data directory on the first start
     // after the upgrade, before anything else touches the data root

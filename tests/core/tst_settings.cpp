@@ -61,6 +61,7 @@ private slots:
         QVERIFY(!s.window().sidebarCollapsed);
         QCOMPARE(s.window().lastPageId, QStringLiteral("agents"));
         QCOMPARE(s.themeId(), QStringLiteral("mocha-dark"));
+        QCOMPARE(s.fontFamily(), QStringLiteral("Microsoft YaHei"));
         QCOMPARE(s.launcherOptions().healthCheckIntervalMs, 3000);
         QVERIFY(s.launcherOptions().startupVersionCheck);
         QCOMPARE(s.webOptions().surface, QStringLiteral("embedded"));
@@ -89,6 +90,7 @@ private slots:
         {
             Settings s;
             s.setThemeId(QStringLiteral("latte-light"));
+            s.setFontFamily(QStringLiteral("SimSun"));
             s.setWindowTitle(QStringLiteral("My Bench"));
             s.setWindowSize(1024, 768);
             s.setSidebarCollapsed(true);
@@ -97,6 +99,7 @@ private slots:
         }
         Settings again;
         QCOMPARE(again.themeId(), QStringLiteral("latte-light"));
+        QCOMPARE(again.fontFamily(), QStringLiteral("SimSun"));
         QCOMPARE(again.windowTitle(), QStringLiteral("My Bench"));
         QCOMPARE(again.window().width, 1024);
         QCOMPARE(again.window().height, 768);

@@ -40,6 +40,12 @@ ApplicationWindow {
                                         : "AgentWorkbench"
     color: theme.windowBg
 
+    // 全局字体经 window 向所有 Controls2 子控件传播（字体继承链的根）。
+    // theme.family 空串（用户清空且主题未指定）时绑 undefined，恢复系统
+    // 默认继承；主题切换/设置改动经 theme.changed 实时生效。应用启动时的
+    // 默认值由 main.cpp 的 QGuiApplication::setFont 铺底（引擎创建前）。
+    font.family: theme.family.length > 0 ? theme.family : undefined
+
     // Set to true once the user confirmed the exit dialog, so onClosing
     // lets the window close without re-prompting.
     property bool exitConfirmed: false

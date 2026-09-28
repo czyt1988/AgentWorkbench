@@ -74,5 +74,60 @@ ScrollView {
                 }
             }
         }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Font")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+            }
+
+            ComboBox {
+                id: fontCombo
+
+                // 首项跟随主题/系统默认（值空串），之后是本机全部字体族。
+                // 按生效字体回显（设置覆盖 → 主题声明 → 空串），index 用
+                // 遍历法而不是 indexOfValue——同样的 delegateModel 时序
+                // 问题，见上面的主题选择框。
+                textRole: "display"
+                valueRole: "value"
+                model: [{ display: qsTr("Theme default"), value: "" }]
+                        .concat(theme.fontFamilies.map(
+                                    function(family) {
+                                        return { display: family,
+                                                 value: family }
+                                    }))
+                currentIndex: fontIndexOf(theme.family)
+                onActivated: theme.setFontFamily(currentValue)
+
+                // 选中项可能很长：收缩宽度按内容走，剩余让给说明标签。
+                Layout.maximumWidth: 260
+
+                function fontIndexOf(family) {
+                    const list = fontCombo.model
+                    for (let i = 0; i < list.length; ++i) {
+                        if (list[i].value === family)
+                            return i
+                    }
+                    return -1
+                }
+            }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            text: qsTr("The font applies to the whole application; \"Theme default\" follows the theme or the system font.")
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeCaption
+            wrapMode: Text.WordWrap
+        }
     }
 }

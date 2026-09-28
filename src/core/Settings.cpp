@@ -118,7 +118,8 @@ const QSet<QString> kWindowKeys = {
     QStringLiteral("sidebarWidth"), QStringLiteral("sidebarCollapsed"),
     QStringLiteral("lastPageId") };
 const QSet<QString> kAppearanceKeys = { QStringLiteral("theme"),
-                                        QStringLiteral("followSystem") };
+                                        QStringLiteral("followSystem"),
+                                        QStringLiteral("fontFamily") };
 const QSet<QString> kLocaleKeys = { QStringLiteral("override") };
 const QSet<QString> kLauncherKeys = { QStringLiteral("healthCheckIntervalMs"),
                                       QStringLiteral("startupVersionCheck") };
@@ -157,6 +158,11 @@ QString Settings::settingsFilePath()
 QString Settings::themeId() const
 {
     return m_appearance.theme;
+}
+
+QString Settings::fontFamily() const
+{
+    return m_appearance.fontFamily;
 }
 
 QString Settings::windowTitle() const
@@ -201,6 +207,9 @@ void Settings::load()
     m_appearance.followSystem =
         readBool(appearance, QStringLiteral("followSystem"),
                  m_appearance.followSystem, QStringLiteral("appearance"));
+    m_appearance.fontFamily =
+        readString(appearance, QStringLiteral("fontFamily"),
+                   m_appearance.fontFamily, QStringLiteral("appearance"));
 
     const QJsonObject locale = root.value(QStringLiteral("locale")).toObject();
     warnUnknownKeys(locale, kLocaleKeys, QStringLiteral("locale"));
@@ -306,6 +315,12 @@ void Settings::setFollowSystem(bool on)
     emit valueChanged(QStringLiteral("appearance.followSystem"));
 }
 
+void Settings::setFontFamily(const QString &family)
+{
+    m_appearance.fontFamily = family;
+    emit valueChanged(QStringLiteral("appearance.fontFamily"));
+}
+
 void Settings::setWindowSize(int width, int height)
 {
     m_window.width = width;
@@ -369,6 +384,7 @@ OpResult Settings::save()
     QJsonObject appearance;
     appearance[QStringLiteral("theme")] = m_appearance.theme;
     appearance[QStringLiteral("followSystem")] = m_appearance.followSystem;
+    appearance[QStringLiteral("fontFamily")] = m_appearance.fontFamily;
 
     QJsonObject locale;
     locale[QStringLiteral("override")] = m_locale.overrideName;
