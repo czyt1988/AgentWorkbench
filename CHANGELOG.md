@@ -37,6 +37,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `tst_workbench` test target covering the `openWeb` navigation contract,
   the external-surface no-tab path and the new browser-open intent.
 
+### Changed
+
+- **Sidebar footer redesign**: system pages (Settings) no longer render as
+  full-width rows pinned above the collapse handle — they are icon-only
+  buttons (tooltip shows the title, `AIconButton` gains an `active` state
+  filling `surfaceBg` for the current destination) sharing one footer row
+  with the handle: side by side when expanded, stacked (icons above,
+  handle below, horizontally centered) when collapsed. The collapsed
+  sidebar width shrinks from 64 to 42 px — exactly the width of one nav
+  icon.
+
 ### Fixed
 
 - **Switching Web tabs no longer repaints the whole page.** Two freeze

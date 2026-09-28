@@ -12,6 +12,9 @@ Button {
     property string tooltip: ""
     // "large" grows to 44 for floating action buttons.
     property string size: "normal"
+    // Navigation state: fills the button like an active sidebar row when
+    // it represents the current destination (footer system icons).
+    property bool active: false
 
     implicitWidth: size === "large" ? 44 : 28
     implicitHeight: size === "large" ? 44 : 28
@@ -25,8 +28,9 @@ Button {
     background: Rectangle {
         radius: theme.radiusControl
         color: control.down ? theme.alpha(theme.textMuted, 0.28)
-                            : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
-                                               : "transparent")
+                            : (control.active ? theme.surfaceBg
+                             : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
+                                                : "transparent"))
         // Keyboard focus ring.
         border.color: control.activeFocus ? theme.focusRing : "transparent"
         border.width: control.activeFocus ? 2 : 0

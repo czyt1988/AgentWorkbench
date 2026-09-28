@@ -6,12 +6,13 @@ import AgentWorkbench
 
 // The sidebar: "where to go", never a business action.
 // Renders the navigation model grouped by section, with badges, keyboard
-// hints and a collapse handle at the bottom.
+// hints and a footer of system-page icon buttons plus the collapse handle.
 //
 // Layout (fixed): workflow pages (sections main/extensions) scroll in the
 // middle; system pages (section system, e.g. Settings) are PINNED to the
-// bottom, separated from the workflow list by a divider — they stay at the
-// bottom no matter how long the list grows (see designs.md).
+// bottom as icon-only buttons sharing the footer row with the collapse
+// handle — they stay at the bottom no matter how long the list grows
+// (see designs.md).
 Rectangle {
     id: sidebar
 
@@ -34,27 +35,21 @@ Rectangle {
         NumberAnimation { duration: theme.durationNormal }
     }
 
-    // One navigation row. `pinned` picks the render zone: false = the
-    // scrollable list (sections main/extensions), true = the bottom footer
-    // (section system). Both zones repeat over the whole model; each row
-    // hides itself when it belongs to the other zone.
+    // One navigation row in the scrollable workflow list (sections
+    // main/extensions). Each row draws the divider for a new non-main
+    // section above itself; system pages render in the footer below
+    // instead of here.
     component NavRow: Item {
         id: row
 
-        property bool pinned: false
-
-        readonly property bool isSystem: model.section === "system"
-        // Divider + gap above the first row of every non-main section —
-        // only in the scrollable list; the footer zone is isolated by its
-        // own separator above it.
         readonly property bool firstInSection:
             index === nav.rowOfFirstInSection(model.section)
         readonly property bool needsDivider:
-            !pinned && firstInSection && model.section !== "main"
+            firstInSection && model.section !== "main"
 
         Layout.fillWidth: true
         Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
-        visible: model.enabled && (pinned === isSystem)
+        visible: model.enabled && model.section !== "system"
         // Rows are delegates (page plugins come and go) — a row dying
         // while hovered must not freeze the shared tooltip on screen.
         Component.onDestruction: ToolTip.hide()
@@ -75,8 +70,12 @@ Rectangle {
             anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: theme.spacingS
-            anchors.rightMargin: theme.spacingS
+            // Collapsed: tighter margins keep the highlight a squarish
+            // pill around the centered icon in the narrow sidebar.
+            anchors.leftMargin: sidebar.collapsed ? theme.spacingXs
+                                                  : theme.spacingS
+            anchors.rightMargin: sidebar.collapsed ? theme.spacingXs
+                                                   : theme.spacingS
             height: 36
             radius: theme.radiusControl
             color: nav.currentPageId === model.pageId ? theme.surfaceBg
@@ -104,8 +103,11 @@ Rectangle {
         RowLayout {
             anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
             anchors.left: parent.left
-            anchors.leftMargin: sidebar.collapsed ? theme.spacingS
-                                                  : theme.spacingM
+            // Collapsed: center the 24px icon slot (its width is set on
+            // the slot below) in the icon-width sidebar.
+            anchors.leftMargin: sidebar.collapsed
+                ? (theme.sidebarCollapsedWidth - 24) / 2
+                : theme.spacingM
             anchors.right: parent.right
             anchors.rightMargin: theme.spacingS
             height: 36
@@ -217,64 +219,82 @@ Rectangle {
             }
         }
 
-        // --- Pinned system zone (Settings & friends), isolated from the
-        // workflow list by the divider above and fixed at the bottom.
-        // The zone itself is NOT gated on rendered geometry (childrenRect):
-        // at startup the delegates have no size yet, so childrenRect is 0,
-        // the zone hides, the outer layout then never sizes it and the
-        // binding deadlocks with the zone invisible forever. The separators
-        // hide via implicitHeight instead — a layout's implicit size is
-        // computed from the children's preferred sizes and does not depend
-        // on the subtree ever being rendered.
-        ColumnLayout {
-            id: pinnedZone
+        // --- Footer: system-page icons + collapse handle ------------------
+        // System pages (Settings & friends) leave the workflow list and
+        // render as icon-only buttons (the tooltip carries the title)
+        // sharing the footer row with the collapse handle. Expanded:
+        // icons on the left, handle on the right. Collapsed: icons
+        // stacked above the handle, everything centered in the
+        // icon-width sidebar.
+        Rectangle {
             Layout.fillWidth: true
-            spacing: 0
+            Layout.leftMargin: theme.spacingS
+            Layout.rightMargin: theme.spacingS
+            height: 1
+            color: theme.separator
+        }
 
-            Rectangle {
-                visible: pinnedColumn.implicitHeight > 0
-                Layout.fillWidth: true
-                Layout.leftMargin: theme.spacingS
-                Layout.rightMargin: theme.spacingS
-                height: 1
-                color: theme.separator
-            }
+        Item {
+            id: footer
 
-            ColumnLayout {
-                id: pinnedColumn
-                Layout.fillWidth: true
-                spacing: 0
+            // 28 = AIconButton's normal implicit size; keep in sync with
+            // it. buttonGap paces the vertical stack and the footer edge
+            // padding when collapsed.
+            readonly property int buttonSize: 28
+            readonly property int buttonGap: 6
 
-                Repeater {
-                    model: nav
-                    NavRow { pinned: true }
+            readonly property int systemCount: nav.countInSection("system")
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: sidebar.collapsed
+                ? 2 * footer.buttonGap
+                  + footer.systemCount * (footer.buttonSize + footer.buttonGap)
+                  + footer.buttonSize
+                : 40
+
+            Repeater {
+                model: nav
+                AIconButton {
+                    // Stacking slot among the system pages (the model is
+                    // sorted by section, system last).
+                    readonly property int systemIndex:
+                        index - nav.rowOfFirstInSection("system")
+
+                    visible: model.section === "system"
+                    iconSource: model.iconSource
+                    tooltip: model.title
+                    active: nav.currentPageId === model.pageId
+                    onClicked: nav.setCurrentPageId(model.pageId)
+                    // Delegates die with the model (pages come and go) —
+                    // a button dying while hovered must not freeze the
+                    // shared tooltip on screen.
+                    Component.onDestruction: ToolTip.hide()
+
+                    x: sidebar.collapsed
+                       ? (footer.width - width) / 2
+                       : theme.spacingS
+                         + systemIndex * (footer.buttonSize + footer.buttonGap)
+                    y: sidebar.collapsed
+                       ? footer.buttonGap
+                         + systemIndex * (footer.buttonSize + footer.buttonGap)
+                       : (footer.height - height) / 2
                 }
             }
 
-            Rectangle {
-                visible: pinnedColumn.implicitHeight > 0
-                Layout.fillWidth: true
-                Layout.leftMargin: theme.spacingS
-                Layout.rightMargin: theme.spacingS
-                height: 1
-                color: theme.separator
-            }
-        }
-
-        // --- Collapse handle ---------------------------------------------
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-
             AIconButton {
-                anchors.right: parent.right
-                anchors.rightMargin: theme.spacingS
-                anchors.verticalCenter: parent.verticalCenter
                 iconSource: sidebar.collapsed ? "qrc:/icons/chevron-right.svg"
                                               : "qrc:/icons/chevron-left.svg"
                 tooltip: sidebar.collapsed ? qsTr("Expand sidebar")
                                            : qsTr("Collapse sidebar")
                 onClicked: shell.sidebarCollapsed = !shell.sidebarCollapsed
+
+                x: sidebar.collapsed
+                   ? (footer.width - width) / 2
+                   : footer.width - width - theme.spacingS
+                y: sidebar.collapsed
+                   ? footer.buttonGap
+                     + footer.systemCount * (footer.buttonSize + footer.buttonGap)
+                   : (footer.height - height) / 2
             }
         }
     }

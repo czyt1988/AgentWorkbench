@@ -1295,12 +1295,12 @@ Command: %2
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="275"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="287"/>
         <source>Expand sidebar</source>
         <translation>展开侧边栏</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="276"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="288"/>
         <source>Collapse sidebar</source>
         <translation>折叠侧边栏</translation>
     </message>

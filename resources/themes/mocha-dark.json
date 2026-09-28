@@ -59,7 +59,7 @@
     "durationFast": 120,
     "durationNormal": 180,
     "sidebarWidth": 240,
-    "sidebarCollapsedWidth": 64,
+    "sidebarCollapsedWidth": 42,
     "statusBarHeight": 28,
     "tabBarHeight": 36,
     "toastWidth": 340
