@@ -68,8 +68,13 @@ private slots:
         QCOMPARE(Paths::logsDir(), tmp.path() + QStringLiteral("/log"));
         QCOMPARE(Paths::webProfilesDir(),
                  tmp.path() + QStringLiteral("/webprofiles"));
-        QVERIFY(Paths::downloadsDir().endsWith(QStringLiteral("Downloads"))
-                || Paths::downloadsDir().endsWith(QStringLiteral("下载")));
+        // DownloadLocation 跟随系统的已知文件夹：名字与位置都随用户配置
+        // 变化（本机就重定向到了自定义名字的目录），不能按名字断言；只验
+        // 证拿到的是一条非空绝对路径。另注意 Qt 5.15 的实现不做测试模式
+        // 重定向，返回的就是真实目录。
+        const QString downloads = Paths::downloadsDir();
+        QVERIFY(!downloads.isEmpty());
+        QVERIFY(QDir::isAbsolutePath(downloads));
     }
 };
 
