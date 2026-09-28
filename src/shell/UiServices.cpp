@@ -1,12 +1,19 @@
 #include "shell/UiServices.h"
 
 #include <QClipboard>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QProcess>
 #include <QUrl>
+#include <QWindow>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <shobjidl.h>
+#endif
 
 namespace awb::shell {
 
@@ -67,6 +74,59 @@ core::OpResult UiServices::openFolder(const QString &path)
         return core::OpResult::failure(
             tr("Could not open the folder: %1").arg(path));
     return core::OpResult::success();
+}
+
+QString UiServices::pickFolder(const QString &title)
+{
+#ifdef Q_OS_WIN
+    // IFileOpenDialog + FOS_PICKFOLDERS：Vista 之后的标准目录选择框，Qt 6
+    // 的 FolderDialog 在 Windows 上内部走的也是它。COM STA 单元由 QPA 在
+    // GUI 线程初始化，这里直接 CoCreateInstance 即可。对话框模态挂在顶层
+    // 窗口上，运行自己的消息泵，期间主事件循环暂停——与 QML FolderDialog
+    // 的模态行为一致。
+    IFileDialog *dialog = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+                                  CLSCTX_INPROC_SERVER, IID_IFileDialog,
+                                  reinterpret_cast<void **>(&dialog));
+    if (FAILED(hr)) {
+        qWarning() << "[ui] pickFolder: CoCreateInstance failed" << hr;
+        return QString();
+    }
+
+    DWORD options = 0;
+    dialog->GetOptions(&options);
+    dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+    if (!title.isEmpty())
+        dialog->SetTitle(reinterpret_cast<const wchar_t *>(title.utf16()));
+
+    HWND parent = nullptr;
+    const QWindowList windows = QGuiApplication::topLevelWindows();
+    if (!windows.isEmpty())
+        parent = reinterpret_cast<HWND>(windows.constFirst()->winId());
+
+    QString result;
+    hr = dialog->Show(parent);
+    if (SUCCEEDED(hr)) {
+        IShellItem *item = nullptr;
+        if (SUCCEEDED(dialog->GetResult(&item)) && item) {
+            PWSTR path = nullptr;
+            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))
+                && path) {
+                result = QString::fromWCharArray(path);
+                CoTaskMemFree(path);
+            }
+            item->Release();
+        }
+    }
+    dialog->Release();
+    return result;
+#else
+    // 非 Windows 暂无实现（QFileDialog 需要 QtWidgets）。返回空串按
+    // 「用户取消」处理，调用方已有的空路径分支会静默返回。
+    Q_UNUSED(title);
+    qWarning() << "[ui] pickFolder is only implemented on Windows";
+    return QString();
+#endif
 }
 
 } // namespace awb::shell
