@@ -4,8 +4,9 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 底部状态栏：左侧运行环境徽标（Python/Node.js），中部活动计数（运行中
-// 的 agent、Web 标签数），右侧应用版本。高度取 theme.statusBarHeight。
+// 底部状态栏：中部活动计数（运行中的 agent、Web 标签数），最右是运行
+// 环境徽标（Python/Node.js）。应用版本号不在状态栏展示——移到了设置页
+// 侧栏的钉底（见 SettingsPage）。高度取 theme.statusBarHeight。
 Rectangle {
     id: statusBar
 
@@ -21,7 +22,31 @@ Rectangle {
         anchors.rightMargin: theme.spacingM
         spacing: theme.spacingM
 
-        // --- 运行环境徽标（Python / Node.js） ------------------------------
+        Item { Layout.fillWidth: true }
+
+        // --- 活动计数 -------------------------------------------------------
+        Label {
+            // agents 徽标已是「运行中的 agent 数」（BuiltinPages 维护）。
+            // nav.badges 是带 NOTIFY 的映射——page("agents") 是方法调用，
+            // 徽标变化时那种绑定永远不会重算。
+            readonly property string running: nav.badges["agents"] || ""
+            text: running.length > 0
+                  ? qsTr("Running: %1").arg(running)
+                  : qsTr("Running: 0")
+            color: theme.textSecondary
+            font.pixelSize: theme.fontSizeCaption
+        }
+        Label {
+            readonly property string tabs: nav.badges["web"] || ""
+            visible: nav.countInSection("web") > 0 && tabs.length > 0
+            text: qsTr("Tabs: %1").arg(tabs)
+            color: theme.textSecondary
+            font.pixelSize: theme.fontSizeCaption
+        }
+
+        Item { Layout.fillWidth: true }
+
+        // --- 运行环境徽标（Python / Node.js）：钉在状态栏最右 --------------
         Row {
             spacing: theme.spacingS
 
@@ -110,37 +135,6 @@ Rectangle {
                     ToolTip.timeout: 10000
                 }
             }
-        }
-
-        Item { Layout.fillWidth: true }
-
-        // --- 活动计数 -------------------------------------------------------
-        Label {
-            // agents 徽标已是「运行中的 agent 数」（BuiltinPages 维护）。
-            // nav.badges 是带 NOTIFY 的映射——page("agents") 是方法调用，
-            // 徽标变化时那种绑定永远不会重算。
-            readonly property string running: nav.badges["agents"] || ""
-            text: running.length > 0
-                  ? qsTr("Running: %1").arg(running)
-                  : qsTr("Running: 0")
-            color: theme.textSecondary
-            font.pixelSize: theme.fontSizeCaption
-        }
-        Label {
-            readonly property string tabs: nav.badges["web"] || ""
-            visible: nav.countInSection("web") > 0 && tabs.length > 0
-            text: qsTr("Tabs: %1").arg(tabs)
-            color: theme.textSecondary
-            font.pixelSize: theme.fontSizeCaption
-        }
-
-        Item { Layout.fillWidth: true }
-
-        // --- 版本 -----------------------------------------------------------
-        Label {
-            text: "v" + Qt.application.version
-            color: theme.textMuted
-            font.pixelSize: theme.fontSizeCaption
         }
     }
 }

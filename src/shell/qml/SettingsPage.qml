@@ -8,7 +8,8 @@ import AgentWorkbench.App
 // 边选分区，右边显示该分区的页面。每个分区是独立的 Settings<Section>
 // Page.qml（共用 ScrollView + ColumnLayout + PageHeader 骨架）并自带
 // 弹窗；切换时分区页保持实例化，输入到一半的内容（如新填的 skill 根
-// 目录）往返一趟不丢失。
+// 目录）往返一趟不丢失。导航列最底部钉一条应用版本号（原状态栏右侧
+// 信息，随环境徽标重排移进设置）。
 Page {
     id: page
 
@@ -112,6 +113,24 @@ Page {
                 }
 
                 Item { Layout.fillHeight: true }
+
+                // --- 钉底：应用版本号（与主侧栏 footer 同款「分割线 + 钉底」）
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: theme.spacingS
+                    Layout.rightMargin: theme.spacingS
+                    height: 1
+                    color: theme.separator
+                }
+                Label {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: theme.spacingM
+                    Layout.topMargin: theme.spacingS
+                    Layout.bottomMargin: theme.spacingM
+                    text: "v" + Qt.application.version
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                }
             }
         }
 
