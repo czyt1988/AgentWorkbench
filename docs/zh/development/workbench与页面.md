@@ -16,7 +16,7 @@
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏的 Python 与 Node.js 检测 | `ScriptRunner`、`ProcessRunner`、`TextUtils` |
-| `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | `plugin::Services` 的宿主侧实现；插件 ABI 与 shell/theme/web 之间的桥 | `NavigationModel`、`UiServices`、`Notifications`、`Theme`、`WebTabsFacade`、`Settings`；细节见[插件宿主](plugin-host.md) |
+| `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | `plugin::Services` 的宿主侧实现；插件 ABI 与 shell/theme/web 之间的桥 | `NavigationModel`、`UiServices`、`Notifications`、`Theme`、`WebTabsFacade`、`Settings`；细节见[插件宿主](插件宿主.md) |
 | `src/workbench/CMakeLists.txt` | 构建目标 `awb_workbench` | 链接每个 L1/L2 模块加 core | `app` |
 | `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | 一次页面注册的载体（`id`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`、`keepAlive`） | `NavigationModel`、`BuiltinPages`、`PluginServices` |
 | `src/shell/qml/Workspace.qml` | — | 同一时刻托管一个页面；普通页用 `Loader`，`keepAlive` 页用 `Repeater` | `NavigationModel` |
@@ -52,7 +52,7 @@
 - `openConfigDir(agentId)` —— 转发给 `AgentsFacade`。
 - `quit()` —— 退出应用。
 
-插件 API（只读清单加开关；行为见[插件宿主](plugin-host.md)）：`pluginList()`、`setPluginEnabled()`、`pluginsEnabled()`、`setPluginsEnabled()`、`pluginTrustNotice()`。
+插件 API（只读清单加开关；行为见[插件宿主](插件宿主.md)）：`pluginList()`、`setPluginEnabled()`、`pluginsEnabled()`、`setPluginsEnabled()`、`pluginTrustNotice()`。
 
 ## BuiltinPages
 
@@ -132,7 +132,7 @@ flowchart TD
 
 ## PluginServices
 
-`PluginServices` 是递给插件的抽象 `plugin::Services` 的宿主侧实现。它住在 `awb_workbench`，因为只有这一层被允许同时触碰导航模型、主题、Web 表面与设置。它被传给 `PluginHost::loadEnabled()`。每个方法——页面注册走与内置页同一条路径、插件私有数据目录、日志与 toast、只读主题色与白名单设置——都在[插件宿主](plugin-host.md)里说明。
+`PluginServices` 是递给插件的抽象 `plugin::Services` 的宿主侧实现。它住在 `awb_workbench`，因为只有这一层被允许同时触碰导航模型、主题、Web 表面与设置。它被传给 `PluginHost::loadEnabled()`。每个方法——页面注册走与内置页同一条路径、插件私有数据目录、日志与 toast、只读主题色与白名单设置——都在[插件宿主](插件宿主.md)里说明。
 
 ## 启动装配
 
@@ -141,7 +141,7 @@ flowchart TD
 1. **日志最先装**（`Logging::install()`），之后任何失败都落在磁盘上。读完 `Settings` 后，只有当用户确实改过轮转或级别选项时才二次安装日志后端，好让读设置期间发出的告警仍能落盘。
 2. **`Settings` 在 `QGuiApplication` 之前读。** `web.chromiumFlags` 必须推进 `QTWEBENGINE_CHROMIUM_FLAGS`，而 WebEngine 模块必须在应用对象构造*之前*初始化（Qt 6 是 `QtWebEngineQuick::initialize()`，Qt 5 是 `QtWebEngine::initialize()`）。顺序错了，用户配的 Chromium flags 就会静默失效。
 3. 创建 `QGuiApplication`，设版本与图标，钉住 Qt Quick Controls 样式（Qt 6 用 `Basic`，Qt 5 用 `Default`）。
-4. 按区域（或 `locale.override` 的值）从 `:/i18n` 安装翻译器；见[国际化](i18n.md)。
+4. 按区域（或 `locale.override` 的值）从 `:/i18n` 安装翻译器；见[国际化](国际化.md)。
 5. 引擎创建之前把 `appearance.fontFamily` 应用到应用字体上。
 6. **`LegacyImport::runOnce()` 在写默认 `settings.json` 之前跑**，因为导入是否行动取决于数据根是否仍未动过。此后，若 `settings.json` 不存在才写一份默认的。
 7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `EnvironmentService` → `WorkbenchContext`。
@@ -181,7 +181,7 @@ qrc:/qt/qml/AgentWorkbench/<area>/<Name>.qml
 
 其中 `<area>` 是按目录划分的区域（`agentcatalog`、`web`、`shell`、`components`、`skillcatalog`、`tools`）。新增或移动一个 `.qml`，就要同时改这里的对应区域清单，以及（文件里有 `qsTr()` 时）`cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。
 
-QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器会丢掉静态库里的 qrc 初始化器；这也是各模块 `CMakeLists.txt` 只列 C++ 源的原因。其余随包资源（图标、`config/default_*.json`、JS 兼容 polyfill、内置主题）也在这里登记，各有自己的 `PREFIX` 与别名。编译后的翻译由根 `CMakeLists.txt` 的 `qt_add_translation()` 产物嵌入 `:/i18n/`（见[国际化](i18n.md)）。
+QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器会丢掉静态库里的 qrc 初始化器；这也是各模块 `CMakeLists.txt` 只列 C++ 源的原因。其余随包资源（图标、`config/default_*.json`、JS 兼容 polyfill、内置主题）也在这里登记，各有自己的 `PREFIX` 与别名。编译后的翻译由根 `CMakeLists.txt` 的 `qt_add_translation()` 产物嵌入 `:/i18n/`（见[国际化](国际化.md)）。
 
 可执行文件把 `<applicationDirPath>/qml` 加进引擎的导入路径，让随包部署在二进制旁边的 Qt 运行时优先。
 
@@ -193,7 +193,7 @@ QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器
 - [ ] 在 `BuiltinPages::registerPages()` 里注册 `shell::PageDescriptor`，写明 id、`tr()` 标题、图标、source URL、`section` 与 `order`；只有当页面状态搬不进 C++ 时才设 `keepAlive`。
 - [ ] 页面需要跨域行为时，在 `BuiltinPages` 里布线（照现有模式加一个 `wireXxx()` 私有方法），而不是从 QML 跨域伸手。
 - [ ] 页面进侧栏且有徽标时，扩展 `wireBadges()`；需要可恢复的话 `wirePagePersistence()` 已经覆盖。
-- [ ] 更新[扩展点](../architecture/extension-points.md)与本页的注册表，并补该页自己的 `guide/` 与 `development/` 文档。
+- [ ] 更新[扩展点](../architecture/扩展点.md)与本页的注册表，并补该页自己的 `guide/` 与 `development/` 文档。
 
 **新增一个跨域动作**：
 
@@ -204,10 +204,10 @@ QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器
 
 ## 相关页面
 
-- [core 基础设施](core-infrastructure.md)——启动时装配的 `Settings`、`Paths` 与各对象。
-- [主题引擎](theme-engine.md)——`main.cpp` 注册的 `Theme` 单例。
-- [插件宿主](plugin-host.md)——页面注册与宿主服务桥的插件侧。
-- [C++ 库设计](../architecture/cpp-design.md)——门面与 `Q_INVOKABLE` 契约。
-- [分层与依赖](../architecture/layers-and-dependencies.md)——workbench 为何是唯一的多领域层。
+- [core 基础设施](core基础设施.md)——启动时装配的 `Settings`、`Paths` 与各对象。
+- [主题引擎](主题引擎.md)——`main.cpp` 注册的 `Theme` 单例。
+- [插件宿主](插件宿主.md)——页面注册与宿主服务桥的插件侧。
+- [C++ 库设计](../architecture/C++库设计.md)——门面与 `Q_INVOKABLE` 契约。
+- [分层与依赖](../architecture/分层与依赖.md)——workbench 为何是唯一的多领域层。
 - [使用指引](../guide/index.md)——用户看到的页面、导航与快捷键。
 - [配置参考](../configuration.md)——装配层读取的 `window.lastPageId` 与插件键。

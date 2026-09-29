@@ -332,11 +332,11 @@ GUI 线程协调者（`SkillScanner`）与纯静态 worker（`SkillScanTask::run
 
 ## 相关
 
-- [Agent Tools](agent-tools.md) —— 另一个扫描用户目录的页面，也是共享 `A*` 组件的
+- [Agent Tools](AgentTools.md) —— 另一个扫描用户目录的页面，也是共享 `A*` 组件的
   第二个消费者。
-- [Shell 与导航](shell-and-navigation.md) —— `SkillGridPage.qml` 如何注册与装载。
-- [设置](settings.md) —— 设置页的 Skills 分区与 `skills.*` 键。
-- [Skills（使用）](../guide/skills.md) —— 面向用户的描述。
-- [前端设计](../architecture/frontend-design.md) —— 玻璃卡配方与 `A*` 组件货架。
-- [分层与依赖](../architecture/layers-and-dependencies.md) —— 为什么
+- [Shell 与导航](外壳与导航.md) —— `SkillGridPage.qml` 如何注册与装载。
+- [设置](设置.md) —— 设置页的 Skills 分区与 `skills.*` 键。
+- [Skills（使用）](../guide/技能.md) —— 面向用户的描述。
+- [前端设计](../architecture/前端设计.md) —— 玻璃卡配方与 `A*` 组件货架。
+- [分层与依赖](../architecture/分层与依赖.md) —— 为什么
   `skillcatalog` 不许依赖 `shell` 或其它领域。

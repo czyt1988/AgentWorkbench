@@ -2,11 +2,11 @@
 
 web 功能把 agent 的本地 Web UI 变成**应用内的一个标签**。它持有标签模型、两种展示方式之间的选择，
 以及约束同时存活视图数的内存策略。它不碰任何 WebEngine 头——那是兄弟适配层，见
-[WebEngine 适配层](webengine-adapter.md)。
+[WebEngine 适配层](WebEngine适配层.md)。
 
-用户视角见 [Agent Web UI](../guide/web-ui.md)。
-架构背景见 [分层与依赖](../architecture/layers-and-dependencies.md) 与
-[前端设计](../architecture/frontend-design.md)。
+用户视角见 [Agent Web UI](../guide/网页界面.md)。
+架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
+[前端设计](../architecture/前端设计.md)。
 
 ## 这个功能做什么，两条路径
 
@@ -321,10 +321,10 @@ HTTP 401——只有 agent 自己输出里打出的每进程 URL 能过。没抓
 
 ## 相关
 
-- [Agent Launcher](agent-launcher.md) —— 产出本功能消费的运行状态与会话 URL。
-- [WebEngine 适配层](webengine-adapter.md) —— `embedded` 表面的实现。
-- [Workbench 与页面](workbench-and-pages.md) —— `wireWebRules()` 与 `openWeb()` 所在。
+- [Agent Launcher](Agent启动器.md) —— 产出本功能消费的运行状态与会话 URL。
+- [WebEngine 适配层](WebEngine适配层.md) —— `embedded` 表面的实现。
+- [Workbench 与页面](workbench与页面.md) —— `wireWebRules()` 与 `openWeb()` 所在。
 - [开发板块索引](index.md)
-- 用户视角：[Agent Web UI](../guide/web-ui.md)
-- 架构：[前端设计](../architecture/frontend-design.md)、
-  [状态与持久化](../architecture/state-and-persistence.md)
+- 用户视角：[Agent Web UI](../guide/网页界面.md)
+- 架构：[前端设计](../architecture/前端设计.md)、
+  [状态与持久化](../architecture/数据与状态.md)

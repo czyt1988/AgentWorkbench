@@ -79,13 +79,13 @@ AgentWorkbench 是你电脑上 AI 编程 agent 的统一启动台和浏览器工
 
 | 页面 | 你会看到什么 |
 |---|---|
-| [Agent 启动器](agent-launcher.md) | 启动与停止 agent、添加自己的 agent |
-| [内嵌网页界面](web-ui.md) | 标签页、全屏、下载、登录状态 |
-| [Skills](skills.md) | 查找技能文件、选择扫描位置 |
-| [Agent 工具](agent-tools.md) | 提示词草稿纸与文件树 |
-| [外观](appearance.md) | 主题与字体 |
-| [设置](settings.md) | 设置页每一栏的说明 |
-| [插件](plugins.md) | 第三方扩展（用大白话讲） |
-| [出问题了怎么办](troubleshooting.md) | 出问题时的排查办法 |
+| [Agent 启动器](Agent启动器.md) | 启动与停止 agent、添加自己的 agent |
+| [内嵌网页界面](网页界面.md) | 标签页、全屏、下载、登录状态 |
+| [Skills](技能.md) | 查找技能文件、选择扫描位置 |
+| [Agent 工具](提示词编写台.md) | 提示词草稿纸与文件树 |
+| [外观](外观.md) | 主题与字体 |
+| [设置](设置.md) | 设置页每一栏的说明 |
+| [插件](插件.md) | 第三方扩展（用大白话讲） |
+| [出问题了怎么办](问题排查.md) | 出问题时的排查办法 |
 
 想了解它内部是怎么实现的？见[开发文档](../development/index.md)。

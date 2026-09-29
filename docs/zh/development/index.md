@@ -6,18 +6,18 @@
 
 | 功能 | 开发文档 | 对应的使用指引 |
 |---|---|---|
-| Agent 启动器（卡片网格、进程生命周期、健康检查） | [Agent 启动器](agent-launcher.md) | [Agent 启动器](../guide/agent-launcher.md) |
-| 内嵌 Web 标签页（标签模型、内存策略） | [Web 标签页](web-tabs.md) | [网页界面](../guide/web-ui.md) |
-| WebEngine 适配层（引擎差异、Qt 5/6 兼容） | [WebEngine 适配层](webengine-adapter.md) | [网页界面](../guide/web-ui.md) |
-| Skill 浏览 | [Skill 浏览](skill-browser.md) | [技能](../guide/skills.md) |
-| Agent Tools 页（提示词编写台、文件树） | [Agent Tools](agent-tools.md) | [Agent Tools](../guide/agent-tools.md) |
-| 外壳、导航与组件 | [外壳与导航](shell-and-navigation.md) | [入门](../guide/index.md) |
-| 设置页与设置文件 | [设置](settings.md) | [设置](../guide/settings.md) |
-| 主题引擎 | [主题引擎](theme-engine.md) | [外观](../guide/appearance.md) |
-| 跨域接线与页面注册 | [workbench 与页面](workbench-and-pages.md) | — |
-| 插件宿主 | [插件宿主](plugin-host.md) | [插件](../guide/plugins.md) |
-| 基础设施层（路径、JSON、进程、日志……） | [core 基础设施](core-infrastructure.md) | — |
-| 翻译 | [国际化](i18n.md) | — |
+| Agent 启动器（卡片网格、进程生命周期、健康检查） | [Agent 启动器](Agent启动器.md) | [Agent 启动器](../guide/Agent启动器.md) |
+| 内嵌 Web 标签页（标签模型、内存策略） | [Web 标签页](Web标签页.md) | [网页界面](../guide/网页界面.md) |
+| WebEngine 适配层（引擎差异、Qt 5/6 兼容） | [WebEngine 适配层](WebEngine适配层.md) | [网页界面](../guide/网页界面.md) |
+| Skill 浏览 | [Skill 浏览](Skill浏览.md) | [技能](../guide/技能.md) |
+| Agent Tools 页（提示词编写台、文件树） | [Agent Tools](AgentTools.md) | [Agent Tools](../guide/提示词编写台.md) |
+| 外壳、导航与组件 | [外壳与导航](外壳与导航.md) | [入门](../guide/index.md) |
+| 设置页与设置文件 | [设置](设置.md) | [设置](../guide/设置.md) |
+| 主题引擎 | [主题引擎](主题引擎.md) | [外观](../guide/外观.md) |
+| 跨域接线与页面注册 | [workbench 与页面](workbench与页面.md) | — |
+| 插件宿主 | [插件宿主](插件宿主.md) | [插件](../guide/插件.md) |
+| 基础设施层（路径、JSON、进程、日志……） | [core 基础设施](core基础设施.md) | — |
+| 翻译 | [国际化](国际化.md) | — |
 
 ## 环境要求
 
@@ -78,7 +78,7 @@ tests/        每模块一个测试目标 + check_architecture
 scripts/      build.sh、package.sh、check-architecture.sh、update-ts.sh、worktree-add.sh
 ```
 
-每个模块的 QML 都放在自己的 `src/<模块>/qml/` 下；共享的 `A*` 组件在 `src/shell/qml/components/`。可执行文件的 `app/CMakeLists.txt` 持有唯一那份资源清单，它决定每个 QML 文件的 URL——注册路径见[外壳与导航](shell-and-navigation.md)，新增文件时要遵守的规则见[前端设计](../architecture/frontend-design.md)。
+每个模块的 QML 都放在自己的 `src/<模块>/qml/` 下；共享的 `A*` 组件在 `src/shell/qml/components/`。可执行文件的 `app/CMakeLists.txt` 持有唯一那份资源清单，它决定每个 QML 文件的 URL——注册路径见[外壳与导航](外壳与导航.md)，新增文件时要遵守的规则见[前端设计](../architecture/前端设计.md)。
 
 ## 构建选项
 
@@ -128,7 +128,7 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 - **构建期差异**（组件改名、`qt_add_qml_module`、qrc 别名、按大版本区分的编译参数）写在 `cmake/AwbQtCompat.cmake` 的包装函数里。
 - **编译期差异**写在需要它的代码旁边，用 `QT_VERSION_MAJOR` / `#if QT_VERSION` 分支。
 
-不要用 `setContextProperty` 或 QML 里的版本判断绕开它。写跨版本代码前值得知道两个坑：Qt 5 路线的失败方式是**整页打挂或静默什么都不做**，而 Qt 6 的构建和所有 C++ 测试依旧全绿；以及「兼容」不等于「降级」——Qt 6 有更好的做法时，Qt 6 就用它，Qt 5 单独写一条显式的兜底分支。完整策略见 [C++ 库设计](../architecture/cpp-design.md)。
+不要用 `setContextProperty` 或 QML 里的版本判断绕开它。写跨版本代码前值得知道两个坑：Qt 5 路线的失败方式是**整页打挂或静默什么都不做**，而 Qt 6 的构建和所有 C++ 测试依旧全绿；以及「兼容」不等于「降级」——Qt 6 有更好的做法时，Qt 6 就用它，Qt 5 单独写一条显式的兜底分支。完整策略见 [C++ 库设计](../architecture/C++库设计.md)。
 
 ## 在本仓库工作
 
@@ -150,5 +150,5 @@ mkdocs serve
 ## 相关
 
 - [架构总览](../architecture/index.md)——分层、运行期装配，以及一次完整的交互。
-- [分层与依赖](../architecture/layers-and-dependencies.md)——构建期强制的那些规则。
-- [数据与状态](../architecture/state-and-persistence.md)——什么落在磁盘上，什么只活在内存里。
+- [分层与依赖](../architecture/分层与依赖.md)——构建期强制的那些规则。
+- [数据与状态](../architecture/数据与状态.md)——什么落在磁盘上，什么只活在内存里。

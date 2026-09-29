@@ -4,9 +4,9 @@ launcher 是 **Agent Launcher** 页面背后的功能：它编目外部 AI 编�
 服务、探测它们是否在线、执行一次性 install/update/version/setup 命令，并结束它自己拉起的进程树。
 它是整个应用的入口，其它页面要么消费它的状态（Web 标签、侧栏徽标），要么链回它。
 
-用户视角见 [Agent Launcher](../guide/agent-launcher.md)。
-架构背景见 [分层与依赖](../architecture/layers-and-dependencies.md) 与
-[状态与持久化](../architecture/state-and-persistence.md)。
+用户视角见 [Agent Launcher](../guide/Agent启动器.md)。
+架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
+[状态与持久化](../architecture/数据与状态.md)。
 
 ## 这个功能做什么，边界在哪
 
@@ -388,15 +388,15 @@ launcher 的状态必须到达 web 域与侧栏，而唯一允许同时认识两
   参数——片段从不发给服务器，因此不进访问日志与 `Referer` 头。base 已含 `token=` 时原样返回，
   dsh 的会话 URL 因此不会被叠第二个 token；base 已有片段时用 `&` 连接。`launch()` 把
   stdout+stderr 重定向到 `log/output/<agentId>.log`，但**会话 URL 本身从不进日志**——它带着
-  token。任何可能被人或第三方读到的 URL 都要用脱敏形式（见 [Web 标签](web-tabs.md)）。
+  token。任何可能被人或第三方读到的 URL 都要用脱敏形式（见 [Web 标签](Web标签页.md)）。
 
 ## 相关
 
-- [Web 标签](web-tabs.md) —— 消费 `runningChanged`、`agentRemoved`、`sessionUrlChanged` 的标签模型。
-- [WebEngine 适配层](webengine-adapter.md) —— 渲染打开 URL 的内嵌表面。
-- [Workbench 与页面](workbench-and-pages.md) —— `BuiltinPages` 与 `WorkbenchContext`，跨域规则所在。
+- [Web 标签](Web标签页.md) —— 消费 `runningChanged`、`agentRemoved`、`sessionUrlChanged` 的标签模型。
+- [WebEngine 适配层](WebEngine适配层.md) —— 渲染打开 URL 的内嵌表面。
+- [Workbench 与页面](workbench与页面.md) —— `BuiltinPages` 与 `WorkbenchContext`，跨域规则所在。
 - [开发板块索引](index.md)
-- 用户视角：[Agent Launcher](../guide/agent-launcher.md)
-- 架构：[状态与持久化](../architecture/state-and-persistence.md)、
-  [分层与依赖](../architecture/layers-and-dependencies.md)、
-  [前端设计](../architecture/frontend-design.md)
+- 用户视角：[Agent Launcher](../guide/Agent启动器.md)
+- 架构：[状态与持久化](../architecture/数据与状态.md)、
+  [分层与依赖](../architecture/分层与依赖.md)、
+  [前端设计](../architecture/前端设计.md)

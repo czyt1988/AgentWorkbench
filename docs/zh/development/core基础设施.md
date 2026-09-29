@@ -21,13 +21,13 @@
 | `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`、`awb::core::ProcessResult` | 外部命令的机制层：PATH/PATHEXT 解析、可捕获输出的分离启动、带超时的同步运行、杀进程树、命令行拆分、输出解码 | `agentcatalog`（启动、版本检查）、`workbench::EnvironmentService` |
 | `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner`（+ 私有 `Slot`） | 按 key 的一次性命令执行器，带流式输出与 epoch 规则 | `agentcatalog`（install/update/version/setup）、`workbench::EnvironmentService` |
 | `src/core/HttpProbe.h` / `.cpp` | `awb::core::HttpProbe` | 语义固定的异步可达性探测，另有 `portFromUrl()` | `agentcatalog::AgentHealthMonitor` |
-| `src/core/PluginHost.h` / `.cpp` | `awb::core::PluginHost`（+ `PluginHost::Manifest`） | 发现插件 manifest，并经导出的 C 入口装载已启用的库 | `plugin_api`、`workbench::PluginServices`；细节见[插件宿主](plugin-host.md) |
+| `src/core/PluginHost.h` / `.cpp` | `awb::core::PluginHost`（+ `PluginHost::Manifest`） | 发现插件 manifest，并经导出的 C 入口装载已启用的库 | `plugin_api`、`workbench::PluginServices`；细节见[插件宿主](插件宿主.md) |
 | `src/core/LegacyImport.h` / `.cpp` | `awb::core::LegacyImport` | 把 0.4 之前的 `~/.AgentLauncher` 数据目录一次性复制进新数据根 | `Paths`、`main.cpp` |
 | `src/core/IconResolver.h` / `.cpp` | `awb::core::IconResolver` | 把配置里的图标串解析成可显示 URL，回退值由调用方给出 | `EnvExpander`；`agentcatalog`、`tools` |
 | `src/core/EnvExpander.h` / `.cpp` | `awb::core::EnvExpander` | 展开路径里的 `%VAR%` 与前导 `~/` | `IconResolver`、`skillcatalog`、`agentcatalog` |
 | `src/core/TextUtils.h` / `.cpp` | `awb::core::TextUtils` | `extractVersion()`、`formatCommandLine()`、`clampOutput()` | `Logging`、`EnvironmentService`、`agentcatalog` |
 | `src/core/OpResult.h` / `.cpp` | `awb::core::OpResult`（`Q_GADGET`） | 可失败同步结果 `{ ok, error }`，跨模块边界不抛异常 | 每个模块边界，尤其是朝 QML 的一侧 |
-| `src/plugin_api/PluginApi.h` | `awb::plugin::ApiVersion`、`PageDescriptor`、`Services`、`AWB_PLUGIN_EXPORT` | 仅头文件的插件 ABI | 外部插件仓库；见[插件宿主](plugin-host.md) |
+| `src/plugin_api/PluginApi.h` | `awb::plugin::ApiVersion`、`PageDescriptor`、`Services`、`AWB_PLUGIN_EXPORT` | 仅头文件的插件 ABI | 外部插件仓库；见[插件宿主](插件宿主.md) |
 | `src/core/CMakeLists.txt` | 构建目标 `awb_core` | 只为 Debug 定义 `AWB_PERF_ENABLED`，并私有链接 spdlog | 所有 |
 
 下图说明每个 core 类拥有什么、又依赖哪些 core 类；离开这一组的箭头只指向 Qt 本身。
@@ -93,7 +93,7 @@ flowchart TD
 
 ### Settings
 
-`Settings` 是 `settings.json` 唯一的读写者。八个段结构体及其默认值声明在 `src/core/Settings.h`；逐键的完整字段表在 [Settings](settings.md)——本页有意不重复。这里只说要点：
+`Settings` 是 `settings.json` 唯一的读写者。八个段结构体及其默认值声明在 `src/core/Settings.h`；逐键的完整字段表在 [Settings](设置.md)——本页有意不重复。这里只说要点：
 
 - **缺键取默认值；未知键记警告后忽略；类型不对或越界记警告后取默认值。** 任何一个键的失败都不影响其它键。
 - **没有迁移代码，也不要加。** 加一个键就加一个默认值。
@@ -138,7 +138,7 @@ flowchart TD
 
 ### PluginHost
 
-`PluginHost` 扫描 `<dataRoot>/plugins/*/plugin.json`，校验 ABI 版本，并经导出的 C 入口装载已启用的库。任何失败只记日志并跳过——插件永远不能阻止启动。宿主侧服务桥与完整契约见[插件宿主](plugin-host.md)；这里只说明它住在 core 是因为「装载动态库」属于基础设施，而它递出去的服务实现在 `awb_workbench`。
+`PluginHost` 扫描 `<dataRoot>/plugins/*/plugin.json`，校验 ABI 版本，并经导出的 C 入口装载已启用的库。任何失败只记日志并跳过——插件永远不能阻止启动。宿主侧服务桥与完整契约见[插件宿主](插件宿主.md)；这里只说明它住在 core 是因为「装载动态库」属于基础设施，而它递出去的服务实现在 `awb_workbench`。
 
 ### LegacyImport
 
@@ -166,7 +166,7 @@ flowchart TD
 
 ### plugin_api/PluginApi.h
 
-`src/plugin_api/PluginApi.h` 是一个**仅头文件的接口目标**（`awb_plugin_api`），供外部插件仓库链接。它只依赖 Qt Core、绝不依赖宿主模块，里面声明了 ABI 版本、值类型 `PageDescriptor`、抽象接口 `Services`，以及每个插件都要导出的两个 `extern "C"` 入口。宿主侧契约见[插件宿主](plugin-host.md)。
+`src/plugin_api/PluginApi.h` 是一个**仅头文件的接口目标**（`awb_plugin_api`），供外部插件仓库链接。它只依赖 Qt Core、绝不依赖宿主模块，里面声明了 ABI 版本、值类型 `PageDescriptor`、抽象接口 `Services`，以及每个插件都要导出的两个 `extern "C"` 入口。宿主侧契约见[插件宿主](插件宿主.md)。
 
 ## 新增一个 core 工具类时的检查清单
 
@@ -174,15 +174,15 @@ flowchart TD
 - [ ] 保持不依赖 UI：不许 `QtQuick` / `QQuick*` / `QQml*` / `QtWebEngine`（`check_architecture` 规则 4）。优先只用 Qt 值类型与 Core/Network。
 - [ ] 在 `tests/core/` 下写单元测试（用例写在 `private Q_SLOTS:` 里），且绝不碰真实数据目录——经 `Paths::setDataRootForTesting()` 注入 `QTemporaryDir`。
 - [ ] 需要编译的文件加进 `src/core/CMakeLists.txt`（仅头文件的工具类不需要）。
-- [ ] 更新本页与 [C++ 库设计](../architecture/cpp-design.md)。
+- [ ] 更新本页与 [C++ 库设计](../architecture/C++库设计.md)。
 - [ ] 若是可失败且面向 QML 的，返回 `awb::core::OpResult`（写全限定名），涉及新类型时注册 metatype。
 
 ## 相关页面
 
-- [主题引擎](theme-engine.md)——直接坐在 `Paths`、`JsonStore`、`Settings` 之上的 L1 层。
-- [workbench 与页面](workbench-and-pages.md)——core 对象在哪里被构造与布线。
-- [插件宿主](plugin-host.md)——从 `PluginHost` 开始的完整插件契约。
-- [C++ 库设计](../architecture/cpp-design.md)——core 遵守的分层与错误处理契约。
-- [分层与依赖](../architecture/layers-and-dependencies.md)——core 为何不依赖任何上层。
+- [主题引擎](主题引擎.md)——直接坐在 `Paths`、`JsonStore`、`Settings` 之上的 L1 层。
+- [workbench 与页面](workbench与页面.md)——core 对象在哪里被构造与布线。
+- [插件宿主](插件宿主.md)——从 `PluginHost` 开始的完整插件契约。
+- [C++ 库设计](../architecture/C++库设计.md)——core 遵守的分层与错误处理契约。
+- [分层与依赖](../architecture/分层与依赖.md)——core 为何不依赖任何上层。
 - [使用指引](../guide/index.md)——日志、数据目录与设置的用户可见行为。
 - [配置参考](../configuration.md)——`settings.json` 的键表。

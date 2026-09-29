@@ -32,6 +32,7 @@ plugins:
   - search
   - i18n:
       docs_structure: folder
+      fallback_to_default: false
       languages:
         - locale: en
           name: English
@@ -82,35 +83,35 @@ plugins:
             - 博客: blog.md
             - 使用指引:
                 - 入门: guide/index.md
-                - Agent 启动器: guide/agent-launcher.md
-                - 网页界面: guide/web-ui.md
-                - 技能: guide/skills.md
-                - 提示词编写台: guide/agent-tools.md
-                - 外观: guide/appearance.md
-                - 设置: guide/settings.md
-                - 插件: guide/plugins.md
-                - 出问题了: guide/troubleshooting.md
+                - Agent 启动器: guide/Agent启动器.md
+                - 网页界面: guide/网页界面.md
+                - 技能: guide/技能.md
+                - 提示词编写台: guide/提示词编写台.md
+                - 外观: guide/外观.md
+                - 设置: guide/设置.md
+                - 插件: guide/插件.md
+                - 出问题了: guide/问题排查.md
             - 架构:
                 - 总览: architecture/index.md
-                - 分层与依赖: architecture/layers-and-dependencies.md
-                - 前端设计: architecture/frontend-design.md
-                - C++ 库设计: architecture/cpp-design.md
-                - 扩展点: architecture/extension-points.md
-                - 数据与状态: architecture/state-and-persistence.md
+                - 分层与依赖: architecture/分层与依赖.md
+                - 前端设计: architecture/前端设计.md
+                - C++ 库设计: architecture/C++库设计.md
+                - 扩展点: architecture/扩展点.md
+                - 数据与状态: architecture/数据与状态.md
             - 开发:
                 - 入门: development/index.md
-                - Agent 启动器: development/agent-launcher.md
-                - Web 标签页: development/web-tabs.md
-                - WebEngine 适配层: development/webengine-adapter.md
-                - Skill 浏览: development/skill-browser.md
-                - Agent Tools: development/agent-tools.md
-                - 外壳与导航: development/shell-and-navigation.md
-                - 设置: development/settings.md
-                - 主题引擎: development/theme-engine.md
-                - workbench 与页面: development/workbench-and-pages.md
-                - 插件宿主: development/plugin-host.md
-                - core 基础设施: development/core-infrastructure.md
-                - 国际化: development/i18n.md
+                - Agent 启动器: development/Agent启动器.md
+                - Web 标签页: development/Web标签页.md
+                - WebEngine 适配层: development/WebEngine适配层.md
+                - Skill 浏览: development/Skill浏览.md
+                - Agent Tools: development/AgentTools.md
+                - 外壳与导航: development/外壳与导航.md
+                - 设置: development/设置.md
+                - 主题引擎: development/主题引擎.md
+                - workbench 与页面: development/workbench与页面.md
+                - 插件宿主: development/插件宿主.md
+                - core 基础设施: development/core基础设施.md
+                - 国际化: development/国际化.md
             - 配置: configuration.md
             - 编写插件: plugins.md
             - 编程规范: standards/coding-standard.md

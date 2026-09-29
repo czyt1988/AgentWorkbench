@@ -18,16 +18,55 @@ docs/
   guide/                   【使用】单个功能怎么用、怎么配 —— 面向最终用户
   standards/               编程规范（代码风格，不是产品文档）
   research/                调研记录（一次性结论，冻结不改写）
-  zh/                      以上全部内容的中文镜像
+  zh/                      以上全部内容的中文镜像（文件名用中文，见下表）
 ```
 
 **中英文必须同步、一一对应**，规则如下：
 
 - **英文是源头**。先写/改英文，再补中文；中文不是「有空再说」的选项，同一笔提交里必须一起出现。
-- **文件名完全相同**，只差所在语言目录：`docs/architecture/cpp-design.md` ↔ `docs/zh/architecture/cpp-design.md`。不新建 `xxx-zh.md`、也不在中文目录里加英文特有文件。
+- **英文侧的文件名用英文，中文侧的文件名用中文**：`docs/architecture/cpp-design.md` ↔ `docs/zh/architecture/C++库设计.md`。`index.md` 三个板块都保持 `index.md` 不改名；板块之外的既有页面（`configuration.md`、`plugins.md`、`standards/`、`research/`、`blog.md`）也保持英文名不动。不新建 `xxx-zh.md`、也不在中文目录里加英文特有文件。
+- **对应关系是 1:1 且必须登记**：新增/改名中文页时，同步更新下面这张表；表是核对中英是否齐平的唯一依据（两边文件名不同，不能再靠同名自动比对）。
+
+  | 英文 | 中文 |
+  |---|---|
+  | `architecture/layers-and-dependencies.md` | `architecture/分层与依赖.md` |
+  | `architecture/frontend-design.md` | `architecture/前端设计.md` |
+  | `architecture/cpp-design.md` | `architecture/C++库设计.md` |
+  | `architecture/extension-points.md` | `architecture/扩展点.md` |
+  | `architecture/state-and-persistence.md` | `architecture/数据与状态.md` |
+  | `development/agent-launcher.md` | `development/Agent启动器.md` |
+  | `development/web-tabs.md` | `development/Web标签页.md` |
+  | `development/webengine-adapter.md` | `development/WebEngine适配层.md` |
+  | `development/skill-browser.md` | `development/Skill浏览.md` |
+  | `development/agent-tools.md` | `development/AgentTools.md` |
+  | `development/shell-and-navigation.md` | `development/外壳与导航.md` |
+  | `development/settings.md` | `development/设置.md` |
+  | `development/theme-engine.md` | `development/主题引擎.md` |
+  | `development/workbench-and-pages.md` | `development/workbench与页面.md` |
+  | `development/plugin-host.md` | `development/插件宿主.md` |
+  | `development/core-infrastructure.md` | `development/core基础设施.md` |
+  | `development/i18n.md` | `development/国际化.md` |
+  | `guide/agent-launcher.md` | `guide/Agent启动器.md` |
+  | `guide/web-ui.md` | `guide/网页界面.md` |
+  | `guide/skills.md` | `guide/技能.md` |
+  | `guide/agent-tools.md` | `guide/提示词编写台.md` |
+  | `guide/appearance.md` | `guide/外观.md` |
+  | `guide/settings.md` | `guide/设置.md` |
+  | `guide/plugins.md` | `guide/插件.md` |
+  | `guide/troubleshooting.md` | `guide/问题排查.md` |
+
 - **结构必须一致**：一份英文文档有哪几个二级标题，中文镜像就有哪几个；图表、代码块、表格、链接目标一一对应。允许中文行文更简洁，但不允许缺章节。
 - **代码/路径/类名/命令/配置键不翻译**，原样保留（`AgentsFacade`、`agents.json`、`theme.surfaceBg`、`AWB_ENABLE_WEBENGINE`）。中文文档里也不需要给它们加中文别名。
-- **新增一个文档 = 改三处**：英文文件、中文镜像、`mkdocs.yml` 两个 locale 的 `nav`（两个 locale 用**同样的相对路径**，因为 i18n 插件按 `docs/zh/` 目录映射）。
+- **新增一个文档 = 改四处**：英文文件、中文文件、`mkdocs.yml` 两个 locale 的 `nav`（两个 locale 各写各的文件名）、本文的对应关系表。
+
+### 中英文件名不同的两个代价（用前必须知道）
+
+MkDocs 的 i18n 插件是**按「剥掉语言目录后的路径」给两种语言配对的**（`mkdocs_static_i18n/folder.py` 的 `norm_src_uri`），所以中英文件名一旦不同：
+
+- **语言切换器只能回到对方语言的首页**，不再跳到「当前页的对应页」。这是插件机制的硬限制，改 `mkdocs.yml` 解决不了；能接受就说「切语言≈换站点」，不能接受就得让两边同名。
+- 插件默认的 `fallback_to_default: true` 会把**没有同名译文的英文页整页复制进 `/zh/`**（实测 25 个英文副本，且会进搜索索引），所以本站关掉了它（`mkdocs.yml` 里 `i18n.fallback_to_default: false`）。副作用是**共享资源不再自动带进中文站**：`docs/pic/` 的截图在 `docs/zh/pic/` 有一份副本，换图时两边都要换。
+
+构建输出里那串「pages exist in the docs directory, but are not included in the nav」的 INFO 是上面第一条的连带噪声（每次构建会把另一种语言的页面列一遍），属预期，不要为它加 `not_in_nav` 把英文页也一并静音掉。
 
 ## 2. 三个板块的读者与语气
 
@@ -83,7 +122,7 @@ docs/
 
 ## 5. 链接与导航
 
-- **站内链接用相对路径且带 `.md`**：同板块内写 `agent-tools.md`，跨板块写 `../development/agent-launcher.md`。不要用绝对站点路径（`/development/...`），否则中文站点会跳回英文。
+- **站内链接用相对路径且带 `.md`**：英文侧同板块内写 `agent-tools.md`、跨板块写 `../development/agent-launcher.md`；中文侧写的是**中文文件名**（`AgentTools.md`、`../development/Agent启动器.md`），同一板块内两边只有文件名不同。不要用绝对站点路径（`/development/...`）。
 - 跨板块链接是**必须的**：`architecture/` 说「详见 `development/` 的某功能」，`development/` 头部给出「用户视角见 `guide/` 对应页面」，`guide/` 末尾给 `development/` 的链接（方便好奇的用户/维护者）。
 - 每个板块必须有 `index.md`，作为该板块的目录 + 阅读顺序建议；板块首页要能回答「我该按什么顺序读」。
 - 新增页面必须登记进 `mkdocs.yml` 的两个 `nav`；漏登记的表现是页面能访问但导航里找不到。
@@ -104,16 +143,19 @@ docs/
 | 改构建选项、测试目标清单、Qt 版本支持范围 | `development/index.md`、`architecture/cpp-design.md`（若涉及兼容策略） |
 | 新增一个模块 / 改动模块依赖方向 | `architecture/layers-and-dependencies.md`（含依赖图） |
 | 界面上用户能看到的文案改了 | `guide/` 里引用该文案的地方（两个语言都要对） |
+| 新增/改名/删除一个中英对照的页面 | §1 的对应关系表 + `mkdocs.yml` 的中文 `nav` 条目 |
+| 换了 `docs/pic/` 里的截图 | `docs/zh/pic/` 里的同名副本一起换（中文站不再自动继承共享资源） |
 
 反过来也成立：**文档说的和代码不一致时，以代码为准，并当场把文档改对**。发现别人留下的过期文档，顺手修，不要复制它的写法。
 
 ## 7. 提交前检查清单
 
 - [ ] 英文写完，中文镜像已同步（章节、图表、表格、链接逐项对得上）。
+- [ ] 新增页已按 §1 的对应关系表配好中文文件名，并把新行补进那张表。
 - [ ] 全文无行号；代码引用只到文件 + 类/函数名。
 - [ ] `guide/` 全文无代码文件名、类名、函数名、架构术语。
-- [ ] 新增页已登记进 `mkdocs.yml` 两个 `nav`。
+- [ ] 新增页已登记进 `mkdocs.yml` 两个 `nav`（各自写自己的文件名）。
 - [ ] mermaid 图语法正确、不写死颜色、节点用真实名字。
-- [ ] 站内链接可点（相对路径 + `.md`）。
-- [ ] `mkdocs build` 无新增错误（中英文都构建）。
+- [ ] 站内链接可点：英文侧用英文名、中文侧用中文名，相对路径 + `.md`，在对应目录下真的存在。
+- [ ] `mkdocs build` 无新增错误（中英文都构建），且 `/zh/` 下没有多出来的英文页副本。
 - [ ] 该板块的 `index.md` 已把新页面列进去。

@@ -1,6 +1,6 @@
 # C++ 设计
 
-本页面向要新增或重构 C++ 代码的开发者。它说明库如何分层、为什么 QML 只与门面和模型交互、哪些类型可以跨过元对象边界、线程允许怎么用，以及新代码该放哪里。消费这些 API 的前端规则见[前端设计](frontend-design.md)。
+本页面向要新增或重构 C++ 代码的开发者。它说明库如何分层、为什么 QML 只与门面和模型交互、哪些类型可以跨过元对象边界、线程允许怎么用，以及新代码该放哪里。消费这些 API 的前端规则见[前端设计](前端设计.md)。
 
 ## L0 到 L3：分层与模块边界
 
@@ -28,7 +28,7 @@ flowchart TB
 - **L2** 是领域与 UI 框架模块：`src/agentcatalog/`、`src/skillcatalog/`、`src/web/`、`src/tools/` 与 `src/shell/`。
 - **L3** 是应用层 `src/workbench/`。
 
-领域模块之间零依赖，也都不依赖 `shell/` 或 `workbench/`。挂在 ctest 上的 `scripts/check-architecture.sh`（测试名 `check_architecture`）强制这一点：它的第一条规则 grep 每个领域模块的反向/横向 include，违反即构建失败。这就是为什么尽管打开 agent 的 Web UI 同时需要两边，`AgentsFacade` 也不能调用 `WebTabsFacade`；跨域动作住在 `awb_workbench` 里。完整的模块地图（含每个具体类落在哪一层）见[分层与依赖](layers-and-dependencies.md)。
+领域模块之间零依赖，也都不依赖 `shell/` 或 `workbench/`。挂在 ctest 上的 `scripts/check-architecture.sh`（测试名 `check_architecture`）强制这一点：它的第一条规则 grep 每个领域模块的反向/横向 include，违反即构建失败。这就是为什么尽管打开 agent 的 Web UI 同时需要两边，`AgentsFacade` 也不能调用 `WebTabsFacade`；跨域动作住在 `awb_workbench` 里。完整的模块地图（含每个具体类落在哪一层）见[分层与依赖](分层与依赖.md)。
 
 ## 门面（Facade）模式
 
@@ -72,7 +72,7 @@ QML 消费的模型都是 `QAbstractListModel` / `QAbstractItemModel` 的子类�
 
 - **默认异步**。面向 QML 的操作立即返回，结果经信号上报，例如 `refresh()` 之后是 `scanFinished()` / `refreshFinished()`。这不是装饰：它意味着以后把工作挪到工作线程时不用改一行 QML，`SkillsFacade::refresh()` 实际经历的就是这一步。
 - **QML 要绑定的属性必须带 `NOTIFY`**。没有 notify 信号的 `Q_PROPERTY` 的绑定永不重新求值，而在绑定表达式里用 `Q_INVOKABLE` 只会求值一次、得到函数引用。状态栏曾因此不更新，这就是 `NavigationModel::badges`、`WebTabsFacade::tabCount` 与 `SkillsFacade::roots` 是带通知的属性而非方法的原因。
-- **QML 要调的每个方法都必须 `Q_INVOKABLE` 或槽**，要赋值的每个属性都必须有 `WRITE`。这由构建期 `check_architecture` 规则 5 强制（失败表现见[前端设计](frontend-design.md)）。
+- **QML 要调的每个方法都必须 `Q_INVOKABLE` 或槽**，要赋值的每个属性都必须有 `WRITE`。这由构建期 `check_architecture` 规则 5 强制（失败表现见[前端设计](前端设计.md)）。
 
 ## 错误处理
 
@@ -89,7 +89,7 @@ QML 消费的模型都是 `QAbstractListModel` / `QAbstractItemModel` 的子类�
 
 > 跨页切换或跨重启要活下来的状态放进 C++ 模型或磁盘；只影响呈现的状态留在 QML。
 
-具体地，内存态包括本次会话记账的 agent PID、从启动输出捕获的会话 URL、健康检查的运行标志、标签状态与提示词草稿缓冲。磁盘态包括 `agents.json`（agent 定义）、`settings.json`（应用设置）、`agent_state.json`（哪些 agent 做完了一次性 setup）、`tools.json`（工作区记忆与提示词草稿）与 skill 缓存。QML 属性用于浮层是否打开、当前高亮哪个过滤 facet 这类事情。逐文件清单（含数据目录的角色）见[状态与持久化](state-and-persistence.md)。
+具体地，内存态包括本次会话记账的 agent PID、从启动输出捕获的会话 URL、健康检查的运行标志、标签状态与提示词草稿缓冲。磁盘态包括 `agents.json`（agent 定义）、`settings.json`（应用设置）、`agent_state.json`（哪些 agent 做完了一次性 setup）、`tools.json`（工作区记忆与提示词草稿）与 skill 缓存。QML 属性用于浮层是否打开、当前高亮哪个过滤 facet 这类事情。逐文件清单（含数据目录的角色）见[状态与持久化](数据与状态.md)。
 
 ## 线程模型
 
@@ -144,7 +144,7 @@ sequenceDiagram
 
 - **资源只能编进可执行文件。** 静态库里的 qrc 初始化器会被链接器丢弃，因此 `awb_add_resources` 调用写在 `app/CMakeLists.txt`，尽管图标与配置文件属于模块。模块自己的 `CMakeLists.txt` 只列 C++，绝不列 `.qml`。
 - **QML 模块 `AgentWorkbench`** 由 `awb_add_qml_module` 生成（Qt 6 上是 `qt_add_qml_module`，Qt 5 上是生成的 qmldir 加 qrc）。其页面与组件 URL 形如 `qrc:/qt/qml/AgentWorkbench/<area>/<Name>.qml`，`<area>` 由 `app/CMakeLists.txt` 里的 `QT_RESOURCE_ALIAS` 决定。
-- **纯 C++ URI `AgentWorkbench.App`** 承载用 `qmlRegisterSingletonInstance` 注册的单例，那里类型名必须大写。页面实际使用的小写别名层见[前端设计](frontend-design.md)。
+- **纯 C++ URI `AgentWorkbench.App`** 承载用 `qmlRegisterSingletonInstance` 注册的单例，那里类型名必须大写。页面实际使用的小写别名层见[前端设计](前端设计.md)。
 
 因此新增或移动一个 `.qml` 文件意味着同时改两份清单：`app/CMakeLists.txt` 里对应的区域清单（`_shell_qml`、`_component_qml`、`_agentcatalog_qml`、`_skillcatalog_qml`、`_web_qml`、`_webengine_qml`、`_tools_qml`），以及文件含 `qsTr()` 时的 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。
 
@@ -161,12 +161,12 @@ sequenceDiagram
 | 一个跨域动作 | `workbench::WorkbenchContext`（如 `openWeb`），绝不放单个领域门面 |
 | 一个纯工具函数 | `src/core/`——并让 `src/core/` 不沾 Qt Quick、QML 与 WebEngine，`check_architecture` 规则 4 强制这一点 |
 | 主题令牌或主题加载行为 | `src/theme/` |
-| 一个共享 QML `A*` 组件 | `src/shell/qml/components/`，然后把两份清单都登记上（见[前端设计](frontend-design.md)） |
+| 一个共享 QML `A*` 组件 | `src/shell/qml/components/`，然后把两份清单都登记上（见[前端设计](前端设计.md)） |
 | 一个模块共享的值类型 | 放该模块其它类型旁边；是普通结构体，除非 QML 必须读它的字段——那就上 `Q_GADGET`（见上） |
 
 ## 相关文档
 
-- [分层与依赖](layers-and-dependencies.md)——完整模块地图，每个具体类的落位。
-- [状态与持久化](state-and-persistence.md)——内存态与磁盘态逐文件划分。
-- [前端设计](frontend-design.md)——QML 如何消费这些模型与门面。
+- [分层与依赖](分层与依赖.md)——完整模块地图，每个具体类的落位。
+- [状态与持久化](数据与状态.md)——内存态与磁盘态逐文件划分。
+- [前端设计](前端设计.md)——QML 如何消费这些模型与门面。
 - `docs/standards/coding-standard.md`——文件与命名规则、Qt 最佳实践与注释规范全文。

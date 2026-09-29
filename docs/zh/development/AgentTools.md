@@ -287,12 +287,12 @@ flowchart TD
 
 ## 相关
 
-- [Skills 浏览器](skill-browser.md) —— 另一个扫描目录的页面，也是共享 `A*` 组件的
+- [Skills 浏览器](Skill浏览.md) —— 另一个扫描目录的页面，也是共享 `A*` 组件的
   第一个消费者。
-- [Shell 与导航](shell-and-navigation.md) —— 页面如何注册与装载，以及复用
+- [Shell 与导航](外壳与导航.md) —— 页面如何注册与装载，以及复用
   `SettingsSkillsPage` 形态的设置页。
-- [设置](settings.md) —— 本页复用的 `A*` 表单控件。
-- [Agent Tools（使用）](../guide/agent-tools.md) —— 面向用户的描述。
-- [前端设计](../architecture/frontend-design.md) —— `A*` 组件货架与 `AMenu` 家族。
-- [分层与依赖](../architecture/layers-and-dependencies.md) —— 为什么 `tools` 不许
+- [设置](设置.md) —— 本页复用的 `A*` 表单控件。
+- [Agent Tools（使用）](../guide/提示词编写台.md) —— 面向用户的描述。
+- [前端设计](../architecture/前端设计.md) —— `A*` 组件货架与 `AMenu` 家族。
+- [分层与依赖](../architecture/分层与依赖.md) —— 为什么 `tools` 不许
   依赖 `shell`。

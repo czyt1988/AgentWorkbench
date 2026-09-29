@@ -4,9 +4,9 @@
 profile、桥接 Qt 5 / Qt 6 的 WebEngine API 差异、为旧引擎注入 JavaScript polyfill，并用覆盖层兜底
 渲染每个标签。它也是**唯一**链接 Qt WebEngine 的 CMake 目标。
 
-用户视角见 [Agent Web UI](../guide/web-ui.md)。
-架构背景见 [分层与依赖](../architecture/layers-and-dependencies.md) 与
-[C++ 库设计](../architecture/cpp-design.md)。
+用户视角见 [Agent Web UI](../guide/网页界面.md)。
+架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
+[C++ 库设计](../architecture/C++库设计.md)。
 背景调研见 [WebEngine 内嵌](../research/webengine-embedding.md)。
 
 ## 为什么单独一层
@@ -254,16 +254,16 @@ flowchart TD
 - **改了 polyfill 要在两个引擎上各验一次。** 文件必须保持 Chromium 87 可解析，且改动在新引擎上必须
   是空转。
 - **绝不记录未脱敏的 URL。** 任何新的控制台/日志路径都必须先过脱敏helper。
-- **改表面状态集合或覆盖层文案** —— 同步更新上面的表、[Web 标签](web-tabs.md) 的状态图，以及
+- **改表面状态集合或覆盖层文案** —— 同步更新上面的表、[Web 标签](Web标签页.md) 的状态图，以及
   `../guide/web-ui.md`。
 
 ## 相关
 
-- [Web 标签](web-tabs.md) —— 本适配层接入的标签模型与 `embedded`/`external` 表面策略。
-- [Agent Launcher](agent-launcher.md) —— agent 与它的 token 文件的来源。
-- [Workbench 与页面](workbench-and-pages.md) —— `openWeb()` 与弹窗/外置路由入口。
+- [Web 标签](Web标签页.md) —— 本适配层接入的标签模型与 `embedded`/`external` 表面策略。
+- [Agent Launcher](Agent启动器.md) —— agent 与它的 token 文件的来源。
+- [Workbench 与页面](workbench与页面.md) —— `openWeb()` 与弹窗/外置路由入口。
 - [开发板块索引](index.md)
-- 用户视角：[Agent Web UI](../guide/web-ui.md)
-- 架构：[C++ 库设计](../architecture/cpp-design.md)、
-  [分层与依赖](../architecture/layers-and-dependencies.md)
+- 用户视角：[Agent Web UI](../guide/网页界面.md)
+- 架构：[C++ 库设计](../architecture/C++库设计.md)、
+  [分层与依赖](../architecture/分层与依赖.md)
 - 调研：[WebEngine 内嵌](../research/webengine-embedding.md)
