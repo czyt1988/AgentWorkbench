@@ -66,7 +66,7 @@ Item {
                 font.pixelSize: theme.fontSizeSmall
             }
 
-            ComboBox {
+            AComboBox {
                 id: workspaceCombo
 
                 Layout.preferredWidth: 340
@@ -98,6 +98,13 @@ Item {
 
                     width: workspaceCombo.width
                     highlighted: workspaceCombo.highlightedIndex === index
+                    // 弹层底色随 AComboBox 主题化后，条目悬停态也要跟令
+                    // 牌走（默认 ItemDelegate 背景是硬编码浅色系）。
+                    background: Rectangle {
+                        color: workspaceChoice.hovered
+                               || workspaceChoice.highlighted
+                               ? theme.surfaceHoverBg : "transparent"
+                    }
 
                     contentItem: RowLayout {
                         spacing: theme.spacingS

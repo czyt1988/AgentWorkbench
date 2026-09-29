@@ -62,6 +62,7 @@
 | `ATextArea` | 多行编辑器 | 一切多行文本输入（surface 背景/焦点环/invalid；与 ATextField 的 surface-alt 有意区分——亮色下长文编辑区需要更白的底） |
 | `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
+| `AComboBox` | 下拉选择框 | 一切下拉选择（主题化背景/内容/弹层——Default 样式的调色板是硬编码浅色系，深色主题下不可读）；要定制省略方向或行内控件就在使用点覆写 contentItem/delegate |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
 | `ASpotlight` | 指针聚光覆盖层 | 玻璃卡的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover |
 | `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |

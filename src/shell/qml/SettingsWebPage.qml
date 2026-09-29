@@ -32,7 +32,7 @@ ScrollView {
                 color: theme.textPrimary
                 font.pixelSize: theme.fontSizeBody
             }
-            ComboBox {
+            AComboBox {
                 id: surfaceCombo
                 textRole: "text"
                 valueRole: "value"

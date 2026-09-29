@@ -81,7 +81,7 @@ Item {
                 }
             }
 
-            ComboBox {
+            AComboBox {
                 id: sortCombo
                 textRole: "text"
                 valueRole: "value"

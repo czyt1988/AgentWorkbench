@@ -34,7 +34,7 @@ ScrollView {
                 font.pixelSize: theme.fontSizeBody
             }
 
-            ComboBox {
+            AComboBox {
                 id: themeCombo
 
                 // 宽度自适应内容：内置主题只有 Dark/Light 两个短标签，
@@ -88,7 +88,7 @@ ScrollView {
                 font.pixelSize: theme.fontSizeBody
             }
 
-            ComboBox {
+            AComboBox {
                 id: fontCombo
 
                 // 首项跟随主题/系统默认（值空串），之后是本机全部字体族。

@@ -16,7 +16,7 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
-                   ATextArea AScrollBar AgentAvatar ASpotlight)
+                   ATextArea AScrollBar AgentAvatar ASpotlight AComboBox)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml ToolsPage MarkdownContextMenu)
