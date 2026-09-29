@@ -9,6 +9,7 @@
 #include <QTest>
 
 #include <cstdio>
+#include <utility>
 
 namespace {
 
@@ -21,16 +22,19 @@ QStringList testFunctionsOf(const QObject *test)
     for (int i = 0; i < meta->methodCount(); ++i) {
         const QMetaMethod method = meta->method(i);
         if (method.methodType() != QMetaMethod::Method
-            && method.methodType() != QMetaMethod::Slot)
+            && method.methodType() != QMetaMethod::Slot) {
             continue;
-        if (method.enclosingMetaObject() != meta)
+        }
+        if (method.enclosingMetaObject() != meta) {
             continue; // inherited (e.g. QObject::deleteLater)
+        }
         const QString name = QString::fromLatin1(method.methodSignature())
                                  .section(QLatin1Char('('), 0, 0);
-        if (name == QLatin1String("init") || name == QLatin1String("cleanup")
-            || name == QLatin1String("initTestCase")
-            || name == QLatin1String("cleanupTestCase"))
+        if (name == QStringLiteral("init") || name == QStringLiteral("cleanup")
+            || name == QStringLiteral("initTestCase")
+            || name == QStringLiteral("cleanupTestCase")) {
             continue;
+        }
         functions.append(name);
     }
     return functions;
@@ -47,12 +51,14 @@ int awbRunRegisteredTests(int argc, char *argv[])
     QStringList optionArgs;
     for (int i = 1; i < argc; ++i) {
         const QString arg = QString::fromLocal8Bit(argv[i]);
-        if (arg.startsWith(QLatin1Char('-')))
+        if (arg.startsWith(QLatin1Char('-'))) {
             optionArgs.append(arg);
-        else
+        }
+        else {
             functionFilters.append(arg.contains(QStringLiteral("::"))
                                        ? arg.section(QStringLiteral("::"), 1)
                                        : arg);
+        }
     }
 
     // QTest::qExec exits the process when asked for -functions, which would
@@ -61,14 +67,16 @@ int awbRunRegisteredTests(int argc, char *argv[])
         QSet<QString> printed;
         for (const AwbTestFactory factory : awbTestRegistry()) {
             QObject *test = factory();
-            for (const QString &name : testFunctionsOf(test))
+            for (const QString &name : testFunctionsOf(test)) {
                 printed.insert(name);
+            }
             delete test;
         }
         QStringList sorted = printed.values();
         sorted.sort(Qt::CaseInsensitive);
-        for (const QString &name : sorted)
+        for (const QString &name : std::as_const(sorted)) {
             fprintf(stdout, "%s()\n", qPrintable(name));
+        }
         return 0;
     }
 
@@ -82,8 +90,9 @@ int awbRunRegisteredTests(int argc, char *argv[])
             // Qt 5 兼容。
             for (int i = matched.size() - 1; i >= 0; --i) {
                 if (test->metaObject()->indexOfMethod(
-                        qPrintable(matched.at(i) + QStringLiteral("()"))) < 0)
+                        qPrintable(matched.at(i) + QStringLiteral("()"))) < 0) {
                     matched.removeAt(i);
+                }
             }
             if (matched.isEmpty()) {
                 delete test;
@@ -95,15 +104,18 @@ int awbRunRegisteredTests(int argc, char *argv[])
         // provides.
         QList<QByteArray> storage;
         storage.append(QCoreApplication::applicationFilePath().toLocal8Bit());
-        for (const QString &arg : optionArgs)
+        for (const QString &arg : std::as_const(optionArgs)) {
             storage.append(arg.toLocal8Bit());
-        for (const QString &arg : matched)
+        }
+        for (const QString &arg : std::as_const(matched)) {
             storage.append(arg.toLocal8Bit());
+        }
 
         QList<char *> args;
         args.reserve(storage.size());
-        for (QByteArray &bytes : storage)
+        for (QByteArray &bytes : storage) {
             args.append(bytes.data());
+        }
 
         // QList::data() 是 Qt 6 的 API；Qt 5 用取首元素地址的老写法
         // （storage 至少含 program 一项，列表不为空）。

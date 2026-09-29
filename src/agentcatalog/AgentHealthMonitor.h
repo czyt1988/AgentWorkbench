@@ -32,7 +32,7 @@ public:
     // Probe right now (after a launch/stop the cards should flip fast).
     void recheckNow();
 
-signals:
+Q_SIGNALS:
     void runningChanged(const QString &id, bool running);
 
 private:

@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QSet>
+#include <utility>
 
 namespace awb::core {
 
@@ -18,8 +19,9 @@ void warnUnknownKeys(const QJsonObject &obj, const QSet<QString> &known,
                      const QString &where)
 {
     for (const QString &key : obj.keys()) {
-        if (known.contains(key))
+        if (known.contains(key)) {
             continue;
+        }
         qWarning().noquote() << QStringLiteral(
             "Settings: unknown key %1 in settings.json; ignoring it")
             .arg(where.isEmpty() ? key : where + QLatin1Char('.') + key);
@@ -30,8 +32,9 @@ QString readString(const QJsonObject &obj, const QString &key,
                    const QString &fallback, const QString &where)
 {
     const QJsonValue v = obj.value(key);
-    if (v.isUndefined())
+    if (v.isUndefined()) {
         return fallback;
+    }
     if (!v.isString()) {
         qWarning().noquote() << QStringLiteral(
             "Settings: %1.%2 must be a string; using the default")
@@ -45,8 +48,9 @@ bool readBool(const QJsonObject &obj, const QString &key, bool fallback,
               const QString &where)
 {
     const QJsonValue v = obj.value(key);
-    if (v.isUndefined())
+    if (v.isUndefined()) {
         return fallback;
+    }
     if (!v.isBool()) {
         qWarning().noquote() << QStringLiteral(
             "Settings: %1.%2 must be a boolean; using the default")
@@ -60,8 +64,9 @@ int readInt(const QJsonObject &obj, const QString &key, int fallback,
             int minValue, int maxValue, const QString &where)
 {
     const QJsonValue v = obj.value(key);
-    if (v.isUndefined())
+    if (v.isUndefined()) {
         return fallback;
+    }
     if (!v.isDouble() || v.toInt() != v.toDouble()
         || v.toInt() < minValue || v.toInt() > maxValue) {
         qWarning().noquote() << QStringLiteral(
@@ -76,8 +81,9 @@ qint64 readInt64(const QJsonObject &obj, const QString &key, qint64 fallback,
                  qint64 minValue, const QString &where)
 {
     const QJsonValue v = obj.value(key);
-    if (v.isUndefined())
+    if (v.isUndefined()) {
         return fallback;
+    }
     if (!v.isDouble() || v.toDouble() < double(minValue)
         || v.toDouble() > 9.007199254740992e15) {
         qWarning().noquote() << QStringLiteral(
@@ -92,8 +98,9 @@ QStringList readStringList(const QJsonObject &obj, const QString &key,
                            const QStringList &fallback, const QString &where)
 {
     const QJsonValue v = obj.value(key);
-    if (v.isUndefined())
+    if (v.isUndefined()) {
         return fallback;
+    }
     if (!v.isArray()) {
         qWarning().noquote() << QStringLiteral(
             "Settings: %1.%2 must be an array; using the default")
@@ -231,8 +238,8 @@ void Settings::load()
     warnUnknownKeys(web, kWebKeys, QStringLiteral("web"));
     m_web.surface = readString(web, QStringLiteral("surface"), m_web.surface,
                                QStringLiteral("web"));
-    if (m_web.surface != QLatin1String("embedded")
-        && m_web.surface != QLatin1String("external")) {
+    if (m_web.surface != QStringLiteral("embedded")
+        && m_web.surface != QStringLiteral("external")) {
         qWarning().noquote() << QStringLiteral(
             "Settings: web.surface must be \"embedded\" or \"external\"; "
             "using the default");
@@ -254,11 +261,13 @@ void Settings::load()
     warnUnknownKeys(skills, kSkillsKeys, QStringLiteral("skills"));
     if (skills.contains(QStringLiteral("roots"))) {
         const QJsonValue v = skills.value(QStringLiteral("roots"));
-        if (v.isArray())
+        if (v.isArray()) {
             m_skills.roots = v.toArray();
-        else
+        }
+        else {
             qWarning().noquote() << QStringLiteral(
                 "Settings: skills.roots must be an array; using the default");
+        }
     }
     m_skills.includePluginCaches =
         readBool(skills, QStringLiteral("includePluginCaches"),
@@ -300,75 +309,75 @@ void Settings::load()
 void Settings::setWindowTitle(const QString &title)
 {
     m_window.title = title;
-    emit valueChanged(QStringLiteral("window.title"));
+    Q_EMIT valueChanged(QStringLiteral("window.title"));
 }
 
 void Settings::setThemeId(const QString &id)
 {
     m_appearance.theme = id;
-    emit valueChanged(QStringLiteral("appearance.theme"));
+    Q_EMIT valueChanged(QStringLiteral("appearance.theme"));
 }
 
 void Settings::setFollowSystem(bool on)
 {
     m_appearance.followSystem = on;
-    emit valueChanged(QStringLiteral("appearance.followSystem"));
+    Q_EMIT valueChanged(QStringLiteral("appearance.followSystem"));
 }
 
 void Settings::setFontFamily(const QString &family)
 {
     m_appearance.fontFamily = family;
-    emit valueChanged(QStringLiteral("appearance.fontFamily"));
+    Q_EMIT valueChanged(QStringLiteral("appearance.fontFamily"));
 }
 
 void Settings::setWindowSize(int width, int height)
 {
     m_window.width = width;
     m_window.height = height;
-    emit valueChanged(QStringLiteral("window.width"));
-    emit valueChanged(QStringLiteral("window.height"));
+    Q_EMIT valueChanged(QStringLiteral("window.width"));
+    Q_EMIT valueChanged(QStringLiteral("window.height"));
 }
 
 void Settings::setSidebarCollapsed(bool collapsed)
 {
     m_window.sidebarCollapsed = collapsed;
-    emit valueChanged(QStringLiteral("window.sidebarCollapsed"));
+    Q_EMIT valueChanged(QStringLiteral("window.sidebarCollapsed"));
 }
 
 void Settings::setLastPageId(const QString &pageId)
 {
     m_window.lastPageId = pageId;
-    emit valueChanged(QStringLiteral("window.lastPageId"));
+    Q_EMIT valueChanged(QStringLiteral("window.lastPageId"));
 }
 
 void Settings::setWebSurface(const QString &surface)
 {
     m_web.surface = surface;
-    emit valueChanged(QStringLiteral("web.surface"));
+    Q_EMIT valueChanged(QStringLiteral("web.surface"));
 }
 
 void Settings::setWebChromiumFlags(const QString &flags)
 {
     m_web.chromiumFlags = flags;
-    emit valueChanged(QStringLiteral("web.chromiumFlags"));
+    Q_EMIT valueChanged(QStringLiteral("web.chromiumFlags"));
 }
 
 void Settings::setSkillRoots(const QJsonArray &roots)
 {
     m_skills.roots = roots;
-    emit valueChanged(QStringLiteral("skills.roots"));
+    Q_EMIT valueChanged(QStringLiteral("skills.roots"));
 }
 
 void Settings::setPluginsDisabledIds(const QStringList &ids)
 {
     m_plugins.disabledIds = ids;
-    emit valueChanged(QStringLiteral("plugins.disabledIds"));
+    Q_EMIT valueChanged(QStringLiteral("plugins.disabledIds"));
 }
 
 void Settings::setPluginsGloballyEnabled(bool enabled)
 {
     m_plugins.enabled = enabled;
-    emit valueChanged(QStringLiteral("plugins.enabled"));
+    Q_EMIT valueChanged(QStringLiteral("plugins.enabled"));
 }
 
 OpResult Settings::save()
@@ -417,8 +426,9 @@ OpResult Settings::save()
     QJsonObject plugins;
     plugins[QStringLiteral("enabled")] = m_plugins.enabled;
     QJsonArray disabled;
-    for (const QString &id : m_plugins.disabledIds)
+    for (const QString &id : std::as_const(m_plugins.disabledIds)) {
         disabled.append(id);
+    }
     plugins[QStringLiteral("disabledIds")] = disabled;
 
     QJsonObject root;
@@ -432,9 +442,10 @@ OpResult Settings::save()
     root[QStringLiteral("plugins")] = plugins;
 
     const OpResult result = JsonStore::writeFile(settingsFilePath(), root);
-    if (!result.ok)
+    if (!result.ok) {
         qWarning().noquote() << QStringLiteral("Settings: save failed: %1")
                                     .arg(result.error);
+    }
     return result;
 }
 

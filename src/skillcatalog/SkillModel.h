@@ -69,7 +69,7 @@ public:
     // The i18n-aware "%n skill(s) found" argument.
     Q_INVOKABLE int visibleCount() const { return rowCount(); }
 
-signals:
+Q_SIGNALS:
     void filterChanged();
     void countChanged();
 

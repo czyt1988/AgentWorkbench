@@ -2,6 +2,7 @@
 
 #include <QRegularExpression>
 #include <QStringList>
+#include <utility>
 
 namespace awb::skillcatalog {
 
@@ -40,8 +41,9 @@ int indentOf(const QString &line)
 {
     int i = 0;
     while (i < line.size() && (line.at(i) == QLatin1Char(' ')
-                               || line.at(i) == QLatin1Char('\t')))
+                               || line.at(i) == QLatin1Char('\t'))) {
         ++i;
+    }
     return i;
 }
 
@@ -55,12 +57,15 @@ bool isCommentOrBlank(const QString &line)
 void setValue(SkillFrontmatter &out, const QString &key, const QString &value)
 {
     const QString clean = value.trimmed();
-    if (key == QLatin1String("name"))
+    if (key == QStringLiteral("name")) {
         out.name = unquote(clean);
-    else if (key == QLatin1String("description"))
+    }
+    else if (key == QStringLiteral("description")) {
         out.description = unquote(clean);
-    else
+    }
+    else {
         out.extras.insert(key, unquote(clean));
+    }
 }
 
 // Append a continuation line (indented text or `- item`) to whatever the
@@ -69,12 +74,15 @@ void appendValue(SkillFrontmatter &out, const QString &key,
                  const QString &piece)
 {
     QString current;
-    if (key == QLatin1String("name"))
+    if (key == QStringLiteral("name")) {
         current = out.name;
-    else if (key == QLatin1String("description"))
+    }
+    else if (key == QStringLiteral("description")) {
         current = out.description;
-    else
+    }
+    else {
         current = out.extras.value(key);
+    }
 
     const QString joined = current.isEmpty() ? piece
                                              : current + QLatin1Char(' ')
@@ -90,18 +98,21 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
 
     // Tolerate a UTF-8 BOM and CRLF/CR line endings.
     QByteArray body = content;
-    if (body.startsWith("\xEF\xBB\xBF"))
+    if (body.startsWith("\xEF\xBB\xBF")) {
         body.remove(0, 3);
+    }
     QString text = QString::fromUtf8(body);
     text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
     text.replace(QStringLiteral("\r"), QStringLiteral("\n"));
 
     const QStringList lines = text.split(QLatin1Char('\n'));
-    if (lines.isEmpty())
+    if (lines.isEmpty()) {
         return result;
+    }
     // The block must start on the very first line.
-    if (lines.first().trimmed() != QStringLiteral("---"))
+    if (lines.first().trimmed() != QStringLiteral("---")) {
         return result;
+    }
 
     QString currentKey; // key whose value is still being collected
     int currentIndent = 0;
@@ -114,18 +125,21 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
     QStringList blockLines;
 
     auto flushBlock = [&]() {
-        if (currentKey.isEmpty())
+        if (currentKey.isEmpty()) {
             return;
+        }
         QString value;
         if (folded) {
             // `>` folds line breaks into spaces; blank lines survive as
             // paragraph breaks.
             QStringList parts;
-            for (const QString &raw : blockLines) {
-                if (raw.trimmed().isEmpty())
+            for (const QString &raw : std::as_const(blockLines)) {
+                if (raw.trimmed().isEmpty()) {
                     parts.append(QStringLiteral("\n"));
-                else
+                }
+                else {
                     parts.append(raw.trimmed());
+                }
             }
             value = parts.join(QStringLiteral(" "));
             value.replace(QStringLiteral(" \n "), QStringLiteral("\n"));
@@ -133,7 +147,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
             value.replace(QStringLiteral("\n "), QStringLiteral("\n"));
         } else {
             QStringList stripped;
-            for (const QString &raw : blockLines) {
+            for (const QString &raw : std::as_const(blockLines)) {
                 stripped.append(blockContentIndent >= 0
                                     ? raw.mid(blockContentIndent) : raw);
             }
@@ -149,8 +163,9 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         const QString line = lines.at(i);
 
         if (line.trimmed() == QStringLiteral("---")) {
-            if (inBlock)
+            if (inBlock) {
                 flushBlock();
+            }
             result.valid = true;
             return result;
         }
@@ -159,8 +174,9 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
             const int indent = indentOf(line);
             const bool blank = line.trimmed().isEmpty();
             if (blank || indent > blockKeyIndent) {
-                if (blockContentIndent < 0 && !blank)
+                if (blockContentIndent < 0 && !blank) {
                     blockContentIndent = indent;
+                }
                 blockLines.append(line);
                 continue;
             }
@@ -169,15 +185,17 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
             inBlock = false;
         }
 
-        if (isCommentOrBlank(line))
+        if (isCommentOrBlank(line)) {
             continue;
+        }
 
         const QRegularExpressionMatch match = keyLineRegex().match(line);
         if (!match.hasMatch()) {
             // Continuation of the current key: indented text or a `- item`
             // list line (kept as text in this tiny subset).
-            if (!currentKey.isEmpty() && indentOf(line) > currentIndent)
+            if (!currentKey.isEmpty() && indentOf(line) > currentIndent) {
                 appendValue(result, currentKey, line.trimmed());
+            }
             continue;
         }
 
@@ -205,10 +223,10 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         }
 
         if (rest == QLatin1Char('>') || rest == QLatin1Char('|')
-            || rest.startsWith(QLatin1String(">-"))
-            || rest.startsWith(QLatin1String(">+"))
-            || rest.startsWith(QLatin1String("|-"))
-            || rest.startsWith(QLatin1String("|+"))) {
+            || rest.startsWith(QStringLiteral(">-"))
+            || rest.startsWith(QStringLiteral(">+"))
+            || rest.startsWith(QStringLiteral("|-"))
+            || rest.startsWith(QStringLiteral("|+"))) {
             currentKey = key;
             currentIndent = indent;
             inBlock = true;

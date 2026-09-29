@@ -12,7 +12,7 @@ class TestAgentModel : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testModelInsertRemove()
     {
         AgentModel model;

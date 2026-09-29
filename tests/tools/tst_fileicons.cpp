@@ -16,7 +16,7 @@ class TestFileIcons : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testBuiltinSuffixMapping()
     {
         FileIcons icons;
@@ -143,8 +143,9 @@ private:
     {
         const QString path = QDir(dir).filePath(QStringLiteral("file_icons.json"));
         QFile file(path);
-        if (!file.open(QIODevice::WriteOnly))
+        if (!file.open(QIODevice::WriteOnly)) {
             return QString();
+        }
         file.write(QJsonDocument(root).toJson());
         return path;
     }

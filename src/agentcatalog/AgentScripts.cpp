@@ -67,10 +67,12 @@ void logCommandOutput(const QString &operation, const QString &id,
                          + (text.isEmpty()
                                 ? QStringLiteral("output: (none)")
                                 : QStringLiteral("output:\n") + text);
-    if (failure)
+    if (failure) {
         qWarning().noquote() << line;
-    else
+    }
+    else {
         qInfo().noquote() << line;
+    }
 }
 
 // One ScriptRunner slot per "<operation>:<agent id>", so concurrent
@@ -84,8 +86,9 @@ QString scriptKey(const QString &operation, const QString &id)
 bool splitScriptKey(const QString &key, QString &operation, QString &id)
 {
     const int sep = key.indexOf(QLatin1Char(':'));
-    if (sep <= 0)
+    if (sep <= 0) {
         return false;
+    }
     operation = key.left(sep);
     id = key.mid(sep + 1);
     return true;
@@ -113,21 +116,22 @@ AgentScripts::AgentScripts(AgentModel *model, AgentStateStore *stateStore,
 void AgentScripts::install(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const AgentDefinition a = m_model->definitions().at(row);
 
     if (m_model->state(id).running) {
         cmdLogError(QStringLiteral("install"), id,
                     QStringLiteral("skipped, the agent is running"));
-        emit launchFailed(id, tr("Please close %1 before installing/updating.")
+        Q_EMIT launchFailed(id, tr("Please close %1 before installing/updating.")
                                   .arg(a.name));
         return;
     }
     if (a.installCommand.isEmpty()) {
         cmdLogError(QStringLiteral("install"), id,
                     QStringLiteral("skipped, no install command is configured"));
-        emit installFinished(id, false,
+        Q_EMIT installFinished(id, false,
             tr("No install command configured for %1.").arg(a.name));
         return;
     }
@@ -149,21 +153,22 @@ void AgentScripts::install(const QString &id)
 void AgentScripts::update(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const AgentDefinition a = m_model->definitions().at(row);
 
     if (m_model->state(id).running) {
         cmdLogError(QStringLiteral("update"), id,
                     QStringLiteral("skipped, the agent is running"));
-        emit launchFailed(id, tr("Please close %1 before installing/updating.")
+        Q_EMIT launchFailed(id, tr("Please close %1 before installing/updating.")
                                   .arg(a.name));
         return;
     }
     if (a.updateCommand.isEmpty()) {
         cmdLogError(QStringLiteral("update"), id,
                     QStringLiteral("skipped, no update command is configured"));
-        emit installFinished(id, false,
+        Q_EMIT installFinished(id, false,
             tr("No update command configured for %1.").arg(a.name));
         return;
     }
@@ -185,11 +190,13 @@ void AgentScripts::update(const QString &id)
 void AgentScripts::runSetup(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const QString cmd = m_model->definitions().at(row).setupCommand;
-    if (cmd.isEmpty())
+    if (cmd.isEmpty()) {
         return;
+    }
 
     // Clear any previous output before flipping the card to "setting up" so
     // the panel never flashes stale text from a prior run when it (re)opens.
@@ -215,18 +222,21 @@ void AgentScripts::runSetup(const QString &id)
 
 void AgentScripts::checkVersions()
 {
-    for (const AgentDefinition &a : m_model->definitions())
+    for (const AgentDefinition &a : m_model->definitions()) {
         checkVersion(a.id);
+    }
 }
 
 void AgentScripts::checkVersion(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const QString cmd = m_model->definitions().at(row).versionCommand;
-    if (cmd.isEmpty())
+    if (cmd.isEmpty()) {
         return;
+    }
 
     ++m_versionEpoch[id];
     m_model->setCheckingVersion(id, true);
@@ -247,12 +257,14 @@ void AgentScripts::checkVersion(const QString &id)
 void AgentScripts::onScriptChunk(const QString &key, const QString &text)
 {
     QString operation, id;
-    if (!splitScriptKey(key, operation, id))
+    if (!splitScriptKey(key, operation, id)) {
         return;
-    if (operation != QLatin1String("install")
-        && operation != QLatin1String("update")
-        && operation != QLatin1String("setup"))
+    }
+    if (operation != QStringLiteral("install")
+        && operation != QStringLiteral("update")
+        && operation != QStringLiteral("setup")) {
         return; // version output is only read at completion
+    }
 
     QString &buffer = m_buffers[key];
     buffer += text;
@@ -264,16 +276,17 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                                     const QString &error)
 {
     QString operation, id;
-    if (!splitScriptKey(key, operation, id))
+    if (!splitScriptKey(key, operation, id)) {
         return;
+    }
 
     const qint64 startMs = m_startMs.take(key);
     // Merged-channel runs report everything on stdout; separated runs put
     // stderr after stdout, matching 0.3.0's stdOutput + errOutput.
     const QString output = stdOut + stdErr;
 
-    if (operation == QLatin1String("install")
-        || operation == QLatin1String("update")) {
+    if (operation == QStringLiteral("install")
+        || operation == QStringLiteral("update")) {
         m_model->setInstalling(id, false);
         m_buffers.remove(key);
         // Authoritative full text (the chunks above only streamed deltas).
@@ -282,22 +295,23 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
         if (!error.isEmpty()) {
             // The command never started (install/update have no timeout).
             cmdLogError(operation, id, error);
-            emit installFinished(id, false,
-                operation == QLatin1String("install")
+            Q_EMIT installFinished(id, false,
+                operation == QStringLiteral("install")
                     ? tr("Failed to start install command.")
                     : tr("Failed to start update command."));
         } else if (ok) {
             cmdLog(operation, id, exitSummary(exitCode, startMs));
             logCommandOutput(operation, id, output);
-            emit installFinished(id, true, QString());
+            Q_EMIT installFinished(id, true, QString());
         } else {
             cmdLogError(operation, id, exitSummary(exitCode, startMs));
             logCommandOutput(operation, id, output, true);
             QString detail = output.trimmed();
-            if (detail.isEmpty())
+            if (detail.isEmpty()) {
                 detail = tr("(no output)");
-            emit installFinished(id, false,
-                operation == QLatin1String("install")
+            }
+            Q_EMIT installFinished(id, false,
+                operation == QStringLiteral("install")
                     ? tr("Install failed (exit code %1):\n%2")
                           .arg(exitCode).arg(detail)
                     : tr("Update failed (exit code %1):\n%2")
@@ -308,17 +322,17 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
         return;
     }
 
-    if (operation == QLatin1String("setup")) {
+    if (operation == QStringLiteral("setup")) {
         const QString command = m_setupCommands.take(key);
         m_model->setSetupping(id, false);
         m_buffers.remove(key);
         m_model->setConsoleOutput(id, output);
 
         if (!error.isEmpty()
-            && error.startsWith(QLatin1String("failed to start"))) {
+            && error.startsWith(QStringLiteral("failed to start"))) {
             cmdLogError(operation, id, error);
-            emit launchFailed(id, tr("Failed to start setup command."));
-            emit setupFinished(id, false);
+            Q_EMIT launchFailed(id, tr("Failed to start setup command."));
+            Q_EMIT setupFinished(id, false);
             return;
         }
         if (ok) {
@@ -331,7 +345,7 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                     "[app] setup \"%1\": cannot write the setup state — the "
                     "setup command will run again on the next start").arg(id);
             }
-            emit setupFinished(id, true);
+            Q_EMIT setupFinished(id, true);
             return;
         }
         // Non-zero exit, or a timeout (ScriptRunner says so in `error`).
@@ -339,18 +353,19 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                     error.isEmpty() ? exitSummary(exitCode, startMs) : error);
         logCommandOutput(operation, id, output, true);
         QString detail = output.trimmed();
-        if (detail.isEmpty())
+        if (detail.isEmpty()) {
             detail = tr("(no output)");
-        emit launchFailed(id,
+        }
+        Q_EMIT launchFailed(id,
             tr("Setup command failed (exit code %1).\n\nCommand: %2\n\n%3")
                 .arg(exitCode)
                 .arg(command)
                 .arg(detail));
-        emit setupFinished(id, false);
+        Q_EMIT setupFinished(id, false);
         return;
     }
 
-    if (operation == QLatin1String("version")) {
+    if (operation == QStringLiteral("version")) {
         // Captured now: the delayed spinner clear below must only fire if
         // no newer check started in the meantime.
         const int epoch = m_versionEpoch.value(id);
@@ -364,15 +379,16 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
             // Try to extract a version from stdout, then stderr — some
             // tools print version info to stderr.
             QString version = core::TextUtils::extractVersion(stdOut);
-            if (version.isEmpty())
+            if (version.isEmpty()) {
                 version = core::TextUtils::extractVersion(stdErr);
+            }
 
             if (exitCode == 0 || !version.isEmpty()) {
                 // Exit code 0, or we found a version string despite a
                 // non-zero exit. Some tools exit non-zero for --version.
                 m_model->setInstalled(id, true);
                 m_model->setVersion(id, version);
-                emit versionResolved(id, version);
+                Q_EMIT versionResolved(id, version);
                 if (version.isEmpty()) {
                     cmdLog(operation, id,
                            QStringLiteral("%1, but no version string in the output")
@@ -396,8 +412,9 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
         const qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs;
         QTimer::singleShot(static_cast<int>(qMax(0LL, 500 - elapsed)), this,
                 [this, id, epoch]() {
-                    if (m_versionEpoch.value(id) == epoch)
+                    if (m_versionEpoch.value(id) == epoch) {
                         m_model->setCheckingVersion(id, false);
+                    }
                 });
         return;
     }

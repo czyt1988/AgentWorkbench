@@ -14,7 +14,7 @@ class TestHttpProbe : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testPortFromUrl()
     {
         QCOMPARE(HttpProbe::portFromUrl(QStringLiteral("http://127.0.0.1:58627")),

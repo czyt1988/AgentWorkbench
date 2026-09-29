@@ -14,7 +14,7 @@ class TestLegacyImport : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // One-time adoption of the legacy ~/.AgentLauncher directory: files are
     // copied into the new data root, the legacy directory survives, and a
     // second call is a no-op.
@@ -28,8 +28,9 @@ private slots:
         auto write_file = [](const QString &path, const QByteArray &bytes) {
             QDir().mkpath(QFileInfo(path).absolutePath());
             QFile f(path);
-            if (!f.open(QIODevice::WriteOnly))
+            if (!f.open(QIODevice::WriteOnly)) {
                 return false;
+            }
             return f.write(bytes) == bytes.size();
         };
         QVERIFY(write_file(oldRoot + QStringLiteral("/agents.json"),

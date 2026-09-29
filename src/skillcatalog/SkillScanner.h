@@ -60,7 +60,7 @@ public:
     void adoptResults(const QList<SkillDefinition> &definitions,
                       const Stats &stats);
 
-signals:
+Q_SIGNALS:
     void scanFinished();
     void scanStarted();
     /// 只在 m_scanning 真实翻转时发射（缓存恢复不发）——订阅方的骨架

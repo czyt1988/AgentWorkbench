@@ -11,6 +11,7 @@
 #include <QDesktopServices>
 #include <QStringList>
 #include <QUrl>
+#include <utility>
 
 namespace awb::web {
 
@@ -28,33 +29,38 @@ QString redactedUrl(const QUrl &url)
     if (queryStart >= 0) {
         QStringList kept;
         for (const QString &part : text.mid(queryStart + 1).split(QLatin1Char('&'))) {
-            if (part.startsWith(QLatin1String("token=")))
+            if (part.startsWith(QStringLiteral("token="))) {
                 continue;
+            }
             kept.append(part);
         }
         text = text.left(queryStart);
-        if (!kept.isEmpty())
+        if (!kept.isEmpty()) {
             text += QLatin1Char('?') + kept.join(QLatin1Char('&'));
+        }
     }
 
     const QString fragment = url.fragment();
-    if (fragment.isEmpty())
+    if (fragment.isEmpty()) {
         return text;
+    }
 
     // Drop only the token= part; keep any legitimate fragment text.
     QStringList parts;
     bool droppedToken = false;
     for (const QString &part : fragment.split(QLatin1Char('&'))) {
-        if (part.startsWith(QLatin1String("token="))) {
+        if (part.startsWith(QStringLiteral("token="))) {
             droppedToken = true;
             continue;
         }
         parts.append(part);
     }
-    if (!droppedToken)
+    if (!droppedToken) {
         text += QLatin1Char('#') + fragment;
-    else if (!parts.isEmpty())
+    }
+    else if (!parts.isEmpty()) {
         text += QLatin1Char('#') + parts.join(QLatin1Char('&'));
+    }
     return text;
 }
 } // namespace
@@ -76,13 +82,15 @@ WebTabsFacade::WebTabsFacade(core::Settings *settings, QObject *parent)
 
     connect(settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
-                if (key == QLatin1String("web.freezeInactiveTabs")
-                    || key == QLatin1String("web.downloadDir"))
-                    emit policyChanged();
+                if (key == QStringLiteral("web.freezeInactiveTabs")
+                    || key == QStringLiteral("web.downloadDir")) {
+                    Q_EMIT policyChanged();
+                }
                 // Lowering the cap must take effect immediately, not only
                 // on the next tab open.
-                else if (key == QLatin1String("web.maxLiveTabs"))
+                else if (key == QStringLiteral("web.maxLiveTabs")) {
                     applyMemoryPolicy();
+                }
             });
 }
 
@@ -142,8 +150,9 @@ QVariantMap WebTabsFacade::tabForAgent(const QString &agentId) const
 {
     QVariantMap map;
     const WebTab *tab = m_tabs->tabForAgent(agentId);
-    if (!tab)
+    if (!tab) {
         return map;
+    }
     map[QStringLiteral("id")] = tab->id();
     map[QStringLiteral("agentId")] = tab->agentId();
     map[QStringLiteral("url")] = tab->url().toString();
@@ -156,26 +165,27 @@ QString WebTabsFacade::openTab(const QVariantMap &fields)
 {
     const QString agentId = fields.value(QStringLiteral("agentId")).toString();
     const QUrl url(fields.value(QStringLiteral("url")).toString());
-    if (!url.isValid() || url.isEmpty())
+    if (!url.isValid() || url.isEmpty()) {
         return {};
+    }
 
     // Surface policy: `external` hands the URL to the system browser and
     // creates no tab; `embedded` needs the WebEngine surface to
     // be registered, otherwise it degrades to external as well.
     QString kind = m_settings->webOptions().surface;
-    if (kind == QLatin1String("embedded")
+    if (kind == QStringLiteral("embedded")
         && !m_registry->hasSurface(QStringLiteral("embedded"))) {
         qWarning().noquote() << QStringLiteral(
             "WebTabs: the embedded surface is not available (built without "
             "WebEngine?); falling back to the system browser");
         kind = QStringLiteral("external");
     }
-    if (kind == QLatin1String("external")) {
+    if (kind == QStringLiteral("external")) {
         if (QDesktopServices::openUrl(url)) {
             qInfo().noquote() << QStringLiteral(
                 "WebTabs: opened %1 in the system browser")
                                      .arg(redactedUrl(url));
-            emit externalOpened(redactedUrl(url));
+            Q_EMIT externalOpened(redactedUrl(url));
         } else {
             qWarning().noquote() << QStringLiteral(
                 "WebTabs: no handler accepted %1").arg(redactedUrl(url));
@@ -220,11 +230,13 @@ QString WebTabsFacade::openDetachedTab(const QString &agentId,
                                        const QString &title)
 {
     const QUrl parsed(url);
-    if (!parsed.isValid() || parsed.isEmpty())
+    if (!parsed.isValid() || parsed.isEmpty()) {
         return {};
-    if (m_settings->webOptions().surface != QLatin1String("embedded")
-        || !m_registry->hasSurface(QStringLiteral("embedded")))
+    }
+    if (m_settings->webOptions().surface != QStringLiteral("embedded")
+        || !m_registry->hasSurface(QStringLiteral("embedded"))) {
         return {};
+    }
     QVariantMap fields;
     fields[QStringLiteral("title")] = title;
     return createTab(agentId, parsed, fields);
@@ -237,43 +249,49 @@ void WebTabsFacade::closeTab(const QString &id)
     if (m_tabs->activeTabId() == id) {
         const int row = m_tabs->rowOfTab(id);
         m_tabs->removeTab(id);
-        if (m_tabs->rowCount() > 0)
+        if (m_tabs->rowCount() > 0) {
             m_tabs->setActiveIndex(qMin(row, m_tabs->rowCount() - 1));
+        }
     } else {
         m_tabs->removeTab(id);
     }
-    emit activeTabChanged();
+    Q_EMIT activeTabChanged();
 }
 
 void WebTabsFacade::activateTab(const QString &id)
 {
     const int row = m_tabs->rowOfTab(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     m_tabs->setActiveIndex(row);
-    emit activeTabChanged();
+    Q_EMIT activeTabChanged();
 }
 
 void WebTabsFacade::stepActiveTab(int delta)
 {
     const int count = m_tabs->rowCount();
-    if (count == 0)
+    if (count == 0) {
         return;
+    }
     int index = m_tabs->activeIndex();
-    if (index < 0)
+    if (index < 0) {
         index = 0;
-    else
+    }
+    else {
         index = (index + delta + count) % count;
+    }
     m_tabs->setActiveIndex(index);
-    emit activeTabChanged();
+    Q_EMIT activeTabChanged();
 }
 
 void WebTabsFacade::reloadTab(const QString &id)
 {
     WebTab *tab = tabForId(id);
-    if (!tab)
+    if (!tab) {
         return;
-    if (tab->state() == QLatin1String("released")) {
+    }
+    if (tab->state() == QStringLiteral("released")) {
         reopen(id);
         return;
     }
@@ -285,8 +303,9 @@ void WebTabsFacade::reloadTab(const QString &id)
 void WebTabsFacade::openExternal(const QString &id)
 {
     WebTab *tab = tabForId(id);
-    if (!tab)
+    if (!tab) {
         return;
+    }
     // The escape hatch must work even when the embedded view is broken.
     // The browser needs the token fragment; the log line must
     // not have it.
@@ -299,8 +318,9 @@ void WebTabsFacade::openExternal(const QString &id)
 void WebTabsFacade::reopen(const QString &id)
 {
     WebTab *tab = tabForId(id);
-    if (!tab)
+    if (!tab) {
         return;
+    }
     tab->setLoadProgress(0);
     tab->setState(QStringLiteral("loading")); // view re-creates and loads
 }
@@ -308,69 +328,79 @@ void WebTabsFacade::reopen(const QString &id)
 void WebTabsFacade::setTabState(const QString &id, const QString &state)
 {
     WebTab *tab = tabForId(id);
-    if (!tab)
+    if (!tab) {
         return;
+    }
     tab->setState(state);
-    if (state == QLatin1String("ready"))
+    if (state == QStringLiteral("ready")) {
         tab->touch();
+    }
 }
 
 void WebTabsFacade::setTabProgress(const QString &id, int progress)
 {
-    if (WebTab *tab = tabForId(id))
+    if (WebTab *tab = tabForId(id)) {
         tab->setLoadProgress(progress);
+    }
 }
 
 void WebTabsFacade::setTabTitle(const QString &id, const QString &title)
 {
-    if (WebTab *tab = tabForId(id))
+    if (WebTab *tab = tabForId(id)) {
         tab->setTitle(title);
+    }
 }
 
 void WebTabsFacade::setTabLastError(const QString &id, const QString &error)
 {
-    if (WebTab *tab = tabForId(id))
+    if (WebTab *tab = tabForId(id)) {
         tab->setLastError(error);
+    }
 }
 
 void WebTabsFacade::setTabZoom(const QString &id, double zoom)
 {
-    if (WebTab *tab = tabForId(id))
+    if (WebTab *tab = tabForId(id)) {
         tab->setZoom(zoom);
+    }
 }
 
 void WebTabsFacade::setTabUrl(const QString &id, const QString &url)
 {
-    if (WebTab *tab = tabForId(id))
+    if (WebTab *tab = tabForId(id)) {
         tab->setUrl(QUrl(url));
+    }
 }
 
 void WebTabsFacade::markOfflineForAgent(const QString &agentId)
 {
     WebTab *tab = m_tabs->tabForAgent(agentId);
-    if (!tab)
+    if (!tab) {
         return;
-    if (tab->state() == QLatin1String("ready")
-        || tab->state() == QLatin1String("loading")
+    }
+    if (tab->state() == QStringLiteral("ready")
+        || tab->state() == QStringLiteral("loading")
         // An error page observed while the agent is down is really an
         // "agent offline" page: recovery then goes through the normal
         // offline -> loading path. A load error with the agent STILL
         // running (HTTP 401 from a token gate) stays an error — reloading
         // it every probe round could never succeed.
-        || tab->state() == QLatin1String("error"))
+        || tab->state() == QStringLiteral("error")) {
         tab->setState(QStringLiteral("offline"));
+    }
 }
 
 void WebTabsFacade::markOnlineForAgent(const QString &agentId)
 {
     WebTab *tab = m_tabs->tabForAgent(agentId);
-    if (!tab)
+    if (!tab) {
         return;
+    }
     // offline + agent back -> loading. Released tabs stay released until
     // the user restores them. Error/crashed are NOT auto-reloaded: the
     // agent is up (the health probe passed), so the load itself failed —
     // only a retarget or a manual Retry can change that outcome.
-    if (tab->state() == QLatin1String("offline")) {
+    if (tab->state() == QStringLiteral("offline")) {
         tab->setLoadProgress(0);
         tab->setState(QStringLiteral("loading"));
     }
@@ -379,20 +409,23 @@ void WebTabsFacade::markOnlineForAgent(const QString &agentId)
 void WebTabsFacade::retargetTabForAgent(const QString &agentId, const QUrl &url)
 {
     WebTab *tab = m_tabs->tabForAgent(agentId);
-    if (!tab || url.isEmpty() || !url.isValid())
+    if (!tab || url.isEmpty() || !url.isValid()) {
         return;
+    }
     tab->setLoadProgress(0);
     tab->setLastError(QString());
     tab->setUrl(url);
-    if (tab->state() != QLatin1String("loading"))
+    if (tab->state() != QStringLiteral("loading")) {
         tab->setState(QStringLiteral("loading"));
+    }
 }
 
 void WebTabsFacade::closeTabsForAgent(const QString &agentId)
 {
     WebTab *tab = m_tabs->tabForAgent(agentId);
-    if (tab)
+    if (tab) {
         closeTab(tab->id());
+    }
 }
 
 bool WebTabsFacade::freezeInactiveTabs() const
@@ -403,8 +436,9 @@ bool WebTabsFacade::freezeInactiveTabs() const
 QString WebTabsFacade::downloadDir() const
 {
     const QString configured = m_settings->webOptions().downloadDir;
-    if (!configured.isEmpty())
+    if (!configured.isEmpty()) {
         return configured;
+    }
     return core::Paths::downloadsDir();
 }
 
@@ -424,8 +458,9 @@ void WebTabsFacade::wireActiveTracking()
     connect(m_tabs, &QAbstractItemModel::dataChanged, this,
             [this](const QModelIndex &topLeft, const QModelIndex &,
                    const QVector<int> &) {
-                if (topLeft.row() == m_tabs->activeIndex())
-                    emit activeStateChanged();
+                if (topLeft.row() == m_tabs->activeIndex()) {
+                    Q_EMIT activeStateChanged();
+                }
             });
 }
 
@@ -444,21 +479,25 @@ void WebTabsFacade::applyMemoryPolicy()
     int liveCount = 0;          // every view that currently exists
     for (int i = 0; i < m_tabs->rowCount(); ++i) {
         WebTab *tab = m_tabs->tabAt(i);
-        if (tab->state() == QLatin1String("released"))
+        if (tab->state() == QStringLiteral("released")) {
             continue;
+        }
         ++liveCount;
-        if (tab->id() != activeTabId())
+        if (tab->id() != activeTabId()) {
             releasable.append(tab);
+        }
     }
     while (liveCount > maxLive && !releasable.isEmpty()) {
         // Oldest by lastUsedMs first (the active tab is never released).
         WebTab *oldest = nullptr;
-        for (WebTab *tab : releasable) {
-            if (!oldest || tab->lastUsedMs() < oldest->lastUsedMs())
+        for (WebTab *tab : std::as_const(releasable)) {
+            if (!oldest || tab->lastUsedMs() < oldest->lastUsedMs()) {
                 oldest = tab;
+            }
         }
-        if (!oldest)
+        if (!oldest) {
             break;
+        }
         oldest->setState(QStringLiteral("released"));
         releasable.removeAll(oldest);
         --liveCount;

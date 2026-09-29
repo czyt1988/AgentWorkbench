@@ -15,7 +15,7 @@ class TestSkillsFacade : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -53,7 +53,7 @@ private slots:
         SkillsFacade facade(&settings);
         const QStringList failures = awbUnresolvedQmlCallTypes(&facade);
         QVERIFY2(failures.isEmpty(),
-                 qPrintable(failures.join(QLatin1String("\n"))));
+                 qPrintable(failures.join(QStringLiteral("\n"))));
     }
 };
 

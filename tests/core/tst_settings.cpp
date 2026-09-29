@@ -37,7 +37,7 @@ class TestSettings : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -131,8 +131,9 @@ private slots:
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
             if (msg.contains(QStringLiteral("window.width"))
-                || msg.contains(QStringLiteral("web.surface")))
+                || msg.contains(QStringLiteral("web.surface"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "invalid values must be logged as warnings");
     }
@@ -168,8 +169,9 @@ private slots:
         QCOMPARE(invalid.loggingOptions().level, QStringLiteral("debug"));
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
-            if (msg.contains(QStringLiteral("logging.level")))
+            if (msg.contains(QStringLiteral("logging.level"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "an invalid log level must be logged as a warning");
     }
@@ -188,8 +190,9 @@ private slots:
 
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
-            if (msg.contains(QStringLiteral("bogusSection")))
+            if (msg.contains(QStringLiteral("bogusSection"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "an unknown key must be logged as a warning");
     }

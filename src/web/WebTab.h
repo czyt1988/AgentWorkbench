@@ -57,7 +57,7 @@ public:
     qint64 lastUsedMs() const { return m_lastUsedMs; }
     void touch() { m_lastUsedMs = QDateTime::currentMSecsSinceEpoch(); }
 
-signals:
+Q_SIGNALS:
     void urlChanged();
     void titleChanged();
     void iconSourceChanged();

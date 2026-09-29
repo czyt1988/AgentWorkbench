@@ -61,7 +61,7 @@ public:
     /// 重新投影：源模型根变化与刷新时由信号触发，也可手动调用。
     void rebuild();
 
-signals:
+Q_SIGNALS:
     void visibleCountChanged();
 
 private:

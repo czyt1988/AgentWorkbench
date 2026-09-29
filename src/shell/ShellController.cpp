@@ -11,19 +11,25 @@ ShellController::ShellController(core::Settings *settings, QObject *parent)
     // External edits to settings.json keep the window in sync.
     connect(m_settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
-                if (key == QLatin1String("window.sidebarCollapsed"))
-                    emit sidebarCollapsedChanged();
-                else if (key == QLatin1String("window.sidebarWidth"))
-                    emit sidebarWidthChanged();
-                else if (key == QLatin1String("window.width")
-                         || key == QLatin1String("window.height"))
-                    emit windowSizeChanged();
-                else if (key == QLatin1String("window.title"))
-                    emit windowTitleChanged();
-                else if (key == QLatin1String("web.surface"))
-                    emit webSurfaceChanged();
-                else if (key == QLatin1String("web.chromiumFlags"))
-                    emit webChromiumFlagsChanged();
+                if (key == QStringLiteral("window.sidebarCollapsed")) {
+                    Q_EMIT sidebarCollapsedChanged();
+                }
+                else if (key == QStringLiteral("window.sidebarWidth")) {
+                    Q_EMIT sidebarWidthChanged();
+                }
+                else if (key == QStringLiteral("window.width")
+                         || key == QStringLiteral("window.height")) {
+                    Q_EMIT windowSizeChanged();
+                }
+                else if (key == QStringLiteral("window.title")) {
+                    Q_EMIT windowTitleChanged();
+                }
+                else if (key == QStringLiteral("web.surface")) {
+                    Q_EMIT webSurfaceChanged();
+                }
+                else if (key == QStringLiteral("web.chromiumFlags")) {
+                    Q_EMIT webChromiumFlagsChanged();
+                }
             });
 }
 
@@ -39,11 +45,12 @@ bool ShellController::sidebarCollapsed() const
 
 void ShellController::setSidebarCollapsed(bool collapsed)
 {
-    if (m_settings->window().sidebarCollapsed == collapsed)
+    if (m_settings->window().sidebarCollapsed == collapsed) {
         return;
+    }
     m_settings->setSidebarCollapsed(collapsed);
     m_settings->save();
-    emit sidebarCollapsedChanged();
+    Q_EMIT sidebarCollapsedChanged();
 }
 
 int ShellController::sidebarWidth() const
@@ -64,11 +71,12 @@ int ShellController::windowHeight() const
 void ShellController::saveWindowSize(int width, int height)
 {
     if (m_settings->window().width == width
-        && m_settings->window().height == height)
+        && m_settings->window().height == height) {
         return;
+    }
     m_settings->setWindowSize(width, height);
     m_settings->save();
-    emit windowSizeChanged();
+    Q_EMIT windowSizeChanged();
 }
 
 QString ShellController::webSurface() const
@@ -78,11 +86,12 @@ QString ShellController::webSurface() const
 
 void ShellController::setWebSurface(const QString &surface)
 {
-    if (m_settings->webOptions().surface == surface)
+    if (m_settings->webOptions().surface == surface) {
         return;
+    }
     m_settings->setWebSurface(surface);
     m_settings->save();
-    emit webSurfaceChanged();
+    Q_EMIT webSurfaceChanged();
 }
 
 QString ShellController::webChromiumFlags() const
@@ -92,11 +101,12 @@ QString ShellController::webChromiumFlags() const
 
 void ShellController::setWebChromiumFlags(const QString &flags)
 {
-    if (m_settings->webOptions().chromiumFlags == flags)
+    if (m_settings->webOptions().chromiumFlags == flags) {
         return;
+    }
     m_settings->setWebChromiumFlags(flags);
     m_settings->save();
-    emit webChromiumFlagsChanged();
+    Q_EMIT webChromiumFlagsChanged();
 }
 
 QString ShellController::lastPageId() const
@@ -106,8 +116,9 @@ QString ShellController::lastPageId() const
 
 void ShellController::setLastPageId(const QString &id)
 {
-    if (m_settings->window().lastPageId == id)
+    if (m_settings->window().lastPageId == id) {
         return;
+    }
     m_settings->setLastPageId(id);
     m_settings->save();
 }

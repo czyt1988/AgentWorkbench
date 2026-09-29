@@ -27,12 +27,14 @@ void mergeTable(const QJsonObject &object, QHash<QString, QString> *target,
                 const QString &fallback)
 {
     for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
-        if (!it.value().isString())
+        if (!it.value().isString()) {
             continue;
+        }
         const QString resolved =
                 core::IconResolver::resolve(it.value().toString(), fallback);
-        if (resolved.isEmpty())
+        if (resolved.isEmpty()) {
             continue;
+        }
         target->insert(it.key().toLower(), resolved);
     }
 }
@@ -49,44 +51,51 @@ QString defaultIcon(const QJsonObject &defaults, const char *key)
 FileIcons::FileIcons()
 {
     merge(core::JsonStore::readFile(QLatin1String(kBuiltinConfig)));
-    if (m_suffixes.isEmpty() && m_fileNames.isEmpty())
+    if (m_suffixes.isEmpty() && m_fileNames.isEmpty()) {
         qWarning() << "[tools] no file icon mappings loaded from"
                    << kBuiltinConfig;
+    }
 }
 
 void FileIcons::loadUserFile(const QString &path)
 {
-    if (path.isEmpty() || !QFile::exists(path))
+    if (path.isEmpty() || !QFile::exists(path)) {
         return;
+    }
     // 读不出来时 JsonStore 自己记一条警告并给出空对象，这里保持已有映射即可。
     merge(core::JsonStore::readFile(path));
 }
 
 QString FileIcons::forFile(const QString &fileName) const
 {
-    if (fileName.isEmpty())
+    if (fileName.isEmpty()) {
         return m_fileFallback;
+    }
 
     const auto byName = m_fileNames.constFind(fileName.toLower());
-    if (byName != m_fileNames.constEnd())
+    if (byName != m_fileNames.constEnd()) {
         return byName.value();
+    }
 
     const QString suffix = QFileInfo(fileName).suffix().toLower();
     if (!suffix.isEmpty()) {
         const auto bySuffix = m_suffixes.constFind(suffix);
-        if (bySuffix != m_suffixes.constEnd())
+        if (bySuffix != m_suffixes.constEnd()) {
             return bySuffix.value();
+        }
     }
     return m_fileFallback;
 }
 
 QString FileIcons::forFolder(const QString &folderName) const
 {
-    if (folderName.isEmpty())
+    if (folderName.isEmpty()) {
         return m_folderFallback;
+    }
     const auto byName = m_folderNames.constFind(folderName.toLower());
-    if (byName != m_folderNames.constEnd())
+    if (byName != m_folderNames.constEnd()) {
         return byName.value();
+    }
     return m_folderFallback;
 }
 
@@ -96,10 +105,12 @@ void FileIcons::merge(const QJsonObject &root)
     const QJsonObject defaults = root.value(QLatin1String(kDefaultsKey)).toObject();
     const QString fileDefault = defaultIcon(defaults, kFileKey);
     const QString folderDefault = defaultIcon(defaults, kFolderKey);
-    if (!fileDefault.isEmpty())
+    if (!fileDefault.isEmpty()) {
         m_fileFallback = fileDefault;
-    if (!folderDefault.isEmpty())
+    }
+    if (!folderDefault.isEmpty()) {
         m_folderFallback = folderDefault;
+    }
 
     mergeTable(root.value(QLatin1String(kFileNamesKey)).toObject(), &m_fileNames,
                m_fileFallback);

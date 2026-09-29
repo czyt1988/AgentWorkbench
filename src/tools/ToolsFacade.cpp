@@ -46,8 +46,9 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
 ToolsFacade::~ToolsFacade()
 {
     // 析构兜底：防抖计时器里的最后一段草稿不能丢。
-    if (m_draftTimer->isActive())
+    if (m_draftTimer->isActive()) {
         persistDraft();
+    }
 }
 
 QAbstractItemModel *ToolsFacade::model() const
@@ -63,8 +64,9 @@ FileTreeModel *ToolsFacade::fileTreeModel() const
 QVariantList ToolsFacade::workspaces() const
 {
     QVariantList list;
-    for (const QString &path : m_store.workspaces())
+    for (const QString &path : m_store.workspaces()) {
         list.append(path);
+    }
     return list;
 }
 
@@ -80,28 +82,31 @@ QString ToolsFacade::draft() const
 
 core::OpResult ToolsFacade::addWorkspace(const QString &path)
 {
-    if (!QFileInfo(path).isDir())
+    if (!QFileInfo(path).isDir()) {
         return core::OpResult::failure(tr("The selected path is not a folder."));
+    }
     if (!m_store.addWorkspace(path)) {
         // 列表与树已更新但 tools.json 没写进去；下次启动记忆丢失，其余功能不受影响。
         qWarning() << "[tools] could not persist tools.json";
         return core::OpResult::failure(tr("Could not save the workspace list."));
     }
     applyCurrentToModel();
-    emit workspacesChanged();
-    emit currentWorkspaceChanged();
+    Q_EMIT workspacesChanged();
+    Q_EMIT currentWorkspaceChanged();
     return core::OpResult::success();
 }
 
 core::OpResult ToolsFacade::removeWorkspace(const QString &path)
 {
-    if (!m_store.workspaces().contains(path))
+    if (!m_store.workspaces().contains(path)) {
         return core::OpResult::failure(tr("The workspace is not in the list."));
-    if (!m_store.removeWorkspace(path))
+    }
+    if (!m_store.removeWorkspace(path)) {
         qWarning() << "[tools] could not persist tools.json";
+    }
     applyCurrentToModel();
-    emit workspacesChanged();
-    emit currentWorkspaceChanged();
+    Q_EMIT workspacesChanged();
+    Q_EMIT currentWorkspaceChanged();
     return core::OpResult::success();
 }
 
@@ -112,30 +117,34 @@ void ToolsFacade::refresh()
 
 QString ToolsFacade::fileReference(const QString &relativePath) const
 {
-    if (relativePath.isEmpty())
+    if (relativePath.isEmpty()) {
         return QString();
+    }
     return QStringLiteral("`./") + relativePath + QStringLiteral("`");
 }
 
 void ToolsFacade::setCurrentWorkspace(const QString &path)
 {
     // 空串 = 清空当前工作区（树随之清空）；列表外路径不接受（QML 只会传列表项）。
-    if (!path.isEmpty() && !m_store.workspaces().contains(path))
+    if (!path.isEmpty() && !m_store.workspaces().contains(path)) {
         return;
-    if (path == m_store.currentWorkspace())
+    }
+    if (path == m_store.currentWorkspace()) {
         return;
+    }
     m_store.setCurrentWorkspace(path);
     applyCurrentToModel();
-    emit workspacesChanged();
-    emit currentWorkspaceChanged();
+    Q_EMIT workspacesChanged();
+    Q_EMIT currentWorkspaceChanged();
 }
 
 void ToolsFacade::setDraft(const QString &text)
 {
-    if (text == m_draft)
+    if (text == m_draft) {
         return;
+    }
     m_draft = text;
-    emit draftChanged();
+    Q_EMIT draftChanged();
     m_draftTimer->start();
 }
 
@@ -149,8 +158,9 @@ void ToolsFacade::applyCurrentToModel()
 
 void ToolsFacade::persistDraft()
 {
-    if (!m_store.setDraft(m_draft))
+    if (!m_store.setDraft(m_draft)) {
         qWarning() << "[tools] could not persist the draft";
+    }
 }
 
 } // namespace awb::tools

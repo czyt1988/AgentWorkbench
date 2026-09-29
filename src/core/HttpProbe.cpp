@@ -41,26 +41,31 @@ void HttpProbe::probe(const QString &url)
             reachable = (code > 0);
         }
         reply->deleteLater();
-        emit finished(url, reachable);
+        Q_EMIT finished(url, reachable);
     });
 }
 
 int HttpProbe::portFromUrl(const QString &url)
 {
-    if (url.isEmpty())
+    if (url.isEmpty()) {
         return -1;
+    }
     const QUrl parsed(url);
-    if (!parsed.isValid())
+    if (!parsed.isValid()) {
         return -1;
+    }
     const int port = parsed.port();
-    if (port > 0)
+    if (port > 0) {
         return port;
+    }
     // No explicit port: fall back to the scheme default.
     const QString scheme = parsed.scheme().toLower();
-    if (scheme == QLatin1String("https"))
+    if (scheme == QStringLiteral("https")) {
         return 443;
-    if (scheme == QLatin1String("http"))
+    }
+    if (scheme == QStringLiteral("http")) {
         return 80;
+    }
     return -1;
 }
 

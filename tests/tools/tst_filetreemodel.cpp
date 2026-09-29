@@ -20,7 +20,7 @@ class TestFileTreeModel : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -350,9 +350,10 @@ private slots:
         model.setRootPath(m_root);
 #ifdef Q_OS_WIN
         QCOMPARE(model.rowCount(QModelIndex()), 4);
-        for (int row = 0; row < model.rowCount(QModelIndex()); ++row)
+        for (int row = 0; row < model.rowCount(QModelIndex()); ++row) {
             QVERIFY(model.data(model.index(row, 0), FileTreeModel::NameRole)
                             != QStringLiteral("secret.txt"));
+        }
 #else
         QCOMPARE(model.rowCount(QModelIndex()), 4);
 #endif
@@ -365,8 +366,9 @@ private:
     {
         for (int row = 0; row < model.rowCount(parent); ++row) {
             const QModelIndex index = model.index(row, 0, parent);
-            if (model.data(index, FileTreeModel::NameRole).toString() == name)
+            if (model.data(index, FileTreeModel::NameRole).toString() == name) {
                 return index;
+            }
         }
         return QModelIndex();
     }

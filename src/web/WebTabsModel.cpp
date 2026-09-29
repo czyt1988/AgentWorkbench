@@ -9,15 +9,17 @@ WebTabsModel::WebTabsModel(QObject *parent)
 
 int WebTabsModel::rowCount(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid()) {
         return 0;
+    }
     return m_tabs.size();
 }
 
 QVariant WebTabsModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_tabs.size())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_tabs.size()) {
         return {};
+    }
     const WebTab *tab = m_tabs.at(index.row());
     switch (role) {
     case TabIdRole: return tab->id();
@@ -87,8 +89,9 @@ void WebTabsModel::appendTab(WebTab *tab)
 bool WebTabsModel::removeTab(const QString &id)
 {
     const int row = rowOfTab(id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
     beginRemoveRows(QModelIndex(), row, row);
     WebTab *tab = m_tabs.takeAt(row);
     endRemoveRows();
@@ -98,18 +101,22 @@ bool WebTabsModel::removeTab(const QString &id)
     // keeps the index but swaps the tab behind it — also a change.
     const int previousActive = m_activeIndex;
     bool activeChanged = false;
-    if (row < m_activeIndex)
+    if (row < m_activeIndex) {
         --m_activeIndex;
-    else if (row == m_activeIndex)
+    }
+    else if (row == m_activeIndex) {
         activeChanged = true;
+    }
     if (m_activeIndex >= m_tabs.size()) {
         m_activeIndex = m_tabs.size() - 1;
         activeChanged = true;
     }
-    if (m_activeIndex != previousActive)
+    if (m_activeIndex != previousActive) {
         activeChanged = true;
-    if (activeChanged)
-        emit activeIndexChanged();
+    }
+    if (activeChanged) {
+        Q_EMIT activeIndexChanged();
+    }
     tab->deleteLater();
     return true;
 }
@@ -123,8 +130,9 @@ WebTab *WebTabsModel::tabById(const QString &id) const
 WebTab *WebTabsModel::tabForAgent(const QString &agentId) const
 {
     for (WebTab *tab : m_tabs) {
-        if (tab->agentId() == agentId)
+        if (tab->agentId() == agentId) {
             return tab;
+        }
     }
     return nullptr;
 }
@@ -137,22 +145,26 @@ WebTab *WebTabsModel::tabAt(int row) const
 int WebTabsModel::rowOfTab(const QString &id) const
 {
     for (int i = 0; i < m_tabs.size(); ++i) {
-        if (m_tabs.at(i)->id() == id)
+        if (m_tabs.at(i)->id() == id) {
             return i;
+        }
     }
     return -1;
 }
 
 void WebTabsModel::setActiveIndex(int index)
 {
-    if (index < -1 || index >= m_tabs.size())
+    if (index < -1 || index >= m_tabs.size()) {
         return;
-    if (m_activeIndex == index)
+    }
+    if (m_activeIndex == index) {
         return;
+    }
     m_activeIndex = index;
-    if (index >= 0)
+    if (index >= 0) {
         m_tabs.at(index)->touch();
-    emit activeIndexChanged();
+    }
+    Q_EMIT activeIndexChanged();
 }
 
 QString WebTabsModel::activeTabId() const
@@ -169,10 +181,11 @@ WebTab *WebTabsModel::activeTab() const
 void WebTabsModel::notifyTabChanged(const QString &id)
 {
     const int row = rowOfTab(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const QModelIndex idx = index(row, 0);
-    emit dataChanged(idx, idx);
+    Q_EMIT dataChanged(idx, idx);
 }
 
 } // namespace awb::web

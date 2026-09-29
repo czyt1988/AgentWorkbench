@@ -12,7 +12,7 @@ class TestEnvExpander : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // %VAR% (Windows style) is replaced with the environment value.
     void testPercentVarExpansion()
     {

@@ -80,8 +80,9 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
 {
     // Configuration: built-ins from the shipped default, user agents on top.
     // Auto-assignment colors come from the current theme.
-    if (theme)
+    if (theme) {
         m_repo->setAgentPalette(theme->agentPalette());
+    }
     m_repo->load();
     m_model->setDefinitions(m_repo->definitions());
 
@@ -105,8 +106,9 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
     // report only real transitions in the log, and update the model.
     connect(m_health, &AgentHealthMonitor::runningChanged, this,
             [this](const QString &id, bool up) {
-                if (up)
+                if (up) {
                     m_model->setLaunching(id, false);
+                }
                 const int row = m_model->indexOf(id);
                 const bool wasRunning =
                     row >= 0 && m_model->state(id).running;
@@ -121,8 +123,9 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
     // A successful one-time setup proceeds with the actual launch.
     connect(m_scripts, &AgentScripts::setupFinished, this,
             [this](const QString &id, bool ok) {
-                if (ok)
+                if (ok) {
                     launch(id);
+                }
             });
 
 }
@@ -141,15 +144,17 @@ void AgentsFacade::start()
 
     // Apply the persisted setup state to the cards.
     m_stateStore->load();
-    for (const AgentDefinition &d : m_model->definitions())
+    for (const AgentDefinition &d : m_model->definitions()) {
         m_model->setSetupDone(d.id, m_stateStore->isSetupDone(d.id));
+    }
 
     // Mark every agent with a versionCommand as "checking" before any QML
     // paint so the spinner is visible from the first frame, even if the
     // version process finishes before the first render.
     for (const AgentDefinition &d : m_model->definitions()) {
-        if (!d.versionCommand.isEmpty())
+        if (!d.versionCommand.isEmpty()) {
             m_model->setCheckingVersion(d.id, true);
+        }
     }
 
     m_health->start();
@@ -161,8 +166,9 @@ void AgentsFacade::start()
 void AgentsFacade::launch(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const AgentDefinition def = m_model->definitions().at(row);
 
     // If the agent has a one-time setup command that hasn't been run yet,
@@ -191,8 +197,9 @@ void AgentsFacade::forceStop(const QString &id)
 void AgentsFacade::openConfigDir(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     QString dir = core::EnvExpander::expand(
         m_model->definitions().at(row).configDir);
     if (dir.isEmpty()) {
@@ -238,8 +245,9 @@ void AgentsFacade::resetSetup(const QString &id)
 
     // Remove from agent_state.json; a missing file means nothing to clear
     // (silent, like 0.3.0).
-    if (!QFile::exists(m_stateStore->stateFilePath()))
+    if (!QFile::exists(m_stateStore->stateFilePath())) {
         return;
+    }
 
     if (m_stateStore->reset(id)) {
         appLog(QStringLiteral("setup"), id,
@@ -264,8 +272,9 @@ bool AgentsFacade::addAgent(const QVariantMap &fields)
             fields.value(QStringLiteral("name")).toString());
         id = base;
         int n = 2;
-        while (m_model->indexOf(id) >= 0)
+        while (m_model->indexOf(id) >= 0) {
             id = base + QLatin1Char('-') + QString::number(n++);
+        }
     } else if (m_model->indexOf(id) >= 0) {
         return false; // duplicate id (the form prevents this; defensive)
     }
@@ -274,12 +283,14 @@ bool AgentsFacade::addAgent(const QVariantMap &fields)
     // Empty color would render a broken card until the next restart
     // (load() assigns palette colors); assign one now — from the current
     // theme's palette, not the static Mocha fallback.
-    if (a.color.isEmpty())
+    if (a.color.isEmpty()) {
         a.color = m_repo->paletteColorFor(m_model->definitions().size());
+    }
 
     m_model->insertAgent(m_model->definitions().size(), a);
-    if (saveConfig())
+    if (saveConfig()) {
         return true;
+    }
     // Save failed: undo the insert so the model keeps matching the disk
     // (and re-sync the repository copy saveConfig() already overwrote).
     m_model->removeAgentById(id);
@@ -290,18 +301,21 @@ bool AgentsFacade::addAgent(const QVariantMap &fields)
 bool AgentsFacade::updateAgentFull(const QString &id, const QVariantMap &fields)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
 
     AgentDefinition a = definitionFromFields(fields, id); // id is immutable
-    if (a.color.isEmpty())
+    if (a.color.isEmpty()) {
         a.color = m_repo->paletteColorFor(row);
+    }
 
     const AgentDefinition previous = m_model->definitions().at(row);
     // Runtime state is keyed separately and untouched by a definition swap.
     m_model->replaceDefinition(a);
-    if (saveConfig())
+    if (saveConfig()) {
         return true;
+    }
     // Save failed: put the old definition back so the form's discarded
     // edits don't stay half-applied in memory.
     m_model->replaceDefinition(previous);
@@ -312,33 +326,37 @@ bool AgentsFacade::updateAgentFull(const QString &id, const QVariantMap &fields)
 bool AgentsFacade::removeAgent(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
     const AgentDefinition previous = m_model->definitions().at(row);
-    if (!m_model->removeAgentById(id))
+    if (!m_model->removeAgentById(id)) {
         return false;
+    }
 
     // Record deleted built-ins: built-in agents are re-applied from the
     // shipped default on every start, so the id has to be remembered here to
     // keep this one deleted.
     const bool wasDefault = m_repo->isDefaultAgent(id);
     const QStringList removedBefore = m_repo->removedIds();
-    if (wasDefault && !removedBefore.contains(id))
+    if (wasDefault && !removedBefore.contains(id)) {
         m_repo->setRemovedIds(removedBefore + QStringList{id});
+    }
 
     if (!saveConfig()) {
         // Save failed: restore the definition and the removed-ids record —
         // the disk still has the agent, so the model must too.
         m_model->insertAgent(row, previous);
-        if (wasDefault)
+        if (wasDefault) {
             m_repo->setRemovedIds(removedBefore);
+        }
         m_repo->setDefinitions(m_model->definitions());
         return false;
     }
 
     // The process itself keeps running on purpose (documented in the UI).
     m_runtime->forget(id);
-    emit agentRemoved(id);
+    Q_EMIT agentRemoved(id);
     return true;
 }
 

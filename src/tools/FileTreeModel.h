@@ -74,7 +74,7 @@ public:
     /// TreeView 展开未驱动 fetchMore 时由 QML 调用。
     Q_INVOKABLE void fetchChildren(const QModelIndex &parent);
 
-signals:
+Q_SIGNALS:
     /// 一次 refresh 完成（手动或 watcher 触发）；无论有无变化都会发。
     void refreshed();
     /// 根层条目数变化（工作区切换、顶层增删）。

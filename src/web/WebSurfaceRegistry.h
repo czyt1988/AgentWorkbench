@@ -24,7 +24,7 @@ public:
     Q_INVOKABLE QString surfaceUrl(const QString &kind) const;
     Q_INVOKABLE bool hasSurface(const QString &kind) const;
 
-signals:
+Q_SIGNALS:
     void surfacesChanged();
 
 private:

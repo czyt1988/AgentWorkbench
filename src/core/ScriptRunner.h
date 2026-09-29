@@ -45,7 +45,7 @@ public:
     // True while a run with this key is in flight.
     bool isRunning(const QString &key) const;
 
-signals:
+Q_SIGNALS:
     // Emitted as output arrives, for live display on a card.
     void outputChunk(const QString &key, const QString &text);
 

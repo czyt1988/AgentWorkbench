@@ -88,7 +88,7 @@ public:
     // version checks and the runtime detection.
     void start();
 
-signals:
+Q_SIGNALS:
     // Emitted when a launch/stop attempt fails. The UI shows an at-place
     // flash on the matching card plus a detailed popup.
     void launchFailed(const QString &id, const QString &message);

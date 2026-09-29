@@ -60,7 +60,7 @@ public:
     // Emit dataChanged for one tab (after a WebTab property flipped).
     void notifyTabChanged(const QString &id);
 
-signals:
+Q_SIGNALS:
     void activeIndexChanged();
 
 private:

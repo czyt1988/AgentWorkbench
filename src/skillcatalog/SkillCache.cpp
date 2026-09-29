@@ -31,12 +31,14 @@ QJsonObject toJson(const SkillDefinition &skill)
     o[QStringLiteral("kind")] = skill.kind;
     o[QStringLiteral("pluginId")] = skill.pluginId;
     o[QStringLiteral("pluginVersion")] = skill.pluginVersion;
-    if (skill.lastModified.isValid())
+    if (skill.lastModified.isValid()) {
         o[QStringLiteral("lastModified")] =
             skill.lastModified.toString(Qt::ISODateWithMs);
+    }
     o[QStringLiteral("sizeBytes")] = static_cast<double>(skill.sizeBytes);
-    if (!skill.extras.isEmpty())
+    if (!skill.extras.isEmpty()) {
         o[QStringLiteral("extras")] = QJsonObject::fromVariantMap(skill.extras);
+    }
     return o;
 }
 
@@ -57,15 +59,17 @@ SkillDefinition fromJson(const QJsonObject &o)
         o.value(QStringLiteral("pluginVersion")).toString();
     const QString modified =
         o.value(QStringLiteral("lastModified")).toString();
-    if (!modified.isEmpty())
+    if (!modified.isEmpty()) {
         skill.lastModified =
             QDateTime::fromString(modified, Qt::ISODateWithMs);
+    }
     skill.sizeBytes = static_cast<qint64>(
         o.value(QStringLiteral("sizeBytes")).toDouble());
     const QJsonObject extras = o.value(QStringLiteral("extras")).toObject();
     for (auto it = extras.begin(); it != extras.end(); ++it) {
-        if (it.value().isString())
+        if (it.value().isString()) {
             skill.extras.insert(it.key(), it.value().toString());
+        }
     }
     return skill;
 }
@@ -81,8 +85,9 @@ SkillScanTask::Stats statsFromJson(const QJsonObject &o)
     stats.elapsedMs = static_cast<qint64>(
         o.value(QStringLiteral("elapsedMs")).toDouble());
     const QJsonArray skipped = o.value(QStringLiteral("skippedRoots")).toArray();
-    for (const QJsonValue &value : skipped)
+    for (const QJsonValue &value : skipped) {
         stats.skippedRoots.append(value.toString());
+    }
     return stats;
 }
 
@@ -96,8 +101,9 @@ QJsonObject toJson(const SkillScanTask::Stats &stats)
     o[QStringLiteral("elapsedMs")] = static_cast<double>(stats.elapsedMs);
     if (!stats.skippedRoots.isEmpty()) {
         QJsonArray skipped;
-        for (const QString &label : stats.skippedRoots)
+        for (const QString &label : stats.skippedRoots) {
             skipped.append(label);
+        }
         o[QStringLiteral("skippedRoots")] = skipped;
     }
     return o;
@@ -114,8 +120,9 @@ SkillCache::Snapshot SkillCache::load()
 {
     const QJsonObject root = core::JsonStore::readFile(filePath());
     Snapshot snapshot;
-    if (root.isEmpty())
+    if (root.isEmpty()) {
         return snapshot;
+    }
 
     if (root.value(QStringLiteral("version")).toInt()
             != kFormatVersion) {
@@ -125,16 +132,18 @@ SkillCache::Snapshot SkillCache::load()
     snapshot.cachedAt = QDateTime::fromString(
         root.value(QStringLiteral("cachedAt")).toString(),
         Qt::ISODateWithMs);
-    if (!snapshot.cachedAt.isValid())
+    if (!snapshot.cachedAt.isValid()) {
         return snapshot;
+    }
 
     snapshot.stats = statsFromJson(
         root.value(QStringLiteral("stats")).toObject());
     const QJsonArray definitions =
         root.value(QStringLiteral("definitions")).toArray();
     for (const QJsonValue &value : definitions) {
-        if (value.isObject())
+        if (value.isObject()) {
             snapshot.definitions.append(fromJson(value.toObject()));
+        }
     }
     return snapshot;
 }
@@ -148,8 +157,9 @@ core::OpResult SkillCache::save(const QList<SkillDefinition> &definitions,
         QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
     root[QStringLiteral("stats")] = toJson(stats);
     QJsonArray array;
-    for (const SkillDefinition &skill : definitions)
+    for (const SkillDefinition &skill : definitions) {
         array.append(toJson(skill));
+    }
     root[QStringLiteral("definitions")] = array;
     return core::JsonStore::writeFile(filePath(), root);
 }

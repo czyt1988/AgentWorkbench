@@ -19,10 +19,12 @@ namespace {
 // plugin::Services level -> toast level (0 = info, 1 = warning, 2 = error).
 QString levelName(int level)
 {
-    if (level == 1)
+    if (level == 1) {
         return QStringLiteral("warning");
-    if (level == 2)
+    }
+    if (level == 2) {
         return QStringLiteral("error");
+    }
     return QStringLiteral("info");
 }
 } // namespace
@@ -81,12 +83,15 @@ QString PluginServices::dataDir(const QString &pluginId)
 void PluginServices::log(int level, const QString &message)
 {
     const QString prefix = QStringLiteral("[plugin] ");
-    if (level == 2)
+    if (level == 2) {
         qWarning().noquote() << prefix + message;
-    else if (level == 1)
+    }
+    else if (level == 1) {
         qWarning().noquote() << prefix + message;
-    else
+    }
+    else {
         qInfo().noquote() << prefix + message;
+    }
 }
 
 void PluginServices::notify(int level, const QString &title,
@@ -98,8 +103,9 @@ void PluginServices::notify(int level, const QString &title,
 QString PluginServices::themeColor(const QString &token)
 {
     const QColor color = m_theme->color(token);
-    if (!color.isValid())
+    if (!color.isValid()) {
         return {};
+    }
     return color.name(QColor::HexRgb);
 }
 
@@ -107,14 +113,18 @@ QString PluginServices::settingsValue(const QString &key)
 {
     // Read-only, a small known-key surface (plugins never
     // write settings or agents.json).
-    if (key == QLatin1String("appearance.theme"))
+    if (key == QStringLiteral("appearance.theme")) {
         return m_settings->themeId();
-    if (key == QLatin1String("window.title"))
+    }
+    if (key == QStringLiteral("window.title")) {
         return m_settings->windowTitle();
-    if (key == QLatin1String("web.surface"))
+    }
+    if (key == QStringLiteral("web.surface")) {
         return m_settings->webOptions().surface;
-    if (key == QLatin1String("locale.override"))
+    }
+    if (key == QStringLiteral("locale.override")) {
         return m_settings->locale().overrideName;
+    }
     qWarning().noquote() << QStringLiteral(
         "[plugin] settings key \"%1\" is not exposed; returning empty").arg(key);
     return {};

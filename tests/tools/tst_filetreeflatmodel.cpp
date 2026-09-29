@@ -20,7 +20,7 @@ class TestFileTreeFlatModel : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -203,8 +203,9 @@ private:
         for (int row = 0; row < flat.rowCount(); ++row) {
             if (flat.data(flat.index(row, 0),
                           FileTreeFlatModel::RelativePathRole)
-                    .toString() == relativePath)
+                    .toString() == relativePath) {
                 return row;
+            }
         }
         return -1;
     }

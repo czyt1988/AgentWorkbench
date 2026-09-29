@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QUrl>
+#include <utility>
 
 namespace awb::theme {
 
@@ -83,9 +84,10 @@ QList<ThemeFile> ThemeRegistry::themes() const
     extra.removeAll(QStringLiteral("mocha-dark"));
     extra.removeAll(QStringLiteral("latte-light"));
     extra.sort(Qt::CaseInsensitive);
-    for (const QString &id : extra) {
-        if (!seen.contains(id))
+    for (const QString &id : std::as_const(extra)) {
+        if (!seen.contains(id)) {
             result.append(m_themes.value(id));
+        }
     }
     return result;
 }
@@ -97,10 +99,12 @@ ThemeFile ThemeRegistry::theme(const QString &id) const
 
 ThemeFile ThemeRegistry::baseline(const QString &variant) const
 {
-    if (variant == QLatin1String("dark"))
+    if (variant == QStringLiteral("dark")) {
         return m_builtins.value(QStringLiteral("mocha-dark"));
-    if (variant == QLatin1String("light"))
+    }
+    if (variant == QStringLiteral("light")) {
         return m_builtins.value(QStringLiteral("latte-light"));
+    }
     return {};
 }
 
@@ -108,16 +112,17 @@ void ThemeRegistry::refresh()
 {
     scan();
     armWatchers();
-    emit changed();
+    Q_EMIT changed();
 }
 
 void ThemeRegistry::scan()
 {
     m_themes = m_builtins;
     m_sources.clear();
-    for (const QString &id : kBuiltinIds)
+    for (const QString &id : kBuiltinIds) {
         m_sources.insert(id, QStringLiteral(":/themes/") + id
                                  + QStringLiteral(".json"));
+    }
 
     const QString userDir = core::Paths::themesDir();
     const QDir dir(userDir);
@@ -126,14 +131,16 @@ void ThemeRegistry::scan()
     for (const QString &fileName : files) {
         const QString path = dir.filePath(fileName);
         const QJsonObject json = readJson(path);
-        if (json.isEmpty())
+        if (json.isEmpty()) {
             continue;
+        }
         const QString variant =
             json.value(QStringLiteral("variant")).toString();
         ThemeFile file;
         if (!ThemeLoader::parse(json, fileName.section(QLatin1Char('.'), 0, 0),
-                                baseline(variant), file))
+                                baseline(variant), file)) {
             continue;
+        }
         // Same id overrides the built-in.
         m_themes.insert(file.id, file);
         m_sources.insert(file.id, path);
@@ -144,19 +151,22 @@ void ThemeRegistry::armWatchers()
 {
     // Re-arm from scratch: rescanned files may be new, replaced or gone.
     const QStringList watched = m_watcher.files() + m_watcher.directories();
-    if (!watched.isEmpty())
+    if (!watched.isEmpty()) {
         m_watcher.removePaths(watched);
+    }
 
     const QString userDir = core::Paths::themesDir();
     m_watcher.addPath(userDir);
 
     QSet<QString> userFiles;
     for (auto it = m_sources.constBegin(); it != m_sources.constEnd(); ++it) {
-        if (it.value().startsWith(userDir))
+        if (it.value().startsWith(userDir)) {
             userFiles.insert(it.value());
+        }
     }
-    if (!userFiles.isEmpty())
+    if (!userFiles.isEmpty()) {
         m_watcher.addPaths(userFiles.values());
+    }
 }
 
 } // namespace awb::theme

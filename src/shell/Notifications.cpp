@@ -9,15 +9,17 @@ Notifications::Notifications(QObject *parent)
 
 int Notifications::rowCount(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid()) {
         return 0;
+    }
     return m_toasts.size();
 }
 
 QVariant Notifications::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_toasts.size())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_toasts.size()) {
         return {};
+    }
     const Toast &t = m_toasts.at(index.row());
     switch (role) {
     case IdRole:    return t.id;
@@ -41,8 +43,9 @@ QHash<int, QByteArray> Notifications::roleNames() const
 void Notifications::notify(const QString &level, const QString &title,
                            const QString &text)
 {
-    if (text.isEmpty() && title.isEmpty())
+    if (text.isEmpty() && title.isEmpty()) {
         return;
+    }
     const int row = m_toasts.size();
     beginInsertRows(QModelIndex(), row, row);
     Toast toast;
@@ -68,10 +71,12 @@ void Notifications::dismiss(const QString &id)
 
 int Notifications::durationFor(const QString &level) const
 {
-    if (level == QLatin1String("warning"))
+    if (level == QStringLiteral("warning")) {
         return 5000;
-    if (level == QLatin1String("error"))
+    }
+    if (level == QStringLiteral("error")) {
         return 8000;
+    }
     return 3000; // info / success
 }
 

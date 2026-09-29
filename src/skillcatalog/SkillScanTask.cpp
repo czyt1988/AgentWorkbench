@@ -35,8 +35,9 @@ bool versionLess(const QString &a, const QString &b)
         const int na = pa.toInt(&numA);
         const int nb = pb.toInt(&numB);
         if (numA && numB) {
-            if (na != nb)
+            if (na != nb) {
                 return na < nb;
+            }
         } else if (pa != pb) {
             return pa < pb;
         }
@@ -70,29 +71,34 @@ void expandPattern(const QString &pattern, QStringList &out)
 
     QString prefix;
     for (int i = 0; i < wildcardIndex; ++i) {
-        if (!prefix.isEmpty())
+        if (!prefix.isEmpty()) {
             prefix += QLatin1Char('/');
+        }
         prefix += segments.at(i);
     }
     const QString filter = segments.at(wildcardIndex);
     QString rest;
     for (int i = wildcardIndex + 1; i < segments.size(); ++i) {
-        if (!rest.isEmpty())
+        if (!rest.isEmpty()) {
             rest += QLatin1Char('/');
+        }
         rest += segments.at(i);
     }
 
     const QDir dir(prefix.isEmpty() ? QStringLiteral(".") : prefix);
-    if (!dir.exists())
+    if (!dir.exists()) {
         return;
+    }
     const QFileInfoList entries = dir.entryInfoList(
         {filter}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo &info : entries) {
-        if (rest.isEmpty())
+        if (rest.isEmpty()) {
             out.append(info.absoluteFilePath());
-        else
+        }
+        else {
             expandPattern(info.absoluteFilePath() + QLatin1Char('/') + rest,
                           out);
+        }
     }
 }
 
@@ -103,10 +109,12 @@ QString fixedPrefix(const QString &path)
     const QStringList segments = path.split(QLatin1Char('/'));
     QString prefix;
     for (const QString &segment : segments) {
-        if (segment.contains(QLatin1Char('*')))
+        if (segment.contains(QLatin1Char('*'))) {
             break;
-        if (!prefix.isEmpty())
+        }
+        if (!prefix.isEmpty()) {
             prefix += QLatin1Char('/');
+        }
         prefix += segment;
     }
     return prefix;
@@ -161,8 +169,9 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         skill.kind = root.kind;
         if (frontmatter.valid) {
             for (auto it = frontmatter.extras.constBegin();
-                 it != frontmatter.extras.constEnd(); ++it)
+                 it != frontmatter.extras.constEnd(); ++it) {
                 skill.extras.insert(it.key(), it.value());
+            }
         }
 
         const QFileInfo skillInfo(skillFile);
@@ -172,11 +181,12 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         // plugin 缓存布局：<base>/<marketplace>/<plugin>/<version>/skills/
         // <skill>。"skills" 段之前的最后一段是版本，其余是 plugin id
         // （marketplace/plugin）。
-        if (root.kind == QLatin1String("plugin") && !base.isEmpty()
+        if (root.kind == QStringLiteral("plugin") && !base.isEmpty()
             && dirPath.startsWith(base)) {
             QString relative = dirPath.mid(base.length());
-            while (relative.startsWith(QLatin1Char('/')))
+            while (relative.startsWith(QLatin1Char('/'))) {
                 relative.remove(0, 1);
+            }
             const QStringList segments = relative.split(QLatin1Char('/'));
             const int skillsIndex = segments.indexOf(QStringLiteral("skills"));
             if (skillsIndex >= 2) {
@@ -192,8 +202,9 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         return;
     }
 
-    if (depth >= maxDepth)
+    if (depth >= maxDepth) {
         return;
+    }
 
     const QFileInfoList children = dir.entryInfoList(
         QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
@@ -216,12 +227,13 @@ void scanRoot(const SkillRoot &root, const SkillScanParams &params,
     QStringList concrete;
     expandPattern(root.path, concrete);
     // 不含通配符的路径：即使目录不存在也保留——scanRoot 会把它记成跳过。
-    if (concrete.isEmpty())
+    if (concrete.isEmpty()) {
         concrete.append(root.path);
+    }
     const QString base = fixedPrefix(root.path);
 
     int existing = 0;
-    for (const QString &entry : concrete) {
+    for (const QString &entry : std::as_const(concrete)) {
         const QDir dir(entry);
         if (!dir.exists()) {
             qWarning().noquote() << QStringLiteral(
@@ -250,7 +262,7 @@ void dedupePluginVersions(ScanState &state, ScanStats &stats)
     kept.reserve(state.definitions.size());
 
     for (const SkillDefinition &skill : std::as_const(state.definitions)) {
-        if (skill.kind != QLatin1String("plugin")
+        if (skill.kind != QStringLiteral("plugin")
             || skill.pluginId.isEmpty()) {
             kept.append(skill);
             continue;
@@ -293,7 +305,7 @@ SkillScanTask::Result SkillScanTask::run(const SkillScanParams &params)
             ++stats.rootsSkipped;
             continue;
         }
-        if (root.kind == QLatin1String("plugin")
+        if (root.kind == QStringLiteral("plugin")
             && !params.includePluginCaches) {
             ++stats.rootsSkipped;
             continue;

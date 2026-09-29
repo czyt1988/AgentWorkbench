@@ -66,26 +66,31 @@ QList<SkillRoot> SkillRoots::fromJson(const QJsonArray &entries)
 {
     QList<SkillRoot> roots;
     for (const QJsonValue &value : entries) {
-        if (!value.isObject())
+        if (!value.isObject()) {
             continue;
+        }
         const QJsonObject o = value.toObject();
         SkillRoot root;
         // RAW on purpose — expansion happens at scan time so a persisted
         // round-trip keeps `~`/`%PWD%` instead of baking in absolutes.
         root.path = o.value(QStringLiteral("path")).toString();
-        if (root.path.isEmpty())
+        if (root.path.isEmpty()) {
             continue;
+        }
         root.label = o.value(QStringLiteral("label")).toString();
         root.kind = o.value(QStringLiteral("kind")).toString();
-        if (root.kind.isEmpty())
+        if (root.kind.isEmpty()) {
             root.kind = QStringLiteral("custom");
+        }
         root.id = o.value(QStringLiteral("id")).toString();
-        if (root.id.isEmpty())
+        if (root.id.isEmpty()) {
             root.id = root.kind + QLatin1Char('-')
                       + QString::number(roots.size());
+        }
         root.enabled = o.value(QStringLiteral("enabled")).toBool(true);
-        if (root.kind == QLatin1String("plugin"))
+        if (root.kind == QStringLiteral("plugin")) {
             root.dedupeScope = QStringLiteral("marketplace-plugin");
+        }
         roots.append(root);
     }
     return roots;

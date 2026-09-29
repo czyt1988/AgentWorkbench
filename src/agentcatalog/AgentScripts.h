@@ -38,7 +38,7 @@ public:
     void checkVersions();
     void checkVersion(const QString &id);
 
-signals:
+Q_SIGNALS:
     // An install/update finished (success or failure) — relayed to QML by
     // the facade under the same name it had in 0.3.0.
     void installFinished(const QString &id, bool success, const QString &message);
@@ -54,7 +54,7 @@ signals:
     // recorded in the AgentStateStore) and the caller may launch now.
     void setupFinished(const QString &id, bool ok);
 
-private slots:
+private Q_SLOTS:
     void onScriptFinished(const QString &key, bool ok, int exitCode,
                           const QString &stdOut, const QString &stdErr,
                           const QString &error);

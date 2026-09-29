@@ -36,8 +36,9 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
     out = ThemeFile();
 
     for (const QString &key : json.keys()) {
-        if (!kTopLevelKeys.contains(key))
+        if (!kTopLevelKeys.contains(key)) {
             warnUnknown(fileName, key);
+        }
     }
 
     const QString id = json.value(QStringLiteral("id")).toString();
@@ -46,8 +47,8 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
 
     // Required fields: a file that cannot identify itself is skipped whole.
     if (id.isEmpty() || name.isEmpty()
-        || (variant != QLatin1String("dark")
-            && variant != QLatin1String("light"))) {
+        || (variant != QStringLiteral("dark")
+            && variant != QStringLiteral("light"))) {
         qWarning().noquote() << QStringLiteral(
             "ThemeLoader: %1.json is missing id/name/variant (or an unknown "
             "variant); skipping the file").arg(fileName);
@@ -79,8 +80,9 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
             qWarning().noquote() << QStringLiteral(
                 "ThemeLoader: %1.json colors.%2 is not a valid color; using "
                 "the baseline value").arg(fileName, key);
-            if (baseline.isValid())
+            if (baseline.isValid()) {
                 out.colors.insert(key, baseline.colors.value(key));
+            }
         }
     }
 
@@ -97,8 +99,9 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
             qWarning().noquote() << QStringLiteral(
                 "ThemeLoader: %1.json metrics.%2 is not a number; using the "
                 "baseline value").arg(fileName, key);
-            if (baseline.isValid())
+            if (baseline.isValid()) {
                 out.metrics.insert(key, baseline.metrics.value(key));
+            }
         }
     }
 
@@ -109,23 +112,27 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
             continue;
         }
         const QJsonValue v = fonts.value(key);
-        if (v.isString())
+        if (v.isString()) {
             out.fonts.insert(key, v.toString());
-        else
+        }
+        else {
             qWarning().noquote() << QStringLiteral(
                 "ThemeLoader: %1.json fonts.%2 must be a string; ignoring it")
                 .arg(fileName, key);
+        }
     }
 
     const QJsonValue palette = json.value(QStringLiteral("agentPalette"));
     if (palette.isArray()) {
         for (const QJsonValue &v : palette.toArray()) {
-            if (v.isString() && QColor(v.toString()).isValid())
+            if (v.isString() && QColor(v.toString()).isValid()) {
                 out.agentPalette.append(v.toString());
-            else
+            }
+            else {
                 qWarning().noquote() << QStringLiteral(
                     "ThemeLoader: %1.json agentPalette has a non-color entry; "
                     "ignoring it").arg(fileName);
+            }
         }
     } else if (!palette.isUndefined()) {
         qWarning().noquote() << QStringLiteral(
@@ -138,21 +145,25 @@ bool ThemeLoader::parse(const QJsonObject &json, const QString &fileName,
     if (baseline.isValid()) {
         for (auto it = baseline.colors.constBegin();
              it != baseline.colors.constEnd(); ++it) {
-            if (!out.colors.contains(it.key()))
+            if (!out.colors.contains(it.key())) {
                 out.colors.insert(it.key(), it.value());
+            }
         }
         for (auto it = baseline.metrics.constBegin();
              it != baseline.metrics.constEnd(); ++it) {
-            if (!out.metrics.contains(it.key()))
+            if (!out.metrics.contains(it.key())) {
                 out.metrics.insert(it.key(), it.value());
+            }
         }
         for (auto it = baseline.fonts.constBegin();
              it != baseline.fonts.constEnd(); ++it) {
-            if (!out.fonts.contains(it.key()))
+            if (!out.fonts.contains(it.key())) {
                 out.fonts.insert(it.key(), it.value());
+            }
         }
-        if (out.agentPalette.isEmpty())
+        if (out.agentPalette.isEmpty()) {
             out.agentPalette = baseline.agentPalette;
+        }
     }
 
     return true;

@@ -37,7 +37,7 @@ class UrlRecorder : public QObject
     Q_OBJECT
 public:
     QUrl lastUrl;
-public slots:
+public Q_SLOTS:
     void record(const QUrl &url) { lastUrl = url; }
 };
 
@@ -59,7 +59,7 @@ class TestWorkbenchContext : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);

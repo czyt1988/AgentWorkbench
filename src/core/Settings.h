@@ -126,7 +126,7 @@ public:
     // Persist the whole settings object (atomic write).
     OpResult save();
 
-signals:
+Q_SIGNALS:
     // Emitted by setters with a dotted key, e.g. "appearance.theme".
     void valueChanged(const QString &key);
 

@@ -70,7 +70,7 @@ public:
 
     AgentState state(const QString &id) const { return m_states.value(id); }
 
-public slots:
+public Q_SLOTS:
     void setRunning(const QString &id, bool running);
     void setLaunching(const QString &id, bool launching);
     void setInstalled(const QString &id, bool installed);

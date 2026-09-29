@@ -19,7 +19,7 @@ class TestThemeRegistry : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -96,8 +96,9 @@ private slots:
 
         bool sawCustom = false;
         for (const ThemeFile &t : registry.themes()) {
-            if (t.id == QLatin1String("custom-light"))
+            if (t.id == QStringLiteral("custom-light")) {
                 sawCustom = true;
+            }
         }
         QVERIFY(sawCustom);
 

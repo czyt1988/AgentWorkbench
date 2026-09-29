@@ -21,7 +21,7 @@ class TestLogging : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // A command line is quoted only where it has to be, so the log shows the
     // real thing and it can still be pasted back into cmd.exe.
     void testFormatCommandLine()
@@ -63,8 +63,9 @@ private slots:
         // Tiny files so rotation happens without writing megabytes; one line
         // is already bigger than the limit, so every write rotates.
         Logging::install(dir.path(), 128, 3);
-        for (int i = 0; i < 20; ++i)
+        for (int i = 0; i < 20; ++i) {
             qInfo().noquote() << QStringLiteral("rotation line %1").arg(i);
+        }
         Logging::uninstall(); // hand the message handler back to QTest
 
         const QDir logDir(dir.path());
@@ -189,13 +190,15 @@ private slots:
         std::vector<std::thread> producers;
         for (int t = 0; t < kThreads; ++t) {
             producers.emplace_back([t, kPerThread] {
-                for (int i = 0; i < kPerThread; ++i)
+                for (int i = 0; i < kPerThread; ++i) {
                     qInfo().noquote()
                         << QStringLiteral("concurrent line %1/%2").arg(t).arg(i);
+                }
             });
         }
-        for (std::thread &producer : producers)
+        for (std::thread &producer : producers) {
             producer.join();
+        }
         Logging::uninstall();
 
         QFile f(dir.path() + QStringLiteral("/agentworkbench.log"));

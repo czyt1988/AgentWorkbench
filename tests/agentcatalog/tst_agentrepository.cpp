@@ -19,7 +19,7 @@ class TestAgentRepository : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testSlugFromName()
     {
         QCOMPARE(AgentRepository::slugFromName(QStringLiteral("Kimi Code")),
@@ -150,8 +150,9 @@ private slots:
             // agent from the list and record its id.
             QList<AgentDefinition> remaining;
             for (const AgentDefinition &a : repo.definitions()) {
-                if (a.id != QStringLiteral("kimi-code"))
+                if (a.id != QStringLiteral("kimi-code")) {
                     remaining.append(a);
+                }
             }
             repo.setDefinitions(remaining);
             repo.setRemovedIds({QStringLiteral("kimi-code")});
@@ -160,8 +161,9 @@ private slots:
         AgentRepository reloaded(tmp.path());
         reloaded.load();
         QVERIFY(reloaded.removedIds().contains(QStringLiteral("kimi-code")));
-        for (const AgentDefinition &a : reloaded.definitions())
+        for (const AgentDefinition &a : reloaded.definitions()) {
             QVERIFY2(a.id != "kimi-code", "deleted built-in must not come back");
+        }
         // The other built-ins are all there.
         QCOMPARE(reloaded.definitions().size(),
                  AgentRepository::defaultAgentIds().size() - 1);
@@ -200,8 +202,9 @@ private slots:
 
         bool hinted = false;
         for (const QString &msg : std::as_const(s_capturedMessages)) {
-            if (msg.contains(QStringLiteral("\"title\" field is ignored")))
+            if (msg.contains(QStringLiteral("\"title\" field is ignored"))) {
                 hinted = true;
+            }
         }
         QVERIFY2(hinted, "a legacy root title must be reported as ignored");
 
@@ -237,8 +240,9 @@ private:
     static AgentDefinition bundledAgent(const QString &id)
     {
         for (const AgentDefinition &a : AgentRepository::loadDefaults()) {
-            if (a.id == id)
+            if (a.id == id) {
                 return a;
+            }
         }
         return {};
     }
@@ -246,8 +250,9 @@ private:
     static QStringList idsOf(const QList<AgentDefinition> &agents)
     {
         QStringList ids;
-        for (const AgentDefinition &a : agents)
+        for (const AgentDefinition &a : agents) {
             ids.append(a.id);
+        }
         return ids;
     }
 };

@@ -107,7 +107,7 @@ public:
     // "embedded" at startup).
     void registerSurface(const QString &kind, const QString &componentUrl);
 
-signals:
+Q_SIGNALS:
     void activeTabChanged();
     void tabCountChanged();
     void activeStateChanged();

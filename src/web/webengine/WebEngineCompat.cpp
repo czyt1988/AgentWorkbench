@@ -51,8 +51,9 @@ int WebEngineCompat::downloadInterrupted() const
 void WebEngineCompat::denyFeature(QQuickWebEngineView *view,
                                   const QUrl &securityOrigin, int feature)
 {
-    if (!view || !securityOrigin.isValid())
+    if (!view || !securityOrigin.isValid()) {
         return;
+    }
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     view->rejectFeature(
         static_cast<QQuickWebEngineView::Feature>(feature));
@@ -80,8 +81,9 @@ void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     // Qt 5 的检查方向与 Qt 6 相反：给 devTools 视图设 inspectedView，
     // 它自己随后加载 chrome-devtools:// 前端。
-    if (view && devToolsView)
+    if (view && devToolsView) {
         devToolsView->setInspectedView(view);
+    }
 #else
     Q_UNUSED(view);
     Q_UNUSED(devToolsView);

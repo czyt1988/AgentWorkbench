@@ -13,16 +13,18 @@ WebSurfaceRegistry::WebSurfaceRegistry(QObject *parent)
 void WebSurfaceRegistry::registerSurface(const QString &kind,
                                          const QString &componentUrl)
 {
-    if (kind.isEmpty())
+    if (kind.isEmpty()) {
         return;
+    }
     m_surfaces.insert(kind, componentUrl);
-    emit surfacesChanged();
+    Q_EMIT surfacesChanged();
 }
 
 void WebSurfaceRegistry::unregisterSurface(const QString &kind)
 {
-    if (m_surfaces.remove(kind) > 0)
-        emit surfacesChanged();
+    if (m_surfaces.remove(kind) > 0) {
+        Q_EMIT surfacesChanged();
+    }
 }
 
 QString WebSurfaceRegistry::surfaceUrl(const QString &kind) const

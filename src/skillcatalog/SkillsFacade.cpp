@@ -39,8 +39,8 @@ SkillsFacade::SkillsFacade(core::Settings *settings, QObject *parent)
         AWB_PERF << QStringLiteral(
             "skills: model reset took %1 ms for %2 skill(s)")
             .arg(timer.elapsed()).arg(m_scanner->definitions().size());
-        emit statsChanged();
-        emit scanFinished();
+        Q_EMIT statsChanged();
+        Q_EMIT scanFinished();
     });
 }
 
@@ -126,14 +126,15 @@ QVariantList SkillsFacade::roots() const
 void SkillsFacade::setRootEnabled(const QString &id, bool enabled)
 {
     m_scanner->setRootEnabled(id, enabled);
-    emit rootsChanged();
-    emit statsChanged();
+    Q_EMIT rootsChanged();
+    Q_EMIT statsChanged();
 }
 
 bool SkillsFacade::addRoot(const QString &path)
 {
-    if (path.trimmed().isEmpty())
+    if (path.trimmed().isEmpty()) {
         return false;
+    }
     // Serialize the effective list plus the new entry (a non-empty
     // skills.roots fully replaces the defaults.
     QJsonArray array;
@@ -146,8 +147,9 @@ bool SkillsFacade::addRoot(const QString &path)
         o[QStringLiteral("enabled")] = root.enabled;
         array.append(o);
     };
-    for (const SkillRoot &root : m_scanner->roots())
+    for (const SkillRoot &root : m_scanner->roots()) {
         write(root);
+    }
 
     SkillRoot custom;
     custom.path = path.trimmed();
@@ -158,11 +160,12 @@ bool SkillsFacade::addRoot(const QString &path)
 
     m_settings->setSkillRoots(array);
     const core::OpResult saved = m_settings->save();
-    if (!saved.ok)
+    if (!saved.ok) {
         qWarning().noquote() << QStringLiteral(
             "SkillsFacade: could not persist skill roots: %1").arg(saved.error);
+    }
     refresh();
-    emit rootsChanged();
+    Q_EMIT rootsChanged();
     return true;
 }
 
@@ -183,15 +186,17 @@ bool SkillsFacade::removeRoot(const QString &id)
         o[QStringLiteral("enabled")] = root.enabled;
         array.append(o);
     }
-    if (!removed)
+    if (!removed) {
         return false;
+    }
     m_settings->setSkillRoots(array);
     const core::OpResult saved = m_settings->save();
-    if (!saved.ok)
+    if (!saved.ok) {
         qWarning().noquote() << QStringLiteral(
             "SkillsFacade: could not persist skill roots: %1").arg(saved.error);
+    }
     refresh();
-    emit rootsChanged();
+    Q_EMIT rootsChanged();
     return true;
 }
 
@@ -203,8 +208,9 @@ QString SkillsFacade::parentDir(const QString &skillFilePath)
 core::OpResult SkillsFacade::copyToClipboard(const QString &text)
 {
     QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard)
+    if (!clipboard) {
         return core::OpResult::failure(tr("The clipboard is not available."));
+    }
     clipboard->setText(text);
     return core::OpResult::success();
 }
@@ -212,23 +218,26 @@ core::OpResult SkillsFacade::copyToClipboard(const QString &text)
 core::OpResult SkillsFacade::copyPath(const QString &skillFilePath)
 {
     const QString dir = parentDir(skillFilePath);
-    if (dir.isEmpty())
+    if (dir.isEmpty()) {
         return core::OpResult::failure(tr("Unknown skill."));
+    }
     return copyToClipboard(dir);
 }
 
 core::OpResult SkillsFacade::copySkillFile(const QString &skillFilePath)
 {
-    if (!QFile::exists(skillFilePath))
+    if (!QFile::exists(skillFilePath)) {
         return core::OpResult::failure(tr("Unknown skill."));
+    }
     return copyToClipboard(skillFilePath);
 }
 
 core::OpResult SkillsFacade::copyName(const QString &skillFilePath)
 {
     const SkillDefinition *found = find(skillFilePath);
-    if (!found)
+    if (!found) {
         return core::OpResult::failure(tr("Unknown skill."));
+    }
     return copyToClipboard(found->name);
 }
 
@@ -236,27 +245,31 @@ core::OpResult SkillsFacade::openFolder(const QString &skillFilePath)
 {
     const QString dir = parentDir(skillFilePath);
     const QFileInfo info(dir);
-    if (!info.exists() || !info.isDir())
+    if (!info.exists() || !info.isDir()) {
         return core::OpResult::failure(tr("Not a directory: %1").arg(dir));
-    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath())))
+    }
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
         return core::OpResult::failure(
             tr("Could not open the folder: %1").arg(dir));
+    }
     return core::OpResult::success();
 }
 
 core::OpResult SkillsFacade::revealSkillFile(const QString &skillFilePath)
 {
     const QFileInfo info(skillFilePath);
-    if (!info.exists())
+    if (!info.exists()) {
         return core::OpResult::failure(
             tr("The path does not exist: %1").arg(skillFilePath));
+    }
 #ifdef Q_OS_WIN
     const QString native = QDir::toNativeSeparators(info.absoluteFilePath());
     qint64 pid = 0;
     if (!QProcess::startDetached(QStringLiteral("explorer"),
                                  {QStringLiteral("/select,") + native},
-                                 QString(), &pid))
+                                 QString(), &pid)) {
         return core::OpResult::failure(tr("Could not open the file manager."));
+    }
     return core::OpResult::success();
 #else
     return openFolder(skillFilePath);
@@ -267,18 +280,24 @@ QString SkillsFacade::kindLabel(const QString &kind) const
 {
     // One shared mapping (the Settings and Skills pages both bind facets
     // and root rows through it); unknown kinds pass through unchanged.
-    if (kind == QLatin1String("agents"))
+    if (kind == QStringLiteral("agents")) {
         return tr("Agents");
-    if (kind == QLatin1String("claude"))
+    }
+    if (kind == QStringLiteral("claude")) {
         return tr("Claude");
-    if (kind == QLatin1String("codex"))
+    }
+    if (kind == QStringLiteral("codex")) {
         return tr("Codex");
-    if (kind == QLatin1String("plugin"))
+    }
+    if (kind == QStringLiteral("plugin")) {
         return tr("Plugin");
-    if (kind == QLatin1String("project"))
+    }
+    if (kind == QStringLiteral("project")) {
         return tr("Project");
-    if (kind == QLatin1String("custom"))
+    }
+    if (kind == QStringLiteral("custom")) {
         return tr("Custom");
+    }
     return kind;
 }
 
@@ -286,8 +305,9 @@ QVariantMap SkillsFacade::skill(const QString &skillFilePath) const
 {
     QVariantMap map;
     const SkillDefinition *found = find(skillFilePath);
-    if (!found)
+    if (!found) {
         return map;
+    }
     map[QStringLiteral("name")] = found->name;
     map[QStringLiteral("description")] = found->description;
     map[QStringLiteral("dirPath")] = found->dirPath;
@@ -306,8 +326,9 @@ const SkillDefinition *SkillsFacade::find(const QString &skillFilePath) const
 {
     const QList<SkillDefinition> &all = m_scanner->definitions();
     for (const SkillDefinition &skill : all) {
-        if (skill.skillFilePath == skillFilePath)
+        if (skill.skillFilePath == skillFilePath) {
             return &skill;
+        }
     }
     return nullptr;
 }

@@ -45,23 +45,24 @@ inline QStringList awbUnresolvedQmlCallTypes(const QObject *object)
         // 只查 QML 会调的方法（Q_INVOKABLE/槽）；构造器没有返回类型，
         // 信号的参数类型与本缺陷无关。
         if (method.methodType() != QMetaMethod::Method
-            && method.methodType() != QMetaMethod::Slot)
+            && method.methodType() != QMetaMethod::Slot) {
             continue;
+        }
 
         const QString name = QString::fromLatin1(mo->className())
-            + QLatin1String("::") + QString::fromLatin1(method.name());
+            + QStringLiteral("::") + QString::fromLatin1(method.name());
         if (method.returnType() == QMetaType::UnknownType) {
-            failures << name + QLatin1String("() return type '")
+            failures << name + QStringLiteral("() return type '")
                 + QString::fromLatin1(method.typeName())
-                + QLatin1String("' is not registered — QML calls throw "
+                + QStringLiteral("' is not registered — QML calls throw "
                                 "\"Unknown method return type\"");
         }
         for (int p = 0; p < method.parameterCount(); ++p) {
             if (method.parameterType(p) == QMetaType::UnknownType) {
-                failures << name + QLatin1String("() parameter #")
-                    + QString::number(p) + QLatin1String(" type '")
+                failures << name + QStringLiteral("() parameter #")
+                    + QString::number(p) + QStringLiteral(" type '")
                     + QString::fromLatin1(method.parameterTypes().at(p))
-                    + QLatin1String("' is not registered — QML calls throw "
+                    + QStringLiteral("' is not registered — QML calls throw "
                                     "\"Unknown method parameter type\"");
             }
         }

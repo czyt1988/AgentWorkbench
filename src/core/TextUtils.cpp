@@ -10,11 +10,13 @@ namespace {
 // (whitespace) or how it could be pasted back into cmd.exe (quotes).
 QString quoteArg(const QString &arg)
 {
-    if (arg.isEmpty())
+    if (arg.isEmpty()) {
         return QStringLiteral("\"\"");
+    }
     static const QRegularExpression needsQuoting(QStringLiteral("[\\s\"]"));
-    if (!needsQuoting.match(arg).hasMatch())
+    if (!needsQuoting.match(arg).hasMatch()) {
         return arg;
+    }
     QString quoted = arg;
     quoted.replace(QLatin1Char('"'), QStringLiteral("\\\""));
     return QStringLiteral("\"%1\"").arg(quoted);
@@ -38,15 +40,17 @@ QString TextUtils::formatCommandLine(const QString &program,
     QStringList parts;
     parts.reserve(args.size() + 1);
     parts << quoteArg(program);
-    for (const QString &arg : args)
+    for (const QString &arg : args) {
         parts << quoteArg(arg);
+    }
     return parts.join(QLatin1Char(' '));
 }
 
 QString TextUtils::clampOutput(const QString &text, int limit)
 {
-    if (limit <= 0 || text.size() <= limit)
+    if (limit <= 0 || text.size() <= limit) {
         return text;
+    }
     return text.left(limit)
            + QStringLiteral("\n… (%1 more characters not logged)")
                  .arg(text.size() - limit);

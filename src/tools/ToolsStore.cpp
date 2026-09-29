@@ -4,6 +4,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <utility>
 
 namespace awb::tools {
 
@@ -37,8 +38,9 @@ void ToolsStore::load()
         // 只收字符串；坏元素直接跳过，不让单个坏项拖垮整个列表。
         if (value.isString()) {
             const QString path = value.toString();
-            if (!path.isEmpty() && !m_workspaces.contains(path))
+            if (!path.isEmpty() && !m_workspaces.contains(path)) {
                 m_workspaces.append(path);
+            }
         }
     }
     m_current = root.value(QLatin1String(kCurrentKey)).toString();
@@ -46,8 +48,9 @@ void ToolsStore::load()
 
     // 历史数据里 current 可能指向已删除的项；容忍并保留原值，
     // 是否可用由 ToolsFacade 决定（不存在的工作区不给文件树设根）。
-    if (!m_workspaces.contains(m_current))
+    if (!m_workspaces.contains(m_current)) {
         m_current.clear();
+    }
 }
 
 bool ToolsStore::addWorkspace(const QString &path)
@@ -56,8 +59,9 @@ bool ToolsStore::addWorkspace(const QString &path)
     m_workspaces.removeAll(path);
     m_workspaces.prepend(path);
     // 超出上限从队尾淘汰——队尾是最久未使用的。
-    while (m_workspaces.size() > kMaxWorkspaces)
+    while (m_workspaces.size() > kMaxWorkspaces) {
         m_workspaces.removeLast();
+    }
     m_current = path;
     return save();
 }
@@ -65,27 +69,31 @@ bool ToolsStore::addWorkspace(const QString &path)
 bool ToolsStore::removeWorkspace(const QString &path)
 {
     m_workspaces.removeAll(path);
-    if (m_current == path)
+    if (m_current == path) {
         m_current = m_workspaces.isEmpty() ? QString() : m_workspaces.constFirst();
+    }
     return save();
 }
 
 bool ToolsStore::setCurrentWorkspace(const QString &path)
 {
     // 空串是合法目标（清空当前工作区）；不在列表中的路径不接受。
-    if (!path.isEmpty() && !m_workspaces.contains(path))
+    if (!path.isEmpty() && !m_workspaces.contains(path)) {
         return false;
+    }
     m_workspaces.removeAll(path);
-    if (!path.isEmpty())
+    if (!path.isEmpty()) {
         m_workspaces.prepend(path);
+    }
     m_current = path;
     return save();
 }
 
 bool ToolsStore::setDraft(const QString &text)
 {
-    if (m_draft == text)
+    if (m_draft == text) {
         return true;
+    }
     m_draft = text;
     return save();
 }
@@ -94,8 +102,9 @@ bool ToolsStore::save()
 {
     QJsonObject root;
     QJsonArray list;
-    for (const QString &path : m_workspaces)
+    for (const QString &path : std::as_const(m_workspaces)) {
         list.append(path);
+    }
     root[QLatin1String(kWorkspacesKey)] = list;
     root[QLatin1String(kCurrentKey)] = m_current;
     root[QLatin1String(kDraftKey)] = m_draft;

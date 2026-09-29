@@ -47,8 +47,9 @@ int agentRow(const agentcatalog::AgentsFacade *agents, const QString &agentId,
              agentcatalog::AgentDefinition *out)
 {
     const int row = agents->agentModel()->indexOf(agentId);
-    if (row < 0 || row >= agents->agentModel()->definitions().size())
+    if (row < 0 || row >= agents->agentModel()->definitions().size()) {
         return -1;
+    }
     *out = agents->agentModel()->definitions().at(row);
     return out->webUrl.isEmpty() ? -1 : row;
 }
@@ -57,8 +58,9 @@ int agentRow(const agentcatalog::AgentsFacade *agents, const QString &agentId,
 void WorkbenchContext::openWeb(const QString &agentId)
 {
     agentcatalog::AgentDefinition def;
-    if (agentRow(m_agents, agentId, &def) < 0)
+    if (agentRow(m_agents, agentId, &def) < 0) {
         return;
+    }
 
     QVariantMap fields;
     fields[QStringLiteral("agentId")] = def.id;
@@ -81,15 +83,17 @@ void WorkbenchContext::openWeb(const QString &agentId)
     // A tab exists (or was just activated): take the user to it. The
     // external-surface path returns "" — the browser has it, and the web
     // page is already toast-announced from the facade.
-    if (!tabId.isEmpty())
+    if (!tabId.isEmpty()) {
         m_nav->setCurrentPageId(QStringLiteral("web"));
+    }
 }
 
 void WorkbenchContext::openWebExternal(const QString &agentId)
 {
     agentcatalog::AgentDefinition def;
-    if (agentRow(m_agents, agentId, &def) < 0)
+    if (agentRow(m_agents, agentId, &def) < 0) {
         return;
+    }
     // Same URL rules as openWeb (session URL first, token fragment kept —
     // the browser needs it, the toast shows only the agent name).
     const QString sessionUrl = m_agents->sessionUrl(def.id);
@@ -107,16 +111,18 @@ void WorkbenchContext::closeWeb(const QString &agentId)
 {
     const QVariantMap tab = m_web->tabForAgent(agentId);
     const QString id = tab.value(QStringLiteral("id")).toString();
-    if (!id.isEmpty())
+    if (!id.isEmpty()) {
         m_web->closeTab(id);
+    }
 }
 
 void WorkbenchContext::reloadWeb(const QString &agentId)
 {
     const QVariantMap tab = m_web->tabForAgent(agentId);
     const QString id = tab.value(QStringLiteral("id")).toString();
-    if (!id.isEmpty())
+    if (!id.isEmpty()) {
         m_web->reloadTab(id);
+    }
 }
 
 void WorkbenchContext::launchAgent(const QString &agentId)
@@ -186,10 +192,12 @@ void WorkbenchContext::setDiscoveredPlugins(const QVariantList &plugins)
 void WorkbenchContext::setPluginEnabled(const QString &id, bool enabled)
 {
     QStringList disabled = m_settings->pluginsOptions().disabledIds;
-    if (enabled)
+    if (enabled) {
         disabled.removeAll(id);
-    else if (!disabled.contains(id))
+    }
+    else if (!disabled.contains(id)) {
         disabled.append(id);
+    }
 
     // Persist through the settings object (typed access stays in core).
     m_settings->setPluginsDisabledIds(disabled);
@@ -212,8 +220,9 @@ bool WorkbenchContext::pluginsEnabled() const
 
 void WorkbenchContext::setPluginsEnabled(bool enabled)
 {
-    if (m_settings->pluginsOptions().enabled == enabled)
+    if (m_settings->pluginsOptions().enabled == enabled) {
         return;
+    }
     m_settings->setPluginsGloballyEnabled(enabled);
     m_settings->save();
 }

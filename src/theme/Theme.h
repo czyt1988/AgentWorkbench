@@ -180,7 +180,7 @@ public:
     QString monoFamily() const;
     QStringList fontFamilies() const;
 
-signals:
+Q_SIGNALS:
     void changed();
 
 private:

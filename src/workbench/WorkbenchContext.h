@@ -46,10 +46,11 @@ public:
     QString legacyImportNotice() const { return m_legacyImportNotice; }
     void setLegacyImportNotice(const QString &notice)
     {
-        if (notice == m_legacyImportNotice)
+        if (notice == m_legacyImportNotice) {
             return;
+        }
         m_legacyImportNotice = notice;
-        emit legacyImportNoticeChanged();
+        Q_EMIT legacyImportNoticeChanged();
     }
 
     // Navigation intent.
@@ -90,7 +91,7 @@ public:
     Q_INVOKABLE QString pluginTrustNotice() const;
     void setDiscoveredPlugins(const QVariantList &plugins);
 
-signals:
+Q_SIGNALS:
     void currentPageChanged();
     void legacyImportNoticeChanged();
 

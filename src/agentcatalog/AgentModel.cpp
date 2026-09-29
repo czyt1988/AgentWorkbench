@@ -2,6 +2,7 @@
 
 #include <QSet>
 #include <QVariantMap>
+#include <utility>
 
 namespace awb::agentcatalog {
 
@@ -12,16 +13,18 @@ AgentModel::AgentModel(QObject *parent)
 
 int AgentModel::rowCount(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid()) {
         return 0;
+    }
     return m_definitions.size();
 }
 
 QVariant AgentModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid() || index.row() < 0
-        || index.row() >= m_definitions.size())
+        || index.row() >= m_definitions.size()) {
         return {};
+    }
     const AgentDefinition &d = m_definitions.at(index.row());
     const AgentState s = m_states.value(d.id);
 
@@ -87,31 +90,36 @@ void AgentModel::setDefinitions(const QList<AgentDefinition> &definitions)
     // Runtime state survives by id: swapping definitions must never blank a
     // running card (states of removed ids are dropped below).
     QSet<QString> keep;
-    for (const AgentDefinition &d : m_definitions)
+    for (const AgentDefinition &d : std::as_const(m_definitions)) {
         keep.insert(d.id);
+    }
     for (auto it = m_states.begin(); it != m_states.end();) {
-        if (!keep.contains(it.key()))
+        if (!keep.contains(it.key())) {
             it = m_states.erase(it);
-        else
+        }
+        else {
             ++it;
+        }
     }
 }
 
 bool AgentModel::replaceDefinition(const AgentDefinition &definition)
 {
     const int row = indexOf(definition.id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
     m_definitions[row] = definition;
     const QModelIndex idx = index(row, 0);
-    emit dataChanged(idx, idx); // no roles = all roles
+    Q_EMIT dataChanged(idx, idx); // no roles = all roles
     return true;
 }
 
 void AgentModel::insertAgent(int row, const AgentDefinition &definition)
 {
-    if (row < 0 || row > m_definitions.size())
+    if (row < 0 || row > m_definitions.size()) {
         row = m_definitions.size();
+    }
     beginInsertRows(QModelIndex(), row, row);
     m_definitions.insert(row, definition);
     endInsertRows();
@@ -120,8 +128,9 @@ void AgentModel::insertAgent(int row, const AgentDefinition &definition)
 bool AgentModel::removeAgentById(const QString &id)
 {
     const int row = indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
     beginRemoveRows(QModelIndex(), row, row);
     m_definitions.removeAt(row);
     endRemoveRows();
@@ -132,8 +141,9 @@ bool AgentModel::removeAgentById(const QString &id)
 int AgentModel::indexOf(const QString &id) const
 {
     for (int i = 0; i < m_definitions.size(); ++i) {
-        if (m_definitions.at(i).id == id)
+        if (m_definitions.at(i).id == id) {
             return i;
+        }
     }
     return -1;
 }
@@ -142,8 +152,9 @@ QVariantMap AgentModel::agent(const QString &id) const
 {
     QVariantMap m;
     const int row = indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return m;
+    }
     const AgentDefinition &d = m_definitions.at(row);
     const AgentState s = m_states.value(id);
     m[QStringLiteral("id")] = d.id;
@@ -177,14 +188,16 @@ QVariantMap AgentModel::agent(const QString &id) const
 #define AWB_STATE_SETTER(field, value, role)                                 \
     do {                                                                     \
         const int row = indexOf(id);                                         \
-        if (row < 0)                                                         \
+        if (row < 0) {                                                       \
             return;                                                          \
+        }                                                                    \
         AgentState &s = m_states[id];                                        \
-        if (s.field == (value))                                              \
+        if (s.field == (value)) {                                            \
             return;                                                          \
+        }                                                                    \
         s.field = (value);                                                   \
         const QModelIndex idx = index(row, 0);                               \
-        emit dataChanged(idx, idx, { role });                                \
+        Q_EMIT dataChanged(idx, idx, { role });                              \
     } while (false)
 
 void AgentModel::setRunning(const QString &id, bool running)

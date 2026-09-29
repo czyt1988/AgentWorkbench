@@ -12,7 +12,7 @@ class TestScriptRunner : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // Output arrives as chunks in order, and finished() reports the complete
     // text (readyRead consumes from QProcess, so the runner accumulates).
     void testStreamingAndFullOutput()
@@ -36,8 +36,9 @@ private slots:
 
         // Chunks carry the same bytes incrementally, in order.
         QString streamed;
-        for (const QList<QVariant> &chunk : chunks)
+        for (const QList<QVariant> &chunk : std::as_const(chunks)) {
             streamed += chunk.at(1).toString();
+        }
         QVERIFY(streamed.contains(QStringLiteral("alpha")));
         QVERIFY(streamed.contains(QStringLiteral("beta")));
         QVERIFY(streamed.indexOf(QLatin1Char('a')) >= 0
@@ -128,4 +129,5 @@ private slots:
 };
 
 #include "tst_scrptrunner.moc"
+#include <utility>
 AWB_TEST(TestScriptRunner)

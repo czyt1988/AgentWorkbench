@@ -20,11 +20,13 @@ Theme::Theme(core::Settings *settings, ThemeRegistry *registry,
     // External theme changes (settings.json edited elsewhere) re-apply.
     connect(m_settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
-                if (key == QLatin1String("appearance.theme"))
+                if (key == QStringLiteral("appearance.theme")) {
                     loadCurrent();
-                else if (key == QLatin1String("appearance.fontFamily"))
+                }
+                else if (key == QStringLiteral("appearance.fontFamily")) {
                     // 主题文件没变，只需让 family 令牌的绑定刷新。
-                    emit changed();
+                    Q_EMIT changed();
+                }
             });
     // Hot reload: a theme file changed on disk.
     connect(m_registry, &ThemeRegistry::changed, this, &Theme::loadCurrent);
@@ -43,7 +45,7 @@ void Theme::loadCurrent()
     // Always swap and notify: even for the same id the values on disk may
     // have changed (hot reload).
     m_current = file;
-    emit changed();
+    Q_EMIT changed();
 }
 
 QString Theme::variant() const
@@ -71,12 +73,15 @@ QVariantList Theme::availableThemes() const
         entry[QStringLiteral("variant")] = file.variant;
         // 选择框里显示的短标签：用户只需要分辨深浅，主题全名进 tooltip。
         // 未知 variant 回退到主题名，第三方主题不会因此显示成空白。
-        if (file.variant == QLatin1String("dark"))
+        if (file.variant == QStringLiteral("dark")) {
             entry[QStringLiteral("display")] = tr("Dark");
-        else if (file.variant == QLatin1String("light"))
+        }
+        else if (file.variant == QStringLiteral("light")) {
             entry[QStringLiteral("display")] = tr("Light");
-        else
+        }
+        else {
             entry[QStringLiteral("display")] = file.name;
+        }
         result.append(entry);
     }
     return result;
@@ -84,8 +89,9 @@ QVariantList Theme::availableThemes() const
 
 void Theme::applyTheme(const QString &id)
 {
-    if (id == m_settings->themeId())
+    if (id == m_settings->themeId()) {
         return;
+    }
     // Validate before persisting: saving an unknown id would silently fall
     // back to mocha-dark on every start (unknown → fallback+warn
     // is for hand-edited settings, not for the picker).
@@ -123,7 +129,7 @@ QColor Theme::hover(const QColor &color) const
     QColor result = color;
     const qreal h = result.hueF(), s = result.saturationF();
     qreal l = result.lightnessF();
-    l += (variant() == QLatin1String("dark") ? step : -step);
+    l += (variant() == QStringLiteral("dark") ? step : -step);
     result.setHslF(h, s, qBound(0.0, l, 1.0));
     return result;
 }
@@ -134,7 +140,7 @@ QColor Theme::pressed(const QColor &color) const
     QColor result = color;
     const qreal h = result.hueF(), s = result.saturationF();
     qreal l = result.lightnessF();
-    l += (variant() == QLatin1String("dark") ? step : -step);
+    l += (variant() == QStringLiteral("dark") ? step : -step);
     result.setHslF(h, s, qBound(0.0, l, 1.0));
     return result;
 }
@@ -424,8 +430,9 @@ QString Theme::family() const
     // 设置覆盖优先：用户在设置页选的字体（appearance.fontFamily）优先于
     // 主题 JSON 的 fonts.family；两者都空 = 跟随系统默认。
     const QString override = m_settings->fontFamily();
-    if (!override.isEmpty())
+    if (!override.isEmpty()) {
         return override;
+    }
     return m_current.fonts.value(QStringLiteral("family"));
 }
 
@@ -449,8 +456,9 @@ void Theme::setFontFamily(const QString &family)
 {
     // 与 applyTheme 对称：写设置 + 落盘，valueChanged 走构造时连好的
     // 槽发 changed()（family 令牌随之重绑）。
-    if (family == m_settings->fontFamily())
+    if (family == m_settings->fontFamily()) {
         return;
+    }
     m_settings->setFontFamily(family);
     m_settings->save();
 }

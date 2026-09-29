@@ -69,14 +69,16 @@ int main(int argc, char *argv[])
     if (logOpts.maxFileSize != logDefaults.maxFileSize
         || logOpts.maxFiles != logDefaults.maxFiles
         || logOpts.level != logDefaults.level
-        || logOpts.mirrorToStderr != logDefaults.mirrorToStderr)
+        || logOpts.mirrorToStderr != logDefaults.mirrorToStderr) {
         awb::core::Logging::install(QString(), logOpts.maxFileSize,
                                     logOpts.maxFiles, logOpts.level,
                                     logOpts.mirrorToStderr);
+    }
     const QByteArray chromiumFlags =
         settings.webOptions().chromiumFlags.toUtf8();
-    if (!chromiumFlags.isEmpty())
+    if (!chromiumFlags.isEmpty()) {
         qputenv("QTWEBENGINE_CHROMIUM_FLAGS", chromiumFlags);
+    }
 #ifdef AWB_ENABLE_WEBENGINE
     // GPU/driver problems are worked around through web.chromiumFlags
     // a hard failure logs and continues degraded.
@@ -104,8 +106,9 @@ int main(int argc, char *argv[])
     const QLocale locale = forcedLocale.isEmpty() ? QLocale()
                                                   : QLocale(forcedLocale);
     if (translator.load(locale, QStringLiteral("agentworkbench"),
-                        QStringLiteral("_"), QStringLiteral(":/i18n")))
+                        QStringLiteral("_"), QStringLiteral(":/i18n"))) {
         app.installTranslator(&translator);
+    }
 
     // Global UI font, applied before the engine exists: family only, the
     // platform point size is kept. A missing family (e.g. Microsoft YaHei
@@ -129,8 +132,9 @@ int main(int argc, char *argv[])
     // First run: materialize default settings.json only now — before this,
     // the data root had to stay empty (except log/) for the legacy adoption
     // check above.
-    if (!QFile::exists(awb::core::Settings::settingsFilePath()))
+    if (!QFile::exists(awb::core::Settings::settingsFilePath())) {
         settings.save();
+    }
 
     // 3) Assembly, dependency order from the bottom up:
     //    core -> theme -> shell -> agentcatalog -> workbench.
@@ -179,8 +183,9 @@ int main(int argc, char *argv[])
         entry[QStringLiteral("description")] = manifest.description;
         entry[QStringLiteral("enabled")] = enabled;
         pluginEntries.append(entry);
-        if (enabled)
+        if (enabled) {
             enabledIds.append(manifest.id);
+        }
     }
     workbench.setDiscoveredPlugins(pluginEntries);
 
@@ -189,8 +194,9 @@ int main(int argc, char *argv[])
     if (pluginsOn) {
         QList<awb::core::PluginHost::Manifest> enabled;
         for (const awb::core::PluginHost::Manifest &manifest : manifests) {
-            if (!enabledIds.contains(manifest.id))
+            if (!enabledIds.contains(manifest.id)) {
                 continue;
+            }
             // resolve() flips the flag loadEnabled() filters on — discover()
             // leaves it false (disabled until the user opts in).
             awb::core::PluginHost::Manifest copy = manifest;

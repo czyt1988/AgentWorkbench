@@ -15,7 +15,7 @@ class TestThemeLoader : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         // Builtin themes come from :/themes (embedded in this test target).

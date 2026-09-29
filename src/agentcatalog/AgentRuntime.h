@@ -65,7 +65,7 @@ public:
     // it, so openWeb falls back to the configured webUrl.
     QString sessionUrl(const QString &id) const;
 
-signals:
+Q_SIGNALS:
     // A launch/stop attempt failed. The UI shows an at-place flash on the
     // matching card plus a detailed popup.
     void launchFailed(const QString &id, const QString &message);

@@ -35,7 +35,7 @@ public:
     // Re-run both probes (status bar refresh button).
     Q_INVOKABLE void refresh();
 
-signals:
+Q_SIGNALS:
     void changed();
 
 private:

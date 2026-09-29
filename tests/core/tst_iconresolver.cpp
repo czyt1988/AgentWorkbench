@@ -17,7 +17,7 @@ class TestIconResolver : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // Regression: file:// URLs must pass through unchanged, otherwise a
     // resolved local-file icon degrades to default.svg after save+reload.
     void testPassthrough()

@@ -85,7 +85,7 @@ public:
     Q_INVOKABLE int countInSection(const QString &section) const;
     Q_INVOKABLE int rowOfFirstInSection(const QString &section) const;
 
-signals:
+Q_SIGNALS:
     void currentPageChanged();
     void pagesChanged();
     void badgesChanged();

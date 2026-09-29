@@ -39,7 +39,7 @@ class TestShell : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -195,7 +195,7 @@ private slots:
         UiServices ui;
         const QStringList failures = awbUnresolvedQmlCallTypes(&ui);
         QVERIFY2(failures.isEmpty(),
-                 qPrintable(failures.join(QLatin1String("\n"))));
+                 qPrintable(failures.join(QStringLiteral("\n"))));
     }
 
     // Sidebar collapse and window geometry persist to settings.json and
@@ -248,9 +248,10 @@ private slots:
         QCOMPARE(toasts.durationFor(QStringLiteral("warning")), 5000);
         QCOMPARE(toasts.durationFor(QStringLiteral("error")), 8000);
 
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 5; ++i) {
             toasts.notify(QStringLiteral("info"), QStringLiteral("T"),
                           QString::number(i));
+        }
         QCOMPARE(toasts.rowCount(), 5); // 2 queue behind the visible 3
         const QString firstId =
             toasts.index(0, 0).data(Notifications::IdRole).toString();

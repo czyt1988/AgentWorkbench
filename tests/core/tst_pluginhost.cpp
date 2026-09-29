@@ -40,7 +40,7 @@ class TestPluginHost : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -112,8 +112,9 @@ private slots:
 
         auto write_file = [](const QString &path, const QByteArray &bytes) {
             QFile f(path);
-            if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+            if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
                 return false;
+            }
             return f.write(bytes) == bytes.size();
         };
         QVERIFY(write_file(root + QStringLiteral("/bad-json/plugin.json"),

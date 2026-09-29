@@ -64,7 +64,7 @@ public:
     void setCurrentWorkspace(const QString &path);
     void setDraft(const QString &text);
 
-signals:
+Q_SIGNALS:
     void workspacesChanged();
     void currentWorkspaceChanged();
     void draftChanged();

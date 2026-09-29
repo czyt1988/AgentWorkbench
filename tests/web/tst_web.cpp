@@ -18,7 +18,7 @@ class TestWebTabs : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -209,21 +209,22 @@ private slots:
         QCOMPARE(web.tabs()->rowCount(), 10);
 
         int released = 0;
-        for (const QString &id : ids) {
-            if (web.tabs()->tabById(id)->state() == QLatin1String("released"))
+        for (const QString &id : std::as_const(ids)) {
+            if (web.tabs()->tabById(id)->state() == QStringLiteral("released")) {
                 ++released;
+            }
         }
         // Default maxLiveTabs = 8: 10 tabs, the newest is active, the
         // oldest inactive ones got released.
         QVERIFY(released >= 1);
         // The active tab is never released.
         QVERIFY(web.tabs()->tabById(web.activeTabId())->state()
-                != QLatin1String("released"));
+                != QStringLiteral("released"));
 
         // Reopen restores the view.
         QString releasedId;
         for (const QString &id : ids) {
-            if (web.tabs()->tabById(id)->state() == QLatin1String("released")) {
+            if (web.tabs()->tabById(id)->state() == QStringLiteral("released")) {
                 releasedId = id;
                 break;
             }
@@ -272,3 +273,4 @@ private slots:
 
 QTEST_MAIN(TestWebTabs)
 #include "tst_web.moc"
+#include <utility>

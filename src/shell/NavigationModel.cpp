@@ -11,10 +11,12 @@ namespace {
 // Sidebar sections in display order.
 int sectionRank(const QString &section)
 {
-    if (section == QLatin1String("main"))
+    if (section == QStringLiteral("main")) {
         return 0;
-    if (section == QLatin1String("extensions"))
+    }
+    if (section == QStringLiteral("extensions")) {
         return 1;
+    }
     return 2; // system
 }
 } // namespace
@@ -26,15 +28,17 @@ NavigationModel::NavigationModel(QObject *parent)
 
 int NavigationModel::rowCount(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid()) {
         return 0;
+    }
     return m_pages.size();
 }
 
 QVariant NavigationModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_pages.size())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_pages.size()) {
         return {};
+    }
     const PageDescriptor &p = m_pages.at(index.row());
     switch (role) {
     case PageIdRole: return p.id;
@@ -66,8 +70,9 @@ QHash<int, QByteArray> NavigationModel::roleNames() const
 int NavigationModel::indexOfId(const QString &id) const
 {
     for (int i = 0; i < m_pages.size(); ++i) {
-        if (m_pages.at(i).id == id)
+        if (m_pages.at(i).id == id) {
             return i;
+        }
     }
     return -1;
 }
@@ -78,8 +83,9 @@ void NavigationModel::sort()
                      [](const PageDescriptor &a, const PageDescriptor &b) {
                          const int ra = sectionRank(a.section);
                          const int rb = sectionRank(b.section);
-                         if (ra != rb)
+                         if (ra != rb) {
                              return ra < rb;
+                         }
                          return a.order < b.order;
                      });
 }
@@ -102,25 +108,26 @@ bool NavigationModel::registerPage(const PageDescriptor &page)
     m_pages.append(page);
     sort();
     endResetModel();
-    emit pagesChanged();
-    emit badgesChanged(); // the map gains a key
+    Q_EMIT pagesChanged();
+    Q_EMIT badgesChanged(); // the map gains a key
     return true;
 }
 
 bool NavigationModel::unregisterPage(const QString &id)
 {
     const int row = indexOfId(id);
-    if (row < 0)
+    if (row < 0) {
         return false;
+    }
     beginRemoveRows(QModelIndex(), row, row);
     m_pages.removeAt(row);
     endRemoveRows();
     if (m_currentId == id) {
         m_currentId.clear();
-        emit currentPageChanged();
+        Q_EMIT currentPageChanged();
     }
-    emit pagesChanged();
-    emit badgesChanged(); // the map loses a key
+    Q_EMIT pagesChanged();
+    Q_EMIT badgesChanged(); // the map loses a key
     return true;
 }
 
@@ -128,8 +135,9 @@ QVariantMap NavigationModel::page(const QString &id) const
 {
     QVariantMap map;
     const int row = indexOfId(id);
-    if (row < 0)
+    if (row < 0) {
         return map;
+    }
     const PageDescriptor &p = m_pages.at(row);
     map[QStringLiteral("id")] = p.id;
     map[QStringLiteral("title")] = p.title;
@@ -151,8 +159,9 @@ QVariantMap NavigationModel::currentPage() const
 QVariantMap NavigationModel::badges() const
 {
     QVariantMap map;
-    for (const PageDescriptor &p : m_pages)
+    for (const PageDescriptor &p : m_pages) {
         map.insert(p.id, p.badgeText);
+    }
     return map;
 }
 
@@ -162,8 +171,9 @@ QVariantList NavigationModel::keepAlivePages() const
     // 无法经侧栏到达的页面不该占用一份常驻实例。
     QVariantList pages;
     for (const PageDescriptor &p : m_pages) {
-        if (p.keepAlive && p.enabled)
+        if (p.keepAlive && p.enabled) {
             pages.append(page(p.id));
+        }
     }
     return pages;
 }
@@ -171,36 +181,40 @@ QVariantList NavigationModel::keepAlivePages() const
 void NavigationModel::setBadge(const QString &id, const QString &text)
 {
     const int row = indexOfId(id);
-    if (row < 0)
+    if (row < 0) {
         return;
-    if (m_pages[row].badgeText == text)
+    }
+    if (m_pages[row].badgeText == text) {
         return;
+    }
     m_pages[row].badgeText = text;
     const QModelIndex idx = index(row, 0);
-    emit dataChanged(idx, idx, { BadgeRole });
+    Q_EMIT dataChanged(idx, idx, { BadgeRole });
     // Drives the `badges` Q_PROPERTY — StatusBar binds nav.badges[id].
-    emit badgesChanged();
+    Q_EMIT badgesChanged();
 }
 
 void NavigationModel::setCurrentPageId(const QString &id)
 {
-    if (id == m_currentId)
+    if (id == m_currentId) {
         return;
+    }
     if (!id.isEmpty() && indexOfId(id) < 0) {
         qWarning().noquote() << QStringLiteral(
             "NavigationModel: unknown page id \"%1\"; ignoring it").arg(id);
         return;
     }
     m_currentId = id;
-    emit currentPageChanged();
+    Q_EMIT currentPageChanged();
 }
 
 QStringList NavigationModel::pageIdsInOrder() const
 {
     QStringList ids;
     for (const PageDescriptor &p : m_pages) {
-        if (p.enabled)
+        if (p.enabled) {
             ids.append(p.id);
+        }
     }
     return ids;
 }
@@ -209,8 +223,9 @@ int NavigationModel::countInSection(const QString &section) const
 {
     int count = 0;
     for (const PageDescriptor &p : m_pages) {
-        if (p.section == section)
+        if (p.section == section) {
             ++count;
+        }
     }
     return count;
 }
@@ -218,8 +233,9 @@ int NavigationModel::countInSection(const QString &section) const
 int NavigationModel::rowOfFirstInSection(const QString &section) const
 {
     for (int i = 0; i < m_pages.size(); ++i) {
-        if (m_pages.at(i).section == section)
+        if (m_pages.at(i).section == section) {
             return i;
+        }
     }
     return -1;
 }

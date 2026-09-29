@@ -15,29 +15,38 @@ namespace {
 // correctly instead of turning into replacement characters.
 int incompleteUtf8Tail(const QByteArray &buf)
 {
-    if (buf.isEmpty())
+    if (buf.isEmpty()) {
         return 0;
+    }
     const int n = buf.size();
     int back = 0;
     while (back < 3 && (n - 1 - back) >= 0
-           && (static_cast<uchar>(buf.at(n - 1 - back)) & 0xC0) == 0x80)
+           && (static_cast<uchar>(buf.at(n - 1 - back)) & 0xC0) == 0x80) {
         ++back;
-    if (n - 1 - back < 0)
+    }
+    if (n - 1 - back < 0) {
         return 0; // only continuation bytes — invalid, decode as-is
+    }
     const uchar lead = static_cast<uchar>(buf.at(n - 1 - back));
-    if (back == 3 && ((lead & 0xC0) == 0x80))
+    if (back == 3 && ((lead & 0xC0) == 0x80)) {
         return 0; // 4+ continuation bytes — invalid, decode as-is
+    }
     int total;
-    if ((lead & 0x80) == 0)
+    if ((lead & 0x80) == 0) {
         total = 1;
-    else if ((lead & 0xE0) == 0xC0)
+    }
+    else if ((lead & 0xE0) == 0xC0) {
         total = 2;
-    else if ((lead & 0xF0) == 0xE0)
+    }
+    else if ((lead & 0xF0) == 0xE0) {
         total = 3;
-    else if ((lead & 0xF8) == 0xF0)
+    }
+    else if ((lead & 0xF8) == 0xF0) {
         total = 4;
-    else
+    }
+    else {
         return 0; // not a lead byte — invalid, decode as-is
+    }
     const int present = back + 1;
     return present < total ? present : 0;
 }
@@ -53,10 +62,12 @@ bool ScriptRunner::isCurrent(const QString &key, int epoch,
                              const QProcess *proc) const
 {
     const auto it = m_slots.constFind(key);
-    if (it == m_slots.cend() || it->epoch != epoch)
+    if (it == m_slots.cend() || it->epoch != epoch) {
         return false;
-    if (proc && it->proc != proc)
+    }
+    if (proc && it->proc != proc) {
         return false;
+    }
     return true;
 }
 
@@ -69,8 +80,9 @@ bool ScriptRunner::isRunning(const QString &key) const
 void ScriptRunner::invalidate(const QString &key)
 {
     auto it = m_slots.find(key);
-    if (it == m_slots.end())
+    if (it == m_slots.end()) {
         return;
+    }
     Slot &slot = it.value();
     if (slot.proc) {
         QProcess *old = slot.proc;
@@ -78,8 +90,9 @@ void ScriptRunner::invalidate(const QString &key)
         // Old callbacks compare their captured proc pointer against
         // slot.proc; disconnect as well so a kill() cannot reach us at all.
         old->disconnect(this);
-        if (old->state() != QProcess::NotRunning)
+        if (old->state() != QProcess::NotRunning) {
             old->kill();
+        }
         old->deleteLater();
     }
     if (slot.batchFile) {
@@ -97,8 +110,9 @@ void ScriptRunner::run(const QString &key, const QString &program,
     const int epoch = ++slot.epoch;
 
     auto *proc = new QProcess(this);
-    if (mergeChannels)
+    if (mergeChannels) {
         proc->setProcessChannelMode(QProcess::MergedChannels);
+    }
     proc->setProgram(program);
     proc->setArguments(args);
     slot.proc = proc;
@@ -116,8 +130,9 @@ void ScriptRunner::run(const QString &key, const QString &program,
     // character is held back (pendingOut) and decoded with the next one.
     connect(proc, &QProcess::readyReadStandardOutput, this,
             [this, key, epoch, proc]() {
-                if (!isCurrent(key, epoch, proc))
+                if (!isCurrent(key, epoch, proc)) {
                     return;
+                }
                 const QByteArray data = proc->readAllStandardOutput();
                 Slot &slot = m_slots[key];
                 slot.rawOut.append(data);
@@ -125,15 +140,16 @@ void ScriptRunner::run(const QString &key, const QString &program,
                 const int hold = incompleteUtf8Tail(slot.pendingOut);
                 const int emitLen = slot.pendingOut.size() - hold;
                 if (emitLen > 0) {
-                    emit outputChunk(key, ProcessRunner::decodeOutput(
+                    Q_EMIT outputChunk(key, ProcessRunner::decodeOutput(
                                               slot.pendingOut.left(emitLen)));
                     slot.pendingOut.remove(0, emitLen);
                 }
             });
     connect(proc, &QProcess::readyReadStandardError, this,
             [this, key, epoch, proc]() {
-                if (!isCurrent(key, epoch, proc))
+                if (!isCurrent(key, epoch, proc)) {
                     return;
+                }
                 const QByteArray data = proc->readAllStandardError();
                 Slot &slot = m_slots[key];
                 slot.rawErr.append(data);
@@ -141,15 +157,16 @@ void ScriptRunner::run(const QString &key, const QString &program,
                 const int hold = incompleteUtf8Tail(slot.pendingErr);
                 const int emitLen = slot.pendingErr.size() - hold;
                 if (emitLen > 0) {
-                    emit outputChunk(key, ProcessRunner::decodeOutput(
+                    Q_EMIT outputChunk(key, ProcessRunner::decodeOutput(
                                               slot.pendingErr.left(emitLen)));
                     slot.pendingErr.remove(0, emitLen);
                 }
             });
 
     connect(proc, &QProcess::started, this, [this, key, epoch, proc]() {
-        if (!isCurrent(key, epoch, proc))
+        if (!isCurrent(key, epoch, proc)) {
             return;
+        }
         m_slots[key].started = true;
     });
 
@@ -161,8 +178,9 @@ void ScriptRunner::run(const QString &key, const QString &program,
             this,
             [this, key, epoch, proc, timeoutMs](int exitCode,
                                                 QProcess::ExitStatus) {
-                if (!isCurrent(key, epoch, proc))
+                if (!isCurrent(key, epoch, proc)) {
                     return;
+                }
                 Slot &slot = m_slots[key];
                 const QByteArray tailOut = proc->readAllStandardOutput();
                 slot.rawOut.append(tailOut);
@@ -175,12 +193,12 @@ void ScriptRunner::run(const QString &key, const QString &program,
                 // Flush any bytes still held back for a split character —
                 // the stream ended, so decode them as they are.
                 if (!slot.pendingOut.isEmpty()) {
-                    emit outputChunk(key,
+                    Q_EMIT outputChunk(key,
                                      ProcessRunner::decodeOutput(slot.pendingOut));
                     slot.pendingOut.clear();
                 }
                 if (!slot.pendingErr.isEmpty()) {
-                    emit outputChunk(key,
+                    Q_EMIT outputChunk(key,
                                      ProcessRunner::decodeOutput(slot.pendingErr));
                     slot.pendingErr.clear();
                 }
@@ -199,7 +217,7 @@ void ScriptRunner::run(const QString &key, const QString &program,
                     timedOut
                         ? QStringLiteral("timed out after %1 ms").arg(timeoutMs)
                         : QString();
-                emit finished(key, !timedOut && exitCode == 0, exitCode,
+                Q_EMIT finished(key, !timedOut && exitCode == 0, exitCode,
                               out, err, error);
             });
 
@@ -207,11 +225,13 @@ void ScriptRunner::run(const QString &key, const QString &program,
     // reported through finished() instead.
     connect(proc, &QProcess::errorOccurred, this,
             [this, key, epoch, proc](QProcess::ProcessError) {
-                if (!isCurrent(key, epoch, proc))
+                if (!isCurrent(key, epoch, proc)) {
                     return;
+                }
                 Slot &slot = m_slots[key];
-                if (slot.started || slot.timedOut)
+                if (slot.started || slot.timedOut) {
                     return;
+                }
                 const QString detail = proc->errorString();
                 slot.proc = nullptr;
                 proc->deleteLater();
@@ -219,17 +239,19 @@ void ScriptRunner::run(const QString &key, const QString &program,
                     slot.batchFile->deleteLater();
                     slot.batchFile = nullptr;
                 }
-                emit finished(key, false, -1, QString(), QString(),
+                Q_EMIT finished(key, false, -1, QString(), QString(),
                               QStringLiteral("failed to start: %1").arg(detail));
             });
 
     if (timeoutMs > 0) {
         QTimer::singleShot(timeoutMs, this, [this, key, epoch, proc]() {
-            if (!isCurrent(key, epoch, proc))
+            if (!isCurrent(key, epoch, proc)) {
                 return;
+            }
             Slot &slot = m_slots[key];
-            if (!slot.started || slot.proc->state() == QProcess::NotRunning)
+            if (!slot.started || slot.proc->state() == QProcess::NotRunning) {
                 return;
+            }
             slot.timedOut = true;
             slot.proc->kill(); // finished() reports the timeout
         });
@@ -263,9 +285,10 @@ void ScriptRunner::runBatch(const QString &key, const QString &command,
         // Queued so callers that connect after calling runBatch() still see
         // it; dropped if a newer run for this key starts first.
         QTimer::singleShot(0, this, [this, key, epoch, detail]() {
-            if (!isCurrent(key, epoch))
+            if (!isCurrent(key, epoch)) {
                 return;
-            emit finished(key, false, -1, QString(), QString(),
+            }
+            Q_EMIT finished(key, false, -1, QString(), QString(),
                           QStringLiteral("cannot create the temporary batch "
                                          "file: %1").arg(detail));
         });
@@ -280,8 +303,9 @@ void ScriptRunner::runBatch(const QString &key, const QString &command,
                                      batchFile->fileName()},
         timeoutMs, true);
     // Owned by the slot until the run finishes (cmd.exe still reads it).
-    if (m_slots.contains(key))
+    if (m_slots.contains(key)) {
         m_slots[key].batchFile = batchFile;
+    }
 }
 
 } // namespace awb::core

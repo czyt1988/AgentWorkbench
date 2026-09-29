@@ -35,7 +35,7 @@ class TestSkillScanner : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -64,8 +64,9 @@ private slots:
 
         QVERIFY(scanAndWait(&scanner));
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         QVERIFY(names.contains(QStringLiteral("one")));
         QVERIFY(names.contains(QStringLiteral("three")));
 
@@ -107,7 +108,7 @@ private slots:
         QStringList versions;
         int browserUse = 0;
         for (const SkillDefinition &skill : scanner.definitions()) {
-            if (skill.pluginId == QLatin1String("browser-use")) {
+            if (skill.pluginId == QStringLiteral("browser-use")) {
                 ++browserUse;
                 versions.append(skill.pluginVersion);
             }
@@ -117,8 +118,9 @@ private slots:
         // The other plugin survives.
         bool docxFound = false;
         for (const SkillDefinition &skill : scanner.definitions()) {
-            if (skill.pluginId == QLatin1String("docx"))
+            if (skill.pluginId == QStringLiteral("docx")) {
                 docxFound = true;
+            }
         }
         QVERIFY(docxFound);
     }
@@ -156,8 +158,9 @@ private slots:
         // Both 0.5.1 skills survive; the two 0.4.0 copies drop.
         QCOMPARE(scanner.lastStats().duplicatesDropped, 2);
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         std::sort(names.begin(), names.end());
         QCOMPARE(names, QStringList({QStringLiteral("alpha"),
                                      QStringLiteral("beta")}));
@@ -213,8 +216,9 @@ private slots:
         SkillScanner scanner(&settings);
         QVERIFY(scanAndWait(&scanner));
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         QVERIFY(names.contains(QStringLiteral("shallow")));
         QVERIFY(!names.contains(QStringLiteral("deep")));
     }
@@ -383,8 +387,9 @@ private:
     // 依赖它只等不发）。
     static bool waitForScan(SkillScanner *scanner, int timeoutMs = 5000)
     {
-        if (!scanner->scanning())
+        if (!scanner->scanning()) {
             return true;
+        }
         QEventLoop loop;
         QTimer timer;
         timer.setSingleShot(true);

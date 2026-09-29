@@ -13,7 +13,7 @@ class TestProcessRunner : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // findExecutable applies PATHEXT on Windows, which is what makes
     // npm-style shims like "qwen" -> "qwen.cmd" resolvable.
     void testFindExecutable()
@@ -105,10 +105,12 @@ private slots:
         for (int i = 0; i < 100 && !text.contains(QStringLiteral("hello-redirect"));
              ++i) {
             QFile f(outFile);
-            if (f.open(QIODevice::ReadOnly))
+            if (f.open(QIODevice::ReadOnly)) {
                 text = ProcessRunner::decodeOutput(f.readAll());
-            if (!text.contains(QStringLiteral("hello-redirect")))
+            }
+            if (!text.contains(QStringLiteral("hello-redirect"))) {
                 QTest::qWait(50);
+            }
         }
         QVERIFY(text.contains(QStringLiteral("hello-redirect")));
         // Let the child fully exit before QTemporaryDir cleans up.

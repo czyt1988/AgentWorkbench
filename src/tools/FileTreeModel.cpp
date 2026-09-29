@@ -56,8 +56,9 @@ FileTreeModel::~FileTreeModel() = default;
 int FileTreeModel::rowCount(const QModelIndex &parent) const
 {
     const Node *node = parent.isValid() ? nodeForIndex(parent) : m_root.get();
-    if (!node || !node->isDir)
+    if (!node || !node->isDir) {
         return 0;
+    }
     return static_cast<int>(node->children.size());
 }
 
@@ -71,27 +72,31 @@ QModelIndex FileTreeModel::index(int row, int column,
                                  const QModelIndex &parent) const
 {
     const Node *node = parent.isValid() ? nodeForIndex(parent) : m_root.get();
-    if (!node || column != 0 || row < 0 || row >= static_cast<int>(node->children.size()))
+    if (!node || column != 0 || row < 0 || row >= static_cast<int>(node->children.size())) {
         return QModelIndex();
+    }
     return createIndex(row, column, node->children[static_cast<size_t>(row)].get());
 }
 
 QModelIndex FileTreeModel::parent(const QModelIndex &child) const
 {
     Node *node = nodeForIndex(child);
-    if (!node || !node->parent)
+    if (!node || !node->parent) {
         return QModelIndex();
+    }
     // invisible root 的直接子项的 parent 是无效索引；其余回到父节点的行。
-    if (node->parent == m_root.get())
+    if (node->parent == m_root.get()) {
         return QModelIndex();
+    }
     return createIndex(node->parent->row, 0, node->parent);
 }
 
 QVariant FileTreeModel::data(const QModelIndex &index, int role) const
 {
     const Node *node = nodeForIndex(index);
-    if (!node)
+    if (!node) {
         return QVariant();
+    }
     switch (role) {
     case Qt::DisplayRole:
     case NameRole:
@@ -128,12 +133,14 @@ QHash<int, QByteArray> FileTreeModel::roleNames() const
 bool FileTreeModel::hasChildren(const QModelIndex &parent) const
 {
     const Node *node = parent.isValid() ? nodeForIndex(parent) : m_root.get();
-    if (!node || !node->isDir)
+    if (!node || !node->isDir) {
         return false;
+    }
     // 未读取的目录一律显示展开箭头（读了之后可能是空的，箭头会自然消失）；
     // 这是懒加载树让 TreeView 提前显示箭头的唯一途径。
-    if (!node->fetched)
+    if (!node->fetched) {
         return true;
+    }
     return !node->children.empty();
 }
 
@@ -156,15 +163,16 @@ void FileTreeModel::setRootPath(const QString &path)
     // 一次取到完整行数，不会再有 rowsInserted 追加。TreeView 对
     // 「modelReset 之后立刻插入的行」会重复计入，实测（2026-09 冒烟）。
     auto root = makeRootNode(path);
-    if (root)
+    if (root) {
         populateNode(root.get());
+    }
 
     beginResetModel();
     m_rootPath = root ? root->path : QString();
     m_root = std::move(root);
     endResetModel();
     armWatchers();
-    emit topLevelCountChanged();
+    Q_EMIT topLevelCountChanged();
 }
 
 /// 与磁盘对账，只对变化的行发信号。
@@ -174,16 +182,18 @@ void FileTreeModel::setRootPath(const QString &path)
 /// 被读取才会进监听列表，删除的目录要从列表里摘掉）。
 void FileTreeModel::refresh()
 {
-    if (!m_root)
+    if (!m_root) {
         return;
+    }
 
     const int topLevelBefore = topLevelCount();
     if (syncNode(m_root.get())) {
         armWatchers();
-        if (topLevelCount() != topLevelBefore)
-            emit topLevelCountChanged();
+        if (topLevelCount() != topLevelBefore) {
+            Q_EMIT topLevelCountChanged();
+        }
     }
-    emit refreshed();
+    Q_EMIT refreshed();
 }
 
 int FileTreeModel::topLevelCount() const
@@ -205,15 +215,17 @@ void FileTreeModel::fetchChildren(const QModelIndex &parent)
 
 FileTreeModel::Node *FileTreeModel::nodeForIndex(const QModelIndex &index) const
 {
-    if (!index.isValid())
+    if (!index.isValid()) {
         return nullptr;
+    }
     return static_cast<Node *>(index.internalPointer());
 }
 
 QModelIndex FileTreeModel::indexForNode(Node *node) const
 {
-    if (!node || !node->parent)
+    if (!node || !node->parent) {
         return QModelIndex();
+    }
     return createIndex(node->row, 0, node);
 }
 
@@ -226,11 +238,13 @@ QFileInfoList FileTreeModel::readSortedEntries(const QString &dirPath)
     // 目录在前 + 文件名大小写不敏感排序；同字母异大小写再按原序保证稳定。
     std::sort(entries.begin(), entries.end(),
               [](const QFileInfo &a, const QFileInfo &b) {
-                  if (a.isDir() != b.isDir())
+                  if (a.isDir() != b.isDir()) {
                       return a.isDir();
+                  }
                   const int cmp = a.fileName().compare(b.fileName(), Qt::CaseInsensitive);
-                  if (cmp != 0)
+                  if (cmp != 0) {
                       return cmp < 0;
+                  }
                   return a.fileName().compare(b.fileName()) < 0;
               });
     return entries;
@@ -252,8 +266,9 @@ std::unique_ptr<FileTreeModel::Node> FileTreeModel::makeChildNode(
 
 std::unique_ptr<FileTreeModel::Node> FileTreeModel::makeRootNode(const QString &path)
 {
-    if (path.isEmpty())
+    if (path.isEmpty()) {
         return nullptr;
+    }
     // 空串经 QDir 也可能被拼成非空（相对当前目录），必须在这里归零，
     // 否则无工作区时会指向进程当前目录。
     auto root = std::make_unique<Node>();
@@ -269,8 +284,9 @@ std::vector<std::unique_ptr<FileTreeModel::Node>> FileTreeModel::readChildNodes(
     const QFileInfoList entries = readSortedEntries(parent->path);
     std::vector<std::unique_ptr<Node>> children;
     children.reserve(entries.size());
-    for (const QFileInfo &entry : entries)
+    for (const QFileInfo &entry : entries) {
         children.push_back(makeChildNode(entry, parent));
+    }
     return children;
 }
 
@@ -284,45 +300,53 @@ void FileTreeModel::attachChildren(
 
 void FileTreeModel::renumberChildren(Node *node)
 {
-    for (size_t row = 0; row < node->children.size(); ++row)
+    for (size_t row = 0; row < node->children.size(); ++row) {
         node->children[row]->row = static_cast<int>(row);
+    }
 }
 
 void FileTreeModel::populateNode(Node *node)
 {
-    if (!node || !node->isDir || node->fetched)
+    if (!node || !node->isDir || node->fetched) {
         return;
+    }
     attachChildren(node, readChildNodes(node));
 }
 
 void FileTreeModel::fetchNode(Node *node)
 {
-    if (!node || !node->isDir || node->fetched)
+    if (!node || !node->isDir || node->fetched) {
         return;
+    }
 
     // 先读盘构造，再 begin/attach/end：构造期不动模型结构，
     // beginInsertRows 声明的行数与 attach 的行数严格一致。
     auto children = readChildNodes(node);
     const int count = static_cast<int>(children.size());
-    if (count > 0)
+    if (count > 0) {
         beginInsertRows(indexForNode(node), 0, count - 1);
+    }
     attachChildren(node, std::move(children));
-    if (count > 0)
+    if (count > 0) {
         endInsertRows();
-    if (node == m_root.get())
-        emit topLevelCountChanged();
+    }
+    if (node == m_root.get()) {
+        Q_EMIT topLevelCountChanged();
+    }
     armWatchers();
 }
 
 bool FileTreeModel::syncNode(Node *node)
 {
-    if (!node->isDir || !node->fetched)
+    if (!node->isDir || !node->fetched) {
         return false;
+    }
 
     bool changed = syncChildren(node);
     for (const std::unique_ptr<Node> &child : node->children) {
-        if (syncNode(child.get()))
+        if (syncNode(child.get())) {
             changed = true;
+        }
     }
     return changed;
 }
@@ -341,8 +365,9 @@ bool FileTreeModel::syncChildren(Node *node)
 
     QHash<QString, int> oldRowByName;
     oldRowByName.reserve(static_cast<int>(node->children.size()));
-    for (size_t row = 0; row < node->children.size(); ++row)
+    for (size_t row = 0; row < node->children.size(); ++row) {
         oldRowByName.insert(node->children[row]->name, static_cast<int>(row));
+    }
 
     std::vector<Node *> desired;
     std::vector<std::unique_ptr<Node>> fresh;
@@ -358,8 +383,9 @@ bool FileTreeModel::syncChildren(Node *node)
             Node *candidate = node->children[static_cast<size_t>(found.value())].get();
             // 类型变了（文件被换成同名目录之类）按「删一个插一个」处理，
             // 否则会把目录的子行挂到文件上。
-            if (candidate->isDir == entry.isDir())
+            if (candidate->isDir == entry.isDir()) {
                 reused = candidate;
+            }
             oldRowByName.erase(found);
         }
         if (reused) {
@@ -374,8 +400,9 @@ bool FileTreeModel::syncChildren(Node *node)
         fresh.push_back(std::move(child));
     }
 
-    if (fresh.empty() && survivors.size() == node->children.size())
+    if (fresh.empty() && survivors.size() == node->children.size()) {
         return false;
+    }
 
     const QModelIndex parentIndex = indexForNode(node);
 
@@ -406,8 +433,9 @@ bool FileTreeModel::syncChildren(Node *node)
             continue;
         }
         const size_t runStart = slot;
-        while (slot < desired.size() && desiredIsFresh[slot])
+        while (slot < desired.size() && desiredIsFresh[slot]) {
             ++slot;
+        }
         const size_t count = slot - runStart;
         beginInsertRows(parentIndex, static_cast<int>(childRow),
                         static_cast<int>(childRow + count - 1));
@@ -427,29 +455,35 @@ bool FileTreeModel::syncChildren(Node *node)
 
 void FileTreeModel::collectWatchedDirs(const Node *node, QStringList *out) const
 {
-    if (!node->isDir || !node->fetched)
+    if (!node->isDir || !node->fetched) {
         return;
+    }
     out->append(node->path);
-    for (const std::unique_ptr<Node> &child : node->children)
+    for (const std::unique_ptr<Node> &child : node->children) {
         collectWatchedDirs(child.get(), out);
+    }
 }
 
 void FileTreeModel::armWatchers()
 {
     // 全量重布防：扫描后目录集合变了（新增/删除），旧列表不可复用。
     const QStringList current = m_watcher.directories();
-    if (!current.isEmpty())
+    if (!current.isEmpty()) {
         m_watcher.removePaths(current);
-    if (!m_root)
+    }
+    if (!m_root) {
         return;
+    }
 
     QStringList watched;
     collectWatchedDirs(m_root.get(), &watched);
-    if (watched.isEmpty())
+    if (watched.isEmpty()) {
         return;
+    }
     const QStringList failed = m_watcher.addPaths(watched);
-    if (!failed.isEmpty())
+    if (!failed.isEmpty()) {
         qWarning() << "[tools] filesystem watcher failed to watch:" << failed;
+    }
 }
 
 } // namespace awb::tools

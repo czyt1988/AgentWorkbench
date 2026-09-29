@@ -11,10 +11,12 @@ FileTreeFlatModel::FileTreeFlatModel(QObject *parent)
 
 void FileTreeFlatModel::setSourceModel(FileTreeModel *model)
 {
-    if (m_source == model)
+    if (m_source == model) {
         return;
-    if (m_source)
+    }
+    if (m_source) {
         m_source->disconnect(this);
+    }
     m_source = model;
     if (model) {
         // 只听换根与「一次 refresh 结束」两个事实信号；refresh 过程中的
@@ -37,8 +39,9 @@ int FileTreeFlatModel::rowCount(const QModelIndex &parent) const
 
 QVariant FileTreeFlatModel::data(const QModelIndex &index, int role) const
 {
-    if (index.row() < 0 || index.row() >= static_cast<int>(m_rows.size()))
+    if (index.row() < 0 || index.row() >= static_cast<int>(m_rows.size())) {
         return {};
+    }
     const Row &row = m_rows.at(static_cast<size_t>(index.row()));
     switch (role) {
     case DepthRole:
@@ -83,8 +86,9 @@ QHash<int, QByteArray> FileTreeFlatModel::roleNames() const
 
 void FileTreeFlatModel::toggleExpanded(int row)
 {
-    if (row < 0 || row >= static_cast<int>(m_rows.size()))
+    if (row < 0 || row >= static_cast<int>(m_rows.size())) {
         return;
+    }
     const QModelIndex source = m_rows.at(static_cast<size_t>(row)).source;
     const int depth = m_rows.at(static_cast<size_t>(row)).depth;
     const bool wasExpanded =
@@ -93,8 +97,9 @@ void FileTreeFlatModel::toggleExpanded(int row)
         m_source->data(source, FileTreeModel::IsDirRole).toBool();
     const QString relPath =
         m_source->data(source, FileTreeModel::RelativePathRole).toString();
-    if (!isDir || relPath.isEmpty())
+    if (!isDir || relPath.isEmpty()) {
         return;
+    }
 
     if (!wasExpanded) {
         m_expandedPaths.insert(relPath);
@@ -120,7 +125,7 @@ void FileTreeFlatModel::toggleExpanded(int row)
         }
         // insert 可能重排 m_rows 的存储，展开位一律用下标回写。
         m_rows.at(static_cast<size_t>(row)).expanded = true;
-        emit dataChanged(index(row, 0), index(row, 0),
+        Q_EMIT dataChanged(index(row, 0), index(row, 0),
                          {ExpandedRole, HasChildrenRole});
     } else {
         // 收起是递归的：子树内所有目录的展开键一并清掉，再展开父级时
@@ -144,9 +149,9 @@ void FileTreeFlatModel::toggleExpanded(int row)
         }
         m_expandedPaths.remove(relPath);
         m_rows.at(static_cast<size_t>(row)).expanded = false;
-        emit dataChanged(index(row, 0), index(row, 0), {ExpandedRole});
+        Q_EMIT dataChanged(index(row, 0), index(row, 0), {ExpandedRole});
     }
-    emit visibleCountChanged();
+    Q_EMIT visibleCountChanged();
 }
 
 void FileTreeFlatModel::rebuild()
@@ -163,7 +168,7 @@ void FileTreeFlatModel::rebuild()
         }
     }
     endResetModel();
-    emit visibleCountChanged();
+    Q_EMIT visibleCountChanged();
 }
 
 void FileTreeFlatModel::appendExpanded(std::vector<Row> &out, const Row &row)
@@ -173,8 +178,9 @@ void FileTreeFlatModel::appendExpanded(std::vector<Row> &out, const Row &row)
         m_source->data(row.source, FileTreeModel::RelativePathRole).toString();
     const bool isDir =
         m_source->data(row.source, FileTreeModel::IsDirRole).toBool();
-    if (!isDir || !m_expandedPaths.contains(relPath))
+    if (!isDir || !m_expandedPaths.contains(relPath)) {
         return;
+    }
     // 展开键跨 refresh 保留；目录可能还没读过盘，投影前先兜底 fetch。
     m_source->fetchChildren(row.source);
     out.back().expanded = true;

@@ -33,7 +33,7 @@ public:
     // Rescan built-ins + the user directory (also re-arms the watchers).
     void refresh();
 
-signals:
+Q_SIGNALS:
     // A theme file changed on disk (or was added/removed).
     void changed();
 

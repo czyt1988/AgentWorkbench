@@ -26,12 +26,14 @@ AgentHealthMonitor::AgentHealthMonitor(AgentModel *model, int intervalMs,
                 const QList<AgentDefinition> &definitions =
                     m_model->definitions();
                 for (const AgentDefinition &d : definitions) {
-                    if (d.webUrl != url)
+                    if (d.webUrl != url) {
                         continue;
+                    }
                     const bool was = m_lastRunning.value(d.id, !up);
                     m_lastRunning.insert(d.id, up);
-                    if (up != was)
-                        emit runningChanged(d.id, up);
+                    if (up != was) {
+                        Q_EMIT runningChanged(d.id, up);
+                    }
                 }
             });
 }
@@ -52,13 +54,15 @@ void AgentHealthMonitor::checkAll()
     const QList<AgentDefinition> &definitions = m_model->definitions();
     QSet<QString> issued; // one request per URL within this round
     for (const AgentDefinition &d : definitions) {
-        if (d.webUrl.isEmpty())
+        if (d.webUrl.isEmpty()) {
             continue;
+        }
         // In-flight from a previous round: skip — its pending answer is the
         // freshest possible for this URL, and re-issuing would let the older
         // reply land last and flip the card wrongly.
-        if (m_inflight.contains(d.webUrl) || issued.contains(d.webUrl))
+        if (m_inflight.contains(d.webUrl) || issued.contains(d.webUrl)) {
             continue;
+        }
         issued.insert(d.webUrl);
         m_inflight.insert(d.webUrl);
         m_probe->probe(d.webUrl);

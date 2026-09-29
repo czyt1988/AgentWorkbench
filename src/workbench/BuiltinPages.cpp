@@ -101,8 +101,9 @@ void BuiltinPages::wireBadges()
             m_agents->agentModel()->definitions();
         int running = 0;
         for (const awb::agentcatalog::AgentDefinition &d : definitions) {
-            if (m_agents->agentModel()->state(d.id).running)
+            if (m_agents->agentModel()->state(d.id).running) {
                 ++running;
+            }
         }
         m_nav->setBadge(QStringLiteral("agents"),
                         running > 0 ? QString::number(running) : QString());
@@ -112,8 +113,9 @@ void BuiltinPages::wireBadges()
     connect(model, &awb::agentcatalog::AgentModel::dataChanged, this,
             [update](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
                 if (roles.isEmpty()
-                    || roles.contains(awb::agentcatalog::AgentModel::RunningRole))
+                    || roles.contains(awb::agentcatalog::AgentModel::RunningRole)) {
                     update();
+                }
             });
     connect(model, &awb::agentcatalog::AgentModel::rowsInserted, this, update);
     connect(model, &awb::agentcatalog::AgentModel::rowsRemoved, this, update);
@@ -127,10 +129,12 @@ void BuiltinPages::wireWebRules()
     // notice becomes a toast.
     connect(m_agents, &agentcatalog::AgentsFacade::runningChanged, this,
             [this](const QString &id, bool running) {
-                if (running)
+                if (running) {
                     m_web->markOnlineForAgent(id);
-                else
+                }
+                else {
                     m_web->markOfflineForAgent(id);
+                }
             });
     connect(m_agents, &agentcatalog::AgentsFacade::agentRemoved, this,
             [this](const QString &id) { m_web->closeTabsForAgent(id); });
@@ -168,13 +172,15 @@ void BuiltinPages::wirePagePersistence()
     // Restore the last visited page once and
     // persist every switch.
     const QString last = m_shell->lastPageId();
-    if (!last.isEmpty())
+    if (!last.isEmpty()) {
         m_nav->setCurrentPageId(last);
+    }
 
     connect(m_nav, &shell::NavigationModel::currentPageChanged, this,
             [this]() {
-                if (!m_nav->currentPageId().isEmpty())
+                if (!m_nav->currentPageId().isEmpty()) {
                     m_shell->setLastPageId(m_nav->currentPageId());
+                }
             });
 }
 

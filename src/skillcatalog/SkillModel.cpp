@@ -3,6 +3,7 @@
 #include <QLocale> // (kept for future collator use)
 
 #include <algorithm>
+#include <utility>
 
 namespace awb::skillcatalog {
 
@@ -13,15 +14,17 @@ SkillModel::SkillModel(QObject *parent)
 
 int SkillModel::rowCount(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid()) {
         return 0;
+    }
     return m_visible.size();
 }
 
 QVariant SkillModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() < 0 || index.row() >= m_visible.size())
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_visible.size()) {
         return {};
+    }
     const SkillDefinition &skill = m_visible.at(index.row());
     switch (role) {
     case SkillIdRole: return skill.skillFilePath;
@@ -66,40 +69,44 @@ void SkillModel::setSkills(const QList<SkillDefinition> &skills)
     // 短路：一次 modelReset 会让 QML 销毁并重建整页卡片（151 个 skill
     // 实测约 2 s 的 GUI 冻结），而内容没有任何变化。只有真变化才走
     // refilter + reset 的重建路径。
-    if (m_all == skills)
+    if (m_all == skills) {
         return;
+    }
     m_all = skills;
     refilter();
-    emit countChanged();
+    Q_EMIT countChanged();
 }
 
 void SkillModel::setSearchText(const QString &text)
 {
-    if (m_searchText == text)
+    if (m_searchText == text) {
         return;
+    }
     m_searchText = text;
     refilter();
-    emit filterChanged();
-    emit countChanged();
+    Q_EMIT filterChanged();
+    Q_EMIT countChanged();
 }
 
 void SkillModel::setActiveKinds(const QStringList &kinds)
 {
-    if (m_activeKinds == kinds)
+    if (m_activeKinds == kinds) {
         return;
+    }
     m_activeKinds = kinds;
     refilter();
-    emit filterChanged();
-    emit countChanged();
+    Q_EMIT filterChanged();
+    Q_EMIT countChanged();
 }
 
 void SkillModel::setSortMode(const QString &mode)
 {
-    if (m_sortMode == mode)
+    if (m_sortMode == mode) {
         return;
+    }
     m_sortMode = mode;
     refilter();
-    emit filterChanged();
+    Q_EMIT filterChanged();
 }
 
 void SkillModel::refilter()
@@ -111,32 +118,35 @@ void SkillModel::refilter()
     const QSet<QString> kinds = QSet<QString>(m_activeKinds.begin(),
                                               m_activeKinds.end());
 
-    for (const SkillDefinition &skill : m_all) {
-        if (!kinds.isEmpty() && !kinds.contains(skill.kind))
+    for (const SkillDefinition &skill : std::as_const(m_all)) {
+        if (!kinds.isEmpty() && !kinds.contains(skill.kind)) {
             continue;
+        }
         if (!needle.isEmpty()) {
             const bool matches =
                 skill.name.toLower().contains(needle)
                 || skill.description.toLower().contains(needle)
                 || skill.dirPath.toLower().contains(needle);
-            if (!matches)
+            if (!matches) {
                 continue;
+            }
         }
         filtered.append(skill);
     }
 
     // Sorting: name (locale-aware), most recently modified first,
     // or grouped by source kind then name.
-    if (m_sortMode == QLatin1String("modified")) {
+    if (m_sortMode == QStringLiteral("modified")) {
         std::sort(filtered.begin(), filtered.end(),
                   [](const SkillDefinition &a, const SkillDefinition &b) {
                       return a.lastModified > b.lastModified;
                   });
-    } else if (m_sortMode == QLatin1String("kind")) {
+    } else if (m_sortMode == QStringLiteral("kind")) {
         std::sort(filtered.begin(), filtered.end(),
                   [](const SkillDefinition &a, const SkillDefinition &b) {
-                      if (a.kind != b.kind)
+                      if (a.kind != b.kind) {
                           return a.kind < b.kind;
+                      }
                       return QString::localeAwareCompare(a.name, b.name) < 0;
                   });
     } else {

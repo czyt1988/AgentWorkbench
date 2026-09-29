@@ -20,52 +20,58 @@ WebTab::WebTab(const QString &id, const QString &agentId, const QUrl &url,
 
 void WebTab::setUrl(const QUrl &url)
 {
-    if (m_url == url)
+    if (m_url == url) {
         return;
+    }
     m_url = url;
-    emit urlChanged();
+    Q_EMIT urlChanged();
 }
 
 void WebTab::setTitle(const QString &title)
 {
-    if (m_title == title)
+    if (m_title == title) {
         return;
+    }
     m_title = title;
-    emit titleChanged();
+    Q_EMIT titleChanged();
 }
 
 void WebTab::setState(const QString &state)
 {
-    if (m_state == state)
+    if (m_state == state) {
         return;
+    }
     m_state = state;
-    emit stateChanged();
+    Q_EMIT stateChanged();
 }
 
 void WebTab::setLoadProgress(int progress)
 {
     progress = qBound(0, progress, 100);
-    if (m_loadProgress == progress)
+    if (m_loadProgress == progress) {
         return;
+    }
     m_loadProgress = progress;
-    emit loadProgressChanged();
+    Q_EMIT loadProgressChanged();
 }
 
 void WebTab::setLastError(const QString &error)
 {
-    if (m_lastError == error)
+    if (m_lastError == error) {
         return;
+    }
     m_lastError = error;
-    emit lastErrorChanged();
+    Q_EMIT lastErrorChanged();
 }
 
 void WebTab::setZoom(double zoom)
 {
     zoom = qBound(0.5, zoom, 2.0);
-    if (qFuzzyCompare(m_zoom, zoom))
+    if (qFuzzyCompare(m_zoom, zoom)) {
         return;
+    }
     m_zoom = zoom;
-    emit zoomChanged();
+    Q_EMIT zoomChanged();
 }
 
 } // namespace awb::web

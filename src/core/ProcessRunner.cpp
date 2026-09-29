@@ -15,8 +15,9 @@ namespace awb::core {
 
 QString ProcessRunner::findExecutable(const QString &program)
 {
-    if (program.isEmpty())
+    if (program.isEmpty()) {
         return QString();
+    }
     // findExecutable searches PATH and, on Windows, appends the PATHEXT
     // extensions (.exe/.cmd/.bat/...), which is exactly what is needed to
     // resolve npm-style shims like "qwen" -> "qwen.cmd".
@@ -30,8 +31,9 @@ bool ProcessRunner::startDetached(const QString &program, const QStringList &arg
                                   const QString &outputFile)
 {
     if (program.isEmpty()) {
-        if (error)
+        if (error) {
             *error = QStringLiteral("program is empty");
+        }
         return false;
     }
 
@@ -40,18 +42,21 @@ bool ProcessRunner::startDetached(const QString &program, const QStringList &arg
     // its own does not try those extensions.
     const QString resolved = findExecutable(program);
     if (resolved.isEmpty()) {
-        if (error)
+        if (error) {
             *error = QStringLiteral("'%1' is not on PATH").arg(program);
+        }
         return false;
     }
 
     QProcess proc;
     proc.setProgram(resolved);
     proc.setArguments(args);
-    if (!workingDirectory.isEmpty())
+    if (!workingDirectory.isEmpty()) {
         proc.setWorkingDirectory(workingDirectory);
-    if (!env.isEmpty())
+    }
+    if (!env.isEmpty()) {
         proc.setProcessEnvironment(env);
+    }
     if (!outputFile.isEmpty()) {
         // The member startDetached() honors channel setup (the static
         // overload does not): merge stderr into stdout and redirect both.
@@ -61,10 +66,12 @@ bool ProcessRunner::startDetached(const QString &program, const QStringList &arg
 
     qint64 outPid = 0;
     const bool ok = proc.startDetached(&outPid);
-    if (ok && pid)
+    if (ok && pid) {
         *pid = outPid;
-    if (!ok && error)
+    }
+    if (!ok && error) {
         *error = proc.errorString();
+    }
     return ok;
 }
 
@@ -169,23 +176,27 @@ QStringList ProcessRunner::splitCommand(const QString &command)
             tokenStarted = true;
         }
     }
-    if (quoteCount % 2 != 0)
+    if (quoteCount % 2 != 0) {
         return {};
-    if (tokenStarted)
+    }
+    if (tokenStarted) {
         tokens.append(current);
+    }
     return tokens;
 #endif
 }
 
 QString ProcessRunner::decodeOutput(const QByteArray &data)
 {
-    if (data.isEmpty())
+    if (data.isEmpty()) {
         return {};
+    }
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QStringDecoder decoder(QStringDecoder::Utf8);
     const QString result = decoder.decode(data);
-    if (!decoder.hasError())
+    if (!decoder.hasError()) {
         return result;
+    }
 #else
     // QTextDecoder::toUnicode 带 ConverterState，invalidChars 记录非法序列数，
     // 与 QStringDecoder::hasError 的判据等价。
@@ -193,8 +204,9 @@ QString ProcessRunner::decodeOutput(const QByteArray &data)
     const QString result = QTextCodec::codecForName("UTF-8")
                                ->toUnicode(data.constData(), data.size(),
                                            &state);
-    if (state.invalidChars == 0)
+    if (state.invalidChars == 0) {
         return result;
+    }
 #endif
     return QString::fromLocal8Bit(data);
 }

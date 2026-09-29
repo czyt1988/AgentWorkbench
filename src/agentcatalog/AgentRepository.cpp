@@ -11,6 +11,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <utility>
 
 namespace awb::agentcatalog {
 
@@ -40,8 +41,9 @@ QJsonObject definitionObject(const AgentDefinition &a)
 QJsonArray definitionsArray(const QList<AgentDefinition> &agents)
 {
     QJsonArray arr;
-    for (const AgentDefinition &a : agents)
+    for (const AgentDefinition &a : agents) {
         arr.append(definitionObject(a));
+    }
     return arr;
 }
 
@@ -65,8 +67,9 @@ void AgentRepository::load()
     QByteArray data;
     {
         QFile file(configFilePath());
-        if (file.open(QIODevice::ReadOnly))
+        if (file.open(QIODevice::ReadOnly)) {
             data = file.readAll();
+        }
     }
     if (!data.isEmpty()) {
         m_definitions = parse(data);
@@ -100,8 +103,9 @@ void AgentRepository::load()
     // either change is persisted, which keeps the on-disk file matching what
     // the UI shows.
     const bool colorsAssigned = assignPaletteColors();
-    if (changed || colorsAssigned)
+    if (changed || colorsAssigned) {
         save();
+    }
 }
 
 bool AgentRepository::save()
@@ -117,16 +121,18 @@ bool AgentRepository::save()
     if (m_removedIds.isEmpty()
         && definitionsArray(m_definitions) == definitionsArray(defaults)) {
         QFile bundled(QStringLiteral(":/config/default_agents.json"));
-        if (bundled.open(QIODevice::ReadOnly))
+        if (bundled.open(QIODevice::ReadOnly)) {
             return core::JsonStore::writeBytes(path, bundled.readAll()).ok;
+        }
     }
 
     QJsonObject root;
     root[QStringLiteral("agents")] = definitionsArray(m_definitions);
     if (!m_removedIds.isEmpty()) {
         QJsonArray removed;
-        for (const QString &id : m_removedIds)
+        for (const QString &id : std::as_const(m_removedIds)) {
             removed.append(id);
+        }
         root[QStringLiteral("removed")] = removed;
     }
 
@@ -153,8 +159,9 @@ QList<AgentDefinition> AgentRepository::parse(const QByteArray &data)
     const QJsonDocument doc = QJsonDocument::fromJson(data);
     const QJsonObject root = doc.object();
     const QJsonArray removed = root.value(QStringLiteral("removed")).toArray();
-    for (const QJsonValue &v : removed)
+    for (const QJsonValue &v : removed) {
         m_removedIds.append(v.toString());
+    }
     const QJsonArray arr = root.value(QStringLiteral("agents")).toArray();
     for (const QJsonValue &v : arr) {
         const QJsonObject o = v.toObject();
@@ -187,8 +194,9 @@ QList<AgentDefinition> AgentRepository::withBuiltinDefaults(
     result.reserve(defaults.size() + current.size());
     for (const AgentDefinition &def : defaults) {
         // Deleted in the Settings page — stays deleted.
-        if (removedIds.contains(def.id))
+        if (removedIds.contains(def.id)) {
             continue;
+        }
         result.append(def);
     }
 
@@ -197,8 +205,9 @@ QList<AgentDefinition> AgentRepository::withBuiltinDefaults(
         const bool builtin = std::any_of(
             defaults.cbegin(), defaults.cend(),
             [&](const AgentDefinition &def) { return def.id == a.id; });
-        if (!builtin)
+        if (!builtin) {
             result.append(a);
+        }
     }
     return result;
 }
@@ -221,8 +230,9 @@ QString AgentRepository::paletteColorFor(int index) const
 {
     // Prefer the current theme's agentPalette; fall back to the built-in
     // Mocha array.
-    if (m_agentPalette.isEmpty())
+    if (m_agentPalette.isEmpty()) {
         return paletteColorAt(index);
+    }
     const int size = m_agentPalette.size();
     return m_agentPalette.at(((index % size) + size) % size);
 }
@@ -260,8 +270,9 @@ QString AgentRepository::resolveIcon(const QString &raw)
 QList<AgentDefinition> AgentRepository::loadDefaults()
 {
     QFile def(QStringLiteral(":/config/default_agents.json"));
-    if (!def.open(QIODevice::ReadOnly))
+    if (!def.open(QIODevice::ReadOnly)) {
         return {};
+    }
     return AgentRepository(QString()).parse(def.readAll());
 }
 
@@ -269,8 +280,9 @@ QStringList AgentRepository::defaultAgentIds()
 {
     QStringList ids;
     const QList<AgentDefinition> defaults = loadDefaults();
-    for (const AgentDefinition &a : defaults)
+    for (const AgentDefinition &a : defaults) {
         ids.append(a.id);
+    }
     return ids;
 }
 
@@ -280,12 +292,15 @@ QString AgentRepository::slugFromName(const QString &name)
     s.remove(QRegularExpression(QStringLiteral("[^a-z0-9\\s_-]")));
     s.replace(QRegularExpression(QStringLiteral("[\\s_]+")), QStringLiteral("-"));
     s.replace(QRegularExpression(QStringLiteral("-+")), QStringLiteral("-"));
-    while (s.startsWith(QLatin1Char('-')))
+    while (s.startsWith(QLatin1Char('-'))) {
         s.remove(0, 1);
-    while (s.endsWith(QLatin1Char('-')))
+    }
+    while (s.endsWith(QLatin1Char('-'))) {
         s.chop(1);
-    if (s.isEmpty())
+    }
+    if (s.isEmpty()) {
         s = QStringLiteral("agent");
+    }
     return s;
 }
 

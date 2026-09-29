@@ -82,7 +82,7 @@ public:
     // maintenance.
     Q_INVOKABLE QString kindLabel(const QString &kind) const;
 
-signals:
+Q_SIGNALS:
     void scanningChanged();
     void statsChanged();
     void rootsChanged();

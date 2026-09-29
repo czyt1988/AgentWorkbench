@@ -24,31 +24,36 @@ UiServices::UiServices(QObject *parent)
 
 core::OpResult UiServices::copyText(const QString &text)
 {
-    if (text.isEmpty())
+    if (text.isEmpty()) {
         return core::OpResult::failure(tr("Nothing to copy."));
+    }
     QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard)
+    if (!clipboard) {
         return core::OpResult::failure(tr("The clipboard is not available."));
+    }
     clipboard->setText(text);
     return core::OpResult::success();
 }
 
 core::OpResult UiServices::openExternalUrl(const QUrl &url)
 {
-    if (!url.isValid() || url.isEmpty())
+    if (!url.isValid() || url.isEmpty()) {
         return core::OpResult::failure(tr("Invalid URL."));
-    if (!QDesktopServices::openUrl(url))
+    }
+    if (!QDesktopServices::openUrl(url)) {
         return core::OpResult::failure(
             tr("No application accepted %1.").arg(url.toString()));
+    }
     return core::OpResult::success();
 }
 
 core::OpResult UiServices::revealFile(const QString &path)
 {
     const QFileInfo info(path);
-    if (!info.exists())
+    if (!info.exists()) {
         return core::OpResult::failure(
             tr("The path does not exist: %1").arg(path));
+    }
 
 #ifdef Q_OS_WIN
     // explorer /select,<path> highlights the file in its folder.
@@ -56,8 +61,9 @@ core::OpResult UiServices::revealFile(const QString &path)
     qint64 pid = 0;
     if (!QProcess::startDetached(QStringLiteral("explorer"),
                                  {QStringLiteral("/select,") + native},
-                                 QString(), &pid))
+                                 QString(), &pid)) {
         return core::OpResult::failure(tr("Could not open the file manager."));
+    }
     return core::OpResult::success();
 #else
     return openFolder(info.absolutePath());
@@ -67,12 +73,14 @@ core::OpResult UiServices::revealFile(const QString &path)
 core::OpResult UiServices::openFolder(const QString &path)
 {
     const QFileInfo info(path);
-    if (!info.exists() || !info.isDir())
+    if (!info.exists() || !info.isDir()) {
         return core::OpResult::failure(
             tr("Not a directory: %1").arg(path));
-    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath())))
+    }
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
         return core::OpResult::failure(
             tr("Could not open the folder: %1").arg(path));
+    }
     return core::OpResult::success();
 }
 
@@ -96,13 +104,15 @@ QString UiServices::pickFolder(const QString &title)
     DWORD options = 0;
     dialog->GetOptions(&options);
     dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
-    if (!title.isEmpty())
+    if (!title.isEmpty()) {
         dialog->SetTitle(reinterpret_cast<const wchar_t *>(title.utf16()));
+    }
 
     HWND parent = nullptr;
     const QWindowList windows = QGuiApplication::topLevelWindows();
-    if (!windows.isEmpty())
+    if (!windows.isEmpty()) {
         parent = reinterpret_cast<HWND>(windows.constFirst()->winId());
+    }
 
     QString result;
     hr = dialog->Show(parent);

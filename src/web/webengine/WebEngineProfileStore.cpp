@@ -14,8 +14,9 @@ WebEngineProfileStore::WebEngineProfileStore(QObject *parent)
 QQuickWebEngineProfile *WebEngineProfileStore::createProfile(const QString &agentId)
 {
     const auto it = m_profiles.constFind(agentId);
-    if (it != m_profiles.constEnd())
+    if (it != m_profiles.constEnd()) {
         return it.value();
+    }
 
     // Unlike the core QWebEngineProfile (name fixed at construction), the
     // Quick profile still has setStorageName — either way both properties

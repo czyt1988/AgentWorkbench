@@ -31,8 +31,9 @@ void SkillScanner::setRootEnabled(const QString &id, bool enabled)
         m_roots.isEmpty() ? SkillRoots::defaults() : m_roots;
     QJsonArray array;
     for (SkillRoot root : current) {
-        if (root.id == id)
+        if (root.id == id) {
             root.enabled = enabled;
+        }
         QJsonObject o;
         o[QStringLiteral("id")] = root.id;
         o[QStringLiteral("label")] = root.label;
@@ -48,8 +49,9 @@ void SkillScanner::setRootEnabled(const QString &id, bool enabled)
 
 void SkillScanner::refresh()
 {
-    if (m_scanning)
+    if (m_scanning) {
         return;
+    }
 
     // Worker 的输入是值类型快照：Settings 是 QObject，必须留在 GUI 线程，
     // 所以这里先把它读成 SkillScanParams 再交给线程池。
@@ -65,8 +67,8 @@ void SkillScanner::refresh()
     params.includePluginCaches = options.includePluginCaches;
 
     m_scanning = true;
-    emit scanningChanged();
-    emit scanStarted();
+    Q_EMIT scanningChanged();
+    Q_EMIT scanStarted();
 
     // QFutureWatcher 的 finished 回到发起线程（GUI）：结果落地、状态复位
     // 都在这里做；watcher 以 this 为 parent，应用退出时不会泄漏。
@@ -76,7 +78,7 @@ void SkillScanner::refresh()
                 const SkillScanTask::Result result = watcher->result();
                 watcher->deleteLater();
                 m_scanning = false;
-                emit scanningChanged();
+                Q_EMIT scanningChanged();
                 applyResults(result.definitions, result.stats);
                 qInfo().noquote() << QStringLiteral(
                     "SkillScanner: found %1 skill(s) in %2 root(s), %3 "
@@ -97,13 +99,14 @@ void SkillScanner::refresh()
                                                  SkillCache::save(
                                                      result.definitions,
                                                      result.stats);
-                                             if (!saved.ok)
+                                             if (!saved.ok) {
                                                  qWarning().noquote()
                                                      << QStringLiteral(
                                                          "SkillScanner: could "
                                                          "not persist the "
                                                          "skill cache: %1")
                                                          .arg(saved.error);
+                                             }
                                              return result;
                                          }));
 }
@@ -119,7 +122,7 @@ void SkillScanner::applyResults(const QList<SkillDefinition> &definitions,
 {
     m_definitions = definitions;
     m_lastStats = stats;
-    emit scanFinished();
+    Q_EMIT scanFinished();
 }
 
 } // namespace awb::skillcatalog

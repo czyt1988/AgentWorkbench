@@ -24,8 +24,9 @@ void AgentStateStore::load()
     for (auto it = root.begin(); it != root.end(); ++it) {
         if (it.value().isObject()
             && it.value().toObject()
-                   .value(QStringLiteral("setupDone")).toBool())
+                   .value(QStringLiteral("setupDone")).toBool()) {
             m_setupDone.insert(it.key(), true);
+        }
     }
 }
 
@@ -41,8 +42,9 @@ bool AgentStateStore::markSetupDone(const QString &id)
     agentState[QStringLiteral("setupDone")] = true;
     root[id] = agentState;
 
-    if (!core::JsonStore::writeFile(stateFilePath(), root).ok)
+    if (!core::JsonStore::writeFile(stateFilePath(), root).ok) {
         return false;
+    }
     m_setupDone.insert(id, true);
     return true;
 }
@@ -51,13 +53,15 @@ bool AgentStateStore::reset(const QString &id)
 {
     // A missing file means nothing has been recorded — nothing to clear
     // (the caller stays silent, as 0.3.0 did).
-    if (!QFile::exists(stateFilePath()))
+    if (!QFile::exists(stateFilePath())) {
         return false;
+    }
 
     QJsonObject root = core::JsonStore::readFile(stateFilePath());
     root.remove(id); // no-op when the id was never recorded
-    if (!core::JsonStore::writeFile(stateFilePath(), root).ok)
+    if (!core::JsonStore::writeFile(stateFilePath(), root).ok) {
         return false;
+    }
     m_setupDone.remove(id);
     return true;
 }

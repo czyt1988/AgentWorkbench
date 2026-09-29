@@ -43,18 +43,24 @@ const char *const kLoggerName = "agentworkbench";
 // 清单）→ spdlog 级别；未知名字返回 false，调用方按默认处理。
 bool parseLevelName(const QString &name, spdlog::level::level_enum &out)
 {
-    if (name == QStringLiteral("debug"))
+    if (name == QStringLiteral("debug")) {
         out = spdlog::level::debug;
-    else if (name == QStringLiteral("info"))
+    }
+    else if (name == QStringLiteral("info")) {
         out = spdlog::level::info;
-    else if (name == QStringLiteral("warning"))
+    }
+    else if (name == QStringLiteral("warning")) {
         out = spdlog::level::warn;
-    else if (name == QStringLiteral("critical"))
+    }
+    else if (name == QStringLiteral("critical")) {
         out = spdlog::level::critical;
-    else if (name == QStringLiteral("off"))
+    }
+    else if (name == QStringLiteral("off")) {
         out = spdlog::level::off;
-    else
+    }
+    else {
         return false;
+    }
     return true;
 }
 
@@ -114,14 +120,16 @@ private:
     // 文件顶成 .1 → 重开。单文件模式没有滚动目标，直接截断。
     void rotateIfNeeded()
     {
-        if (m_size < m_maxFileSize)
+        if (m_size < m_maxFileSize) {
             return;
+        }
 
         m_file.close();
         if (m_maxFiles > 1) {
             QFile::remove(backupPath(m_maxFiles - 1));
-            for (int i = m_maxFiles - 2; i >= 1; --i)
+            for (int i = m_maxFiles - 2; i >= 1; --i) {
                 QFile::rename(backupPath(i), backupPath(i + 1));
+            }
             QFile::rename(m_path, backupPath(1));
         }
         m_file.open(toFilename(m_path), /*truncate=*/m_maxFiles <= 1);
@@ -172,8 +180,9 @@ spdlog::level::level_enum toSpdlogLevel(QtMsgType type)
 void teardownBackend()
 {
     s_flusher.reset();
-    if (s_logger)
+    if (s_logger) {
         s_logger->flush();
+    }
     s_logger.reset();
     s_fileSink.reset();
     s_stderrSink.reset();
@@ -210,8 +219,9 @@ void buildBackend()
 
     // 一个 sink 都没有（文件打不开且不镜像 stderr）：不建 logger，让
     // handler 的 stderr 直写分支兜底——错误状况下的可见性优先于镜像开关。
-    if (sinks.empty())
+    if (sinks.empty()) {
         return;
+    }
 
     try {
         s_pool = std::make_shared<spdlog::details::thread_pool>(kQueueCapacity,
@@ -228,8 +238,9 @@ void buildBackend()
         s_logger->flush_on(spdlog::level::warn);
         s_flusher = std::make_unique<spdlog::details::periodic_worker>(
             [] {
-                if (s_logger)
+                if (s_logger) {
                     s_logger->flush();
+                }
             },
             kFlushInterval);
     } catch (const std::exception &e) {
@@ -248,8 +259,9 @@ void buildBackend()
 // @return true = 已写盘；false = 后端不可用或写失败（调用方退回入队路径）
 bool writeFatalNow(spdlog::string_view_t payload)
 {
-    if (!s_fileSink && !s_stderrSink)
+    if (!s_fileSink && !s_stderrSink) {
         return false;
+    }
     try {
         const spdlog::details::log_msg msg(kLoggerName, spdlog::level::critical,
                                            payload);
@@ -299,9 +311,10 @@ void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles
 
     buildBackend();
 
-    if (hasBadLevel)
+    if (hasBadLevel) {
         qWarning().noquote() << QStringLiteral(
             "AgentWorkbench: unknown log level \"%1\"; using debug").arg(level);
+    }
 
     qInfo().noquote() << QStringLiteral(
                              "AgentWorkbench: logging started → %1 "
@@ -319,8 +332,9 @@ void Logging::uninstall()
 
 QString Logging::logFilePath()
 {
-    if (s_logPath.isEmpty())
+    if (s_logPath.isEmpty()) {
         return {};
+    }
     return s_logPath + QLatin1Char('/') + QStringLiteral("agentworkbench.log");
 }
 
@@ -353,8 +367,9 @@ void Logging::messageHandler(QtMsgType type,
 {
     // 级别过滤放在最前：被过滤的消息连行都不用拼。spdlog 的级别序是数值
     // 越大越严重，低于阈值的直接丢弃（off = 全部丢弃）。
-    if (static_cast<int>(toSpdlogLevel(type)) < static_cast<int>(s_minLevel))
+    if (static_cast<int>(toSpdlogLevel(type)) < static_cast<int>(s_minLevel)) {
         return;
+    }
 
     const char *level = "DEBUG";
     switch (type) {
@@ -371,15 +386,17 @@ void Logging::messageHandler(QtMsgType type,
 
     // 分类前缀（awb.agents、awb.theme…）用于按模块过滤；Qt 默认分类不写。
     QString category;
-    if (context.category && qstrcmp(context.category, "default") != 0)
+    if (context.category && qstrcmp(context.category, "default") != 0) {
         category = QStringLiteral(" [") + QString::fromLatin1(context.category)
                    + QLatin1Char(']');
+    }
 
     // 源码位置（file:line）；QT_MESSAGELOGCONTEXT 已在构建期全局开启，
     // release 下同样有值。
     QString location;
-    if (context.file)
+    if (context.file) {
         location = QStringLiteral(" [%1:%2]").arg(context.file).arg(context.line);
+    }
 
     const QString line = QStringLiteral("[%1] [%2]%3%4 %5")
                              .arg(timestamp)
@@ -394,8 +411,9 @@ void Logging::messageHandler(QtMsgType type,
     // QtFatalMsg 同步直写：fatal 之后 Qt 会终止进程，队列里的这条来不及
     // 消费。代价是这行可能排到已入队日志的前面（sink 带互斥，不会撕行），
     // 换来最后一行不丢。
-    if (type == QtFatalMsg && writeFatalNow(payload))
+    if (type == QtFatalMsg && writeFatalNow(payload)) {
         return;
+    }
 
     if (s_logger) {
         // 队列侧的 log_msg_buffer 会把 payload 拷进自己的缓冲，utf8 在

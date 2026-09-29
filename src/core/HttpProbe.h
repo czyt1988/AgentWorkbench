@@ -32,7 +32,7 @@ public:
     // (80/443) when absent, -1 when unparseable.
     static int portFromUrl(const QString &url);
 
-signals:
+Q_SIGNALS:
     void finished(const QString &url, bool reachable);
 
 private:

@@ -15,7 +15,7 @@ class TestToolsStore : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -70,8 +70,9 @@ private slots:
     {
         ToolsStore store(Paths::dataRoot());
         store.load();
-        for (int i = 0; i < ToolsStore::kMaxWorkspaces + 5; ++i)
+        for (int i = 0; i < ToolsStore::kMaxWorkspaces + 5; ++i) {
             store.addWorkspace(QStringLiteral("/w/%1").arg(i));
+        }
 
         // 最早加入的 5 个被淘汰；队首是最后触碰的 19 号。
         QCOMPARE(store.workspaces().size(), ToolsStore::kMaxWorkspaces);

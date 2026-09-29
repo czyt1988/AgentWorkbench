@@ -72,8 +72,9 @@ AgentRuntime::AgentRuntime(AgentModel *model, QObject *parent)
     m_sessionUrlTimer.setSingleShot(false);
     connect(&m_sessionUrlTimer, &QTimer::timeout, this, [this]() {
         const QList<QString> ids = m_sessionUrlWatch.keys();
-        for (const QString &id : ids)
+        for (const QString &id : ids) {
             watchSessionUrl(id);
+        }
     });
 }
 
@@ -93,7 +94,7 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     if (parts.isEmpty()) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("skipped, the startup command is empty"));
-        emit launchFailed(id, tr("Startup command is empty."));
+        Q_EMIT launchFailed(id, tr("Startup command is empty."));
         return;
     }
 
@@ -113,7 +114,7 @@ void AgentRuntime::launch(const AgentDefinition &definition,
                     QStringLiteral("cannot resolve '%1' on PATH "
                                    "(configured command: %2)")
                         .arg(program, definition.command));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
@@ -172,7 +173,7 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     if (!ok) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("failed to start: %1").arg(startError));
-        emit launchFailed(id, tr("Failed to start '%1'.").arg(program));
+        Q_EMIT launchFailed(id, tr("Failed to start '%1'.").arg(program));
         return;
     }
 
@@ -185,8 +186,9 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     if (!definition.webUrl.isEmpty()) {
         m_sessionUrlWatch.insert(id, {definition.webUrl, definition.tokenFile,
                                       kSessionUrlTicks});
-        if (!m_sessionUrlTimer.isActive())
+        if (!m_sessionUrlTimer.isActive()) {
             m_sessionUrlTimer.start();
+        }
     }
 
     // Mark the card as "launching" so the action button shows a spinner until
@@ -196,8 +198,9 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     const int epoch = ++m_launchEpoch[id];
     m_model->setLaunching(id, true);
     QTimer::singleShot(30000, this, [this, id, epoch]() {
-        if (m_launchEpoch.value(id) == epoch)
+        if (m_launchEpoch.value(id) == epoch) {
             m_model->setLaunching(id, false);
+        }
     });
 
     // Re-check shortly so the card flips to running fast.
@@ -214,7 +217,7 @@ bool AgentRuntime::stop(const QString &id)
         cmdLogError(QStringLiteral("stop"), id,
                     QStringLiteral("no PID tracked in this launcher session, "
                                    "nothing to kill"));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return false;
     }
 
@@ -233,7 +236,7 @@ bool AgentRuntime::stop(const QString &id)
     if (!ok) {
         cmdLogError(QStringLiteral("stop"), id,
                     QStringLiteral("failed to kill pid %1").arg(pid));
-        emit launchFailed(id, tr("Failed to stop process (PID %1).")
+        Q_EMIT launchFailed(id, tr("Failed to stop process (PID %1).")
                                   .arg(pid));
     } else {
         cmdLog(QStringLiteral("stop"), id,
@@ -248,8 +251,9 @@ bool AgentRuntime::stop(const QString &id)
 void AgentRuntime::forceStop(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const AgentDefinition def = m_model->definitions().at(row);
 
     // No tracked PID for agents not started here, so target by port instead.
@@ -259,7 +263,7 @@ void AgentRuntime::forceStop(const QString &id)
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("cannot determine a port from web URL '%1'")
                         .arg(def.webUrl));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
@@ -270,13 +274,14 @@ void AgentRuntime::forceStop(const QString &id)
                         "the agent may already be stopped.").arg(port);
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("no process listening on port %1").arg(port));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
     QStringList pidList;
-    for (const qint64 pid : pids)
+    for (const qint64 pid : pids) {
         pidList << QString::number(pid);
+    }
     const QString pidsText = pidList.join(QStringLiteral(", "));
     cmdLog(QStringLiteral("forceStop"), id,
            QStringLiteral("port %1 is held by pid(s) %2").arg(port).arg(pidsText));
@@ -288,8 +293,9 @@ void AgentRuntime::forceStop(const QString &id)
         cmdLog(QStringLiteral("forceStop"), id,
                QStringLiteral("running: %1")
                    .arg(core::TextUtils::formatCommandLine(killProgram, args)));
-        if (core::ProcessRunner::startDetached(killProgram, args))
+        if (core::ProcessRunner::startDetached(killProgram, args)) {
             anyOk = true;
+        }
     }
 
     // If this launcher also tracked a PID for the agent, drop it so a later
@@ -302,7 +308,7 @@ void AgentRuntime::forceStop(const QString &id)
             tr("Failed to stop process (PID %1).").arg(pids.constFirst());
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("failed to kill pid(s) %1").arg(pidsText));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
     } else {
         cmdLog(QStringLiteral("forceStop"), id,
                QStringLiteral("killed the process tree(s) holding port %1")
@@ -325,14 +331,16 @@ int AgentRuntime::stopAll()
     const QString killProgram = core::ProcessRunner::killProgram();
     for (auto it = m_pids.constBegin(); it != m_pids.constEnd(); ++it) {
         const qint64 pid = *it;
-        if (pid == 0)
+        if (pid == 0) {
             continue;
+        }
         const QStringList args = core::ProcessRunner::killProgramArgs(pid);
         cmdLog(QStringLiteral("stopAll"), it.key(),
                QStringLiteral("running: %1")
                    .arg(core::TextUtils::formatCommandLine(killProgram, args)));
-        if (core::ProcessRunner::startDetached(killProgram, args))
+        if (core::ProcessRunner::startDetached(killProgram, args)) {
             ++killed;
+        }
     }
     m_pids.clear();
     m_sessionUrls.clear();
@@ -360,16 +368,18 @@ QString AgentRuntime::sessionUrl(const QString &id) const
 void AgentRuntime::watchSessionUrl(const QString &id)
 {
     const auto it = m_sessionUrlWatch.find(id);
-    if (it == m_sessionUrlWatch.end())
+    if (it == m_sessionUrlWatch.end()) {
         return;
+    }
     SessionWatch watch = it.value();
 
     QString text;
     {
         QFile file(core::Paths::logsDir() + QStringLiteral("/output/")
                     + id + QStringLiteral(".log"));
-        if (file.open(QIODevice::ReadOnly))
+        if (file.open(QIODevice::ReadOnly)) {
             text = core::ProcessRunner::decodeOutput(file.readAll());
+        }
     }
 
     const QString captured = AgentUrls::sessionUrlFromOutput(text, watch.webUrl);
@@ -377,20 +387,22 @@ void AgentRuntime::watchSessionUrl(const QString &id)
         const QString url = AgentUrls::finalUrl(captured, watch.tokenFile);
         m_sessionUrls.insert(id, url);
         m_sessionUrlWatch.erase(it);
-        if (m_sessionUrlWatch.isEmpty())
+        if (m_sessionUrlWatch.isEmpty()) {
             m_sessionUrlTimer.stop();
+        }
         // The URL itself never reaches the log — it carries the token.
         cmdLog(QStringLiteral("session-url"), id,
                QStringLiteral("captured an authenticated URL from the "
                               "agent output"));
-        emit sessionUrlChanged(id, url);
+        Q_EMIT sessionUrlChanged(id, url);
         return;
     }
 
     if (--watch.attemptsLeft <= 0) {
         m_sessionUrlWatch.erase(it);
-        if (m_sessionUrlWatch.isEmpty())
+        if (m_sessionUrlWatch.isEmpty()) {
             m_sessionUrlTimer.stop();
+        }
     } else {
         it.value() = watch;
     }
@@ -400,8 +412,9 @@ void AgentRuntime::dropSessionUrl(const QString &id)
 {
     m_sessionUrls.remove(id);
     m_sessionUrlWatch.remove(id);
-    if (m_sessionUrlWatch.isEmpty())
+    if (m_sessionUrlWatch.isEmpty()) {
         m_sessionUrlTimer.stop();
+    }
 }
 
 QList<qint64> AgentRuntime::findPidsForPort(int port)
@@ -425,8 +438,9 @@ QList<qint64> AgentRuntime::findPidsForPort(int port)
                        QStringLiteral(":%1").arg(port)});
 #endif
     proc.start();
-    if (!proc.waitForFinished(5000))
+    if (!proc.waitForFinished(5000)) {
         return pids;
+    }
 
     const QString output =
         core::ProcessRunner::decodeOutput(proc.readAllStandardOutput());
@@ -435,25 +449,29 @@ QList<qint64> AgentRuntime::findPidsForPort(int port)
 
     for (const QString &line : lines) {
         const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty())
+        if (trimmed.isEmpty()) {
             continue;
+        }
 #ifdef Q_OS_WIN
         const QStringList cols =
             trimmed.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-        if (cols.size() < 5)
+        if (cols.size() < 5) {
             continue;
+        }
         bool isListening = false;
         for (const QString &c : cols) {
-            if (c == QLatin1String("LISTENING")) {
+            if (c == QStringLiteral("LISTENING")) {
                 isListening = true;
                 break;
             }
         }
-        if (!isListening)
+        if (!isListening) {
             continue;
+        }
         // cols[0]=proto, cols[1]=local address, cols[2]=foreign, then state, PID.
-        if (!cols.at(1).endsWith(portSuffix, Qt::CaseInsensitive))
+        if (!cols.at(1).endsWith(portSuffix, Qt::CaseInsensitive)) {
             continue;
+        }
         bool ok = false;
         const qint64 pid = cols.constLast().toLongLong(&ok);
         if (ok && pid > 0 && !seen.contains(pid)) {

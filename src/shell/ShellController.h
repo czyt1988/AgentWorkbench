@@ -57,7 +57,7 @@ public:
     QString webChromiumFlags() const;
     Q_INVOKABLE void setWebChromiumFlags(const QString &flags);
 
-signals:
+Q_SIGNALS:
     void windowTitleChanged();
     void sidebarCollapsedChanged();
     void sidebarWidthChanged();

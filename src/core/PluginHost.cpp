@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QLibrary>
 #include <QJsonObject>
+#include <utility>
 
 namespace awb::core {
 
@@ -59,8 +60,9 @@ PluginHost::Manifest parseManifest(const QString &path)
         page.section = o.value(QStringLiteral("section"))
                            .toString(QStringLiteral("extensions"));
         page.order = o.value(QStringLiteral("order")).toInt(50);
-        if (!page.id.isEmpty() && !page.source.isEmpty())
+        if (!page.id.isEmpty() && !page.source.isEmpty()) {
             manifest.pages.append(page);
+        }
     }
     return manifest;
 }
@@ -76,19 +78,22 @@ QList<PluginHost::Manifest> PluginHost::discover() const
 {
     QList<Manifest> manifests;
     const QDir root(Paths::pluginsDir());
-    if (!root.exists())
+    if (!root.exists()) {
         return manifests;
+    }
 
     const QFileInfoList dirs = root.entryInfoList(
         QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo &dir : dirs) {
         const QString manifestPath =
             dir.absoluteFilePath() + QStringLiteral("/plugin.json");
-        if (!QFile::exists(manifestPath))
+        if (!QFile::exists(manifestPath)) {
             continue;
+        }
         Manifest manifest = parseManifest(manifestPath);
-        if (!manifest.id.isEmpty())
+        if (!manifest.id.isEmpty()) {
             manifests.append(manifest);
+        }
     }
     return manifests;
 }
@@ -96,13 +101,15 @@ QList<PluginHost::Manifest> PluginHost::discover() const
 int PluginHost::loadEnabled(const QList<Manifest> &manifests,
                             plugin::Services *services)
 {
-    if (!services)
+    if (!services) {
         return 0;
+    }
 
     int loadedCount = 0;
     for (const Manifest &manifest : manifests) {
-        if (!manifest.enabled)
+        if (!manifest.enabled) {
             continue;
+        }
 
         if (manifest.apiVersion != plugin::ApiVersion) {
             qWarning().noquote() << QStringLiteral(
@@ -173,8 +180,9 @@ int PluginHost::loadEnabled(const QList<Manifest> &manifests,
 
 void PluginHost::shutdown()
 {
-    for (QLibrary *library : m_loaded)
+    for (QLibrary *library : std::as_const(m_loaded)) {
         library->unload();
+    }
     m_loaded.clear();
 }
 

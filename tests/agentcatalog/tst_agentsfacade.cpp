@@ -19,7 +19,7 @@ class TestAgentsFacade : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     // CRUD coverage of the 0.3.0 `launcher` API, now on `agents`
     // (testLauncherCrud).
     void testLauncherCrud()
@@ -58,8 +58,9 @@ private slots:
         AgentRepository persisted(tmp.path());
         persisted.load();
         bool found = false;
-        for (const AgentDefinition &a : persisted.definitions())
+        for (const AgentDefinition &a : persisted.definitions()) {
             found = found || a.id == "my-agent";
+        }
         QVERIFY(found);
 
         // --- addAgent duplicate name -> -2 suffix ------------------------

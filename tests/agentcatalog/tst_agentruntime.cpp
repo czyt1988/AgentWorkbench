@@ -21,7 +21,7 @@ class TestAgentRuntime : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         // launch() redirects the child's output under Paths::logsDir() —
@@ -129,8 +129,9 @@ private slots:
 #endif
         if (awb::core::ProcessRunner::findExecutable(
                 command.section(QLatin1Char(' '), 0, 0))
-                .isEmpty())
+                .isEmpty()) {
             QSKIP("no shell available to spawn a long-running process");
+        }
 
         AgentModel model;
         AgentRuntime runtime(&model);
@@ -161,8 +162,9 @@ private slots:
 #endif
         if (awb::core::ProcessRunner::findExecutable(
                 command.section(QLatin1Char(' '), 0, 0))
-                .isEmpty())
+                .isEmpty()) {
             QSKIP("no shell available to print the URL");
+        }
 
         AgentModel model;
         AgentRuntime runtime(&model);
@@ -197,8 +199,9 @@ private slots:
 #endif
         if (awb::core::ProcessRunner::findExecutable(
                 command.section(QLatin1Char(' '), 0, 0))
-                .isEmpty())
+                .isEmpty()) {
             QSKIP("no shell available to spawn a long-running process");
+        }
 
         AgentModel model;
         AgentRuntime runtime(&model);

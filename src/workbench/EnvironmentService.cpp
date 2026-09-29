@@ -15,13 +15,14 @@ EnvironmentService::EnvironmentService(QObject *parent)
                    const QString &stdOut, const QString &stdErr,
                    const QString &error) {
                 const QString runtime = key.section(QLatin1Char(':'), -1);
-                const bool isPython = (runtime == QLatin1String("Python"));
+                const bool isPython = (runtime == QStringLiteral("Python"));
 
                 QString version;
                 if (error.isEmpty()) {
                     version = core::TextUtils::extractVersion(stdOut);
-                    if (version.isEmpty())
+                    if (version.isEmpty()) {
                         version = core::TextUtils::extractVersion(stdErr);
+                    }
                 }
                 const bool installed =
                     error.isEmpty() && (exitCode == 0 || !version.isEmpty());
@@ -33,9 +34,10 @@ EnvironmentService::EnvironmentService(QObject *parent)
                     m_nodeVersion = installed ? version : QString();
                 }
 
-                if (m_inflight.remove(key))
+                if (m_inflight.remove(key)) {
                     m_detecting = !m_inflight.isEmpty();
-                emit changed();
+                }
+                Q_EMIT changed();
             });
 
     refresh();
@@ -51,14 +53,14 @@ void EnvironmentService::detect(const QString &program,
                                 const QString &runtimeName)
 {
     if (core::ProcessRunner::findExecutable(program).isEmpty()) {
-        if (runtimeName == QLatin1String("Python")) {
+        if (runtimeName == QStringLiteral("Python")) {
             m_pythonInstalled = false;
             m_pythonVersion.clear();
         } else {
             m_nodeInstalled = false;
             m_nodeVersion.clear();
         }
-        emit changed();
+        Q_EMIT changed();
         return;
     }
 
@@ -67,7 +69,7 @@ void EnvironmentService::detect(const QString &program,
     // superseding run under the same key; its finished() clears it once.
     m_inflight.insert(key);
     m_detecting = true;
-    emit changed();
+    Q_EMIT changed();
     // Separate channels (older Python prints the version to stderr).
     m_runner->runShell(key, program + QStringLiteral(" --version"), 10000,
                        false);

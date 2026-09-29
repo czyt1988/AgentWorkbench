@@ -18,8 +18,9 @@ namespace {
 // Returns true when a file was written.
 bool copyFileIfAbsent(const QString &src, const QString &dst)
 {
-    if (!QFile::exists(src) || QFile::exists(dst))
+    if (!QFile::exists(src) || QFile::exists(dst)) {
         return false;
+    }
     QDir().mkpath(QFileInfo(dst).absolutePath());
     return QFile::copy(src, dst);
 }
@@ -31,14 +32,16 @@ bool copyFileIfAbsent(const QString &src, const QString &dst)
 bool isUntouched(const QString &root)
 {
     const QDir dir(root);
-    if (!dir.exists())
+    if (!dir.exists()) {
         return true;
+    }
 
     const QFileInfoList entries = dir.entryInfoList(
         QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
     for (const QFileInfo &fi : entries) {
-        if (fi.isDir() && fi.fileName() == QStringLiteral("log"))
+        if (fi.isDir() && fi.fileName() == QStringLiteral("log")) {
             continue;
+        }
         return false;
     }
     return true;
@@ -57,21 +60,25 @@ bool LegacyImport::runOnce(const QString &newRoot, QString *outNotice)
 bool LegacyImport::importOnce(const QString &newRoot, const QString &oldRoot,
                               QString *outNotice)
 {
-    if (outNotice)
+    if (outNotice) {
         outNotice->clear();
+    }
 
-    if (!isUntouched(newRoot))
+    if (!isUntouched(newRoot)) {
         return false;
-    if (!QDir(oldRoot).exists())
+    }
+    if (!QDir(oldRoot).exists()) {
         return false;
+    }
 
     int copied = 0;
     const QStringList dataFiles = {QStringLiteral("agents.json"),
                                    QStringLiteral("agent_state.json")};
     for (const QString &name : dataFiles) {
         if (copyFileIfAbsent(oldRoot + QLatin1Char('/') + name,
-                             newRoot + QLatin1Char('/') + name))
+                             newRoot + QLatin1Char('/') + name)) {
             ++copied;
+        }
     }
 
     // The old log directory comes along so past diagnostics stay reachable;
@@ -83,13 +90,15 @@ bool LegacyImport::importOnce(const QString &newRoot, const QString &oldRoot,
         for (const QFileInfo &fi : files) {
             if (copyFileIfAbsent(fi.absoluteFilePath(),
                                  newRoot + QStringLiteral("/log/")
-                                     + fi.fileName()))
+                                     + fi.fileName())) {
                 ++copied;
+            }
         }
     }
 
-    if (copied == 0)
+    if (copied == 0) {
         return false;
+    }
 
     // The legacy directory itself is never modified or deleted.
     qInfo().noquote() << QStringLiteral(
