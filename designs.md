@@ -50,6 +50,21 @@
 - **状态永远不只是颜色**：状态点/徽标配 tooltip 或文字（色弱用户与深浅主题都需要）。
 - 动效只用 `theme.durationFast / durationNormal`，不发明新的时长。
 
+### 2.1 卡片样式（玻璃卡）
+
+本项目的卡片是**磨砂玻璃**质感，不是实色面。基准实现是 `AgentCard`（agent 卡）与 `SkillCard`（skill 卡），新卡片一律复刻这套配方，不要另起风格：
+
+1. **页面底衬**：玻璃「透」的前提是页面有光可透。卡片网格页最底层铺 `AWorkspaceGlow`（两团极低透明度的大径向光斑，accent + agentPalette 暖色，静态、只在主题/尺寸变化时重绘），声明在页面根、先于一切内容。
+2. **玻璃底**：`theme.alpha(surfaceBg, 0.62)`，hover 提到 `theme.alpha(hover(surfaceBg), 0.78)`——半透明让底衬光斑透出，`theme.hover` 保证深浅主题各自往可读方向提亮。agent 卡有 per-卡语义色时改用 `cardColor`/agent 色 tint（见 AgentCard）。
+3. **色纱**：一层极淡的纵向渐变罩（accent 或语义色，密度见基准实现；skill 卡因整页百卡共用一个 accent 而减半），外加一层 hover 才淡入的加深纱。近似斜向纱用纵向 `Gradient` 即可，不为 155deg 引入效果模块。
+4. **内缘高光**：整圈内缩 1px 的 `theme.alpha(textOnAccent, 0.07)` 描边，只画深色主题（浅色下白高光不可见，留空）。
+5. **悬停聚光**：`ASpotlight`——光斑跟随指针 + 描边流光，`active` 绑宿主**合并后的**悬停判据（hover 独占投递，见各卡头注释），`spotX/spotY` 绑 HoverHandler 的指针位置。
+6. **边框**：`borderSubtle` → hover `borderStrong`，`ColorAnimation durationFast`。运行态/错误态另有语义色边框（见 AgentCard）。
+7. **悬停升举**：`transform: Translate`（y 上移 `spacingXs`）+ `z: 1`，按压时落回——只做视觉变换，**绝不改 x/y 本体**（网格/布局引擎写的正是它们）。升举幅度压在卡片间距之内。
+8. **批量渲染**：百级卡片的网格必须用 `GridView`（惰性实例化 + `reuseItems` + `cacheBuffer`），**禁止 Flow+Repeater 全量建卡**（每卡自带浮层/菜单，全量实例化实测换页冻结 2s+）。卡内重量级 Popup（详情浮层）经 `Loader` 惰性创建。cell 尺寸 = 卡 + 间距，列数随视口宽度自适应、`cellWidth` 取整防溢出（见 SkillGridPage）。
+
+深色与浅色主题都要过一遍：浅色的纱密度与高光留空规则就是为此设的。
+
 ## 3. 组件复用规则（Reuse-first）
 
 改 UI 时**先翻组件货架，再动手写**。`src/shell/qml/components/` 里的 `A*` 组件是唯一合法的通用件：
@@ -64,6 +79,7 @@
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
 | `ASpotlight` | 指针聚光覆盖层 | 玻璃卡的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover |
+| `AWorkspaceGlow` | 页面底衬光斑 | 玻璃卡片网格页的最底层底衬（两团低透明度径向光斑，让半透明卡有可透的光）；声明在页面根、先于内容，纯展示无输入 |
 | `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |
 | `APill` | 徽标胶囊 | 计数、来源标签 |
 | `AEmptyState` | 空状态 | 「无数据/无匹配」整块占位（`extra` 插槽可放列表等附加内容） |
@@ -116,6 +132,8 @@ ColumnLayout {
 | 7 | 附加式 tooltip 未主题化、`AToolTip` 死代码 | **已决策**：dev 分支删除 `AToolTip`，全仓改用附加式 ToolTip 的统一惯例（delay 300 / timeout 10000 / delegate 销毁时 hide，见 §3） |
 | 8 | 过滤按钮组 ×2 | **不提炼**：两处语义不同（单选 displayFilter vs 多选 facets），强行共享是坏抽象；约定为「ASearchField + ghost/primary 切换 AButton 行」的模式，见各页 |
 | 9 | Web 页空状态手写 | **已收敛**：`AEmptyState` 增加 `extra` 插槽后迁移（列表带高度上限的滚动） |
+| 10 | 页面底衬光斑 Canvas 双份（AgentGridPage 内联，SkillGridPage 引入时复刻） | **已收敛**：提取 `AWorkspaceGlow` 入货架，两页共用（2026-09 skills 玻璃卡改造） |
+| 11 | Skills 页 Flow+Repeater 全量建卡 | **已收敛**：换 `GridView`（惰性 + `reuseItems`），规则见 §2.1 第 8 条 |
 
 遗留的已知小项（不紧急）：
 
@@ -126,6 +144,7 @@ ColumnLayout {
 
 - [ ] 布局没破坏「侧栏 + 主区 + 状态栏」骨架；钉底区仍钉底。
 - [ ] 没有新增字面颜色 / `Qt.rgba(<数字>)`；深浅主题都检查过。
+- [ ] 新卡片复刻 §2.1 玻璃卡配方；百级集合的网格用 `GridView` 惰性加载，没有 Flow+Repeater 全量建卡。
 - [ ] 通用件先查 §3 的表；没有旁路 `AButton`/`ADialog` 写裸件。
 - [ ] 状态不只靠颜色表达；tooltip 文案是英文源串 + `qsTr()`。
 - [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用；布局内子项尺寸经 `implicitWidth`/`implicitHeight` 提供（0x0 创建后的重排会踩掉直接 `width`/`height` 绑定）。
