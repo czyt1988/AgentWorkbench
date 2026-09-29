@@ -18,8 +18,11 @@ docs/
   guide/                   【使用】单个功能怎么用、怎么配 —— 面向最终用户
   standards/               编程规范（代码风格，不是产品文档）
   research/                调研记录（一次性结论，冻结不改写）
+  superpowers/plans/       面向 agent/维护者的计划文档：不在导航里、不做中文镜像、不进本节的对照表
   zh/                      以上全部内容的中文镜像（文件名用中文，见下表）
 ```
+
+**双语规则只约束 `architecture/`、`development/`、`guide/` 三个板块**（以及本就在 `zh/` 下有镜像的既有页面）。`standards/`、`research/`、`superpowers/plans/` 里的文档按各自需要单语撰写，不要为了「凑齐镜像」给它们补一份翻译。
 
 **中英文必须同步、一一对应**，规则如下：
 
