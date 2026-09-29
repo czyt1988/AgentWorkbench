@@ -61,7 +61,7 @@ icons/         SVG 图标（打包为 Qt 资源）；filetypes/ 与 foldertypes/
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
 docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
-scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
+scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh、generate_icon.py
 ```
 
 ## 配置结构
@@ -153,12 +153,13 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 **在同一台电脑上开多个工作树、让多个 agent 同时并行开发是本项目的常态**，不是例外。所有工作的终点只有一个：合并回 `dev`。
 
 - **分支模型**：`dev` 是唯一集成分支，一切工作的终点；`main` 受保护，不在其上直接开发。功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，合并回 `dev` 后删除工作分支。
-- **新任务开工作树**：从最新的 `dev` 切出工作分支、建独立工作树，每个任务/agent 一个：`git worktree add <路径> -b <分支> dev`。已有哪些工作树以 `git worktree list` 的实时输出为准（本机已知有 `C:/src/Qt/AgentLauncher`、`C:/src/Qt/agent-workbench-dev2` 等）。
+- **新任务开工作树**：用 `bash scripts/worktree-add.sh <分支> [base]`（如 `bash scripts/worktree-add.sh feat/web-xyz`，默认从最新的 `dev` 切出；分支已存在则直接检出）。工作树统一放在主仓库的 `.worktree/` 下，目录名是分支名把 `/` 换成 `-`（`.worktree/` 已 git-ignore），每个任务/agent 一个。删除工作树用 `bash scripts/worktree-add.sh --remove <名字>`——本机 git 2.7.2 没有 `git worktree remove`，脚本等价于 `rm -rf` + `git worktree prune`，只删已注册的工作树、不动分支（分支合并后自行 `git branch -d`）；目录被占用（shell/编辑器还在里面）时会删失败，离开该目录重试即可。已有哪些工作树以 `--list`（即 `git worktree list`）的实时输出为准（本机已知另有 `C:/src/Qt/AgentLauncher`、`C:/src/Qt/agent-workbench-dev2` 等旧工作树）。
+- **submodule 必须离线初始化**：`third_party/spdlog` 的远端在 gitee，内网不可达，新工作树里裸跑 `git submodule update --init` 必然失败，**不要在 worktree 里手动跑它**——`worktree-add.sh` 创建时用 `git -c` 把 submodule URL 临时指向主仓库已有的检出、从本地完成克隆（不污染任何 git config；每个工作树的 submodule gitdir 独立，位于 `.git/worktrees/<id>/modules/`，互不共享状态）。前提与例外：主仓库的 submodule 尚未检出时（无本地克隆源）需先在有网环境初始化一次；base 移到更新过 submodule 的提交时，先在主工作树 `git submodule update`，否则新工作树离线拿不到新 SHA。
 - **状态随时在变，合并前必须实时核对**：`git status` 快照和「`dev` 检出在某处」这类前提只代表看到它的那一刻——并行会话可能在你任务中途切走分支、产生在途改动。每次合并前重新执行 `git -C <目标工作树> branch --show-current` 与 `git -C <目标工作树> status --porcelain`，以实时结果为准。
 - **合并回 `dev` 按实时核对结果选路径**：
   1. `dev` 检出在某个工作树、且该树干净 → `git -C <该工作树> merge <工作分支>`；
   2. 该工作树有在途改动或已切到别的分支 → **不要动它**（在那里切分支 / checkout / reset 会毁掉对方的在途改动）；只要 `dev` 此刻没被任何工作树检出，就用临时工作树合并、用完即删：
-     `git worktree add <临时路径> dev && git -C <临时路径> merge --ff-only <工作分支> && git worktree remove <临时路径>`；
+     `git worktree add <临时路径> dev && git -C <临时路径> merge --ff-only <工作分支> && bash scripts/worktree-add.sh --remove <临时路径>`（临时路径建议也放 `.worktree/` 下，如 `.worktree/_merge-dev`；本机 git 2.7.2 没有 `git worktree remove`）；
   3. `dev` 被占、又无法走上述路径 → 先与用户协调，不要抢别人正在用的工作树。
 - **降低并行冲突**：动手前先把 `dev` 最新改动合并进工作分支；收尾合并前**再**合并一次 `dev`，让冲突提前暴露，而不是攒到最后一次；配合下节的原子提交纪律。
 - **冲突就地解决**：按双方改动的**意图**合并而不是机械取一侧；解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交。`translations/*.ts` 的行号差异是每次构建 lupdate 重写 location 造成的噪声，取任一侧即可。

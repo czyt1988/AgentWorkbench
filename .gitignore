@@ -7,6 +7,9 @@ dist-*/
 # Anchored to the repo root: an unanchored build* also hides scripts/build.sh
 /build*
 
+# Parallel-development worktrees (scripts/worktree-add.sh)
+.worktree/
+
 # Qt Creator / user-specific
 *.user
 *.user.*
