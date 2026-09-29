@@ -23,6 +23,10 @@ namespace awb::web {
 ///   （Qt 5），其 DownloadState 枚举两版同值（见 .cpp）；
 /// - 权限拒绝与 DevTools 挂接：grantFeaturePermission(..., false) 与
 ///   inspectedView 绑定两版同名同构，直接使用。
+/// - 旧引擎兼容 polyfill 的注入路径：Qt 6 的 Quick profile 继承 core 的
+///   QWebEngineProfile、有 scripts() 集合（profile 级，在
+///   WebEngineProfileStore 注入）；Qt 5 的 Quick profile 只是 QObject 包装、
+///   没有 scripts()，只能走 view 级 userScripts（installCompatScript）。
 ///
 /// 其余 QML 可见的请求对象两版形状一致，不需要桥：全屏请求（toggleOn +
 /// accept() 的 gadget）、LifecycleState 作用域枚举（Qt 5.10+ 即支持）。
@@ -58,6 +62,15 @@ public:
     // 把 devToolsView 设为 view 的检查器（inspectedView 绑定，两版同构）
     Q_INVOKABLE void attachDevTools(QQuickWebEngineView *view,
                                     QQuickWebEngineView *devToolsView);
+
+    // 给 view 挂旧引擎兼容 polyfill 脚本（Qt 5 的 view 级注入路径；Qt 6
+    // 的注入在 WebEngineProfileStore 按 profile 完成，此调用为空操作。
+    // 幂等，可安全重复调用）
+    Q_INVOKABLE void installCompatScript(QQuickWebEngineView *view);
+
+    // polyfill 脚本源码（:/web/compat-polyfills.js，首次调用读入并缓存）；
+    // 两条版本注入路径共用
+    static QString compatScriptSource();
 
 Q_SIGNALS:
     /**

@@ -2078,125 +2078,130 @@ Command: %2
 <context>
     <name>WebEngineSurface</name>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="96"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="127"/>
         <source>Failed to load %1</source>
         <translation>无法加载 %1</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="110"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="161"/>
         <source>The render process was terminated (code %1)</source>
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="451"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="542"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="455"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="546"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="460"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="551"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="162"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="221"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="93"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="124"/>
         <source>Failed to load %1 (HTTP %2)</source>
         <translation>无法加载 %1（HTTP %2）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="163"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="222"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="290"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="275"/>
+        <source>The page stayed blank because its scripts failed to run. The embedded browser engine (Chromium %1) is too old for this page; open it in an external browser.</source>
+        <translation>页面脚本未能运行，页面保持空白。内嵌浏览器内核（Chromium %1）对该页面而言过于陈旧，请改用外部浏览器打开。</translation>
+    </message>
+    <message>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="381"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="344"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="403"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="435"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="494"/>
         <source>Sign in</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="352"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="443"/>
         <source>The site &quot;%1&quot; requires authentication.</source>
         <translation>站点“%1”要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="354"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="445"/>
         <source>This site requires authentication.</source>
         <translation>此站点要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="362"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="453"/>
         <source>Username</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="378"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="469"/>
         <source>Password</source>
         <translation>密码</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="418"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="509"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="492"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="583"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="501"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="592"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="523"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="614"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="533"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="624"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="284"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="398"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="557"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="375"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="489"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="648"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="563"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="654"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="568"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="659"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="573"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="664"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="578"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="669"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
