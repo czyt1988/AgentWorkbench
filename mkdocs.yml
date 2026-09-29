@@ -39,9 +39,39 @@ plugins:
           build: true
           nav:
             - Home: index.md
+            - Guide:
+                - Getting started: guide/index.md
+                - Agent launcher: guide/agent-launcher.md
+                - Web interface: guide/web-ui.md
+                - Skills: guide/skills.md
+                - Agent Tools: guide/agent-tools.md
+                - Appearance: guide/appearance.md
+                - Settings: guide/settings.md
+                - Plugins: guide/plugins.md
+                - Troubleshooting: guide/troubleshooting.md
+            - Architecture:
+                - Overview: architecture/index.md
+                - Layers and dependencies: architecture/layers-and-dependencies.md
+                - Frontend design: architecture/frontend-design.md
+                - C++ library design: architecture/cpp-design.md
+                - Extension points: architecture/extension-points.md
+                - State and persistence: architecture/state-and-persistence.md
+            - Development:
+                - Getting started: development/index.md
+                - Agent launcher: development/agent-launcher.md
+                - Web tabs: development/web-tabs.md
+                - WebEngine adapter: development/webengine-adapter.md
+                - Skill browser: development/skill-browser.md
+                - Agent Tools: development/agent-tools.md
+                - Shell and navigation: development/shell-and-navigation.md
+                - Settings: development/settings.md
+                - Theme engine: development/theme-engine.md
+                - Workbench and pages: development/workbench-and-pages.md
+                - Plugin host: development/plugin-host.md
+                - Core infrastructure: development/core-infrastructure.md
+                - Internationalisation: development/i18n.md
             - Configuration: configuration.md
-            - Plugins: plugins.md
-            - Development: development.md
+            - Writing plugins: plugins.md
             - Coding standard: standards/coding-standard.md
             - WebEngine embedding (research): research/webengine-embedding.md
         - locale: zh
@@ -50,16 +80,57 @@ plugins:
           nav:
             - 首页: index.md
             - 博客: blog.md
+            - 使用指引:
+                - 入门: guide/index.md
+                - Agent 启动器: guide/agent-launcher.md
+                - 网页界面: guide/web-ui.md
+                - 技能: guide/skills.md
+                - 提示词编写台: guide/agent-tools.md
+                - 外观: guide/appearance.md
+                - 设置: guide/settings.md
+                - 插件: guide/plugins.md
+                - 出问题了: guide/troubleshooting.md
+            - 架构:
+                - 总览: architecture/index.md
+                - 分层与依赖: architecture/layers-and-dependencies.md
+                - 前端设计: architecture/frontend-design.md
+                - C++ 库设计: architecture/cpp-design.md
+                - 扩展点: architecture/extension-points.md
+                - 数据与状态: architecture/state-and-persistence.md
+            - 开发:
+                - 入门: development/index.md
+                - Agent 启动器: development/agent-launcher.md
+                - Web 标签页: development/web-tabs.md
+                - WebEngine 适配层: development/webengine-adapter.md
+                - Skill 浏览: development/skill-browser.md
+                - Agent Tools: development/agent-tools.md
+                - 外壳与导航: development/shell-and-navigation.md
+                - 设置: development/settings.md
+                - 主题引擎: development/theme-engine.md
+                - workbench 与页面: development/workbench-and-pages.md
+                - 插件宿主: development/plugin-host.md
+                - core 基础设施: development/core-infrastructure.md
+                - 国际化: development/i18n.md
             - 配置: configuration.md
-            - 插件: plugins.md
-            - 开发: development.md
+            - 编写插件: plugins.md
             - 编程规范: standards/coding-standard.md
             - WebEngine 内嵌调研: research/webengine-embedding.md
+
+# Agent-facing instructions, not site pages: docs/AGENTS.md holds the writing
+# conventions for this documentation, and docs/zh/AGENTS.md points at it. Both
+# are deliberately kept out of the nav.
+not_in_nav: |
+  /AGENTS.md
+  /zh/AGENTS.md
 
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.tabbed:

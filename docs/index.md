@@ -28,4 +28,13 @@ cmake --build build
 ./build/AgentWorkbench
 ```
 
-See [Configuration](configuration.md) for adding your own agents, [Plugins](plugins.md) for extending the app, and [Development](development.md) for build details.
+## Documentation map
+
+The documentation has three audiences, and each has its own section:
+
+- **[Guide](guide/index.md)** — for people *using* the application: what each feature does and how to configure it, in plain language.
+- **[Architecture](architecture/index.md)** — for people *reading* the code: layers, dependency rules, frontend and C++ design principles, extension points.
+- **[Development](development/index.md)** — for people *changing* the code: build and test setup, then one page per feature covering its front end, back end and business logic.
+
+Reference material: [Configuration](configuration.md) (every field of `agents.json` and `settings.json`), [Writing plugins](plugins.md), the [coding standard](standards/coding-standard.md), and the [WebEngine embedding research](research/webengine-embedding.md). Documentation conventions live in [docs/AGENTS.md](AGENTS.md).
+

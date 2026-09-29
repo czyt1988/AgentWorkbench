@@ -103,6 +103,18 @@
 - `examples/plugins/hello` 示例插件与 `AWB_BUILD_PLUGIN_EXAMPLES` 构建选项；
   插件文档改用内联示例。
 
+### 文档
+
+- 文档重组为三个板块，每一页都有对应的中文镜像：**使用指引**（`docs/guide/`）
+  站在用户角度讲每个功能怎么用、怎么配；**架构**（`docs/architecture/`）讲分层、
+  前端与 C++ 库设计原则、扩展点，配 Mermaid 图；**开发**（`docs/development/`）
+  每个功能一篇，点名涉及的文件与类，讲清前端设计、后端设计与业务逻辑。原来的
+  单文件 `docs/development.md` 变成 `docs/development/index.md`。
+- 新增 `docs/AGENTS.md` 固化文档撰写规范：目录骨架、英文为源 / 中文必须同步、
+  各板块的读者与语气、全文档不写行号、Mermaid 与链接约定，以及「改了代码要同步
+  改哪些文档」的对照表。顶层 `AGENTS.md` 已引用它，并把「过一遍文档」写进
+  「做完」的定义。
+
 ## [0.4.0] - 2026-09-27
 
 本次版本把 AgentLauncher 重构为 **AgentWorkbench**：从单页卡片网格升级为「侧边栏 + 工作区」的工作台外壳，并新增内嵌 Web 标签页、Skill 浏览、配置文件驱动的主题与实验性插件支持。

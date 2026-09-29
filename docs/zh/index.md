@@ -26,4 +26,13 @@ cmake --build build
 ./build/AgentWorkbench
 ```
 
-添加你自己的 agent 见[配置](configuration.md)，扩展应用见[插件](plugins.md)，构建细节见[开发](development.md)。
+## 文档地图
+
+文档按读者分成三个板块，各写各的角度：
+
+- **[使用指引](guide/index.md)**——给**用软件的人**：每个功能是做什么的、怎么配置，全部用日常语言写。
+- **[架构](architecture/index.md)**——给**读代码的人**：分层、依赖规则、前端与 C++ 库设计原则、扩展点。
+- **[开发](development/index.md)**——给**改代码的人**：构建与测试环境，然后每个功能一篇，讲前端设计、后端设计与业务逻辑。
+
+参考资料：[配置参考](configuration.md)（`agents.json` 与 `settings.json` 的每个字段）、[编写插件](plugins.md)、[编程规范](standards/coding-standard.md)、[WebEngine 内嵌调研](research/webengine-embedding.md)。文档自身的写作规约见 [docs/AGENTS.md](AGENTS.md)。
+

@@ -1,0 +1,219 @@
+# 设置
+
+## 这个功能做什么
+
+设置页是应用配置唯一的图形入口。它**只经 `core::Settings`** 读写，后者是
+`settings.json` 的类型化访问层。存放在别的文件里的数据有各自的门面：agent 定义
+由 `AgentsFacade` 处理（来自 `agents.json`）、Agent Tools 的工作区记忆由
+`ToolsFacade` 处理（来自 `tools.json`）、skill 扫描根由 `SkillsFacade` 处理（经同一
+组 `core::Settings` setter 落进 `settings.json` 的 `skills.roots`）。
+
+边界：
+
+- 设置分区是一套固定键位 schema 之上的 UI。**没有也不许有**迁移代码：缺键取默认
+  值，未知键记警告后忽略。
+- 有些键没有 UI。`logging.*`、`launcher.*`、`locale.override`、
+  `appearance.followSystem` 与 `web.homeUrl` 会被各自的消费者读取，但目前只能手工
+  编辑。
+- 插件开关与另外几个键要重启才生效，因为它们在启动装配期就被消费。
+
+## 文件与类清单
+
+| 文件 | 类 / 组件 | 职责 | 与谁协作 |
+|---|---|---|---|
+| `src/core/Settings.h` | `Settings` 与 `WindowSettings`、`AppearanceSettings`、`LocaleSettings`、`LauncherSettings`、`WebSettings`、`SkillsSettings`、`LoggingSettings`、`PluginsSettings` | 类型化 schema：一个分区一个结构体、默认值内联；getter/setter；`valueChanged(key)` | 每个模块 |
+| `src/core/Settings.cpp` | `Settings::load()/save()` | 键集合校验、带钳制的类型化读取、未知键告警、原子写 | `core::JsonStore`、`core::Logging` |
+| `src/shell/qml/SettingsPage.qml` | `SettingsPage` | 左侧分区导航 + 右侧 `StackLayout`；分区表是顺序的唯一来源；钉底应用版本号 | 七个分区页 |
+| `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | 主题与字体选择 | `theme.applyTheme()`、`theme.setFontFamily()`、`theme.availableThemes`、`theme.fontFamilies` |
+| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | 启动器列表的增改删与确认弹窗 | `agents.model`、`agents.removeAgent()`、`agents.isDefaultAgent()`、`AgentEditDialog` |
+| `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | Python/Node 状态与 Re-detect 按钮 | `environment.*` |
+| `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | skill 根列表：启用开关、移除、添加输入与统计 | `skills.roots`、`skills.setRootEnabled()`、`skills.addRoot()`、`skills.removeRoot()`、`skills.kindLabel()`、`skills.statsText` |
+| `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | 表面选择与 Chromium flags 输入 | `web.engineAvailable`、`shell.webSurface`、`shell.setWebSurface()`、`shell.setWebChromiumFlags()` |
+| `src/shell/qml/SettingsPluginsPage.qml` | `SettingsPluginsPage` | 插件总开关、逐插件开关、信任提示 | `workbench.pluginsEnabled()`、`workbench.setPluginsEnabled()`、`workbench.pluginList()`、`workbench.setPluginEnabled()`、`workbench.pluginTrustNotice()` |
+| `src/shell/qml/SettingsAdvancedPage.qml` | `SettingsAdvancedPage` | 数据文件路径、打开数据目录、恢复默认启动器 | `agents.configFilePath()`、`agents.restoreDefaults()`、`workbench.openFolder()` |
+| `src/shell/ShellController.h` / `.cpp` | `ShellController` | 窗口级键位作为可绑定属性；setter 立即持久化；`valueChanged` 再广播 | `core::Settings` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | 插件开关与信任提示、`legacyImportNotice` | `core::Settings`、`PluginHost` |
+| `src/theme/Theme.h` / `.cpp` | `Theme` | `applyTheme()`（拒绝未知 id）与 `setFontFamily()`；`availableThemes`、`family`、`fontFamilies` | `core::Settings`、`ThemeRegistry` |
+| `src/core/Logging.h` / `.cpp` | `Logging` | 校验 `logging.level` 用的 `install()` 与 `isValidLevelName()` | `core::Settings` |
+| `app/main.cpp` | `main()` | 在 `QGuiApplication` 之前读设置、应用 Chromium flags 与日志选项、加载翻译与字体、驱动插件装载 | `core::Settings` |
+| `cmake/AwbTranslations.cmake` | 构建 | 把设置分区 QML 登记进可翻译源 | — |
+
+## 前端设计
+
+### `SettingsPage.qml`
+
+一个 `Page`，内含 `RowLayout`：左边 200 px 导航列，右边 `StackLayout`。
+
+- **分区表。** 一个 `readonly property var sections` 数组（元素 `{id, title}`）同时
+  决定导航顺序与 `StackLayout` 顺序：`Appearance`、`Launchers`、`Environment`、
+  `Skills`、`Web`、`Plugins`、`Advanced`。`sectionIndex(id)` 把 id 映射成
+  `StackLayout` 下标（未命中回退到 0）。
+- **保持实例化。** `StackLayout` 持有全部七个分区页，切换只改 `currentIndex`，所以
+  输入到一半的内容（如新填的 skill 根）往返一趟不丢。
+- **钉底版本号。** 导航列底部是一条分割线加 `"v" + Qt.application.version`，与主
+  侧栏的钉底 footer 同款。这也是版本号不再出现在状态栏的原因。
+- **delegate。** 导航行是 delegate，带 `Component.onDestruction: ToolTip.hide()`。
+
+### 各分区页
+
+每个分区页共用 `ScrollView` + `ColumnLayout` + `PageHeader` 骨架；带弹窗的页把弹窗
+留作私有。
+
+- **`SettingsAppearancePage`。** 两个 `AComboBox`。
+  - 主题：`model: theme.availableThemes`、`onActivated: theme.applyTheme(currentValue)`。
+    当前 index 用遍历 `availableThemes` 得到，而不是 `indexOfValue(theme.themeId)`；
+    tooltip 显示主题全名。
+  - 字体：一个值为空串的 `Theme default` 条目加 `theme.fontFamilies`；
+    `onActivated: theme.setFontFamily(currentValue)`。index 同样走遍历。一条说明
+    文字解释字体作用于整个应用、「Theme default」跟随主题或系统字体。
+- **`SettingsLaunchersPage`。** `PageHeader` 带 `Add Launcher` 动作；`Repeater` 遍历
+  `agents.model` 渲染 `AListRow`（图标、名称、命令、`AStatusDot`、Edit、Delete）。
+  编辑打开 `AgentEditDialog`；删除弹危险 `AConfirmDialog`，带上下文警告
+  （运行中 / 内置），`onConfirmed` 调 `agents.removeAgent()`。写失败打开
+  `AAlertDialog` 显示 `agents.configFilePath()`。本分区编辑的是 `agents.json`，不是
+  `settings.json`。
+- **`SettingsEnvironmentPage`。** 两个标签读 `environment.pythonInstalled`/
+  `pythonVersion` 与 `nodeInstalled`/`nodeVersion`（缺失时红色），加一个 Re-detect
+  按钮调 `environment.refresh()`。这里没有设置键，检测结果是进程状态。
+- **`SettingsSkillsPage`。** `PageHeader` 带 `Rescan`（`busy: skills.scanning`）；
+  `Repeater` 遍历 `skills.roots` 属性，每行一个 `Switch`
+  （→ `skills.setRootEnabled()`）与移除 `AIconButton`（→ `skills.removeRoot()`）；
+  再一个 `ATextField` + `Add`（→ `skills.addRoot()`），最后是 `skills.statsText` 与
+  一段解释插件版本去重的说明。这就是 `skills.roots` 的 UI。
+- **`SettingsWebPage`。** 表面 `AComboBox`，模型由 `web.engineAvailable` 决定
+  （未编译内嵌引擎时只有 `External`），调 `shell.setWebSurface()`；一个
+  `ATextField` 的 `onEditingFinished` 调 `shell.setWebChromiumFlags()`，并用一段
+  说明提示它重启后生效、且「Open in browser」始终是可用退路。
+- **`SettingsPluginsPage`。** `workbench.pluginTrustNotice()` 的信任提示；绑
+  `workbench.pluginsEnabled()`/`setPluginsEnabled()` 的总开关；
+  `workbench.pluginList()` 为空时的空提示；以及逐插件 `Switch` 调
+  `workbench.setPluginEnabled()` 的 `AListRow` `Repeater`。
+- **`SettingsAdvancedPage`。** `agents.configFilePath()` 的等宽路径；`Open data
+  folder` 按钮剥掉结尾的 `agents.json` 后调 `workbench.openFolder()`；`Restore
+  default launchers` 按钮调 `agents.restoreDefaults()`（写失败打开错误弹窗）。
+
+## 后端设计：settings.json 键表
+
+下表每个键都由 `Settings::load()` 校验、由 `Settings::save()` 回写。钳制范围在读取
+时生效：越界（或类型不对）记一条警告并退回默认值。
+
+| 键 | 类型 | 默认值 | 含义 / 范围 | 谁消费它 |
+|---|---|---|---|---|
+| `window.title` | string | `""` | 窗口标题；空串 = 应用默认 `AgentWorkbench` | `ShellController::windowTitle()`、`MainWindow.title` |
+| `window.width` | int | `1440` | 窗口宽；钳制 `[400, 16384]` | `ShellController::windowWidth()`、`MainWindow.width` |
+| `window.height` | int | `900` | 窗口高；钳制 `[300, 16384]` | `ShellController::windowHeight()`、`MainWindow.height` |
+| `window.sidebarWidth` | int | `240` | 展开态侧栏宽；钳制 `[0, 1024]`；`0` 回退 `theme.sidebarWidth` | `Sidebar.implicitWidth`（经 `shell.sidebarWidth`） |
+| `window.sidebarCollapsed` | bool | `false` | 侧栏折叠状态 | `ShellController`、`Sidebar.collapsed`、`Ctrl+B` |
+| `window.lastPageId` | string | `"agents"` | 上次停留的页面 id，启动时恢复 | `BuiltinPages::wirePagePersistence()` |
+| `appearance.theme` | string | `"mocha-dark"` | 当前主题 id；未知 id 在加载时回退 `mocha-dark` 并告警，而 `Theme::applyTheme()` 直接拒绝未知 id | `Theme::loadCurrent()`、`Theme::themeId()` |
+| `appearance.followSystem` | bool | `false` | 跟随系统深浅色 | （读写都在，目前无消费者） |
+| `appearance.fontFamily` | string | `"Microsoft YaHei"` | 全局 UI 字体族；空串 = 跟随主题/系统默认 | `main.cpp`（`QGuiApplication::setFont`）、`Theme::family()`、`MainWindow.font.family` |
+| `locale.override` | string | `""` | 强制语言；空串 = 跟随系统区域 | `main.cpp`（翻译加载）、`PluginServices` 上下文 |
+| `launcher.healthCheckIntervalMs` | int | `3000` | agent 健康检查间隔；钳制 `[100, 600000]` | `AgentsFacade` → `AgentHealthMonitor` |
+| `launcher.startupVersionCheck` | bool | `true` | 启动时做版本检查 | （读写都在，目前无消费者） |
+| `web.surface` | string | `"embedded"` | `embedded` \| `external`；其它值告警并重置为默认 | `WebTabsFacade`、`ShellController::webSurface()`、`SettingsWebPage` |
+| `web.freezeInactiveTabs` | bool | `false` | 冻结非激活标签（Chromium 本就节流；冻结还会挂起 JS/websocket） | `WebTabsFacade`（`policyChanged`）、`WebEngineSurface.qml` |
+| `web.maxLiveTabs` | int | `8` | LRU 释放前的活标签上限；钳制 `[1, 64]`（使用时再钳到 `>= 1`） | `WebTabsFacade::applyMemoryPolicy()` |
+| `web.downloadDir` | string | `""` | 下载目录；空串 = 平台默认（`~/Downloads`） | `WebTabsFacade`（`policyChanged`）、`WebEngineSurface.qml` 下载 |
+| `web.chromiumFlags` | string | `""` | Chromium 命令行开关，注入 `QTWEBENGINE_CHROMIUM_FLAGS`；重启后生效 | `main.cpp`、`ShellController::webChromiumFlags()` |
+| `web.homeUrl` | string | `""` | 新标签的首页 URL | （读写都在，目前无消费者） |
+| `skills.roots` | array | `[]` | skill 扫描根，元素 `{id?,label?,path,kind?,enabled?}`；空数组 = 内置默认 | `SkillScanner`、`SkillsFacade`、`SettingsSkillsPage` |
+| `skills.includePluginCaches` | bool | `true` | 是否扫描 plugin 缓存根 | `SkillScanner` → `SkillScanParams` |
+| `skills.maxDepth` | int | `6` | 目录遍历深度；钳制 `[1, 32]` | `SkillScanner` → `SkillScanParams` |
+| `logging.maxFileSize` | number (qint64) | `5242880`（5 MiB） | 日志轮转大小；需 `>= 1024` 且在 2^53 内 | `main.cpp` → `Logging::install()`（重启） |
+| `logging.maxFiles` | int | `3` | 轮转日志文件数；钳制 `[1, 20]` | `main.cpp` → `Logging::install()`（重启） |
+| `logging.level` | string | `"debug"` | 最低级别：`debug` \| `info` \| `warning` \| `critical` \| `off`；其它值告警并重置为默认 | `main.cpp` → `Logging::install()`（重启） |
+| `logging.mirrorToStderr` | bool | `true` | 日志同时镜像到 stderr | `main.cpp` → `Logging::install()`（重启） |
+| `plugins.enabled` | bool | `false` | 插件总开关 | `main.cpp` 的插件装载（下次启动）、`WorkbenchContext` |
+| `plugins.disabledIds` | string array | `[]` | 逐个禁用的插件 id | `main.cpp` 的插件装载（下次启动） |
+
+schema 的根分区恰为 `window`、`appearance`、`locale`、`launcher`、`web`、`skills`、
+`logging`、`plugins`；任何其它根键都会告警。
+
+## 业务逻辑
+
+### 为什么只有 `core::Settings` 能碰这个文件
+
+`core::Settings` 是唯一知道键名、类型、默认值与钳制范围的地方，也是唯一能发
+`valueChanged` 的地方。在别处直接读 `settings.json` 等于复制一份 schema、又拿不到
+变更信号，因此被禁止。消费者持 `core::Settings *` 并经它取值。`Settings::save()`
+是原子的（`core::JsonStore` 写临时文件再替换），写失败记警告并把 `OpResult` 原样
+返回给调用方。
+
+### 缺键、未知键与外来键
+
+缺键取结构体内联的默认值。已知分区里的未知键、或未知根分区，记一条警告后忽略。
+没有迁移代码，也不该加：加一个键就加一个默认值。
+
+### `valueChanged(key)` 的订阅方
+
+`Settings::valueChanged(key)` 携带点分键。目前的订阅方：
+
+| 订阅方 | 响应的键 | 效果 |
+|---|---|---|
+| `ShellController` | `window.sidebarCollapsed`、`window.sidebarWidth`、`window.width`、`window.height`、`window.title`、`web.surface`、`web.chromiumFlags` | 再广播对应属性，外部改写也保持同步 |
+| `Theme` | `appearance.theme` → `loadCurrent()`；`appearance.fontFamily` → `changed()` | 重载主题，或只重绑字体令牌 |
+| `WebTabsFacade` | `web.freezeInactiveTabs` 与 `web.downloadDir` → `policyChanged()`；`web.maxLiveTabs` → `applyMemoryPolicy()` | `policyChanged` 驱动 QML 绑定重算；调低活标签上限立即生效，而不是等下一次开标签 |
+
+最后一行值得记住：`web.maxLiveTabs` 被特殊处理，调低它会立刻释放标签。
+
+### 需要重启的键，以及原因
+
+`plugins.*`、`web.chromiumFlags` 与 `logging.*` 在启动装配期就被消费，设置页在中途
+改它们不会当场生效：
+
+- `web.chromiumFlags` 在 `QtWebEngineQuick::initialize()` 之前被读并塞进
+  `QTWEBENGINE_CHROMIUM_FLAGS`；引擎在初始化时读它。
+- `plugins.enabled` / `plugins.disabledIds` 决定启动时装载哪些共享库。
+- `logging.*` 配置 `core::Logging::install()`，而 `main.cpp` 只在某项与编译期默认
+  不同时才二次 install（第一次 install 必须先用默认值跑，`Settings` 构造期间的
+  告警才能落盘）。
+
+其余键（主题、字体、侧栏状态、上次页面、Web 表面、skill 根、存进 `settings.json`
+的逐插件开关）立即生效或在下一个相关动作时生效。
+
+### 只读与可设置的键
+
+并非每个键都有从 UI 写回的路径。`window.sidebarWidth` 在 `ShellController` 里只有
+getter、没有 setter，所以侧栏宽度就是文件里写的那样，没有拖拽手柄回写。
+`appearance.followSystem`、`web.homeUrl` 与 `launcher.startupVersionCheck` 同样没有
+UI 控件。
+
+## 坑与约定
+
+- **未知主题 id 必须被拒绝，而不是落回退路径。** `Theme::applyTheme()` 先对注册表
+  验证、再告警拒绝持久化未知 id；`Theme::loadCurrent()` 里的加载期回退只服务手工
+  改坏的 `settings.json`，若每次启动都触发它反而掩盖了错误。
+- **`appearance.fontFamily` 空串表示跟随主题/系统。** 不要把它强制成具体字体；
+  `main.cpp` 与 `MainWindow.qml` 都把空串当作「继承」。
+- **钳制在 `Settings::load()` 里。** 越界值不会被钳进范围，而是被丢弃、取默认值
+  （并告警）。某个键要换边界，就改 `load()` 里的常量，不要在调用点改。
+- **消费侧仍有钳制。** `WebTabsFacade` 在使用时再取 `qMax(1, maxLiveTabs)`，手工
+  编辑的值不可能造出「零活标签」的策略。
+- **有些键今天刻意是惰性的。** `appearance.followSystem`、`web.homeUrl` 与
+  `launcher.startupVersionCheck` 读写都在但无消费者；把它们写成「跟随系统」会是错的。
+
+## 新增一个设置键
+
+1. **`src/core/Settings.h`** —— 在对应结构体里加带默认值的成员、必要时加 getter，
+   并加一个发 `valueChanged("section.key")` 的 setter。
+2. **`src/core/Settings.cpp`** —— 把键加进该分区的已知键集合，在 `load()` 里用正确
+   的类型助手与钳制读取（枚举型字符串还要做合法性校验），在 `save()` 里写回。
+3. **UI** —— 把控件加进相关的 `Settings*Page.qml`（或明确决定该键暂时没有 UI）。
+4. **`docs/configuration.md` 与 `docs/zh/configuration.md`** —— 把字段加进配置参考。
+5. **`docs/guide/settings.md`**（英文与中文）—— 从用户视角描述该控件。
+6. **本文档** —— 在键表里加一行，并注明是否要重启。
+7. 若字符串是面向用户且写在 C++ 里，源串用英文，并用 `scripts/update-ts.sh` 更新
+   `translations/`。
+8. `bash scripts/build.sh --test` 全绿，含 `check_architecture`。
+
+## 相关
+
+- [配置参考](../configuration.md) —— `settings.json` 与 `agents.json` 的面向用户字段表。
+- [设置（使用）](../guide/settings.md) —— 每个分区的最终用户描述。
+- [Shell 与导航](shell-and-navigation.md) —— 窗口键位背后的 `ShellController`，以及
+  本页的 `system` 分区注册。
+- [Skills 浏览器](skill-browser.md) —— `skills.*` 的消费者。
+- [Agent Tools](agent-tools.md) —— 共享 `A*` 表单控件的消费者。
+- [分层与依赖](../architecture/layers-and-dependencies.md) —— 为什么 `core::Settings`
+  是唯一访问层。

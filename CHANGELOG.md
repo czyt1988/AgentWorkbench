@@ -145,6 +145,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `AWB_BUILD_PLUGIN_EXAMPLES` build option; the plugin documentation now
   uses inline examples instead.
 
+### Documentation
+
+- The documentation is now organised into three sections with a mirrored
+  Chinese translation of every page: **Guide** (`docs/guide/`) describes each
+  feature for end users, **Architecture** (`docs/architecture/`) covers the
+  layering, the frontend and C++ design principles and the extension points
+  with Mermaid diagrams, and **Development** (`docs/development/`) documents
+  each feature's front end, back end and business logic by name of file and
+  class. The former single `docs/development.md` became
+  `docs/development/index.md`.
+- `docs/AGENTS.md` records the documentation conventions: directory layout,
+  English-source / Chinese-mirror parity, the audience and tone of each
+  section, no line numbers anywhere, Mermaid and linking rules, and the table
+  of what must be updated when the code changes. `AGENTS.md` now points at it
+  and treats a documentation pass as part of the definition of done.
+
 ## [0.4.0] - 2026-09-27
 
 This release reworks the project from **AgentLauncher** into
