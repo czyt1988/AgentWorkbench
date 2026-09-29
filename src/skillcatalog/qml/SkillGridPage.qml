@@ -169,6 +169,10 @@ Item {
             id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // 与工具栏行的左右留白对齐：缺了这两行，首张卡片会贴着
+            // 侧栏，和上面的搜索框、标题错开一整个 spacingL。
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
             visible: skills.model.count > 0
             clip: true
             contentWidth: availableWidth
