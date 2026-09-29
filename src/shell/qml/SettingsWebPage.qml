@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 设置页·Web 分区：内嵌/外部表面选择与 Chromium 启动旗标。
+// 设置页·Web 分区：内嵌/外部表面选择、Home 页 URL 与 Chromium 启动旗标。
 ScrollView {
     id: page
 
@@ -45,6 +45,41 @@ ScrollView {
                     indexOfValue(shell.webSurface)
                 onActivated: shell.setWebSurface(currentValue)
             }
+        }
+
+        // Home 页 URL：Web 页工具栏 Home 按钮打开它；留空 = Home 回到
+        // agent 列表（默认）。
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Home URL")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+            }
+            ATextField {
+                id: homeUrlField
+                Layout.preferredWidth: 320
+                Layout.alignment: Qt.AlignRight
+                text: web.homeUrl
+                placeholderText: qsTr("e.g. http://127.0.0.1:8080 (empty = agent list)")
+                font.family: theme.monoFamily
+                font.pixelSize: theme.fontSizeSmall
+                onEditingFinished: web.setHomeUrl(text.trim())
+            }
+        }
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            text: qsTr("The Home button in the web view opens this URL; leave empty to go back to the agent list instead.")
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeSmall
+            wrapMode: Text.WordWrap
         }
 
         RowLayout {

@@ -31,7 +31,9 @@ Each card shows:
 - **A version label** in the top-left corner once the app has detected the
   installed version (for example `1.2.3`, or **Installed** if the version could
   not be read). If the agent does not seem to be installed, a download icon
-  appears there instead - click it to run the install command.
+  appears there instead - click it to run the install command. This label and
+  icon need the start-up version check; turn it off in
+  **Settings → Launchers** and cards show neither.
 - **The main button** at the bottom: **Start** when stopped, **Open** when
   running. Clicking the card anywhere does the same thing.
 - **A Configure button** beside it, which opens the edit form for that agent.

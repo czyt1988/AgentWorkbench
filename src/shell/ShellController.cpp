@@ -91,6 +91,27 @@ int ShellController::sidebarWidth() const
 }
 
 /**
+ * @brief 写侧栏宽度并持久化（拖拽手柄的提交入口）
+ *
+ * 值被钳制到 [kSidebarMinWidth, kSidebarMaxWidth]（180–480）：低于 180
+ * 侧栏内容挤成一团，超过 480 工作区被吃掉大半。读侧不强制——settings.json
+ * 里手改出的 0..1024 走既有的「0 = 回退主题令牌」容错，这里只保证用户
+ * 从界面写回的值不出界。同值直接返回（拖拽期间高频调用，省掉无谓的
+ * 落盘）。sidebarWidthChanged 由 Settings 的 valueChanged 连接发出。
+ *
+ * @param width 新宽度（像素），越界值按边界收拢
+ */
+void ShellController::setSidebarWidth(int width)
+{
+    const int clamped = qBound(kSidebarMinWidth, width, kSidebarMaxWidth);
+    if (m_settings->window().sidebarWidth == clamped) {
+        return;
+    }
+    m_settings->setSidebarWidth(clamped);
+    m_settings->save();
+}
+
+/**
  * @brief 取窗口宽度
  *
  * @return 像素值

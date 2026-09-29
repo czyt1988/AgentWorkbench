@@ -113,9 +113,12 @@ public:
     void setFontFamily(const QString &family);
     void setWindowSize(int width, int height);
     void setSidebarCollapsed(bool collapsed);
+    void setSidebarWidth(int width);
     void setLastPageId(const QString &pageId);
     void setWebSurface(const QString &surface);
     void setWebChromiumFlags(const QString &flags);
+    void setWebHomeUrl(const QString &url);
+    void setStartupVersionCheck(bool on);
     void setSkillRoots(const QJsonArray &roots);
     void setPluginsDisabledIds(const QStringList &ids);
     void setPluginsGloballyEnabled(bool enabled);

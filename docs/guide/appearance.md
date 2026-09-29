@@ -6,12 +6,14 @@ readable.
 
 ## What it is
 
-The **Settings → Appearance** section has two choices: **Theme** and **Font**.
-Both take effect immediately; you do not need to restart the app.
+The **Settings → Appearance** section has three controls: **Theme**, the
+**Follow system color scheme** switch, and **Font**. All of them take effect
+immediately; you do not need to restart the app.
 
 ## When to use it
 
 - To switch between the dark and light schemes.
+- To let the app follow your system's light/dark setting.
 - To use a different font for the whole application.
 - To install your own custom color scheme.
 
@@ -27,6 +29,19 @@ dialogs, everywhere.
 
 Both built-in schemes are designed to be readable. If any text or control is
 hard to see in one of them, that is worth reporting.
+
+## Following the system color scheme
+
+Below the **Theme** menu there is a switch: **Follow system color scheme**. Turn
+it on and the app uses the built-in dark or light scheme to match your
+operating system's light/dark setting - and switches right away if the system
+setting changes while the app is open.
+
+While the switch is on, the **Theme** menu is dimmed: your explicit pick is kept
+but not used. Turn the switch off to go back to the theme you picked.
+
+On some builds the switch itself is dimmed. There the app cannot detect the
+system setting and keeps the theme you picked.
 
 ## Changing the font
 
@@ -100,7 +115,8 @@ matches the `id` inside the file.
 
 **I picked a theme but nothing changed.** Check that you picked the right entry.
 A theme with no colors set falls back entirely to a built-in theme, so it can
-look identical. Add at least one color that differs.
+look identical. Add at least one color that differs. Also check the **Follow
+system color scheme** switch: while it is on, your pick is kept but not used.
 
 **Some part of the interface is hard to read.** Switch to the other built-in
 theme to compare, and report it - both built-in schemes are supposed to be

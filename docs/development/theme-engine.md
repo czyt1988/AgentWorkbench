@@ -4,7 +4,7 @@
 
 The theme engine turns a JSON file into a flat set of **semantic tokens** that QML binds directly: a page writes `theme.surfaceBg`, `theme.spacingM` or `theme.durationFast`, and the value behind that name changes when the user picks another theme. Pages never learn what a color *is*, only what role it plays.
 
-The boundary is deliberately narrow. The engine owns three things: reading and validating theme files, keeping a registry of the themes that exist, and exposing the current theme as named properties. It does **not** contain layout, component styling recipes (`designs.md` owns those) or any UI type at all — `src/theme` is one of the two directories the build gate forbids from mentioning Qt Quick (rule 4), so it depends only on Qt Core plus Qt Gui's `QColor`. It also does not act on `appearance.followSystem`: that key is read into `core::Settings` but no code switches themes automatically today.
+The boundary is deliberately narrow. The engine owns three things: reading and validating theme files, keeping a registry of the themes that exist, and exposing the current theme as named properties. It does **not** contain layout, component styling recipes (`designs.md` owns those) or any UI type at all — `src/theme` is one of the two directories the build gate forbids from mentioning Qt Quick (rule 4), so it depends only on Qt Core plus Qt Gui (`QColor`, and `QStyleHints` for the follow-system feature).
 
 ## Files and classes
 
@@ -13,15 +13,15 @@ The boundary is deliberately narrow. The engine owns three things: reading and v
 | `src/theme/ThemeFile.h` | `awb::theme::ThemeFile` | One parsed theme: identity (`id`, `name`, `variant`) plus `colors`, `metrics`, `fonts`, `agentPalette`; `isValid()` is true when `id` is non-empty | produced by `ThemeLoader`, stored by `ThemeRegistry`, held by `Theme` |
 | `src/theme/ThemeLoader.h` / `.cpp` | `awb::theme::ThemeLoader` | Parse and validate a single theme JSON; `parse()` applies every rule, `loadFile()` reads a disk or `:/` path | `ThemeFile`, `ThemeRegistry::baseline()` |
 | `src/theme/ThemeRegistry.h` / `.cpp` | `awb::theme::ThemeRegistry` | The set of available themes: built-ins from `:/themes/*.json` plus user files from `<data directory>/themes/*.json`; user files override a built-in with the same id; watches the user directory and files and re-emits `changed()` | `core::Paths::themesDir()`, `ThemeLoader`, `Theme` |
-| `src/theme/Theme.h` / `.cpp` | `awb::theme::Theme` | The QML singleton behind `theme`: one `Q_PROPERTY` per token, all sharing the `changed()` signal; `applyTheme()`, `setFontFamily()`, `color()`, `metric()`, `alpha()`, `hover()`, `pressed()` | `core::Settings` (current id, font override), `ThemeRegistry` |
+| `src/theme/Theme.h` / `.cpp` | `awb::theme::Theme` | The QML singleton behind `theme`: one `Q_PROPERTY` per token, all sharing the `changed()` signal; `applyTheme()`, `setFollowSystem()`, `followSystem`/`canFollowSystem` properties, `setFontFamily()`, `color()`, `metric()`, `alpha()`, `hover()`, `pressed()`; `setSystemVariantForTesting()` injects the system light/dark for tests | `core::Settings` (current id, follow flag, font override), `ThemeRegistry`, `QStyleHints` (Qt 6.5+) |
 | `src/theme/CMakeLists.txt` | build target `awb_theme` | Links `Qt::Core` and `Qt::Gui` only | `app` |
 | `resources/themes/mocha-dark.json` | — | Built-in dark theme, compiled to `:/themes/mocha-dark.json`; also the `dark` baseline and the unknown-id fallback | `ThemeRegistry`, `ThemeLoader` |
 | `resources/themes/latte-light.json` | — | Built-in light theme, compiled to `:/themes/latte-light.json`; the `light` baseline | `ThemeRegistry`, `ThemeLoader` |
 | `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | Provides `themesDir()` (`<dataRoot>/themes`) — the only place the user theme directory is derived | `ThemeRegistry` |
-| `src/core/Settings.h` / `.cpp` | `awb::core::AppearanceSettings` | Holds `theme`, `followSystem`, `fontFamily`; `Settings::setThemeId()` and `setFontFamily()` emit `valueChanged()` | `Theme` |
+| `src/core/Settings.h` / `.cpp` | `awb::core::AppearanceSettings` | Holds `theme`, `followSystem`, `fontFamily`; `Settings::setThemeId()`, `setFollowSystem()` and `setFontFamily()` emit `valueChanged()` | `Theme` |
 | `app/main.cpp` | — | Constructs `ThemeRegistry` then `Theme` and registers `Theme` as a QML singleton on `AgentWorkbench.App` | all of the above |
 | `scripts/check-architecture.sh` | — | Rule 2 rejects literal colors in QML, rule 4 keeps `src/theme` free of UI types | CI / `check_architecture` |
-| `tests/theme/tst_themeloader.cpp`, `tst_themeregistry.cpp`, `tst_themefontfamily.cpp` | — | Cover the validation rules, override behaviour and font precedence | `tst_theme` |
+| `tests/theme/tst_themeloader.cpp`, `tst_themeregistry.cpp`, `tst_themefontfamily.cpp`, `tst_themefollowsystem.cpp` | — | Cover the validation rules, override behaviour, font precedence and the follow-system semantics | `tst_theme` |
 
 ## Data model
 
@@ -113,6 +113,34 @@ Two behaviours are worth stating explicitly because they look redundant and are 
 - **`Theme::applyTheme()` validates before persisting.** An unknown id is refused with a warning; if it were written first, every subsequent start would walk the "unknown → fall back + warn" path, which exists only to tolerate a hand-edited `settings.json`, not to be reachable from the picker. `setFontFamily()` follows the same write-then-reload shape.
 
 When the id in settings is unknown, `loadCurrent()` falls back to `mocha-dark` and logs a warning.
+
+### Following the system color scheme
+
+`appearance.followSystem` (the switch in **Settings → Appearance**) makes
+`loadCurrent()` resolve the current theme from the *system* light/dark
+preference instead of `appearance.theme`:
+
+- The system variant is read through `QGuiApplication::styleHints()->colorScheme()`
+  (Qt 6.5+). `Theme` subscribes to `colorSchemeChanged` in its constructor, but
+  only re-resolves while following is on — an explicit pick must not be clobbered
+  by a system flip.
+- The theme for a variant is the **built-in baseline of that variant**
+  (`ThemeRegistry::baseline("dark"/"light")` → `mocha-dark` / `latte-light`),
+  not a per-user preference: user themes stay reachable only through the picker.
+- When the scheme is unknown — Qt 5 (no `QStyleHints::colorScheme`, so
+  `Theme::canFollowSystem` is constant false and the settings switch is
+  disabled), a `QCoreApplication`-only process, or `Qt::ColorScheme::Unknown` —
+  `loadCurrent()` falls back to `appearance.theme`, i.e. the behaviour of having
+  the switch off.
+- `Theme::themeId()` keeps reporting the *effective* theme, so the picker combo
+  shows what is actually applied while following; it is disabled so an explicit
+  pick (which would be shelved) cannot be made.
+
+`setFollowSystem()` writes the setting and saves — the reload itself arrives
+through the same `valueChanged("appearance.followSystem")` → `loadCurrent()`
+path as an external edit to `settings.json`. Tests inject the variant through
+`Theme::setSystemVariantForTesting()` because the suite's runner has no
+`QGuiApplication`.
 
 The picker's order comes from `ThemeRegistry::themes()`: the built-ins in their fixed order first, then user-only themes sorted by id (case-insensitive). `Theme::availableThemes()` maps each entry to a map with `id`, `name`, `variant` and a short `display` label (`Dark` / `Light`, or the theme name for an unexpected variant).
 

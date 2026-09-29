@@ -41,7 +41,9 @@ The strip along the top lists every open tab.
 - **Open in your browser:** click the external-link button in the toolbar. This
   is always available.
 - **Go back to the agent list:** click **Home** in the toolbar. It does not close
-  any tabs.
+  any tabs. If you set a **Home URL** in **Settings → Web**, the button opens
+  that page instead (a tab of its own; pressing Home again just brings it
+  forward).
 
 Each tab shows its agent's name, a small status dot and, while loading, a
 progress line. Hovering a tab tells you its state in words.

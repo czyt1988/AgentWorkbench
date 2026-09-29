@@ -283,9 +283,13 @@ Item {
                 anchors.centerIn: parent
             }
 
-            // 未安装：下载图标（可点击 → 安装）。
+            // 未安装：下载图标（可点击 → 安装）。版本探测没跑
+            // （launcher.startupVersionCheck 关掉）时隐藏——installed
+            // 只是没探测到，显示「未安装」会是误导。
             Item {
-                visible: !root.installed_p && !root.installing_p && !root.checkingVersion_p
+                visible: !root.installed_p && !root.installing_p
+                         && !root.checkingVersion_p
+                         && agents.versionCheckEnabled
                 anchors.fill: parent
 
                 Rectangle {

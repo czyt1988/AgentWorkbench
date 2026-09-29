@@ -9,21 +9,29 @@ list.
 
 ## Appearance
 
-Theme and font for the whole application.
+Theme, system-following and font for the whole application.
 
 - **Theme** - the color scheme. Two are built in: **Dark** and **Light**. The
   change applies at once.
+- **Follow system color scheme** - match the built-in dark or light scheme to
+  your operating system's light/dark setting, switching right away when the
+  system setting changes. While it is on, the **Theme** pick is kept but not
+  used. On builds that cannot detect the system setting, the switch is dimmed.
 - **Font** - the font used everywhere. The first entry, **Theme default**,
   follows the theme or your system.
 
-Both take effect immediately; no restart needed. The full story, including how
-to make your own theme, is in [Appearance](appearance.md).
+All of them take effect immediately; no restart needed. The full story,
+including how to make your own theme, is in [Appearance](appearance.md).
 
 ## Launchers
 
 The agents shown on the launcher page: add, edit and delete them, and see
 whether each is running.
 
+- **Check launcher versions at startup** - when off, the app skips the
+  start-up version probes: cards then show no version label and no
+  install/download icon, and no version-command processes run. Takes effect the
+  next time you start the app.
 - **Add Launcher** - opens the form for a new agent.
 - **Edit** on a row - opens the same form, prefilled.
 - **Delete** on a row - removes the agent after a confirmation.
@@ -68,6 +76,8 @@ How the agents' web interfaces are shown.
 - **Surface** - **Embedded (in-app)** opens pages in tabs inside the app;
   **External (system browser)** opens them in your normal browser. The embedded
   option is the default and is only listed if this build supports it.
+- **Home URL** - the page the web view's **Home** button opens. Leave it empty
+  and **Home** goes back to the list of running agents instead.
 - **Chromium flags** - extra start-up options for the built-in browser engine.
   This is an advanced field; leave it empty normally. If embedded pages fail to
   start because of graphics-driver trouble, enter `--disable-gpu` here. Flags

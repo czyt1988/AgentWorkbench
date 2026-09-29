@@ -20,6 +20,9 @@ class ShellController : public QObject
     Q_PROPERTY(bool sidebarCollapsed READ sidebarCollapsed WRITE
                    setSidebarCollapsed NOTIFY sidebarCollapsedChanged)
     Q_PROPERTY(int sidebarWidth READ sidebarWidth NOTIFY sidebarWidthChanged)
+    // 侧栏宽度的钳制边界（拖拽手柄的极限值）
+    Q_PROPERTY(int sidebarMinWidth READ sidebarMinWidth CONSTANT)
+    Q_PROPERTY(int sidebarMaxWidth READ sidebarMaxWidth CONSTANT)
     Q_PROPERTY(int windowWidth READ windowWidth NOTIFY windowSizeChanged)
     Q_PROPERTY(int windowHeight READ windowHeight NOTIFY windowSizeChanged)
     Q_PROPERTY(QString webSurface READ webSurface NOTIFY webSurfaceChanged)
@@ -33,10 +36,19 @@ public:
     // settings.json 的 window.title；空串 = 应用默认
     QString windowTitle() const;
 
-    // 侧栏折叠状态 / 侧栏宽度；setter 写设置并立即持久化
+    // 侧栏折叠状态 / 侧栏宽度；setter 写设置并立即持久化。宽度经
+    // setSidebarWidth 钳制到 [sidebarMinWidth, sidebarMaxWidth]
     bool sidebarCollapsed() const;
     void setSidebarCollapsed(bool collapsed);
     int sidebarWidth() const;
+    Q_INVOKABLE void setSidebarWidth(int width);
+
+    // 侧栏宽度的钳制边界（180 / 480）
+    int sidebarMinWidth() const { return kSidebarMinWidth; }
+    int sidebarMaxWidth() const { return kSidebarMaxWidth; }
+    /// 钳制边界：读设置时不强制（0 = 回退主题令牌），只约束用户写入
+    static constexpr int kSidebarMinWidth = 180;
+    static constexpr int kSidebarMaxWidth = 480;
 
     // 窗口尺寸（MainWindow 关闭时经 saveWindowSize() 存回）
     int windowWidth() const;

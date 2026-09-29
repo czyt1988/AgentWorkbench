@@ -5,6 +5,9 @@
 #include "agentcatalog/AgentsFacade.h"
 #include "core/Settings.h"
 
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -14,6 +17,7 @@
 using awb::agentcatalog::AgentDefinition;
 using awb::agentcatalog::AgentRepository;
 using awb::agentcatalog::AgentsFacade;
+using awb::core::Settings;
 
 /// 测 agentcatalog::AgentsFacade 的 0.3.0 `launcher` API（现挂在 `agents` 上）：
 /// addAgent 的自动 id/重名后缀/显式重复 id、updateAgentFull、removeAgent 的
@@ -106,6 +110,49 @@ private Q_SLOTS:
         QVERIFY(facade.isDefaultAgent(QStringLiteral("opencode")));
         QVERIFY(!facade.isDefaultAgent(QStringLiteral("my-agent")));
         QVERIFY(facade.configFilePath().endsWith(QStringLiteral("agents.json")));
+    }
+
+    // launcher.startupVersionCheck 关掉时 start() 不跑版本探测：没有 agent
+    // 被标成 checkingVersion（否则 spinner 会永远转下去）；会话快照
+    // versionCheckEnabled 为假。开关经 setStartupVersionCheck 落盘、只改
+    // 持久化值不动快照（本会话的探测已按 start() 时的值落定）。
+    void testStartupVersionCheckGate()
+    {
+        QDir().mkpath(QFileInfo(Settings::settingsFilePath()).absolutePath());
+        QFile::remove(Settings::settingsFilePath());
+
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        // 像首次启动一样，先把随包默认种进数据根。
+        {
+            AgentRepository seed(tmp.path());
+            seed.load();
+        }
+        awb::core::Settings settings;
+        settings.setStartupVersionCheck(false);
+        AgentsFacade facade(&settings, tmp.path());
+        facade.start();
+
+        QVERIFY(!facade.versionCheckEnabled());
+        QVERIFY(!facade.startupVersionCheck());
+        for (const AgentDefinition &d : facade.agentModel()->definitions()) {
+            QVERIFY2(!facade.agentModel()->state(d.id).checkingVersion,
+                     qPrintable(QStringLiteral(
+                         "%1 must not be marked as version-checking when "
+                         "the startup check is disabled").arg(d.id)));
+        }
+
+        // 开关翻转：写盘、持久化值跟随；会话快照刻意不变。这里不能再
+        // start()——开关为真时会跑各 agent 的真 versionCommand，测试不许
+        // 依赖本机安装的 agent 工具。
+        facade.setStartupVersionCheck(true);
+        QVERIFY(facade.startupVersionCheck());
+        QVERIFY(!facade.versionCheckEnabled());
+
+        awb::core::Settings reloaded;
+        QVERIFY(reloaded.launcherOptions().startupVersionCheck);
+
+        QFile::remove(Settings::settingsFilePath());
     }
 };
 

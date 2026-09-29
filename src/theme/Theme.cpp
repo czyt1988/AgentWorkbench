@@ -3,11 +3,20 @@
 #include "core/Settings.h"
 #include "theme/ThemeRegistry.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QFontDatabase>
+#include <QStyleHints>
 #include <QVariantMap>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#include <QGuiApplication>
+#endif
+
 namespace awb::theme {
+
+// 测试注入的固定深浅变体（空串 = 真实探测）。
+QString Theme::s_testVariant;
 
 // 令牌实现总说明：颜色/数值/字体三批 getter 全部是同一件事——从
 // m_current 按同名键取值，因此每个实现的注释只写一行 @brief。缺键的
@@ -18,11 +27,13 @@ namespace awb::theme {
 /**
  * @brief 构造主题单例
  *
- * 构造时立即加载当前主题（Q_PROPERTY 在首帧就要有值），并连两条变化
+ * 构造时立即加载当前主题（Q_PROPERTY 在首帧就要有值），并连三条变化
  * 通路：settings 的 appearance.* 变化（settings.json 在别处被编辑也
- * 到这里）与 ThemeRegistry::changed()（主题文件在磁盘上被改动的热重载）。
+ * 到这里）、ThemeRegistry::changed()（主题文件在磁盘上被改动的热重载），
+ * 以及系统深浅色翻转（仅 Qt 6.5+ 且跟随模式开启时换主题）。
  *
- * @param settings 应用设置，读 appearance.theme / appearance.fontFamily
+ * @param settings 应用设置，读 appearance.theme / appearance.followSystem
+ *                 / appearance.fontFamily
  * @param registry 主题注册表，提供可用主题与热重载通知
  * @param parent QObject 父项
  */
@@ -37,7 +48,8 @@ Theme::Theme(core::Settings *settings, ThemeRegistry *registry,
     // 外部改动（settings.json 在别处被编辑）同样重新应用。
     connect(m_settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
-                if (key == QStringLiteral("appearance.theme")) {
+                if (key == QStringLiteral("appearance.theme")
+                    || key == QStringLiteral("appearance.followSystem")) {
                     loadCurrent();
                 }
                 else if (key == QStringLiteral("appearance.fontFamily")) {
@@ -47,18 +59,42 @@ Theme::Theme(core::Settings *settings, ThemeRegistry *registry,
             });
     // 热重载：主题文件在磁盘上被改动。
     connect(m_registry, &ThemeRegistry::changed, this, &Theme::loadCurrent);
+
+    // 系统深浅色翻转：跟随模式开启时换到对应变体的基线主题。qobject_cast
+    // 兼顾测试环境——tst_theme 的 runner 只有 QCoreApplication，没有
+    // QGuiApplication 就不接线（styleHints() 不可用）。
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    if (auto *guiApp = qobject_cast<QGuiApplication *>(
+            QCoreApplication::instance())) {
+        connect(guiApp->styleHints(), &QStyleHints::colorSchemeChanged, this,
+                [this](Qt::ColorScheme) {
+                    if (m_settings->appearance().followSystem) {
+                        loadCurrent();
+                    }
+                });
+    }
+#endif
 }
 
 /**
  * @brief 重读当前主题并广播 changed()
  *
- * 主题 id 未知（settings.json 被手改坏）时回退 mocha-dark 并告警。
- * id 没变也照样换值发信号：磁盘上的主题文件内容可能已经变了（热
- * 重载），按 id 跳过的话热重载就失效了。
+ * 跟随系统开启时，当前主题由系统深浅色决定：取对应变体的内置基线主题
+ * （dark -> mocha-dark、light -> latte-light），appearance.theme 被搁置；
+ * 深浅色不可知（Qt 5、无 QGuiApplication、系统回报 Unknown）时回退
+ * appearance.theme，行为与关闭跟随时一致。主题 id 未知（settings.json
+ * 被手改坏）时回退 mocha-dark 并告警。id 没变也照样换值发信号：磁盘上
+ * 的主题文件内容可能已经变了（热重载），按 id 跳过的话热重载就失效了。
  */
 void Theme::loadCurrent()
 {
-    ThemeFile file = m_registry->theme(m_settings->themeId());
+    ThemeFile file;
+    if (m_settings->appearance().followSystem) {
+        file = m_registry->baseline(systemVariant());
+    }
+    if (!file.isValid()) {
+        file = m_registry->theme(m_settings->themeId());
+    }
     if (!file.isValid()) {
         // 未知主题 id：回退深色默认并告警。
         qWarning().noquote() << QStringLiteral(
@@ -165,6 +201,95 @@ void Theme::applyTheme(const QString &id)
 QColor Theme::color(const QString &name) const
 {
     return m_current.colors.value(name);
+}
+
+/**
+ * @brief 探测系统深浅色变体
+ *
+ * 测试注入非空时直接返回它；否则经 QStyleHints::colorScheme() 探测
+ * （Qt 6.5+，且进程里要有 QGuiApplication——单元测试的 runner 只有
+ * QCoreApplication，探测不了）。系统深浅色未知或不可探测时返回空串，
+ * 调用方（loadCurrent）据此回退 appearance.theme。
+ *
+ * @return "dark" / "light"；不可知时空串
+ */
+QString Theme::systemVariant()
+{
+    if (!s_testVariant.isEmpty()) {
+        return s_testVariant;
+    }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    // styleHints() 是静态成员，app 只用于确认进程里确有 GUI 应用对象。
+    const QGuiApplication *app = qobject_cast<QGuiApplication *>(
+        QCoreApplication::instance());
+    if (app) {
+        const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+        if (scheme == Qt::ColorScheme::Dark) {
+            return QStringLiteral("dark");
+        }
+        if (scheme == Qt::ColorScheme::Light) {
+            return QStringLiteral("light");
+        }
+    }
+#endif
+    return QString();
+}
+
+/**
+ * @brief 查询能否跟随系统深浅色
+ *
+ * @return Qt 6.5+ 为 true（有 QStyleHints::colorScheme）；Qt 5 恒为
+ *         false——那条路线没有等价 API，该键被显式降级为忽略
+ */
+bool Theme::canFollowSystem() const
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    return true;
+#else
+    return false;
+#endif
+}
+
+/**
+ * @brief 取「跟随系统深浅色」的当前值
+ *
+ * @return appearance.followSystem
+ */
+bool Theme::followSystem() const
+{
+    return m_settings->appearance().followSystem;
+}
+
+/**
+ * @brief 切换「跟随系统深浅色」
+ *
+ * 与 setFontFamily() 对称：写设置 + 落盘，changed() 由构造时连好的
+ * valueChanged -> loadCurrent() 槽发出。值未变化直接返回。跟随开启后
+ * 当前主题换成系统深浅对应的基线主题，关闭则恢复 appearance.theme。
+ *
+ * @param on true = 跟随系统深浅色
+ * @sa setFontFamily
+ */
+void Theme::setFollowSystem(bool on)
+{
+    if (on == m_settings->appearance().followSystem) {
+        return;
+    }
+    m_settings->setFollowSystem(on);
+    m_settings->save();
+}
+
+/**
+ * @brief 固定 systemVariant() 的返回值（测试注入）
+ *
+ * 传空串恢复真实探测。测试进程没有 QGuiApplication，真实探测永远返回
+ * 空串，跟随逻辑因此测不到——注入让「深浅色 -> 基线主题」的映射可测。
+ *
+ * @param variant "dark" / "light"；空串 = 恢复真实探测
+ */
+void Theme::setSystemVariantForTesting(const QString &variant)
+{
+    s_testVariant = variant;
 }
 
 /**

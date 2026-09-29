@@ -1,4 +1,7 @@
 #include <QtTest>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QUrl>
 
@@ -11,19 +14,60 @@ using awb::web::WebTab;
 using awb::web::WebTabsFacade;
 using awb::web::WebTabsModel;
 
-/// 测 web 模块的 Web 标签页（不带 Qt WebEngine）：内嵌表面手工注册，让
+/// 测 web 模块的 Web 标签页（不带 Qt Web Engine）：内嵌表面手工注册，让
 /// openTab() 走标签路径而不是外置浏览器回退（tst_web 在任何配置下都能跑）。
 /// 覆盖同 agent 复用标签、关标签不动进程、离线/在线状态迁移、表面解析、
-/// Ctrl+Tab 循环、活动标签的行偏移回归、LRU 释放与会话 URL 重定向。
+/// Ctrl+Tab 循环、活动标签的行偏移回归、LRU 释放、会话 URL 重定向与
+/// Home 页（web.homeUrl）。
 class TestWebTabs : public QObject
 {
     Q_OBJECT
 
-private Q_SLOTS:
+    private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
+        // 干净的 settings.json：web.homeUrl 的测试不读上一个用例的残留。
+        QDir().mkpath(QFileInfo(Settings::settingsFilePath()).absolutePath());
+        QFile::remove(Settings::settingsFilePath());
     }
+
+    // web.homeUrl 的 Home 行为：留空时 openHome 无效果；配置后按保留
+    // agent id "home" 开标签、重复调用激活既有标签不重复开；setHomeUrl
+    // 写盘、新实例读得回。
+    void testHomeUrl()
+    {
+        Settings settings;
+        WebTabsFacade web(&settings);
+        web.registerSurface(QStringLiteral("embedded"),
+                            QStringLiteral("qrc:/fake/Surface.qml"));
+
+        // 留空：no-op（Web 页的 Home 按钮保持回到 agent 列表）。
+        QVERIFY(web.homeUrl().isEmpty());
+        QVERIFY(web.openHome().isEmpty());
+        QCOMPARE(web.tabs()->rowCount(), 0);
+
+        // 配置后：开 Home 标签。
+        web.setHomeUrl(QStringLiteral("http://127.0.0.1:8080"));
+        QCOMPARE(web.homeUrl(), QStringLiteral("http://127.0.0.1:8080"));
+        const QString id = web.openHome();
+        QVERIFY(!id.isEmpty());
+        QCOMPARE(web.tabs()->rowCount(), 1);
+        QCOMPARE(web.tabs()->tabById(id)->agentId(), QStringLiteral("home"));
+        QCOMPARE(web.tabs()->tabById(id)->url().toString(),
+                 QStringLiteral("http://127.0.0.1:8080"));
+
+        // 再按 Home：同一 agent 的既有标签被激活，不重复开。
+        const QString again = web.openHome();
+        QCOMPARE(again, id);
+        QCOMPARE(web.tabs()->rowCount(), 1);
+
+        // 落盘：新 Settings 实例读得回。
+        Settings reloaded;
+        QCOMPARE(reloaded.webOptions().homeUrl,
+                 QStringLiteral("http://127.0.0.1:8080"));
+    }
+
 
     void testSameAgentReusesTab()
     {

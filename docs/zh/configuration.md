@@ -47,6 +47,16 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 - `window.title` 为空表示使用品牌标题 `AgentWorkbench`；`agents.json` 根级
   的 `title` 字段已停用，残留值会在日志中提示一次。
 - `appearance.theme` 指向主题 `id`，找不到时回退 `mocha-dark` 并记警告。
+- `appearance.followSystem`（默认 `false`）跟随系统深浅色：为 `true` 时当前主题取
+  与系统深浅对应的内置配色，`appearance.theme` 被搁置，直到你把它关掉。Qt 5 兜底
+  构建检测不到系统设置，该键失效。
+- `window.sidebarWidth` 也可以用拖拽侧栏右缘的方式调整；从界面写入的值钳制在
+  `[180, 480]`。手工改的 `0` 回退主题默认宽度。
+- `launcher.startupVersionCheck`（默认 `true`）控制启动时的版本探测。为 `false`
+  时不运行任何 `versionCommand` 进程，卡片也不显示版本标签和安装/下载图标。下次
+  启动起生效。
+- `web.homeUrl`（默认空）是网页页 **主页** 按钮打开的地址；留空保持「回到运行中
+  agent 列表」的行为。
 - `web.surface` 取 `embedded` 或 `external`；未编译 WebEngine 时自动降级为
   `external`。`chromiumFlags` 在 WebEngine 初始化前注入——内嵌视图无法启动
   （GPU 驱动问题）时可在此添加 `--disable-gpu`，重启后生效。

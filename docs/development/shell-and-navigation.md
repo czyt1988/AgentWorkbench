@@ -96,6 +96,15 @@ Renders the navigation model grouped by section.
   otherwise `shell.sidebarWidth` (falling back to `theme.sidebarWidth` when the
   setting is 0). Using `implicitWidth` matters because the parent `RowLayout`
   only reflows on implicit-size changes.
+- **Resize handle.** A 6 px strip on the right edge (hidden when collapsed):
+  hovering it turns the cursor into a split-horizontal arrow; dragging adjusts
+  the width. During the drag the width follows a local `pendingWidth` (the
+  `Behavior on implicitWidth` is disabled so the edge tracks the pointer
+  frame-by-frame), and releasing commits once via `shell.setSidebarWidth()`,
+  which clamps to `[180, 480]` and persists. Pointer positions are mapped to
+  `sidebar.parent` before differencing — the parent `RowLayout`'s geometry does
+  not change while the sidebar resizes, so raw `mouse.x` (which moves with the
+  edge) would cancel itself out.
 - **Pinned footer.** The `system`-section pages render as plain `AIconButton`s
   (`active` when current, title in the tooltip) in a fixed footer, together with
   the collapse handle; expanded puts icons left and the handle right, collapsed
@@ -124,11 +133,15 @@ Shows exactly one page at a time.
 
 A `RowLayout` inside a `Rectangle` whose height comes from `implicitHeight:
 theme.statusBarHeight` (a direct `height` binding would trigger Qt 5's recursive
-re-arrange). It shows `Running: %1` from `nav.badges["agents"]`, a `Tabs: %1`
-label from `nav.badges["web"]`, and the Python/Node badges bound to
-`environment.*` (a red `×` when missing, with a tooltip explaining the
-consequence). The application version is not here any more; it moved to the
-pinned footer of `SettingsPage`.
+re-arrange). It shows `Running: %1` from `nav.badges["agents"]` and the
+Python/Node badges bound to `environment.*` (a red `×` when missing, with a
+tooltip explaining the consequence). The application version is not here any
+more; it moved to the pinned footer of `SettingsPage`. The web-tab count is
+**deliberately absent**: the sidebar already shows it as the `web` page badge
+(`BuiltinPages::wireBadges()`), and an earlier `Tabs: %1` label here never
+rendered because its condition (`nav.countInSection("web")`) counts page
+sections, of which none is `web` — it was removed rather than wired to a second
+source of the same number.
 
 ### `PageHeader.qml`
 
@@ -187,8 +200,12 @@ Projects window-level state as bindable properties; values live only in
 `save()` immediately. The constructor connects `core::Settings::valueChanged` so
 external edits to `settings.json` re-broadcast `window.sidebarCollapsed`,
 `window.sidebarWidth`, `window.width`/`height`, `window.title`, `web.surface` and
-`web.chromiumFlags`. `setWebSurface`/`setWebChromiumFlags` are `Q_INVOKABLE`
-because they have no WRITE accessor.
+`web.chromiumFlags`. `setWebSurface`/`setWebChromiumFlags`/`setSidebarWidth` are
+`Q_INVOKABLE` because they have no WRITE accessor. `setSidebarWidth` (the sidebar
+drag handle's commit entry point) clamps to the `sidebarMinWidth`/`sidebarMaxWidth`
+properties (180/480, `CONSTANT`) and also exposes them to QML; the read side stays
+tolerant so a hand-edited `window.sidebarWidth` of 0..1024 keeps its existing
+"0 = theme fallback" meaning.
 
 ### `UiServices`
 
@@ -310,11 +327,6 @@ toast).
 - **The `system` section never enters the scrollable list.** Pinned pages are
   rendered only in the footer; putting them in the `Repeater` as well would
   duplicate them.
-- **The `Tabs:` label condition is currently dead.** `StatusBar.qml` gates its
-  tab counter on `nav.countInSection("web") > 0`, but no page is registered with
-  `section == "web"` (the Web page is `section == "main"`), so the count is 0 and
-  the label never shows. This is the current behavior; changing it means
-  choosing a real condition, not adjusting the web page's section.
 - **`keepAlive` pages are created at 0x0.** Layout children of a resident page
   must supply sizes through `implicitWidth`/`implicitHeight`; direct `width`/
   `height` bindings are overwritten by the first reflow.

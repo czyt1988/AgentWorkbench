@@ -49,7 +49,8 @@ The window has three parts.
   actions.
 
 The sidebar can be collapsed to a narrow strip of icons to give the workspace
-more room.
+more room, and its width can be adjusted: move the pointer to the sidebar's
+right edge (the cursor turns into a left-right arrow) and drag.
 
 **The workspace (right).** Shows the page you selected in the sidebar. Most
 pages have their own header with the page title and any actions that belong to
@@ -59,8 +60,8 @@ that page.
 running, and badges for the Python and Node.js runtimes found on your computer.
 A red cross on a badge means that runtime was not found.
 
-The last page you were on, your window size and the sidebar state are
-remembered the next time you open the app.
+The last page you were on, your window size, the sidebar state (including the
+width you dragged it to) are remembered the next time you open the app.
 
 ## Keyboard shortcuts
 

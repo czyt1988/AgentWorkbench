@@ -4,8 +4,9 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 设置页·外观分区：主题选择。分区页共用同一骨架（ScrollView +
-// ColumnLayout + PageHeader），由 SettingsPage 的 StackLayout 装载。
+// 设置页·外观分区：主题选择、跟随系统深浅色、全局字体。分区页共用
+// 同一骨架（ScrollView + ColumnLayout + PageHeader），由 SettingsPage 的
+// StackLayout 装载。
 ScrollView {
     id: page
 
@@ -36,6 +37,10 @@ ScrollView {
 
             AComboBox {
                 id: themeCombo
+
+                // 跟随系统时主题由系统深浅色决定，显式选择被搁置——
+                // 置灰以免选了不生效。
+                enabled: !theme.followSystem
 
                 // 宽度自适应内容：内置主题只有 Dark/Light 两个短标签，
                 // 定宽会让选择框跟标签脱节或截断文字。
@@ -73,6 +78,40 @@ ScrollView {
                             : ""
                 }
             }
+        }
+
+        // 跟随系统深浅色：开启时按系统深/浅套对应基线主题，上方的显式
+        // 选择被搁置。Qt 5 路线探测不了系统配色，开关置灰。
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Follow system color scheme")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+            }
+            Switch {
+                enabled: theme.canFollowSystem
+                checked: theme.followSystem
+                onToggled: theme.setFollowSystem(checked)
+            }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            visible: theme.canFollowSystem
+            text: theme.followSystem
+                  ? qsTr("The theme follows the system light/dark setting; the selection above is ignored until you turn this off.")
+                  : ""
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeCaption
+            wrapMode: Text.WordWrap
         }
 
         RowLayout {

@@ -99,7 +99,8 @@ WebTabsFacade::WebTabsFacade(core::Settings *settings, QObject *parent)
     connect(settings, &core::Settings::valueChanged, this,
             [this](const QString &key) {
                 if (key == QStringLiteral("web.freezeInactiveTabs")
-                    || key == QStringLiteral("web.downloadDir")) {
+                    || key == QStringLiteral("web.downloadDir")
+                    || key == QStringLiteral("web.homeUrl")) {
                     Q_EMIT policyChanged();
                 }
                 // 上限调低必须立即生效，而不是等下一次开标签。
@@ -688,6 +689,58 @@ QString WebTabsFacade::downloadDir() const
 bool WebTabsFacade::engineAvailable() const
 {
     return m_registry->hasSurface(QStringLiteral("embedded"));
+}
+
+/**
+ * @brief 取 Home URL 配置
+ *
+ * @return web.homeUrl；未配置时为空串（Web 页的 Home 按钮保持回到
+ *         agent 列表的空态行为）
+ */
+QString WebTabsFacade::homeUrl() const
+{
+    return m_settings->webOptions().homeUrl;
+}
+
+/**
+ * @brief 写 Home URL 并持久化
+ *
+ * 设置页输入框的提交入口。同值直接返回。值变化经 Settings 的
+ * valueChanged 触发 policyChanged，QML 绑定据此刷新。
+ *
+ * @param url 新的 Home URL；空串 = 关闭（Home 回到 agent 列表）
+ */
+void WebTabsFacade::setHomeUrl(const QString &url)
+{
+    if (url == m_settings->webOptions().homeUrl) {
+        return;
+    }
+    m_settings->setWebHomeUrl(url);
+    m_settings->save();
+}
+
+/**
+ * @brief 打开配置的 Home URL
+ *
+ * 以保留 agent id "home" 走 openTab：表面策略一致（external 交给系统
+ * 浏览器），且同一 id 的既有标签被激活而不是重复开——反复按 Home 不会
+ * 累积标签。标题初始为 "Home"，页面加载完成后由表面回报的页面标题
+ * 覆盖。
+ *
+ * @return 打开/激活的标签 id；homeUrl 为空或 URL 无效时返回空串
+ * @sa openTab
+ */
+QString WebTabsFacade::openHome()
+{
+    const QString url = m_settings->webOptions().homeUrl;
+    if (url.isEmpty()) {
+        return {};
+    }
+    QVariantMap fields;
+    fields[QStringLiteral("agentId")] = QStringLiteral("home");
+    fields[QStringLiteral("url")] = url;
+    fields[QStringLiteral("title")] = tr("Home");
+    return openTab(fields);
 }
 
 /**

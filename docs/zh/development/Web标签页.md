@@ -275,8 +275,12 @@ websocket，切回时能看到 agent Web UI 明显重绘。生命周期绑定里
 
 **`web.downloadDir`** —— 下载保存目录；空则回退平台下载目录。**`web.chromiumFlags`** —— 在
 WebEngine 初始化之前注入 `QTWEBENGINE_CHROMIUM_FLAGS` 环境变量，因此只在下次重启生效。
-**`web.homeUrl`** 在 `settings.json` 里声明、经 `Settings` 暴露，但截至 0.4.0，`src/web/` 里
-没有代码读它：工具栏的 Home 按钮显示的是运行中 agent 列表，而不是某个 URL。
+**`web.homeUrl`** —— 配置后工具栏 Home 按钮的目标：`WebTabsFacade::openHome()` 以保留
+agent id `"home"` 经 `openTab()` 打开它（反复点击只激活同一标签而不是越开越多，标签也有
+自己独立的 profile 目录）。表面策略照常生效——`external` 表面把 URL 交给系统浏览器。
+`web.homeUrl` 为空时 Home 按钮保持原有行为：在已开标签之上显示运行中 agent 列表，不关
+任何标签。设置输入框（`SettingsWebPage` → `web.setHomeUrl()`）立即落盘；变化经
+`policyChanged` 信号送达，QML 绑定据此重算。
 
 ## 安全与脱敏
 

@@ -472,6 +472,19 @@ void Settings::setSidebarCollapsed(bool collapsed)
 }
 
 /**
+ * @brief 写展开态侧栏宽度
+ *
+ * 调用方（ShellController::setSidebarWidth）负责钳制；这里按原样写入。
+ *
+ * @param width 新宽度（像素）
+ */
+void Settings::setSidebarWidth(int width)
+{
+    m_window.sidebarWidth = width;
+    Q_EMIT valueChanged(QStringLiteral("window.sidebarWidth"));
+}
+
+/**
  * @brief 写上次停留的页面 id
  *
  * @param pageId 页面 id
@@ -502,6 +515,29 @@ void Settings::setWebChromiumFlags(const QString &flags)
 {
     m_web.chromiumFlags = flags;
     Q_EMIT valueChanged(QStringLiteral("web.chromiumFlags"));
+}
+
+/**
+ * @brief 写 Web 首页 URL
+ *
+ * @param url 新的首页 URL；空串表示未配置（Web 页 Home 按钮回到
+ *            agent 列表）
+ */
+void Settings::setWebHomeUrl(const QString &url)
+{
+    m_web.homeUrl = url;
+    Q_EMIT valueChanged(QStringLiteral("web.homeUrl"));
+}
+
+/**
+ * @brief 写「启动时检查版本」开关
+ *
+ * @param on true = 下次启动时跑各 agent 的 versionCommand
+ */
+void Settings::setStartupVersionCheck(bool on)
+{
+    m_launcher.startupVersionCheck = on;
+    Q_EMIT valueChanged(QStringLiteral("launcher.startupVersionCheck"));
 }
 
 /**

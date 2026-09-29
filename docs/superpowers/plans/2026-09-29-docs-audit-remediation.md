@@ -10,7 +10,7 @@
 
 ---
 
-## T1 状态栏的 `Tabs:` 标签永远不显示（P1，用户可见）
+## ~~T1 状态栏的 `Tabs:` 标签永远不显示（P1，用户可见）~~ 已完成（2026-09-29，方案 A：删除）
 
 **证据**：`src/shell/qml/StatusBar.qml` 的第二个统计标签 `visible: nav.countInSection("web") > 0 && tabs.length > 0`；`NavigationModel::countInSection()` 统计的是页面的 `section` 字段，而 `BuiltinPages::registerPages()` 把 Web 页注册成 `section = "main"`，没有任何页面是 `web`，条件恒假。
 
@@ -25,7 +25,7 @@
 
 **需要你拍板**：状态栏到底要不要显示标签数？
 
-## T2 三个设置键有读写、无消费者（P1–P2）
+## ~~T2 三个设置键有读写、无消费者（P1–P2）~~ 已完成（2026-09-29，三键全部实现）
 
 **证据**：全仓 grep 只命中 `src/core/Settings.*` —— `appearance.followSystem`、`web.homeUrl`、`launcher.startupVersionCheck`。三者都出现在 `docs/configuration.md`（中英）的键表里，`web.homeUrl` 还没有任何 UI 控件。
 
@@ -39,7 +39,7 @@
 
 **需要你拍板**：三个键各选「实现 / 删键 / 保留现状并明确标注」中的哪一个。
 
-## T3 `window.sidebarWidth` 只能手改文件（P2）
+## ~~T3 `window.sidebarWidth` 只能手改文件（P2）~~ 已完成（2026-09-29，拖拽手柄，钳制 180–480）
 
 **证据**：`src/core/Settings.h` 与 `src/shell/ShellController.h` 都只有 getter，没有 setter；`Sidebar.qml` 读 `shell.sidebarWidth`（`> 0` 时用它，否则回退 `theme.sidebarWidth`），界面没有任何地方写回。
 
@@ -93,8 +93,8 @@ T1 → T3 → T6 → T4 → T5 → T2
 
 每项一个提交（`fix(ui): …` / `fix(shell): …` / `docs: …` / `test: …`），其中 T6 单独一个 `test(ci): add check_docs`。不要把这些攒成一个大提交——仓库的并行工作树模式下，小提交的合并成本低得多。
 
-## 三个需要你拍板的点（未定，先不动手）
+## 三个需要你拍板的点（已拍板并实施，2026-09-29）
 
-1. T1：状态栏的标签数——删掉，还是修好？
-2. T2：`appearance.followSystem`、`web.homeUrl`、`launcher.startupVersionCheck` 各自选「实现 / 删键 / 保留并标注」？
-3. T3：侧栏宽度——拖拽，还是设置页数值输入？
+1. T1：**删掉**（方案 A）。
+2. T2：三个键**全部实现**（followSystem 跟随系统深浅、homeUrl 接 Home 按钮、startupVersionCheck 门控启动探测）。
+3. T3：**拖拽手柄**（右缘 6px，钳制 180–480，抬起时提交持久化）。

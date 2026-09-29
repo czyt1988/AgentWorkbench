@@ -189,6 +189,11 @@ private Q_SLOTS:
         QVERIFY(QMetaObject::invokeMethod(&shell, "setWebChromiumFlags",
                                           Q_ARG(QString, "--disable-gpu")));
             QCOMPARE(shell.webChromiumFlags(), QStringLiteral("--disable-gpu"));
+        QVERIFY2(QMetaObject::invokeMethod(&shell, "setSidebarWidth",
+                                           Q_ARG(int, 320)),
+                 "shell.setSidebarWidth is not invokable — the sidebar "
+                 "drag handle would silently do nothing");
+            QCOMPARE(shell.sidebarWidth(), 320);
         }
         QFile::remove(Settings::settingsFilePath());
     }
@@ -206,6 +211,8 @@ private Q_SLOTS:
     }
 
     // 侧栏折叠与窗口几何持久化到 settings.json，新的 controller 读得回来。
+    // 宽度经 setSidebarWidth 钳制到 [180, 480]：低于下限侧栏内容挤成一团，
+    // 高于上限工作区被吃掉大半——拖拽手柄据此算极限，这里钉住边界。
     void testSidebarStatePersists()
     {
         QVERIFY(QDir().mkpath(
@@ -219,6 +226,15 @@ private Q_SLOTS:
             shell.setSidebarCollapsed(true);
             shell.saveWindowSize(1200, 800);
             shell.setLastPageId(QStringLiteral("settings"));
+
+            QCOMPARE(shell.sidebarMinWidth(), 180);
+            QCOMPARE(shell.sidebarMaxWidth(), 480);
+            shell.setSidebarWidth(64);
+            QCOMPARE(shell.sidebarWidth(), 180);
+            shell.setSidebarWidth(4096);
+            QCOMPARE(shell.sidebarWidth(), 480);
+            shell.setSidebarWidth(320);
+            QCOMPARE(shell.sidebarWidth(), 320);
         }
         {
             Settings settings;
@@ -227,6 +243,7 @@ private Q_SLOTS:
             QCOMPARE(shell.windowWidth(), 1200);
             QCOMPARE(shell.windowHeight(), 800);
             QCOMPARE(shell.lastPageId(), QStringLiteral("settings"));
+            QCOMPARE(shell.sidebarWidth(), 320);
         }
         QFile::remove(Settings::settingsFilePath());
     }

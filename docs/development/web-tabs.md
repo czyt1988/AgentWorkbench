@@ -308,9 +308,15 @@ visible page and logs an error on every state change).
 
 **`web.downloadDir`** — where downloads are saved; empty falls back to the platform download
 directory. **`web.chromiumFlags`** — injected into the `QTWEBENGINE_CHROMIUM_FLAGS` environment
-variable before WebEngine is initialized, so it only takes effect on the next restart. **`web.homeUrl`**
-is declared in `settings.json` and exposed through `Settings`, but as of 0.4.0 no code in `src/web/`
-reads it: the toolbar's Home button shows the running-agent list, not a URL.
+variable before WebEngine is initialized, so it only takes effect on the next restart.
+**`web.homeUrl`** — the toolbar Home button's target when configured: `WebTabsFacade::openHome()`
+opens it through `openTab()` with the reserved agent id `"home"` (so repeated clicks activate the
+same tab instead of piling up new ones, and the tab keeps its own profile directory). The surface
+policy applies as usual — an `external` surface hands the URL to the system browser. When
+`web.homeUrl` is empty the Home button keeps its original behaviour: it shows the running-agent
+list view over the open tabs without closing any. The settings field
+(`SettingsWebPage` → `web.setHomeUrl()`) persists immediately; the `policyChanged` signal carries
+the change so QML bindings re-evaluate.
 
 ## Security and redaction
 

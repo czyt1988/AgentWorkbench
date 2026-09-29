@@ -37,6 +37,15 @@ class AgentsFacade : public QObject
     Q_OBJECT
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
+    // 本会话的 start() 是否跑（将跑）版本探测：launcher.startupVersionCheck
+    // 的会话快照。卡片据此决定要不要显示「未安装」图标——没探测过就
+    // 显示它会是误导
+    Q_PROPERTY(bool versionCheckEnabled READ versionCheckEnabled NOTIFY
+                   versionCheckEnabledChanged)
+    // launcher.startupVersionCheck 的当前持久化值（设置页开关的回显；
+    // 与会话快照刻意分开——开关改的是下一次启动）
+    Q_PROPERTY(bool startupVersionCheck READ startupVersionCheck NOTIFY
+                   startupVersionCheckChanged)
 
 public:
     // `theme` 提供自动配色的 agentPalette；nullptr 时用内置色板（单元测试）
@@ -65,6 +74,15 @@ public:
 
     // 本次会话是否至少启动过一个 agent
     Q_INVOKABLE bool hasLaunchedAgents() const;
+
+    // 本会话的版本探测是否开启（launcher.startupVersionCheck 的会话快照）
+    bool versionCheckEnabled() const;
+    // launcher.startupVersionCheck 的当前持久化值（设置页开关回显）
+    bool startupVersionCheck() const;
+    // 写 launcher.startupVersionCheck 并落盘（设置页开关）。只影响下一次
+    // 启动：本会话的探测已按 start() 时的值决定跑不跑，versionCheckEnabled
+    // 不随这个开关变
+    Q_INVOKABLE void setStartupVersionCheck(bool on);
 
     // 结束本次会话启动的全部进程；返回成功杀掉的进程树数量
     Q_INVOKABLE int stopAll();
@@ -141,16 +159,33 @@ Q_SIGNALS:
      */
     void sessionUrlChanged(const QString &id, const QString &url);
 
+    /**
+     * @brief 本会话的版本探测开关快照变化时发射
+     *
+     * start() 按当时的 launcher.startupVersionCheck 落定快照；卡片据此
+     * 决定「未安装」图标是否显示。
+     */
+    void versionCheckEnabledChanged();
+
+    /**
+     * @brief launcher.startupVersionCheck 的持久化值变化时发射
+     *
+     * settings.json 被外部改写也会到这里（构造时接好的 valueChanged）。
+     */
+    void startupVersionCheckChanged();
+
 private:
     // 把模型的当前定义写回 agents.json；成败各记一条日志
     bool saveConfig();
 
+    core::Settings *m_settings;     ///< 设置，不持有；健康间隔与版本开关的来源
     AgentRepository *m_repo;        ///< agents.json 的读写与内置同步
     AgentStateStore *m_stateStore;  ///< agent_state.json（setup 完成记录）
     AgentModel *m_model;            ///< 暴露给 QML 的列表模型
     AgentRuntime *m_runtime;        ///< 长驻进程的启动/停止
     AgentScripts *m_scripts;        ///< 一次性命令
     AgentHealthMonitor *m_health;   ///< 健康轮询
+    bool m_versionCheckEnabled;     ///< 版本探测开关的会话快照（start() 落定）
 };
 
 } // namespace awb::agentcatalog

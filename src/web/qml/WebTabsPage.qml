@@ -263,14 +263,24 @@ Item {
                     spacing: theme.spacingXs
                     rightPadding: theme.spacingS
 
-                    // 首页：回到 agent 列表（无标签页）而不关闭任何
-                    // 标签。没有可回的地方（列表已在眼前）时禁用。
+                    // 首页：配了 web.homeUrl 时打开它（重复按激活同一
+                    // Home 标签），否则回到 agent 列表（无标签页）而不
+                    // 关闭任何标签。配了 homeUrl 时随时可回（空态也开）。
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: "qrc:/icons/home.svg"
-                        tooltip: qsTr("Home")
-                        enabled: web.tabCount > 0
-                        onClicked: page.homeActive = true
+                        tooltip: web.homeUrl.length > 0
+                                  ? qsTr("Home (configured start page)")
+                                  : qsTr("Home")
+                        enabled: web.tabCount > 0 || web.homeUrl.length > 0
+                        onClicked: {
+                            if (web.homeUrl.length > 0) {
+                                page.homeActive = false
+                                web.openHome()
+                            } else {
+                                page.homeActive = true
+                            }
+                        }
                     }
 
                     // ⟳ 重载 / ✕ 停止加载——按钮跟随活动标签的状态切换。

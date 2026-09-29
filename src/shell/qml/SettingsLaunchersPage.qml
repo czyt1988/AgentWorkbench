@@ -84,6 +84,26 @@ Item {
                 }
             }
 
+            // 启动时版本检查：关掉后卡片不显示版本号与安装状态（省一
+            // 轮子进程探测）。开关只影响下一次启动。
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Check launcher versions at startup")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: agents.startupVersionCheck
+                    onToggled: agents.setStartupVersionCheck(checked)
+                }
+            }
+
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL

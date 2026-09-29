@@ -16,9 +16,9 @@ Boundaries:
 - The settings sections are a UI over a fixed key schema. There is no migration
   code and there must not be any: missing keys fall back to defaults, unknown
   keys are ignored with a warning.
-- Some keys have no UI. `logging.*`, `launcher.*`, `locale.override`,
-  `appearance.followSystem` and `web.homeUrl` are read by their consumers but
-  are currently edited by hand only.
+- Some keys have no UI. `logging.*`, `locale.override` and
+  `launcher.healthCheckIntervalMs` are read by their consumers but are edited
+  by hand only.
 - Plugin toggles and a few other keys only take effect after a restart, because
   they are consumed during startup assembly.
 
@@ -29,11 +29,11 @@ Boundaries:
 | `src/core/Settings.h` | `Settings` plus `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings` | The typed schema: one struct per section, all defaults inline; property-style getters and setters; `valueChanged(key)` | every module |
 | `src/core/Settings.cpp` | `Settings::load()/save()` | Key-set validation, typed reads with clamping, unknown-key warnings, atomic write | `core::JsonStore`, `core::Logging` |
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
-| `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme and font selection | `theme.applyTheme()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.fontFamilies` |
-| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Launcher list with add/edit/delete and confirmation dialogs | `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
+| `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
+| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
 | `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | Python/Node status and a Re-detect button | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
-| `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection and Chromium flags field | `web.engineAvailable`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
+| `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
 | `src/shell/qml/SettingsPluginsPage.qml` | `SettingsPluginsPage` | Plugin master switch, per-plugin switches, trust notice | `workbench.pluginsEnabled()`, `workbench.setPluginsEnabled()`, `workbench.pluginList()`, `workbench.setPluginEnabled()`, `workbench.pluginTrustNotice()` |
 | `src/shell/qml/SettingsAdvancedPage.qml` | `SettingsAdvancedPage` | Data-file path, open data folder, restore default launchers | `agents.configFilePath()`, `agents.restoreDefaults()`, `workbench.openFolder()` |
 | `src/shell/ShellController.h` / `.cpp` | `ShellController` | Window-level keys as bindable properties; setters persist immediately; `valueChanged` re-broadcast | `core::Settings` |
@@ -69,16 +69,26 @@ on the right.
 Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
 `PageHeader`; the ones with dialogs own them privately.
 
-- **`SettingsAppearancePage`.** Two `AComboBox`es.
+- **`SettingsAppearancePage`.** Two `AComboBox`es and a `Switch`.
   - Theme: `model: theme.availableThemes`, `onActivated: theme.applyTheme(currentValue)`.
     The current index comes from a loop over `availableThemes` rather than
-    `indexOfValue(theme.themeId)`; a tooltip shows the full theme name.
+    `indexOfValue(theme.themeId)`; a tooltip shows the full theme name. The combo
+    is disabled while `theme.followSystem` is on (the current theme is decided by
+    the system light/dark preference, so an explicit pick would be ignored).
+  - Follow system: a `Switch` bound to `theme.followSystem` calling
+    `theme.setFollowSystem(checked)`, disabled when `theme.canFollowSystem` is
+    false (the Qt 5 fallback has no color-scheme API). A caption explains that
+    the explicit selection is ignored while it is on.
   - Font: a `Theme default` entry with an empty value followed by
     `theme.fontFamilies`; `onActivated: theme.setFontFamily(currentValue)`.
     The index likewise uses a loop over the model. A caption explains that the
     font applies to the whole application and that "Theme default" follows the
     theme or system font.
 - **`SettingsLaunchersPage`.** A `PageHeader` with an `Add Launcher` action, a
+  `Switch` bound to `agents.startupVersionCheck` calling
+  `agents.setStartupVersionCheck(checked)` (next start only — the current
+  session's snapshot is `agents.versionCheckEnabled`, which the agent cards use
+  to hide the not-installed icon when no check ran), and a
   `Repeater` over `agents.model` rendering `AListRow`s (icon, name, command, an
   `AStatusDot`, Edit and Delete). Editing opens `AgentEditDialog`; Delete opens a
   danger `AConfirmDialog` with contextual warnings (running / built-in) whose
@@ -97,7 +107,9 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   plugin version de-duplication. This is the UI for `skills.roots`.
 - **`SettingsWebPage`.** A surface `AComboBox` whose model is built from
   `web.engineAvailable` (only `External` when the embedded engine is not
-  compiled in), calling `shell.setWebSurface()`; and an `ATextField` whose
+  compiled in), calling `shell.setWebSurface()`; a Home URL `ATextField` bound
+  to `web.homeUrl` whose `onEditingFinished` calls `web.setHomeUrl()` (empty
+  keeps the Home button's agent-list behaviour); and an `ATextField` whose
   `onEditingFinished` calls `shell.setWebChromiumFlags()` with a caption noting
   it applies after restart and that "Open in browser" always works as a fallback.
 - **`SettingsPluginsPage`.** The trust notice from
@@ -121,21 +133,21 @@ Every key below is validated by `Settings::load()` and written back by
 | `window.title` | string | `""` | Window title; empty means the app default `AgentWorkbench` | `ShellController::windowTitle()`, `MainWindow.title` |
 | `window.width` | int | `1440` | Window width; clamped `[400, 16384]` | `ShellController::windowWidth()`, `MainWindow.width` |
 | `window.height` | int | `900` | Window height; clamped `[300, 16384]` | `ShellController::windowHeight()`, `MainWindow.height` |
-| `window.sidebarWidth` | int | `240` | Expanded sidebar width; clamped `[0, 1024]`; `0` falls back to `theme.sidebarWidth` | `Sidebar.implicitWidth` via `shell.sidebarWidth` |
+| `window.sidebarWidth` | int | `240` | Expanded sidebar width; clamped `[0, 1024]` on read (0 falls back to `theme.sidebarWidth`); `ShellController::setSidebarWidth` re-clamps UI writes to `[180, 480]` | `Sidebar.implicitWidth` via `shell.sidebarWidth`; the drag handle commits via `shell.setSidebarWidth()` |
 | `window.sidebarCollapsed` | bool | `false` | Sidebar collapsed state | `ShellController`, `Sidebar.collapsed`, `Ctrl+B` |
 | `window.lastPageId` | string | `"agents"` | Last visited page id, restored at startup | `BuiltinPages::wirePagePersistence()` |
 | `appearance.theme` | string | `"mocha-dark"` | Active theme id; an unknown id falls back to `mocha-dark` with a warning on load, but `Theme::applyTheme()` refuses unknown ids | `Theme::loadCurrent()`, `Theme::themeId()` |
-| `appearance.followSystem` | bool | `false` | Follow the system light/dark preference | (read and written; no consumer today) |
+| `appearance.followSystem` | bool | `false` | Follow the system light/dark preference; when on, the active theme is the built-in baseline of the system's variant and `appearance.theme` is shelved. Unknown scheme (or Qt 5, where `canFollowSystem` is false) falls back to `appearance.theme` | `Theme::loadCurrent()`, `SettingsAppearancePage` switch |
 | `appearance.fontFamily` | string | `"Microsoft YaHei"` | Global UI font family; empty follows the theme/system default | `main.cpp` (`QGuiApplication::setFont`), `Theme::family()`, `MainWindow.font.family` |
 | `locale.override` | string | `""` | Forced locale; empty follows the system locale | `main.cpp` (translator load), `PluginServices` context |
 | `launcher.healthCheckIntervalMs` | int | `3000` | Agent health-check interval; clamped `[100, 600000]` | `AgentsFacade` → `AgentHealthMonitor` |
-| `launcher.startupVersionCheck` | bool | `true` | Run a version check at startup | (read and written; no consumer today) |
+| `launcher.startupVersionCheck` | bool | `true` | Run the version probes at startup; off means no `versionCommand` processes, and cards hide the version label and not-installed icon (`AgentsFacade::versionCheckEnabled` is the session snapshot) | `AgentsFacade::start()` gate, `SettingsLaunchersPage` switch |
 | `web.surface` | string | `"embedded"` | `embedded` \| `external`; any other value warns and resets to the default | `WebTabsFacade`, `ShellController::webSurface()`, `SettingsWebPage` |
 | `web.freezeInactiveTabs` | bool | `false` | Freeze non-active tabs (Chromium already throttles them; freezing also suspends JS/websockets) | `WebTabsFacade` (`policyChanged`), `WebEngineSurface.qml` |
 | `web.maxLiveTabs` | int | `8` | Maximum live tabs before LRU release; clamped `[1, 64]` (and re-clamped to `>= 1` at use) | `WebTabsFacade::applyMemoryPolicy()` |
 | `web.downloadDir` | string | `""` | Download directory; empty means the platform default (`~/Downloads`) | `WebTabsFacade` (`policyChanged`), `WebEngineSurface.qml` download |
 | `web.chromiumFlags` | string | `""` | Chromium command-line flags, injected as `QTWEBENGINE_CHROMIUM_FLAGS`; applies after restart | `main.cpp`, `ShellController::webChromiumFlags()` |
-| `web.homeUrl` | string | `""` | Home URL for new tabs | (read and written; no consumer today) |
+| `web.homeUrl` | string | `""` | URL opened by the Web page's Home button (reserved tab agent id `home`, so repeated clicks activate one tab); empty = Home shows the running-agent list | `WebTabsFacade::openHome()` / `setHomeUrl()`, `SettingsWebPage` field |
 | `skills.roots` | array | `[]` | Skill scan roots as `{id?,label?,path,kind?,enabled?}`; empty means the built-in defaults | `SkillScanner`, `SkillsFacade`, `SettingsSkillsPage` |
 | `skills.includePluginCaches` | bool | `true` | Whether plugin-cache roots are scanned | `SkillScanner` → `SkillScanParams` |
 | `skills.maxDepth` | int | `6` | Directory traversal depth; clamped `[1, 32]` | `SkillScanner` → `SkillScanParams` |
@@ -173,8 +185,9 @@ migration code and none should be added: adding a key means adding a default.
 | Subscriber | Keys it reacts to | Effect |
 |---|---|---|
 | `ShellController` | `window.sidebarCollapsed`, `window.sidebarWidth`, `window.width`, `window.height`, `window.title`, `web.surface`, `web.chromiumFlags` | Re-broadcasts the corresponding property so external edits stay in sync |
-| `Theme` | `appearance.theme` → `loadCurrent()`; `appearance.fontFamily` → `changed()` | Reloads the theme or just re-binds the font token |
-| `WebTabsFacade` | `web.freezeInactiveTabs` and `web.downloadDir` → `policyChanged()`; `web.maxLiveTabs` → `applyMemoryPolicy()` | `policyChanged` re-evaluates QML bindings; lowering the live-tab cap takes effect immediately rather than at the next tab open |
+| `Theme` | `appearance.theme` or `appearance.followSystem` → `loadCurrent()`; `appearance.fontFamily` → `changed()` | Reloads the theme (also re-resolving the follow-system baseline) or just re-binds the font token |
+| `AgentsFacade` | `launcher.startupVersionCheck` → `startupVersionCheckChanged()` | Re-broadcasts the persisted switch so the settings page echo stays in sync; the session snapshot `versionCheckEnabled` is only re-decided in `start()` |
+| `WebTabsFacade` | `web.freezeInactiveTabs`, `web.downloadDir` or `web.homeUrl` → `policyChanged()`; `web.maxLiveTabs` → `applyMemoryPolicy()` | `policyChanged` re-evaluates QML bindings; lowering the live-tab cap takes effect immediately rather than at the next tab open |
 
 The last row is the one worth remembering: `web.maxLiveTabs` is special-cased so
 that reducing it releases tabs at once.
@@ -199,10 +212,14 @@ the next relevant action.
 
 ### Read-only and settable keys
 
-Not every key has a setter path from the UI. `window.sidebarWidth` has a getter
-in `ShellController` but no setter, so the sidebar width is whatever the file
-says; there is no drag handle writing it back. `appearance.followSystem`,
-`web.homeUrl` and `launcher.startupVersionCheck` likewise have no UI control.
+Every key with a UI control now has a write path: the sidebar width is committed
+by the drag handle through `ShellController::setSidebarWidth()`, the
+follow-system switch through `Theme::setFollowSystem()`, the Home URL field
+through `WebTabsFacade::setHomeUrl()` and the startup version-check switch
+through `AgentsFacade::setStartupVersionCheck()`. What remains read-only from
+the UI are the hand-edited keys above (`logging.*`, `locale.override`,
+`launcher.healthCheckIntervalMs`) and the deliberately write-only-elsewhere
+ones (`window.width`/`height` are written by `saveWindowSize()` at close).
 
 ## Pitfalls and conventions
 
@@ -219,10 +236,14 @@ says; there is no drag handle writing it back. `appearance.followSystem`,
   needs a different bound, change the constant in `load()`, not at the use site.
 - **Consumer-side clamps still exist.** `WebTabsFacade` re-applies
   `qMax(1, maxLiveTabs)` at use time, so a hand-edited value cannot produce a
-  zero-live-tab policy.
-- **Some keys are deliberately inert today.** `appearance.followSystem`,
-  `web.homeUrl` and `launcher.startupVersionCheck` are read and written but have
-  no consumer; documenting them as "follows the system" would be wrong.
+  zero-live-tab policy. Likewise `ShellController::setSidebarWidth()` clamps UI
+  writes to `[180, 480]` while the read side tolerates the file's `[0, 1024]`
+  (0 keeps its "theme fallback" meaning).
+- **Follow-system is a Qt 6.5+ capability.** `QStyleHints::colorScheme` has no
+  Qt 5 equivalent, so `Theme::canFollowSystem` is constant false there: the
+  settings switch is disabled and the key is inert (the theme stays
+  `appearance.theme`). On Qt 6 an unknown scheme (rare, but possible) takes the
+  same fallback rather than guessing dark.
 
 ## Adding a settings key
 

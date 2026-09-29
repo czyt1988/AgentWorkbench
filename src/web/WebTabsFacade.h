@@ -39,6 +39,7 @@ class WebTabsFacade : public QObject
     Q_PROPERTY(bool freezeInactiveTabs READ freezeInactiveTabs NOTIFY
                    policyChanged)
     Q_PROPERTY(QString downloadDir READ downloadDir NOTIFY policyChanged)
+    Q_PROPERTY(QString homeUrl READ homeUrl NOTIFY policyChanged)
     Q_PROPERTY(bool engineAvailable READ engineAvailable CONSTANT)
 
 public:
@@ -63,9 +64,20 @@ public:
     bool freezeInactiveTabs() const;
     // 下载目录：web.downloadDir，未配置时回退系统下载目录
     QString downloadDir() const;
+    // Web 页 Home 按钮要打开的 URL（web.homeUrl）；空串 = 维持 agent
+    // 列表空态行为
+    QString homeUrl() const;
     // 嵌入表面是否存在：AWB_ENABLE_WEBENGINE=OFF 的构建为 false，
     // 设置页据此把该选项置灰
     bool engineAvailable() const;
+
+    // 写 web.homeUrl 并落盘（设置页输入框的提交入口）
+    Q_INVOKABLE void setHomeUrl(const QString &url);
+
+    // 打开配置的 Home URL：非空时按保留 agent id "home" 开标签（已有
+    // Home 标签则激活），空串/无效 URL 时无效果并返回空串。表面策略与
+    // openTab 一致（external 走系统浏览器）
+    Q_INVOKABLE QString openHome();
 
     // 与 openTab 类似但**总是**开新标签：环回弹出窗口用（OAuth 窗口、
     // 同一 agent 的 target=_blank）——那种场景下 openTab 的同 agent

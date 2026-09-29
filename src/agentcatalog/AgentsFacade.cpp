@@ -115,6 +115,7 @@ AgentDefinition definitionFromFields(const QVariantMap &f, const QString &id)
 AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
                            theme::Theme *theme, QObject *parent)
     : QObject(parent)
+    , m_settings(settings)
     , m_repo(new AgentRepository(dataRoot))
     , m_stateStore(new AgentStateStore(dataRoot))
     , m_model(new AgentModel(this))
@@ -122,7 +123,15 @@ AgentsFacade::AgentsFacade(core::Settings *settings, const QString &dataRoot,
     , m_scripts(new AgentScripts(m_model, m_stateStore, this))
     , m_health(new AgentHealthMonitor(
           m_model, settings->launcherOptions().healthCheckIntervalMs, this))
+    , m_versionCheckEnabled(settings->launcherOptions().startupVersionCheck)
 {
+    // 持久化开关的外部改写同步到设置页的回显。
+    connect(m_settings, &core::Settings::valueChanged, this,
+            [this](const QString &key) {
+                if (key == QStringLiteral("launcher.startupVersionCheck")) {
+                    Q_EMIT startupVersionCheckChanged();
+                }
+            });
     // 配置：内置来自随包默认，用户 agent 叠加其上；自动配色取当前主题。
     if (theme) {
         m_repo->setAgentPalette(theme->agentPalette());
@@ -187,9 +196,11 @@ QAbstractItemModel *AgentsFacade::model() const
 /**
  * @brief 启动门面：应用状态并开跑各后台探测
  *
- * 把 agent_state.json 里的 setup 状态套到卡片上；给配了 versionCommand
- * 的 agent 预先标上 "checking"（首帧就有 spinner，版本进程先于首次渲染
- * 结束也不闪空）；最后启动健康轮询与版本检查。
+ * 把 agent_state.json 里的 setup 状态套到卡片上；按 launcher.startupVersionCheck
+ * 落定版本探测的会话快照——开启时给配了 versionCommand 的 agent 预先标上
+ * "checking"（首帧就有 spinner，版本进程先于首次渲染结束也不闪空）并在
+ * 最后启动版本检查，关闭时两者都跳过（卡片不显示版本与安装状态）。
+ * 健康轮询不受该开关影响。
  */
 void AgentsFacade::start()
 {
@@ -197,6 +208,14 @@ void AgentsFacade::start()
            QStringLiteral("%1 launcher(s) configured, config: %2")
                .arg(m_model->definitions().size())
                .arg(configFilePath()));
+
+    // 版本探测开关的会话快照在 start() 落定：设置页的开关只影响下一次
+    // 启动，本会话的探测已经决定跑不跑。
+    if (m_versionCheckEnabled
+        != m_settings->launcherOptions().startupVersionCheck) {
+        m_versionCheckEnabled = m_settings->launcherOptions().startupVersionCheck;
+        Q_EMIT versionCheckEnabledChanged();
+    }
 
     // 把持久化的 setup 状态套到卡片上。
     m_stateStore->load();
@@ -207,14 +226,22 @@ void AgentsFacade::start()
     // 任何 QML 绘制之前，先把配了 versionCommand 的 agent 全标成
     // "checking"：spinner 从第一帧就可见，即便版本进程在首次渲染前
     // 就已经结束。
-    for (const AgentDefinition &d : m_model->definitions()) {
-        if (!d.versionCommand.isEmpty()) {
-            m_model->setCheckingVersion(d.id, true);
+    if (m_versionCheckEnabled) {
+        for (const AgentDefinition &d : m_model->definitions()) {
+            if (!d.versionCommand.isEmpty()) {
+                m_model->setCheckingVersion(d.id, true);
+            }
         }
     }
 
     m_health->start();
-    m_scripts->checkVersions();
+    if (m_versionCheckEnabled) {
+        m_scripts->checkVersions();
+    }
+    else {
+        appLog(QStringLiteral("start"), QString(),
+               QStringLiteral("startup version check disabled by settings"));
+    }
 }
 
 // --- Launch / stop ------------------------------------------------------------
@@ -319,6 +346,45 @@ bool AgentsFacade::hasLaunchedAgents() const
 int AgentsFacade::stopAll()
 {
     return m_runtime->stopAll();
+}
+
+/**
+ * @brief 查询本会话的版本探测开关
+ *
+ * @return start() 时 launcher.startupVersionCheck 的快照；卡片据此隐藏
+ *         「未安装」图标（没探测过就显示会是误导）
+ */
+bool AgentsFacade::versionCheckEnabled() const
+{
+    return m_versionCheckEnabled;
+}
+
+/**
+ * @brief 查询「启动时检查版本」的持久化值
+ *
+ * @return launcher.startupVersionCheck 的当前值（设置页开关回显用）
+ */
+bool AgentsFacade::startupVersionCheck() const
+{
+    return m_settings->launcherOptions().startupVersionCheck;
+}
+
+/**
+ * @brief 写「启动时检查版本」开关并持久化
+ *
+ * 只影响下一次启动：本会话的探测已按 start() 时的值决定跑不跑，
+ * versionCheckEnabled 不随这个开关变（同值直接返回）。回显刷新经构造
+ * 时连好的 valueChanged -> startupVersionCheckChanged 完成。
+ *
+ * @param on true = 下次启动时探测各 agent 的版本
+ */
+void AgentsFacade::setStartupVersionCheck(bool on)
+{
+    if (on == m_settings->launcherOptions().startupVersionCheck) {
+        return;
+    }
+    m_settings->setStartupVersionCheck(on);
+    m_settings->save();
 }
 
 // --- 一次性命令转发 -----------------------------------------------------------

@@ -4,9 +4,11 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 底部状态栏：中部活动计数（运行中的 agent、Web 标签数），最右是运行
-// 环境徽标（Python/Node.js）。应用版本号不在状态栏展示——移到了设置页
-// 侧栏的钉底（见 SettingsPage）。高度取 theme.statusBarHeight。
+// 底部状态栏：中部活动计数（运行中的 agent 数），最右是运行环境徽标
+// （Python/Node.js）。应用版本号不在状态栏展示——移到了设置页侧栏的
+// 钉底（见 SettingsPage）。高度取 theme.statusBarHeight。
+// Web 标签数只在侧栏徽标里显示（BuiltinPages 写 nav 徽标），状态栏
+// 不再重复一份。
 Rectangle {
     id: statusBar
 
@@ -33,13 +35,6 @@ Rectangle {
             text: running.length > 0
                   ? qsTr("Running: %1").arg(running)
                   : qsTr("Running: 0")
-            color: theme.textSecondary
-            font.pixelSize: theme.fontSizeCaption
-        }
-        Label {
-            readonly property string tabs: nav.badges["web"] || ""
-            visible: nav.countInSection("web") > 0 && tabs.length > 0
-            text: qsTr("Tabs: %1").arg(tabs)
             color: theme.textSecondary
             font.pixelSize: theme.fontSizeCaption
         }

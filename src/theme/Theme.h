@@ -31,6 +31,12 @@ class Theme : public QObject
     Q_PROPERTY(QString themeId READ themeId NOTIFY changed)
     Q_PROPERTY(QVariantList availableThemes READ availableThemes NOTIFY changed)
     Q_PROPERTY(QStringList agentPalette READ agentPalette NOTIFY changed)
+    // appearance.followSystem 的当前值：跟随系统深浅色时主题不取
+    // appearance.theme，而是取系统深浅对应变体的基线主题
+    Q_PROPERTY(bool followSystem READ followSystem NOTIFY changed)
+    // 本运行时能否探测系统深浅色（Qt 6.5+ 为真，Qt 5 恒为假）；
+    // 设置页据此决定「跟随系统」开关是否可用
+    Q_PROPERTY(bool canFollowSystem READ canFollowSystem CONSTANT)
 
     Q_PROPERTY(QColor windowBg READ windowBg NOTIFY changed)
     Q_PROPERTY(QColor sidebarBg READ sidebarBg NOTIFY changed)
@@ -114,6 +120,22 @@ public:
     // 运行时切换全局字体：写 appearance.fontFamily（空串 = 跟随主题/系统
     // 默认），family 令牌随之重绑
     Q_INVOKABLE void setFontFamily(const QString &family);
+
+    // 运行时切换「跟随系统深浅色」：写 appearance.followSystem 并落盘。
+    // 为真时当前主题改由系统深浅色决定（对应变体的内置基线主题），
+    // appearance.theme 被搁置；系统翻转深浅色会即时换主题
+    Q_INVOKABLE void setFollowSystem(bool on);
+
+    // appearance.followSystem 的当前值
+    bool followSystem() const;
+
+    // 本运行时能否探测系统深浅色：Qt 6.5+ 为真，Qt 5 恒为假（该键被
+    // 忽略、开关置灰）。CONSTANT——不随会话变化
+    bool canFollowSystem() const;
+
+    // 测试注入：固定 systemVariant() 的返回（空串 = 恢复真实探测）。
+    // 单元测试的 runner 只有 QCoreApplication，探测不了系统配色
+    static void setSystemVariantForTesting(const QString &variant);
 
     // 按名字取颜色令牌（供遍历令牌的组件用）；未知名字返回无效 QColor
     Q_INVOKABLE QColor color(const QString &name) const;
@@ -203,9 +225,15 @@ private:
     // 从注册表重读当前主题并广播 changed()（设置变更与热重载共用）
     void loadCurrent();
 
+    // 探测系统深浅色："dark" / "light"；未知返回空串
+    static QString systemVariant();
+
     core::Settings *m_settings;  ///< 设置：当前主题与字体覆盖的读写
     ThemeRegistry *m_registry;   ///< 主题来源，提供可用主题与热重载通知
     ThemeFile m_current;         ///< 当前生效的主题（全部令牌 getter 的数据源）
+
+    /// 测试注入的 systemVariant 固定值；空串 = 用真实探测
+    static QString s_testVariant;
 };
 
 } // namespace awb::theme

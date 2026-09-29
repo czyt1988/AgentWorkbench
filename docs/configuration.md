@@ -65,6 +65,20 @@ Missing keys take their defaults in place — there is no migration code:
   in the log once.
 - `appearance.theme` references a theme `id`; unknown ids fall back to
   `mocha-dark` with a warning.
+- `appearance.followSystem` (default `false`) follows the system light/dark
+  preference: while `true` the active theme is the built-in dark or light
+  scheme matching the system, and `appearance.theme` is shelved until you turn
+  it off. Builds on the Qt 5 fallback cannot detect the setting; there the key
+  is inert.
+- `window.sidebarWidth` can also be set by dragging the sidebar's right edge;
+  values written from the UI are clamped to `[180, 480]`. A hand-edited `0`
+  falls back to the theme's default width.
+- `launcher.startupVersionCheck` (default `true`) controls the start-up version
+  probes. When `false`, no `versionCommand` processes run and the cards show
+  neither a version label nor an install/download icon. Applies from the next
+  start.
+- `web.homeUrl` (default empty) is the page the web view's **Home** button
+  opens; empty keeps the "back to the running-agent list" behaviour.
 - `web.surface` is `embedded` or `external`. Without a WebEngine build the
   embedded surface degrades to `external` automatically. `chromiumFlags`
   are injected before WebEngine initialization — add e.g. `--disable-gpu`

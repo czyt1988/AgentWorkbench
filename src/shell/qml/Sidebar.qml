@@ -16,17 +16,28 @@ Rectangle {
     // 折叠态：由 MainWindow 与 ShellController 保持同步。
     property bool collapsed: false
 
+    // 拖拽手柄的进行时状态：resizing 期间宽度用 pendingWidth（本地值，
+    // 不落盘），抬起时经 shell.setSidebarWidth 一次性提交并持久化。
+    property bool resizing: false
+    property int pendingWidth: 0
+
     color: theme.sidebarBg
     // 展开宽度：取设置里的 window.sidebarWidth（ShellController 持有），
-    // 键被显式清空（0）时回退主题令牌，两者默认都是 240。
+    // 键被显式清空（0）时回退主题令牌，两者默认都是 240；拖拽期间用
+    // pendingWidth 即时贴住指针。
     // 用 implicitWidth 而不是 width：本项由 MainWindow 的 RowLayout 接管，
     // 布局只跟随隐式尺寸的变化重新分配——子项绕过布局直改 width 会让
     // 工作区冻在旧尺寸，折叠后的侧栏旁留出一条空隙。
     implicitWidth: collapsed ? theme.sidebarCollapsedWidth
-                             : (shell.sidebarWidth > 0 ? shell.sidebarWidth
-                                                       : theme.sidebarWidth)
+                             : (resizing ? pendingWidth
+                                         : (shell.sidebarWidth > 0
+                                            ? shell.sidebarWidth
+                                            : theme.sidebarWidth))
 
     Behavior on implicitWidth {
+        // 拖拽期间禁用：宽度必须逐帧贴住指针，动画的平滑延迟会让拖拽
+        // 手感发"皮"。
+        enabled: !sidebar.resizing
         NumberAnimation { duration: theme.durationNormal }
     }
 
@@ -286,6 +297,76 @@ Rectangle {
                    ? footer.buttonGap
                      + footer.systemCount * (footer.buttonSize + footer.buttonGap)
                    : (footer.height - height) / 2
+            }
+        }
+    }
+
+    // --- 侧栏右缘的拖拽手柄 -----------------------------------------------
+    // 悬停时光标变水平双向箭头，按住拖动调侧栏宽度；极限值由
+    // shell.sidebarMinWidth/MaxWidth（180–480）钳制，抬起时经
+    // shell.setSidebarWidth 一次性提交（C++ 侧再钳一道并落盘）。声明在
+    // 内容之后，压在导航行/页脚的鼠标区上。折叠态隐藏（窄条没有可调
+    // 的意义，手柄位置也与折叠按钮冲突）。
+    Item {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 6
+        visible: !sidebar.collapsed
+
+        // 拖拽/悬停时的竖线提示。
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            x: 2
+            width: 2
+            height: 28
+            radius: 1
+            color: handleArea.containsMouse ? theme.borderStrong
+                                            : theme.borderSubtle
+            Behavior on color {
+                ColorAnimation { duration: theme.durationFast }
+            }
+        }
+
+        MouseArea {
+            id: handleArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.SplitHCursor
+
+            // 按下瞬间的侧栏宽度与指针 x。指针位置映射到 sidebar.parent
+            // （MainWindow 的 RowLayout）再取差值：父布局的几何不随侧栏
+            // 宽度变化，映射结果在拖拽全程稳定——直接用 mouse.x 的话，
+            // 手柄自己跟着右缘移动，增量会互相抵消。
+            property real widthAtPress: 0
+            property real pressX: 0
+
+            onPressed: function(mouse) {
+                widthAtPress = sidebar.width
+                pressX = mapToItem(sidebar.parent, mouse.x, 0).x
+                sidebar.pendingWidth = Math.round(sidebar.width)
+                sidebar.resizing = true
+            }
+            onPositionChanged: function(mouse) {
+                if (!sidebar.resizing) {
+                    return
+                }
+                const x = mapToItem(sidebar.parent, mouse.x, 0).x
+                const target = widthAtPress + x - pressX
+                sidebar.pendingWidth = Math.round(
+                        Math.max(shell.sidebarMinWidth,
+                                 Math.min(shell.sidebarMaxWidth, target)))
+            }
+            onReleased: {
+                // QML 侧已按同一对边界钳过，这里提交不会再有视觉跳变。
+                sidebar.resizing = false
+                shell.setSidebarWidth(sidebar.pendingWidth)
+                sidebar.pendingWidth = 0
+            }
+            // 抓取被抢走（窗口失活等）：恢复原宽，不提交半截值。
+            onCanceled: {
+                sidebar.resizing = false
+                sidebar.pendingWidth = 0
             }
         }
     }
