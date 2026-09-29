@@ -121,6 +121,7 @@ alias_header() {
         workbench) echo "src/workbench/WorkbenchContext.h" ;;
         environment) echo "src/workbench/EnvironmentService.h" ;;
         WebProfiles) echo "src/web/webengine/WebEngineProfileStore.h" ;;
+        WebEngineCompat) echo "src/web/webengine/WebEngineCompat.h" ;;
         agents.model) echo "src/agentcatalog/AgentModel.h" ;;
         skills.model) echo "src/skillcatalog/SkillModel.h" ;;
         web.model) echo "src/web/WebTabsModel.h" ;;
@@ -129,7 +130,7 @@ alias_header() {
     esac
 }
 
-ALIASES="theme nav shell ui notifications agents web skills tools workbench environment WebProfiles agents.model skills.model web.model tools.model"
+ALIASES="theme nav shell ui notifications agents web skills tools workbench environment WebProfiles WebEngineCompat agents.model skills.model web.model tools.model"
 QML_FILES="$(find qml src examples -name '*.qml' 2>/dev/null)"
 for alias in $ALIASES; do
     hdr="$(alias_header "$alias")"
