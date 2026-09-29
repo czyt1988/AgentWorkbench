@@ -29,6 +29,12 @@ Item {
     // 路径展示文本（当前直接用目录路径）。
     readonly property string pathText: dirPath
 
+    // Qt 的 hover 是独占投递：指针下第一个接受 hover 的子项会截住整棵子树的事件。
+    // 卡内的复制按钮是 Control（hoverEnabled 默认取 styleHints.useHoverEffects，
+    // Windows 上为 true），会把卡片的 hover 独占走——把它的 hovered 并进同一个
+    // 判据，鼠标移到复制图标上时卡片悬停态才不会闪断（高亮消失、浮层被收起）。
+    readonly property bool hovered: hoverHandler.hovered || copyButton.hovered
+
     width: theme.cardMinWidth + 80 // 规格宽度 340
     height: 160
 
@@ -70,8 +76,8 @@ Item {
         id: background
         anchors.fill: parent
         radius: theme.radiusCard
-        color: hoverHandler.hovered ? theme.surfaceHoverBg : theme.surfaceBg
-        border.color: hoverHandler.hovered ? theme.accent : theme.borderSubtle
+        color: card.hovered ? theme.surfaceHoverBg : theme.surfaceBg
+        border.color: card.hovered ? theme.accent : theme.borderSubtle
         border.width: 1
         Behavior on color { ColorAnimation { duration: theme.durationFast } }
 
@@ -136,16 +142,18 @@ Item {
                     font.pixelSize: theme.fontSizeCaption
                     font.family: theme.monoFamily
                     elide: Text.ElideMiddle
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 300
-                        ToolTip.timeout: 10000
-                        ToolTip.text: card.pathText
-                    }
+                    // 这里用被动的 HoverHandler，而不是带 hoverEnabled 的
+                    // MouseArea：后者只为 tooltip 存在，却会独占 hover、让整张
+                    // 卡片丢掉悬停态（高亮闪断、浮层被收起）。写法与 APill、
+                    // ACard 一致。
+                    HoverHandler { id: pathHover }
+                    ToolTip.visible: pathHover.hovered
+                    ToolTip.delay: 300
+                    ToolTip.timeout: 10000
+                    ToolTip.text: card.pathText
                 }
                 AIconButton {
+                    id: copyButton
                     iconSource: "qrc:/icons/copy.svg"
                     tooltip: qsTr("Copy path")
                     onClicked: card.copyPath()
@@ -156,20 +164,27 @@ Item {
 
     HoverHandler {
         id: hoverHandler
-        onHoveredChanged: {
-            if (hovered)
-                hoverTimer.start()
-            else {
-                hoverTimer.stop()
-                flyout.tryCloseLater()
-            }
+    }
+
+    // 悬停进入 → 400ms 后开浮层；离开 → 收起。判据是卡片自己的 hovered
+    // （已并进卡内独占 hover 的子项），不是 hoverHandler.hovered。
+    onHoveredChanged: {
+        if (hovered)
+            hoverTimer.start()
+        else {
+            hoverTimer.stop()
+            flyout.tryCloseLater()
         }
     }
 
+    // 整卡的点击 / 右键 / 滚轮入口。不要给它开 hoverEnabled：hover 是独占投递，
+    // 它作为卡片最上层的子项会截住整棵子树的 hover，卡片的 HoverHandler（悬停
+    // 高亮 + 400ms 浮层）和卡内所有 tooltip 都会静默失效——点击后浮层能出来只是
+    // 因为走的是焦点路径（onPressed → forceActiveFocus → openFlyout）。点击与
+    // 滚轮都不依赖它：滚轮走 pointerTargets 命中指针下的项，与 hover 无关。
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: card.forceActiveFocus()
         onClicked: function(mouse) {
