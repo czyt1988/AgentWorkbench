@@ -198,10 +198,10 @@ Item {
             onClicked: contextMenu.popup()
         }
 
-        Menu {
+        AMenu {
             id: contextMenu
 
-            MenuItem {
+            AMenuItem {
                 text: root.running_p ? qsTr("Close") : qsTr("Start")
                 onTriggered: {
                     if (root.running_p)
@@ -210,17 +210,17 @@ Item {
                         agents.launch(root.agentId_p)
                 }
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Force Stop")
                 enabled: root.running_p
                 onTriggered: forceStopConfirm.open()
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Open in browser")
                 enabled: root.running_p
                 onTriggered: workbench.openWebExternal(root.agentId_p)
             }
-            MenuItem {
+            AMenuItem {
                 text: root.installed_p ? qsTr("Update") : qsTr("Install")
                 enabled: !root.installing_p && !root.running_p && root.installCommand_p.length > 0
                 onTriggered: {
@@ -230,7 +230,7 @@ Item {
                         agents.install(root.agentId_p)
                 }
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Show output")
                 // 只在有已捕获的输出可显示时才有意义。
                 enabled: root.consoleOutput_p.length > 0
@@ -239,15 +239,15 @@ Item {
                     consoleHideTimer.stop()
                 }
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Configure")
                 onTriggered: root.configureRequested(root.agentId_p)
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Open config folder")
                 onTriggered: workbench.openConfigDir(root.agentId_p)
             }
-            MenuItem {
+            AMenuItem {
                 text: qsTr("Re-initialize")
                 enabled: root.setupCommand_p.length > 0
                 onTriggered: agents.resetSetup(root.agentId_p)
@@ -586,9 +586,9 @@ Item {
                 }
             }
 
-            Menu {
+            AMenu {
                 id: openMenu
-                MenuItem {
+                AMenuItem {
                     text: qsTr("Open in browser")
                     onTriggered: workbench.openWebExternal(root.agentId_p)
                 }
