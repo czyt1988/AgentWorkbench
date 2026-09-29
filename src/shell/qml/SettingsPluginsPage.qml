@@ -27,7 +27,7 @@ ScrollView {
             Layout.rightMargin: theme.spacingL
             text: workbench.pluginTrustNotice()
             color: theme.warning
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             wrapMode: Text.WordWrap
         }
 
@@ -56,7 +56,7 @@ ScrollView {
             visible: workbench.pluginList().length === 0
             text: qsTr("No plugins found. Drop one into the plugins folder (Settings -> data directory).")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             wrapMode: Text.WordWrap
         }
 

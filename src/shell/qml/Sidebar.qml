@@ -7,9 +7,10 @@ import AgentWorkbench.App
 // 侧栏：只回答「去哪里」，永远不放业务动作。按 section 分组渲染导航模型
 // （含徽标、键盘序号），底部是系统页图标按钮 + 折叠手柄。
 //
-// 布局（固定结构，见 designs.md）：工作流页（main/extensions 区）在中间
-// 滚动；系统页（system 区，如 Settings）以纯图标按钮**钉在侧栏最底部**，
-// 与折叠手柄同排——无论列表多长都留在底部。
+// 布局（固定结构，见 designs.md）：顶部直接开始工作流页（main/extensions
+// 区，不再放应用图标 + 名称的 header——那是窗口标题栏的职责）；系统页
+// （system 区，如 Settings）以纯图标按钮**钉在侧栏最底部**，与折叠手柄
+// 同排——无论列表多长都留在底部。
 Rectangle {
     id: sidebar
 
@@ -167,38 +168,11 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // --- header：应用图标 + 名称 ---------------------------------------
+        // 顶部不再放应用图标 + 名称的 header（与窗口标题栏重复，2026-09
+        // 移除），只留一条呼吸空隙让首行导航不贴窗口顶边。
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
-
-            RowLayout {
-                anchors.left: parent.left
-                anchors.leftMargin: theme.spacingM
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: theme.spacingS
-
-                Image {
-                    source: "qrc:/icons/app-icon.png"
-                    sourceSize: Qt.size(20, 20)
-                    fillMode: Image.PreserveAspectFit
-                }
-                Label {
-                    visible: !sidebar.collapsed
-                    text: "AgentWorkbench"
-                    color: theme.textPrimary
-                    font.pixelSize: theme.fontSizeBody
-                    font.bold: true
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.leftMargin: theme.spacingS
-            Layout.rightMargin: theme.spacingS
-            height: 1
-            color: theme.separator
+            Layout.preferredHeight: theme.spacingS
         }
 
         // --- 可滚动的工作流列表（main + extensions 区；模型已按

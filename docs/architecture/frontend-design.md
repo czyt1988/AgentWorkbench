@@ -61,7 +61,7 @@ The application is a left sidebar, a right workspace and a bottom status bar, as
 
 - **The sidebar answers "where do I go" and nothing else.** It renders `NavigationModel`, not business data. A page never adds a business action to the sidebar.
 - **A page's position is decided by its `section`, not by layout code.** When a page is registered with `PageDescriptor::section` set to `main`, `extensions` or `system`, its place is fixed. `system` pages are pinned to the bottom of the sidebar and rendered as icon-only buttons with the title carried by a tooltip and the current destination filled through `AIconButton.active`. Adding a pinned page (an About page or a log viewer) means registering it as `system`, not writing new layout QML.
-- **The sidebar has a header, a scrollable workflow list (`main` and `extensions`, separated by a divider), a separator and a pinned footer.** The footer holds the `system` pages and the collapse handle side by side: expanded, the icons sit on the left and the handle on the right; collapsed, they stack vertically and centre.
+- **The sidebar starts directly with a scrollable workflow list (`main` and `extensions`, separated by a divider), followed by a separator and a pinned footer.** There is deliberately no app-icon-and-name header at the top: the window title bar already carries the application identity, and the sidebar does not repeat it. The footer holds the `system` pages and the collapse handle side by side: expanded, the icons sit on the left and the handle on the right; collapsed, they stack vertically and centre.
 - **The main area's outer padding is `theme.spacingL`.** Do not invent margins per page.
 - **The page toolbar is optional.** A page that has page-level actions or filtering renders a `PageHeader`; an empty-state page or a simple list does not have to.
 
@@ -150,6 +150,27 @@ There is no pointer-following light inside a menu. That is `ASpotlight`'s job on
 - **State is never expressed by colour alone.** A status dot or badge carries a tooltip or text as well, for colour-blind users and for both themes.
 - Animation durations come from `theme.durationFast` and `theme.durationNormal`. Do not invent new ones.
 
+### The font ladder has exactly four steps
+
+All text uses one of four tokens, and a fixed pixel size (`font.pixelSize: 14`) or a fifth token is a defect:
+
+| Token | Default (px) | Role |
+|---|---|---|
+| `theme.fontSizePageTitle` | 24 | Page titles, large dialog titles |
+| `theme.fontSizeSubtitle` | 16 | Subtitles, card titles |
+| `theme.fontSizeBody` | 13 | Body text, forms, buttons, navigation |
+| `theme.fontSizeCaption` | 11 | Captions, hints, badges, paths and other auxiliary text |
+
+The historical `fontSizeSmall` and `fontSizeCardTitle` tokens were removed (2026-09: the former merged into `caption`, the latter into `subtitle`); do not reintroduce them. A dedicated glyph inside an icon (`AColorSwatch`'s tick mark) counts as a graphic element that scales with the icon, not as a text step.
+
+### Icons render 1:1, never scaled
+
+A blurry icon means the rasterised size differs from the displayed size: an SVG's `sourceSize` is the rasterisation target in logical pixels (Qt multiplies it by the DPR for SVGs), and a mismatch between it and the Image's displayed size goes through a scaling path — upscaling is always blurry, downscaling soft. Three rules follow:
+
+- The displayed size must equal `sourceSize`. Without `sourceSize`, an SVG rasterises at its natural 24px, so any smaller display is a downscale and also blurs (the file-tree arrows in `ToolsPage.qml` did).
+- An icon must not be a Control's `contentItem` directly: the Control forces the contentItem to its own available size (`AIconButton` is 28×28), and `PreserveAspectFit` then upscales the 16px raster — every icon button was simultaneously too large and too blurry for this reason. Wrap the icon in an `Item` and centre it, letting the `Image` render at its implicit size (see `AIconButton`).
+- A larger icon inside a bigger button (the 22px icon in a 44px button) follows the same rule: give `sourceSize` the actual raster size.
+
 ## The glass card recipe
 
 The project's cards are frosted glass, not flat fills. `AgentCard` and `SkillCard` are the reference implementations, and a new card copies the same recipe:
@@ -223,6 +244,7 @@ The rule is therefore: do not put version-dependent names in QML. Move the diffe
 
 - The layout still respects the sidebar, main area and status bar skeleton, and the pinned pages are still pinned.
 - No new literal colours or numeric `Qt.rgba()` calls, and both themes have been checked.
+- Font sizes use only the four ladder tokens with no fixed pixel values, and every icon's displayed size matches its `sourceSize`.
 - New cards reproduce the glass recipe, and a collection in the hundreds uses `GridView` with lazy instantiation rather than `Flow` plus `Repeater`.
 - The shelf table was checked first, and no bare `Button`, hand-written dialog or hand-written menu was introduced.
 - State is not expressed by colour alone, and every tooltip string is an English `qsTr()` source.

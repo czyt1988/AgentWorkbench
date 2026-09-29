@@ -93,9 +93,10 @@ veil, a 1 px inner highlight (dark variant only), and `ASpotlight` for the
 pointer spotlight. The hover lift is a `Translate` transform plus `z`, never a
 change to the card's `x`/`y` (the grid writes those).
 
-- **Hover merge.** `hovered: hoverHandler.hovered || copyButton.hovered`. Qt's
-  hover delivery is exclusive; the copy `AIconButton` is a `Control` whose
-  `hovered` would otherwise steal it from the card.
+- **Hover criterion.** `hovered: hoverHandler.hovered`. Qt's hover delivery is
+  exclusive, so the card carries no hover-enabled `Control` of its own (the path
+  tooltip uses a passive `HoverHandler`); anything that swallows hover would
+  have to be folded into this criterion.
 - **Deferred flyout.** A `Timer` (400 ms) opens the `SkillDetailFlyout` on hover
   and cancels a pending close first; leaving stops the timer and calls
   `tryCloseLater()` on the flyout.

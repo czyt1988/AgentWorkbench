@@ -72,7 +72,7 @@ ColumnLayout {
                         visible: model.text.length > 0
                         text: model.text
                         color: theme.textSecondary
-                        font.pixelSize: theme.fontSizeSmall
+                        font.pixelSize: theme.fontSizeCaption
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }

@@ -1668,12 +1668,12 @@ Command: %2
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="289"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="263"/>
         <source>Expand sidebar</source>
         <translation>展开侧边栏</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="290"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="264"/>
         <source>Collapse sidebar</source>
         <translation>折叠侧边栏</translation>
     </message>
@@ -1691,52 +1691,51 @@ Command: %2
         <translation>没有描述。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="274"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="365"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="359"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="355"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="373"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="349"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="367"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="358"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="376"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="387"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="352"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="370"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="381"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="369"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="363"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="380"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="374"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="384"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="378"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="392"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="386"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="396"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="405"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="390"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="399"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="401"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="395"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -2080,7 +2079,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="137"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="458"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="462"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
@@ -2110,17 +2109,17 @@ Command: %2
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="443"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="447"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="456"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="460"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="457"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="461"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>

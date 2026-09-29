@@ -227,7 +227,7 @@ Popup {
         Label {
             text: qsTr("Theme Colors")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             font.bold: true
         }
         Column {
@@ -283,7 +283,7 @@ Popup {
         Label {
             text: qsTr("Standard Colors")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             font.bold: true
         }
         Row {
@@ -309,7 +309,7 @@ Popup {
         Label {
             text: qsTr("Custom Colors")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             font.bold: true
         }
         Row {

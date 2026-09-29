@@ -205,7 +205,7 @@ Dialog {
                     visible: !page.webUrlValid && webUrlField.text.trim().length > 0
                     text: qsTr("Must be a valid http:// or https:// URL.")
                     color: theme.danger
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                 }
 
                 AFormLabel {

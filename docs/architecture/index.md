@@ -164,7 +164,7 @@ The window is a sidebar, a workspace and a status bar, and the rule that keeps i
 
 ```mermaid
 flowchart LR
-    Sidebar["Sidebar.qml<br/>header · scrolling main/extensions<br/>divider · pinned footer (system pages)"]
+    Sidebar["Sidebar.qml<br/>scrolling main/extensions<br/>divider · pinned footer (system pages)"]
     Workspace["Workspace.qml<br/>one page at a time<br/>Loader for normal pages<br/>Repeater for keep-alive pages"]
     StatusBar["StatusBar.qml<br/>badges · Python/Node"]
     Nav["NavigationModel"]

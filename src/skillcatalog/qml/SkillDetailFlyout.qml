@@ -149,7 +149,7 @@ Popup {
                     visible: (flyout.info.description || "").length > 0
                     text: flyout.info.description || ""
                     color: theme.textSecondary
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                     wrapMode: Text.WordWrap
                 }
 

@@ -63,7 +63,7 @@ Item {
             Label {
                 text: qsTr("Workspace")
                 color: theme.textMuted
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
             }
 
             AComboBox {
@@ -77,7 +77,7 @@ Item {
                 // 路径可能很长，中部省略让盘符与末段同时可见。
                 contentItem: Text {
                     text: workspaceCombo.displayText
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                     color: workspaceCombo.enabled ? theme.textPrimary
                                                   : theme.textDisabled
                     verticalAlignment: Text.AlignVCenter
@@ -113,7 +113,7 @@ Item {
                             Layout.fillWidth: true
                             text: workspaceChoice.modelData
                             color: theme.textPrimary
-                            font.pixelSize: theme.fontSizeSmall
+                            font.pixelSize: theme.fontSizeCaption
                             elide: Text.ElideMiddle
                         }
 
@@ -263,7 +263,7 @@ Item {
                         Layout.bottomMargin: theme.spacingXs
                         text: qsTr("Files")
                         color: theme.textMuted
-                        font.pixelSize: theme.fontSizeSmall
+                        font.pixelSize: theme.fontSizeCaption
                     }
 
                     // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model 暴露）：
@@ -401,6 +401,9 @@ Item {
                                 width: 14
                                 height: 14
                                 source: "qrc:/icons/chevron-right.svg"
+                                // sourceSize 与显示尺寸一致：SVG 不设时按
+                                // 24px 自然尺寸栅格再缩小绘制，箭头会发糊。
+                                sourceSize: Qt.size(14, 14)
                                 visible: treeRow.hasChildren
                                 rotation: treeRow.expanded ? 90 : 0
 
@@ -420,6 +423,7 @@ Item {
                                 width: 16
                                 height: 16
                                 source: treeRow.iconSource
+                                sourceSize: Qt.size(16, 16)
                             }
 
                             Label {
@@ -428,7 +432,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: treeRow.name
                                 color: theme.textPrimary
-                                font.pixelSize: theme.fontSizeSmall
+                                font.pixelSize: theme.fontSizeCaption
                                 elide: Text.ElideMiddle
                             }
                         }
@@ -442,7 +446,7 @@ Item {
                         Layout.margins: theme.spacingM
                         text: qsTr("The workspace folder is empty or unavailable.")
                         color: theme.textMuted
-                        font.pixelSize: theme.fontSizeSmall
+                        font.pixelSize: theme.fontSizeCaption
                         wrapMode: Text.Wrap
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter

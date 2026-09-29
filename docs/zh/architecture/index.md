@@ -164,7 +164,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Sidebar["Sidebar.qml<br/>header · 可滚动的 main/extensions<br/>分割线 · 钉底 footer（system 页）"]
+    Sidebar["Sidebar.qml<br/>可滚动的 main/extensions<br/>分割线 · 钉底 footer（system 页）"]
     Workspace["Workspace.qml<br/>同一时刻一个页面<br/>普通页走 Loader<br/>常驻页走 Repeater"]
     StatusBar["StatusBar.qml<br/>徽标 · Python/Node"]
     Nav["NavigationModel"]

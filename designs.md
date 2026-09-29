@@ -10,7 +10,7 @@
 ┌──────────┬──────────────────────────────┐
 │ 侧栏      │ 主区（页面内容）               │
 │          │ ┌──────────────────────────┐ │
-│ header   │ │ 页面顶部工具栏（可选）      │ │
+│ 顶部呼吸  │ │ 页面顶部工具栏（可选）      │ │
 │──────────│ └──────────────────────────┘ │
 │ 工作流    │                              │
 │ 导航      │                              │
@@ -25,7 +25,7 @@
 
 ### 侧栏解剖（自上而下，固定结构）
 
-1. **header**：应用图标 + 名称；
+1. **顶部呼吸空隙**（`spacingS`）：侧栏不放应用图标 + 名称的 header——应用标识由**窗口标题栏**承载，侧栏不重复它；
 2. **可滚动的工作流导航**：`main` 区（内置高频页）+ `extensions` 区（插件页，之间画分割线）；
 3. 一条**分割线**；
 4. **钉底 footer**：`system` 区的页面（如 Settings）**永远钉在侧栏最底部**，与顶部导航隔离、不随列表滚动；它们渲染为**纯图标按钮**（tooltip 显示标题，当前目的地经 `AIconButton.active` 填充 `surfaceBg`），与折叠手柄同排——展开时图标在左、手柄在右；收起时垂直堆叠（图标在上、手柄在下，水平居中）。
@@ -50,7 +50,28 @@
 - **状态永远不只是颜色**：状态点/徽标配 tooltip 或文字（色弱用户与深浅主题都需要）。
 - 动效只用 `theme.durationFast / durationNormal`，不发明新的时长。
 
-### 2.1 卡片样式（玻璃卡）
+### 2.1 字号阶梯（只有四档）
+
+全应用只允许四个字号令牌，不许任何固定像素值（`font.pixelSize: 14` 之类）或第五档令牌：
+
+| 令牌 | 默认值（px） | 用途 |
+|---|---|---|
+| `theme.fontSizePageTitle` | 24 | 页面标题、对话框大标题 |
+| `theme.fontSizeSubtitle` | 16 | 副标题、卡片标题 |
+| `theme.fontSizeBody` | 13 | 正文、表单、按钮、导航 |
+| `theme.fontSizeCaption` | 11 | 备注、说明、徽标、路径等辅助文字 |
+
+历史令牌 `fontSizeSmall`/`fontSizeCardTitle` 已删除（2026-09 收敛：前者并入 caption、后者并入 subtitle），不要重新引入。图标内部的专用字形（如 `AColorSwatch` 的勾标记）按图形元素对待、随图标尺寸缩放，不在此列。
+
+### 2.2 图标渲染（1:1 无缩放）
+
+图标发糊的根因是**栅格化尺寸 ≠ 显示尺寸**：SVG 的 `sourceSize` 是栅格化目标（逻辑像素，Qt 对 SVG 自动乘 DPR），Image 的实际显示尺寸若与它不一致就会走缩放路径，放大必糊、缩小发软。硬规则：
+
+- **显示尺寸必须与 `sourceSize` 相等**（如 16×16 显示就 `sourceSize: Qt.size(16, 16)`）；不设 `sourceSize` 时 SVG 按 24px 自然尺寸栅格，小于 24px 的显示就是缩小、也会糊（ToolsPage 的树箭头曾如此）。
+- **图标不能直接当 Control 的 `contentItem`**：Control 会把 contentItem 强制成自己的可用尺寸（`AIconButton` 是 28×28），`PreserveAspectFit` 随之把 16px 栅格放大绘制——图标按钮曾因此普遍又大又糊。正确写法是包一层 `Item` 居中、让 Image 按自身隐式尺寸渲染（见 `AIconButton`）。
+- 悬浮放大的图标（如 44px 按钮里的 22px 图标）同理：`sourceSize` 给到实际栅格尺寸。
+
+### 2.3 卡片样式（玻璃卡）
 
 本项目的卡片是**磨砂玻璃**质感，不是实色面。基准实现是 `AgentCard`（agent 卡）与 `SkillCard`（skill 卡），新卡片一律复刻这套配方，不要另起风格：
 
@@ -151,7 +172,7 @@ ColumnLayout {
 | 8 | 过滤按钮组 ×2 | **不提炼**：两处语义不同（单选 displayFilter vs 多选 facets），强行共享是坏抽象；约定为「ASearchField + ghost/primary 切换 AButton 行」的模式，见各页 |
 | 9 | Web 页空状态手写 | **已收敛**：`AEmptyState` 增加 `extra` 插槽后迁移（列表带高度上限的滚动） |
 | 10 | 页面底衬光斑 Canvas 双份（AgentGridPage 内联，SkillGridPage 引入时复刻） | **已收敛**：提取 `AWorkspaceGlow` 入货架，两页共用（2026-09 skills 玻璃卡改造） |
-| 11 | Skills 页 Flow+Repeater 全量建卡 | **已收敛**：换 `GridView`（惰性 + `reuseItems`），规则见 §2.1 第 8 条 |
+| 11 | Skills 页 Flow+Repeater 全量建卡 | **已收敛**：换 `GridView`（惰性 + `reuseItems`），规则见 §2.3 第 8 条 |
 | 12 | 5 处菜单各自定值、深色主题不可读 | **已收敛**（2026-09）：`AMenu`/`AMenuItem`/`AMenuSeparator` 入货架，AgentCard×2/SkillCard/WebTabsPage/ToolsPage 全部迁移（规范见 §3.1）；Default 样式的硬编码 palette 是根因，见该节 |
 
 遗留的已知小项（不紧急）：
@@ -163,7 +184,8 @@ ColumnLayout {
 
 - [ ] 布局没破坏「侧栏 + 主区 + 状态栏」骨架；钉底区仍钉底。
 - [ ] 没有新增字面颜色 / `Qt.rgba(<数字>)`；深浅主题都检查过。
-- [ ] 新卡片复刻 §2.1 玻璃卡配方；百级集合的网格用 `GridView` 惰性加载，没有 Flow+Repeater 全量建卡。
+- [ ] 字号只用 §2.1 的四档令牌，没有固定像素值；图标显示尺寸与 `sourceSize` 一致（§2.2）。
+- [ ] 新卡片复刻 §2.3 玻璃卡配方；百级集合的网格用 `GridView` 惰性加载，没有 Flow+Repeater 全量建卡。
 - [ ] 通用件先查 §3 的表；没有旁路 `AButton`/`ADialog` 写裸件。
 - [ ] 状态不只靠颜色表达；tooltip 文案是英文源串 + `qsTr()`。
 - [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用；布局内子项尺寸经 `implicitWidth`/`implicitHeight` 提供（0x0 创建后的重排会踩掉直接 `width`/`height` 绑定）。

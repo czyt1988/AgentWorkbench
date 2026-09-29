@@ -423,7 +423,7 @@ Item {
             id: nameLabel
             text: root.name_p
             color: theme.textPrimary
-            font.pixelSize: theme.fontSizeCardTitle
+            font.pixelSize: theme.fontSizeSubtitle
             font.bold: true
             anchors.top: iconRow.bottom
             anchors.topMargin: theme.spacingS

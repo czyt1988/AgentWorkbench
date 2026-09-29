@@ -164,7 +164,7 @@ Color tokens (each has a matching getter, and a missing key returns an invalid `
 
 Numeric tokens (a missing key returns `0.0`):
 
-`radiusCard`, `radiusOverlay`, `radiusControl`, `radiusPill`, `spacingXs`, `spacingS`, `spacingM`, `spacingL`, `spacingXl`, `fontSizeCaption`, `fontSizeSmall`, `fontSizeBody`, `fontSizeSubtitle`, `fontSizeCardTitle`, `fontSizePageTitle`, `cardMinWidth`, `cardHeight`, `durationFast`, `durationNormal`, `sidebarWidth`, `sidebarCollapsedWidth`, `statusBarHeight`, `tabBarHeight`, `toastWidth`.
+`radiusCard`, `radiusOverlay`, `radiusControl`, `radiusPill`, `spacingXs`, `spacingS`, `spacingM`, `spacingL`, `spacingXl`, `fontSizeCaption`, `fontSizeBody`, `fontSizeSubtitle`, `fontSizePageTitle`, `cardMinWidth`, `cardHeight`, `durationFast`, `durationNormal`, `sidebarWidth`, `sidebarCollapsedWidth`, `statusBarHeight`, `tabBarHeight`, `toastWidth`.
 
 Font tokens: `family` and `monoFamily`.
 

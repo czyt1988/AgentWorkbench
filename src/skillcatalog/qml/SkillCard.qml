@@ -33,10 +33,10 @@ Item {
     readonly property string pathText: dirPath
 
     // Qt 的 hover 是独占投递：指针下第一个接受 hover 的子项会截住整棵子树的事件。
-    // 卡内的复制按钮是 Control（hoverEnabled 默认取 styleHints.useHoverEffects，
-    // Windows 上为 true），会把卡片的 hover 独占走——把它的 hovered 并进同一个
-    // 判据，鼠标移到复制图标上时卡片悬停态才不会闪断（高亮消失、浮层被收起）。
-    readonly property bool hovered: hoverHandler.hovered || copyButton.hovered
+    // 卡内因此不放带 hoverEnabled 的 Control（路径 tooltip 用被动的
+    // HoverHandler，写法与 APill、ACard 一致），卡片自己的悬停判据才不会被
+    // 掐断（高亮消失、浮层被收起）。
+    readonly property bool hovered: hoverHandler.hovered
 
     // 网格外独立使用时的兜底尺寸；网格内由 delegate 显式覆盖
     // （cellWidth - spacingL × cardHeight，见 SkillGridPage）。
@@ -231,7 +231,7 @@ Item {
                 text: card.description.length > 0 ? card.description
                                                   : qsTr("No description.")
                 color: theme.textMuted
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
                 elide: Text.ElideRight
@@ -246,7 +246,7 @@ Item {
                 color: theme.separator
             }
 
-            // 路径 + 复制按钮。
+            // 路径（复制动作在整卡左键/右键菜单里，不放独立按钮）。
             RowLayout {
                 Layout.fillWidth: true
                 spacing: theme.spacingS
@@ -267,12 +267,6 @@ Item {
                     ToolTip.delay: 300
                     ToolTip.timeout: 10000
                     ToolTip.text: card.pathText
-                }
-                AIconButton {
-                    id: copyButton
-                    iconSource: "qrc:/icons/copy.svg"
-                    tooltip: qsTr("Copy path")
-                    onClicked: card.copyPath()
                 }
             }
         }
