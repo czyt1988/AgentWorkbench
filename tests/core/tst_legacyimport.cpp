@@ -10,14 +10,15 @@
 
 using awb::core::LegacyImport;
 
+/// 测 core::LegacyImport 的旧目录一次性导入：文件复制（非搬移）、旧目录保持
+/// 原样、二次运行不重复导入，以及已有数据的新目录绝不覆盖导入。
 class TestLegacyImport : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // One-time adoption of the legacy ~/.AgentLauncher directory: files are
-    // copied into the new data root, the legacy directory survives, and a
-    // second call is a no-op.
+    // 旧 ~/.AgentLauncher 目录的一次性接管：文件复制进新数据根、旧目录保留
+    // 不动，第二次调用是 no-op。
     void testImportOnce()
     {
         QTemporaryDir tmp;
@@ -40,8 +41,8 @@ private Q_SLOTS:
         QVERIFY(write_file(oldRoot + QStringLiteral("/log/agentlauncher.log"),
                            QByteArrayLiteral("old log")));
 
-        // The logger creates the new log directory before the import runs;
-        // that alone must not count as "already initialized".
+        // logger 会在导入运行前先建好新的日志目录；仅凭这一点不能判定
+        // 「已初始化过」。
         QVERIFY(QDir().mkpath(newRoot + QStringLiteral("/log")));
 
         QString notice;
@@ -51,18 +52,17 @@ private Q_SLOTS:
         QVERIFY(QFile::exists(newRoot + QStringLiteral("/agent_state.json")));
         QVERIFY(
             QFile::exists(newRoot + QStringLiteral("/log/agentlauncher.log")));
-        // The legacy directory is never deleted or modified.
+        // 旧目录绝不删除或改动。
         QVERIFY(QFile::exists(oldRoot + QStringLiteral("/agents.json")));
         QVERIFY(
             QFile::exists(oldRoot + QStringLiteral("/log/agentlauncher.log")));
 
-        // Second start: no-op, no second notice.
+        // 第二次启动：no-op，不再弹出提示。
         notice.clear();
         QVERIFY(!LegacyImport::importOnce(newRoot, oldRoot, &notice));
         QVERIFY(notice.isEmpty());
 
-        // A populated data root is never imported over, even when the legacy
-        // directory is still around.
+        // 已有内容的数据根绝不覆盖导入，哪怕旧目录还在。
         QVERIFY(write_file(newRoot + QStringLiteral("/settings.json"),
                            QByteArrayLiteral("{}")));
         QVERIFY(write_file(oldRoot + QStringLiteral("/agent_state.json"),
@@ -73,7 +73,7 @@ private Q_SLOTS:
         QCOMPARE(QFile(newRoot + QStringLiteral("/agents.json")).readAll(),
                  before);
 
-        // No legacy directory -> nothing happens.
+        // 没有旧目录 → 什么都不发生。
         QTemporaryDir solo;
         QVERIFY(solo.isValid());
         QVERIFY(!LegacyImport::importOnce(solo.path() + QStringLiteral("/new"),

@@ -10,16 +10,20 @@
 using awb::core::IconResolver;
 
 namespace {
+
+/// 各用例共用的兜底图标 URL，模拟调用方给出的 fallback
 const QString kFallback = QStringLiteral("qrc:/icons/default.svg");
 } // namespace
 
+/// 测 core::IconResolver 的图标地址解析：URL 透传、本地文件转 file:///、
+/// %VAR% 与 ~ 的展开，以及不可解析输入回落到调用方提供的兜底图标。
 class TestIconResolver : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // Regression: file:// URLs must pass through unchanged, otherwise a
-    // resolved local-file icon degrades to default.svg after save+reload.
+    // 回归：file:// 等 URL 必须原样透传，否则解析好的本地文件图标会在
+    // 保存 + 重新加载之后退化成 default.svg。
     void testPassthrough()
     {
         QCOMPARE(IconResolver::resolve(QStringLiteral("file:///C:/icons/a.svg"),
@@ -36,8 +40,7 @@ private Q_SLOTS:
                  QStringLiteral("https://example.com/i.svg"));
     }
 
-    // Empty or unresolvable input falls back to the caller-provided icon —
-    // core never hardcodes an application resource path.
+    // 空值与解析不了的输入回落到调用方给的图标——core 从不写死应用资源路径。
     void testFallbackIsCallerProvided()
     {
         QCOMPARE(IconResolver::resolve(QString(), kFallback), kFallback);
@@ -57,8 +60,8 @@ private Q_SLOTS:
         QVERIFY2(url.startsWith(QStringLiteral("file:///")), qPrintable(url));
     }
 
-    // %VAR% and ~ are expanded before the existence check, so users can
-    // write "%USERPROFILE%/icons/my-agent.svg".
+    // %VAR% 与 ~ 在存在性检查之前展开，用户才能写
+    // "%USERPROFILE%/icons/my-agent.svg"。
     void testEnvironmentExpansion()
     {
         QTemporaryDir tmp;

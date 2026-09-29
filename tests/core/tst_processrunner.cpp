@@ -9,13 +9,15 @@
 using awb::core::ProcessResult;
 using awb::core::ProcessRunner;
 
+/// 测 core::ProcessRunner：findExecutable 的 PATHEXT 解析、同步 run 的输出与
+/// 退出码捕获、超时与缺程序失败、startDetached 及其输出重定向、输出解码回退。
 class TestProcessRunner : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // findExecutable applies PATHEXT on Windows, which is what makes
-    // npm-style shims like "qwen" -> "qwen.cmd" resolvable.
+    // findExecutable 在 Windows 上要应用 PATHEXT——正是它让 npm 风格的
+    // 垫片 "qwen" → "qwen.cmd" 能被解析到。
     void testFindExecutable()
     {
         const QString cmd = ProcessRunner::findExecutable(QStringLiteral("cmd"));
@@ -58,7 +60,7 @@ private Q_SLOTS:
 
     void testRunTimeout()
     {
-        // ~9 seconds of pings, killed after 300 ms.
+        // 约 9 秒的 ping，300 ms 后被杀掉。
         const ProcessResult result = ProcessRunner::run(
             QStringLiteral("cmd"),
             {QStringLiteral("/c"), QStringLiteral("ping -n 10 127.0.0.1 >nul")},
@@ -72,7 +74,7 @@ private Q_SLOTS:
     {
         qint64 pid = 0;
         QString error;
-        // A quick, harmless command that definitely exists.
+        // 一条快而无害、且必然存在的命令。
         const bool ok = ProcessRunner::startDetached(
             ProcessRunner::findExecutable(QStringLiteral("cmd")),
             {QStringLiteral("/c"), QStringLiteral("exit 0")}, &pid, &error);
@@ -84,9 +86,8 @@ private Q_SLOTS:
         QVERIFY(!error.isEmpty());
     }
 
-    // With an outputFile the detached child's stdout (and merged stderr)
-    // lands in that file — the capture the agents domain reads back for
-    // session URLs.
+    // 指定 outputFile 时，分离子进程的 stdout（含合并的 stderr）落到该文件
+    // ——agents 域就是读这份捕获来提取会话 URL 的。
     void testStartDetachedRedirectsOutput()
     {
         QTemporaryDir tmp;
@@ -100,7 +101,7 @@ private Q_SLOTS:
             &pid, &error, QString(), QProcessEnvironment(), outFile);
         QVERIFY2(ok, qPrintable(error));
 
-        // The detached child writes asynchronously — poll briefly.
+        // 分离子进程是异步写的——短暂轮询等待内容出现。
         QString text;
         for (int i = 0; i < 100 && !text.contains(QStringLiteral("hello-redirect"));
              ++i) {
@@ -113,7 +114,7 @@ private Q_SLOTS:
             }
         }
         QVERIFY(text.contains(QStringLiteral("hello-redirect")));
-        // Let the child fully exit before QTemporaryDir cleans up.
+        // 让子进程彻底退出后 QTemporaryDir 再清理。
         QTest::qWait(300);
     }
 
@@ -121,11 +122,11 @@ private Q_SLOTS:
     {
         QCOMPARE(ProcessRunner::decodeOutput(QByteArrayLiteral("plain ascii")),
                  QStringLiteral("plain ascii"));
-        // UTF-8 with a non-ASCII character.
+        // 带非 ASCII 字符的 UTF-8。
         QCOMPARE(ProcessRunner::decodeOutput("caf\xc3\xa9"),
                  QString::fromUtf8("caf\xc3\xa9"));
         QVERIFY(ProcessRunner::decodeOutput(QByteArray()).isEmpty());
-        // Invalid UTF-8 falls back to the local codec instead of failing.
+        // 非法 UTF-8 回退到本地编码而不是失败。
         QVERIFY(!ProcessRunner::decodeOutput(QByteArray("\x81\x81", 2))
                      .isEmpty());
     }

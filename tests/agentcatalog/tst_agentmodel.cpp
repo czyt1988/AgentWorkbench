@@ -8,6 +8,9 @@ using awb::agentcatalog::AgentDefinition;
 using awb::agentcatalog::AgentModel;
 using awb::agentcatalog::AgentState;
 
+/// 测 agentcatalog::AgentModel：增删改对行列与 role 数据的影响、运行状态按
+/// id 关联（换定义不丢状态、删 agent 连带删状态），以及 role 名与 0.3.0 的
+/// 字节级兼容。
 class TestAgentModel : public QObject
 {
     Q_OBJECT
@@ -40,8 +43,8 @@ private Q_SLOTS:
         QCOMPARE(model.rowCount(), 1);
     }
 
-    // Runtime state is keyed by id: swapping definitions must not blank a
-    // running card, and dropping an agent must drop its state.
+    // 运行状态按 id 关联：换定义不能把运行中的卡片清空，删除 agent 则
+    // 连带删掉它的状态。
     void testStateSurvivesDefinitionSwap()
     {
         AgentModel model;
@@ -53,7 +56,7 @@ private Q_SLOTS:
         model.setVersion("x1", QStringLiteral("1.2.3"));
         QVERIFY(model.state("x1").running);
 
-        // Replace the definition (rename) — state stays.
+        // 替换定义（改名）——状态保留。
         a.name = "Renamed";
         QVERIFY(model.replaceDefinition(a));
         QVERIFY(model.state("x1").running);
@@ -62,13 +65,12 @@ private Q_SLOTS:
                  QStringLiteral("Renamed"));
         QCOMPARE(model.index(0, 0).data(AgentModel::RunningRole).toBool(), true);
 
-        // Remove — the state goes with it.
+        // 删除——状态随之而去。
         QVERIFY(model.removeAgentById("x1"));
         QVERIFY(!model.state("x1").running);
     }
 
-    // The role names must stay byte-compatible with 0.3.0 so the card QML
-    // keeps working unchanged.
+    // role 名必须与 0.3.0 保持字节级一致，卡片 QML 才能原样继续工作。
     void testRoleNamesUnchanged()
     {
         AgentModel model;

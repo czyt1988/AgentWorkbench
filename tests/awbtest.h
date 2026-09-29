@@ -8,11 +8,10 @@
 
 class QObject;
 
-// Test registry shared by every module suite: one executable per module
-// runs several test classes. Each test file registers itself at static-init
-// time through AWB_TEST(); awbRunRegisteredTests() (tests/awbtest_runner.cpp)
-// constructs them after QCoreApplication exists and QTest::qExec's each in
-// turn.
+// 各模块套件共享的测试注册表：一个模块一个可执行文件、内含多个测试类。
+// 每个测试文件经 AWB_TEST() 在静态初始化期把自己登记进来；
+// awbRunRegisteredTests()（见 tests/awbtest_runner.cpp）在 QCoreApplication
+// 就绪后逐个构造并交给 QTest::qExec 执行。
 using AwbTestFactory = QObject *(*)();
 QList<AwbTestFactory> &awbTestRegistry();
 
@@ -70,10 +69,7 @@ inline QStringList awbUnresolvedQmlCallTypes(const QObject *object)
     return failures;
 }
 
-// Runs every registered class; handles -functions (QTest's qExec exits the
-// process for it, which would stop after the first class) and per-class
-// function filters so `tst_x <case>` runs one case without the other
-// classes failing with "function not found".
+// 依次运行所有已注册的测试类，并处理 -functions 与按类过滤的用例参数
 int awbRunRegisteredTests(int argc, char *argv[]);
 
 #endif // AWBTEST_H

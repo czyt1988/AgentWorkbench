@@ -15,8 +15,9 @@ using awb::agentcatalog::AgentDefinition;
 using awb::agentcatalog::AgentModel;
 using awb::agentcatalog::AgentRuntime;
 
-// Launch/stop/force-stop bookkeeping and the port→PID parsing behind
-// forceStop (the logic is kept AND has cases).
+/// 测 agentcatalog::AgentRuntime 的启动/停止/强制停止簿记：空命令与 PATH 解析
+/// 失败的启动报错、无 PID 时的停止提示、端口→PID 解析、真实进程的启动与杀树、
+/// 会话 URL 的捕获与随停止丢弃。
 class TestAgentRuntime : public QObject
 {
     Q_OBJECT
@@ -24,12 +25,12 @@ class TestAgentRuntime : public QObject
 private Q_SLOTS:
     void init()
     {
-        // launch() redirects the child's output under Paths::logsDir() —
-        // the test-mode data root, never the developer's real one.
+        // launch() 把子进程输出重定向到 Paths::logsDir() 之下——那是测试模式
+        // 的数据根，绝不能是开发者真实的数据目录。
         QStandardPaths::setTestModeEnabled(true);
     }
 
-    // An empty startup command fails with launchFailed and tracks no PID.
+    // 启动命令为空时以 launchFailed 失败，且不记录任何 PID。
     void testLaunchEmptyCommandFails()
     {
         AgentModel model;
@@ -46,7 +47,7 @@ private Q_SLOTS:
         QVERIFY(!runtime.hasLaunchedAgents());
     }
 
-    // A program that PATH cannot resolve fails before anything spawns.
+    // PATH 解析不到的程序在任何东西孵化之前就失败。
     void testLaunchUnresolvableProgramFails()
     {
         AgentModel model;
@@ -63,7 +64,7 @@ private Q_SLOTS:
         QVERIFY(!runtime.hasLaunchedAgents());
     }
 
-    // stop() without a tracked PID (agent started elsewhere) reports why.
+    // 没有已跟踪 PID 的 stop()（agent 在别处启动）要说明原因。
     void testStopWithoutTrackedPidFails()
     {
         AgentModel model;
@@ -83,8 +84,7 @@ private Q_SLOTS:
         QVERIFY(!runtime.hasLaunchedAgents());
     }
 
-    // forceStop on a webUrl without a usable port fails early — before any
-    // process listing runs.
+    // webUrl 没有可用端口时 forceStop 早早失败——在任何进程列表运行之前。
     void testForceStopWithoutPortFails()
     {
         AgentModel model;
@@ -101,8 +101,8 @@ private Q_SLOTS:
         QVERIFY(spy.first().at(1).toString().contains(QStringLiteral("port")));
     }
 
-    // The port→PID parser sees a real listener: bind a local port, expect
-    // this process's own PID from the listing (netstat/lsof).
+    // 端口→PID 解析要能看见真实的监听者：绑定本地端口后，进程列表
+    // （netstat/lsof）里应出现本进程自己的 PID。
     void testFindPidsForPortSeesListener()
     {
         QTcpServer server;
@@ -113,13 +113,12 @@ private Q_SLOTS:
         QVERIFY2(pids.contains(QCoreApplication::applicationPid()),
                  "the listening test process must appear for its own port");
 
-        // A port nobody holds lists nothing (forceStop's no-op guard).
+        // 无人持有的端口列不出任何 PID（forceStop 的空操作守卫）。
         server.close();
         QVERIFY(AgentRuntime::findPidsForPort(port).isEmpty());
     }
 
-    // Launch really spawns and stop really kills the session-tracked tree
-    // (the PID bookkeeping S2-T4 requires).
+    // launch 真的孵化进程、stop 真的杀掉会话跟踪的进程树（PID 簿记所要求的）。
     void testLaunchAndStopRealProcess()
     {
 #ifdef Q_OS_WIN
@@ -140,16 +139,15 @@ private Q_SLOTS:
         def.command = command;
 
         runtime.launch(def, QString());
-        // startDetached is synchronous: success means the PID is tracked.
+        // startDetached 是同步的：成功即意味着 PID 已被跟踪。
         QVERIFY2(runtime.hasLaunchedAgents(),
                  "a started process must be tracked for this session");
         QVERIFY(runtime.stop(QStringLiteral("real")));
         QVERIFY(!runtime.hasLaunchedAgents());
     }
 
-    // A launch redirects the agent's output and captures the authenticated
-    // URL printed there (dsh prints a per-process token URL): reported via
-    // sessionUrlChanged, dropped again on stop.
+    // launch 重定向 agent 输出并捕获其中打印的带鉴权 URL（dsh 会打印每进程
+    // 随机的 token URL）：经 sessionUrlChanged 上报，stop 后丢弃。
     void testSessionUrlCapture()
     {
 #ifdef Q_OS_WIN
@@ -176,7 +174,7 @@ private Q_SLOTS:
         def.webUrl = QStringLiteral("http://127.0.0.1:39877");
         runtime.launch(def, QString());
 
-        // The watch polls the output file every 500 ms.
+        // 监视每 500 ms 轮询一次输出文件。
         QVERIFY2(spy.wait(10000), "the printed URL must be captured");
         QCOMPARE(spy.first().at(0).toString(), QStringLiteral("dsh-test"));
         QCOMPARE(spy.first().at(1).toString(),
@@ -184,12 +182,12 @@ private Q_SLOTS:
         QCOMPARE(runtime.sessionUrl(QStringLiteral("dsh-test")),
                  QStringLiteral("http://127.0.0.1:39877/?token=abc123"));
 
-        // Stopping drops the URL — the per-process token died with it.
+        // 停止即丢弃 URL——每进程的 token 已随进程消亡。
         runtime.stop(QStringLiteral("dsh-test"));
         QVERIFY(runtime.sessionUrl(QStringLiteral("dsh-test")).isEmpty());
     }
 
-    // Agents that print no URL end the watch quietly (no signal ever).
+    // 不打印 URL 的 agent 让监视安静收场（永不发信号）。
     void testSessionUrlWatchGivesUpQuietly()
     {
 #ifdef Q_OS_WIN
@@ -213,7 +211,7 @@ private Q_SLOTS:
         def.webUrl = QStringLiteral("http://127.0.0.1:39878");
         runtime.launch(def, QString());
 
-        // No URL appears in the output; the watch must not fire.
+        // 输出里没有 URL 出现；监视绝不能触发。
         QVERIFY(!spy.wait(2000));
         QVERIFY(runtime.sessionUrl(QStringLiteral("quiet")).isEmpty());
 

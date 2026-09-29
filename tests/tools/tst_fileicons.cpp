@@ -11,7 +11,9 @@
 
 using awb::tools::FileIcons;
 
-// 图标映射表：内置默认表随测试目标打包（见 CMakeLists.txt），用户表叠加覆盖。
+/// 测 tools::FileIcons 的图标映射表：内置默认表随测试目标打包（见
+/// CMakeLists.txt），用户表叠加覆盖；覆盖文件名优先于后缀、未知名字回退
+/// 默认图标，以及坏值不变成空白。
 class TestFileIcons : public QObject
 {
     Q_OBJECT
@@ -138,7 +140,7 @@ private Q_SLOTS:
     }
 
 private:
-    /// 把一段用户配置写进 dir，返回它的路径。
+    /// 把一段用户配置写进 dir，返回它的路径（打不开时返回空串）。
     static QString writeUserConfig(const QString &dir, const QJsonObject &root)
     {
         const QString path = QDir(dir).filePath(QStringLiteral("file_icons.json"));

@@ -11,6 +11,9 @@ using awb::theme::ThemeFile;
 using awb::theme::ThemeLoader;
 using awb::theme::ThemeRegistry;
 
+/// 测 theme::ThemeLoader 的主题 JSON 解析：未知键忽略、缺 token 回退同变体
+/// 基线、坏颜色回退、id 与文件名必须一致、variant 只认 dark/light，以及内置
+/// 主题资源的加载。
 class TestThemeLoader : public QObject
 {
     Q_OBJECT
@@ -18,12 +21,12 @@ class TestThemeLoader : public QObject
 private Q_SLOTS:
     void init()
     {
-        // Builtin themes come from :/themes (embedded in this test target).
+        // 内置主题来自 :/themes（嵌入在本测试目标里）。
         m_baseline = ThemeRegistry().baseline(QStringLiteral("dark"));
         QVERIFY(m_baseline.isValid());
     }
 
-    // Unknown keys are ignored with a warning, never fatal.
+    // 未知键被忽略并告警，绝不致命。
     void testUnknownKeysIgnored()
     {
         QJsonObject json = baseJson();
@@ -37,15 +40,14 @@ private Q_SLOTS:
                                    m_baseline, out));
         QVERIFY(out.isValid());
         QVERIFY(!out.colors.contains(QStringLiteral("notAToken")));
-        // Real tokens still land.
+        // 真正的 token 照常落位。
         QVERIFY(out.colors.contains(QStringLiteral("accent")));
     }
 
-    // Missing tokens fall back to the baseline of the SAME variant — a user
-    // theme only declares what it changes.
+    // 缺失的 token 回退到同一变体的基线——用户主题只声明自己要改的部分。
     void testMissingTokensFallBackToBaseline()
     {
-        QJsonObject json; // only id/name/variant, no colors/metrics at all
+        QJsonObject json; // 只有 id/name/variant，完全没有 colors/metrics
         json[QStringLiteral("id")] = QStringLiteral("test-dark");
         json[QStringLiteral("name")] = QStringLiteral("Test Dark");
         json[QStringLiteral("variant")] = QStringLiteral("dark");
@@ -62,7 +64,7 @@ private Q_SLOTS:
         QCOMPARE(out.agentPalette, m_baseline.agentPalette);
     }
 
-    // An unparseable color falls back to the baseline.
+    // 解析不了的颜色回退到基线。
     void testInvalidColorFallsBack()
     {
         QJsonObject json = baseJson();
@@ -77,7 +79,7 @@ private Q_SLOTS:
                  m_baseline.colors.value(QStringLiteral("accent")));
     }
 
-    // `id` missing or != file name -> the whole file is skipped.
+    // `id` 缺失或不等于文件名 → 整个文件被跳过。
     void testIdMustMatchFileName()
     {
         QJsonObject json = baseJson();
@@ -94,7 +96,7 @@ private Q_SLOTS:
         QVERIFY(!out.isValid());
     }
 
-    // An unknown variant is unusable.
+    // 未知的 variant 不可用。
     void testVariantMustBeDarkOrLight()
     {
         QJsonObject json = baseJson();
@@ -122,6 +124,11 @@ private Q_SLOTS:
     }
 
 private:
+    /**
+     * @brief 构造最小合法的暗色主题 JSON（id/name/variant 三键）
+     *
+     * @return 可直接塞进 ThemeLoader::parse 的根对象
+     */
     static QJsonObject baseJson()
     {
         QJsonObject json;
@@ -131,7 +138,7 @@ private:
         return json;
     }
 
-    ThemeFile m_baseline;
+    ThemeFile m_baseline;  ///< init() 里取到的暗色基线，供回退断言比对
 };
 
 #include "tst_themeloader.moc"

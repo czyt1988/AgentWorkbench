@@ -8,13 +8,15 @@
 
 using awb::core::ScriptRunner;
 
+/// 测 core::ScriptRunner 的脚本执行：输出按序流式到达且 finished 报全文、同键
+/// 新运行作废旧运行（epoch 机制）、超时杀进程并报错、启动失败与批处理路径。
 class TestScriptRunner : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // Output arrives as chunks in order, and finished() reports the complete
-    // text (readyRead consumes from QProcess, so the runner accumulates).
+    // 输出按序分块到达，finished() 报完整文本（readyRead 从 QProcess 消费，
+    // 由 runner 负责累积）。
     void testStreamingAndFullOutput()
     {
         ScriptRunner runner;
@@ -34,7 +36,7 @@ private Q_SLOTS:
         QVERIFY2(out.contains(QStringLiteral("beta")), qPrintable(out));
         QVERIFY(row.at(5).toString().isEmpty()); // error
 
-        // Chunks carry the same bytes incrementally, in order.
+        // 分块增量携带同样的内容，顺序一致。
         QString streamed;
         for (const QList<QVariant> &chunk : std::as_const(chunks)) {
             streamed += chunk.at(1).toString();
@@ -45,26 +47,24 @@ private Q_SLOTS:
                 && streamed.indexOf(QStringLiteral("alpha"))
                        <= streamed.indexOf(QStringLiteral("beta")));
 
-        // No second completion shows up afterwards.
+        // 此后不再出现第二次完成信号。
         QTest::qWait(100);
         QCOMPARE(done.count(), 0);
     }
 
-    // Starting a new run under the same key invalidates the previous one:
-    // its process is killed and its callbacks are dropped — the "epoch"
-    // mechanism.
+    // 同键下发起的新运行会作废前一个：旧进程被杀、回调被丢弃——即 epoch 机制。
     void testStaleRunIsInvalidated()
     {
         ScriptRunner runner;
         QSignalSpy done(&runner, &ScriptRunner::finished);
 
-        // First run hangs for ~30 s.
+        // 第一次运行挂起约 30 s。
         runner.runShell(QStringLiteral("same"),
                         QStringLiteral("ping -n 30 127.0.0.1 >nul"), 0, true);
-        QTest::qWait(200); // let it start
+        QTest::qWait(200); // 等它先启动起来
         QVERIFY(runner.isRunning(QStringLiteral("same")));
 
-        // Second run takes over the key.
+        // 第二次运行接管该键。
         runner.runShell(QStringLiteral("same"),
                         QStringLiteral("echo takeover"), 0, true);
         QVERIFY(done.wait(10000));
@@ -73,14 +73,13 @@ private Q_SLOTS:
         QCOMPARE(row.at(3).toString().contains(QStringLiteral("takeover")),
                  true);
 
-        // The killed first run never reports back.
+        // 被杀掉的第一次运行绝不再回报。
         QTest::qWait(300);
         QCOMPARE(done.count(), 0);
         QVERIFY(!runner.isRunning(QStringLiteral("same")));
     }
 
-    // A hung command is killed at the timeout and reported as failed with a
-    // readable error.
+    // 挂起的命令在超时处被杀，并以带可读原因的失败回报。
     void testTimeout()
     {
         ScriptRunner runner;
@@ -95,7 +94,7 @@ private Q_SLOTS:
                  qPrintable(row.at(5).toString()));
     }
 
-    // A command that never starts reports a start failure, not a timeout.
+    // 根本没启动起来的命令报启动失败，而不是超时。
     void testStartFailure()
     {
         ScriptRunner runner;
@@ -103,8 +102,8 @@ private Q_SLOTS:
 
         runner.run(QStringLiteral("bad"), QStringLiteral("no-such-prog-awb-xyz"),
                    {}, 0, true);
-        // FailedToStart can be reported synchronously from within run(),
-        // before wait() would start its event loop — poll the count instead.
+        // FailedToStart 可能从 run() 内部同步上报，早于 wait() 进入事件循环
+        // ——改用轮询计数来等。
         QTRY_VERIFY_WITH_TIMEOUT(done.count() >= 1, 10000);
         const QList<QVariant> row = done.takeFirst();
         QVERIFY(!row.at(1).toBool());
@@ -113,7 +112,7 @@ private Q_SLOTS:
                  qPrintable(row.at(5).toString()));
     }
 
-    // runBatch writes a temp .cmd (sidestepping cmd.exe quoting) and runs it.
+    // runBatch 写一个临时 .cmd（绕开 cmd.exe 的引号转义）再执行它。
     void testBatch()
     {
         ScriptRunner runner;

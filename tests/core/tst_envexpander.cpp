@@ -8,12 +8,14 @@
 
 using awb::core::EnvExpander;
 
+/// 测 core::EnvExpander 的环境变量与 ~ 展开：%VAR% 的替换、未知变量与无变量
+/// 文本的透传，以及 ~/ 前缀到用户主目录的展开。
 class TestEnvExpander : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // %VAR% (Windows style) is replaced with the environment value.
+    // %VAR%（Windows 风格）被替换为环境变量的值。
     void testPercentVarExpansion()
     {
         qputenv("AWB_TEST_EXPAND_VAR", QByteArrayLiteral("expanded-value"));
@@ -21,16 +23,16 @@ private Q_SLOTS:
                  QStringLiteral("expanded-value/x"));
         qunsetenv("AWB_TEST_EXPAND_VAR");
 
-        // An unknown variable is left untouched, not silently dropped.
+        // 未定义的变量必须原样保留，不能被静默丢弃。
         QCOMPARE(EnvExpander::expand(QStringLiteral("%AWB_NO_SUCH_VAR_42%/x")),
                  QStringLiteral("%AWB_NO_SUCH_VAR_42%/x"));
 
-        // No variable at all passes through unchanged.
+        // 文本里根本没有变量时按原文透传。
         QCOMPARE(EnvExpander::expand(QStringLiteral("C:/plain/path")),
                  QStringLiteral("C:/plain/path"));
     }
 
-    // "~/" becomes the user's home directory.
+    // "~/" 展开为用户主目录。
     void testTildeExpansion()
     {
         const QString home =

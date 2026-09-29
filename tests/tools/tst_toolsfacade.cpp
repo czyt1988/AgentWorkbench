@@ -13,7 +13,8 @@
 using awb::core::Paths;
 using awb::tools::ToolsFacade;
 
-// 门面层：工作区校验/MRU/淘汰与文件树根的联动、草稿跨实例往返。
+/// 测 tools::ToolsFacade 门面层：工作区校验/MRU/淘汰与文件树根的联动、
+/// 草稿跨实例往返，以及 QML 调用面的可调用性与类型可解析性。
 class TestToolsFacade : public QObject
 {
     Q_OBJECT
@@ -215,8 +216,8 @@ private Q_SLOTS:
     }
 
 private:
-    std::unique_ptr<QTemporaryDir> m_dir;
-    std::unique_ptr<QTemporaryDir> m_ws;
+    std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时数据根
+    std::unique_ptr<QTemporaryDir> m_ws;   ///< 每个用例独立的临时工作区
 };
 
 AWB_TEST(TestToolsFacade)

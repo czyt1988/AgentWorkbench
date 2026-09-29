@@ -15,15 +15,17 @@
 
 using awb::core::Logging;
 
+// 本文件专用的日志分类，用于验证按分类写前缀的可过滤性
 Q_LOGGING_CATEGORY(lcAwbTest, "awb.test")
 
+/// 测 core::Logging：命令行按需加引号的格式化与输出截断、日志按大小轮转并
+/// 限文件数、分类前缀、级别过滤、AWB_* 事件宏、非 ASCII 路径与多线程并发写。
 class TestLogging : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
-    // A command line is quoted only where it has to be, so the log shows the
-    // real thing and it can still be pasted back into cmd.exe.
+    // 命令行只在必要处加引号：日志里看到的是真实命令，且能原样粘回 cmd.exe。
     void testFormatCommandLine()
     {
         QCOMPARE(Logging::formatCommandLine(QStringLiteral("qwen"),
@@ -35,7 +37,7 @@ private Q_SLOTS:
                       QStringLiteral("C:/Program Files/qwen.cmd"),
                       QStringLiteral("serve")}),
                  QStringLiteral("cmd /c \"C:/Program Files/qwen.cmd\" serve"));
-        // An empty argument stays visible instead of collapsing into nothing.
+        // 空参数要保持可见，不能凭空消失。
         QCOMPARE(Logging::formatCommandLine(QStringLiteral("x"), {QString()}),
                  QStringLiteral("x \"\""));
     }
@@ -50,8 +52,7 @@ private Q_SLOTS:
         QVERIFY(clamped.contains(QStringLiteral("90")));
     }
 
-    // The log rotates at the size limit and keeps at most that many files, so
-    // a chatty install can never fill the disk.
+    // 日志在大小上限处轮转且至多保留这么多个文件，话痨安装也填不满磁盘。
     void testLogRotation()
     {
         QCOMPARE(Logging::DEFAULT_MAX_FILES, 3);
@@ -60,13 +61,13 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
 
-        // Tiny files so rotation happens without writing megabytes; one line
-        // is already bigger than the limit, so every write rotates.
+        // 文件设得很小，不写几 MB 也能触发轮转；一行就已超限，所以每次
+        // 写入都会轮转。
         Logging::install(dir.path(), 128, 3);
         for (int i = 0; i < 20; ++i) {
             qInfo().noquote() << QStringLiteral("rotation line %1").arg(i);
         }
-        Logging::uninstall(); // hand the message handler back to QTest
+        Logging::uninstall(); // 把消息处理器交还给 QTest
 
         const QDir logDir(dir.path());
         const QStringList files = logDir.entryList(
@@ -81,14 +82,14 @@ private Q_SLOTS:
             QVERIFY(f.open(QIODevice::ReadOnly));
             logged += QString::fromUtf8(f.readAll());
         }
-        // The newest line survived (the last write may have rotated it into
-        // .1 already), and the oldest ones were dropped for good.
+        // 最新的行活了下来（最后一次写入可能已把它轮转进 .1），
+        // 最老的行被彻底丢弃。
         QVERIFY(logged.contains(QStringLiteral("rotation line 19")));
         QVERIFY(!logged.contains(QStringLiteral("rotation line 0")));
     }
 
-    // Modules log through their own Qt category ("awb.<module>") and the
-    // handler writes it as a line prefix so the log is filterable per module
+    // 各模块经自己的 Qt 分类（"awb.<module>"）打日志，处理器把它写成行前缀，
+    // 日志才能按模块过滤。
     void testCategoryPrefix()
     {
         QTemporaryDir dir;

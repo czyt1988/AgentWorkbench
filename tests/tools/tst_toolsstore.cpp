@@ -10,7 +10,8 @@
 using awb::core::Paths;
 using awb::tools::ToolsStore;
 
-// tools.json 的状态语义：MRU 换序、20 上限淘汰、current 顺延、草稿往返。
+/// 测 tools::ToolsStore 的 tools.json 状态语义：MRU 换序、20 上限淘汰、
+/// current 顺延、草稿往返。
 class TestToolsStore : public QObject
 {
     Q_OBJECT
@@ -136,7 +137,7 @@ private Q_SLOTS:
     }
 
 private:
-    std::unique_ptr<QTemporaryDir> m_dir;
+    std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时数据根
 };
 
 AWB_TEST(TestToolsStore)
