@@ -3,9 +3,11 @@ import QtQuick.Controls
 import AgentWorkbench.App
 import AgentWorkbench
 
-// 主题化多行文本编辑器：surface-alt 背景、焦点环、可选 invalid 红边，
-// 外观契约与 ATextField 一致（同为 surfaceAltBg/focusRing/borderSubtle）。
-// 单行输入仍用 ATextField；带图标与清除键的搜索框仍用 ASearchField。
+// 主题化多行文本编辑器：surface 背景、焦点环、可选 invalid 红边。
+// 背景与 ATextField（surfaceAltBg）有意区分：长文编辑区用 surface——
+// 亮色下 surfaceAlt 偏灰显脏，深色下 surface 比 surfaceAlt 更沉，像一块
+// 「输入槽」。单行输入仍用 ATextField；带图标与清除键的搜索框仍用
+// ASearchField。
 TextArea {
     id: control
 
@@ -22,7 +24,7 @@ TextArea {
 
     background: Rectangle {
         radius: theme.radiusControl
-        color: theme.surfaceAltBg
+        color: theme.surfaceBg
         border.color: control.invalid ? theme.danger
                                       : (control.activeFocus ? theme.focusRing
                                                              : theme.borderSubtle)
