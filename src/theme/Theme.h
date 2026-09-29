@@ -17,11 +17,12 @@ namespace awb::theme {
 
 class ThemeRegistry;
 
-// The QML global `theme`: semantic tokens as
-// named, NOTifiable properties (names are the contract), plus dynamic
-// helpers. Every token updates
-// together through the single `changed` signal, so switching a theme
-// re-binds the whole UI at runtime.
+/// QML 全局单例 `theme`：把主题的语义令牌以命名属性暴露给 QML。
+///
+/// 属性名即令牌名，是对页面的契约（页面只写 theme.xxx，不写字面颜色）；
+/// 另配动态查表（color/metric）与派生色（alpha/hover/pressed）助手。
+/// 所有令牌共用唯一一个 changed() 信号，切换主题时整个界面在运行时
+/// 一次性重绑。
 class Theme : public QObject
 {
     Q_OBJECT
@@ -93,33 +94,38 @@ class Theme : public QObject
     Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
 
 public:
+    // 构造时加载当前主题，并连好设置变更与主题文件热重载两条通知通路
     Theme(core::Settings *settings, ThemeRegistry *registry,
           QObject *parent = nullptr);
 
+    // 当前主题的深浅变体（"dark" / "light"）
     QString variant() const;
+    // 当前主题 id
     QString themeId() const;
+    // 供选择界面用的主题清单，每项含 id/name/variant/display
     QVariantList availableThemes() const;
+    // agent 卡片按位轮换的调色板（#rrggbb 串）
     QStringList agentPalette() const;
 
-    // Switch the theme at runtime: writes appearance.theme to settings.json
-    // and re-binds every token.
+    // 运行时切换主题：写 appearance.theme 并落盘，全部令牌随之重绑
     Q_INVOKABLE void applyTheme(const QString &id);
 
-    // Switch the global UI font at runtime: writes appearance.fontFamily
-    // (empty = follow the theme / system default) and re-binds family.
+    // 运行时切换全局字体：写 appearance.fontFamily（空串 = 跟随主题/系统
+    // 默认），family 令牌随之重绑
     Q_INVOKABLE void setFontFamily(const QString &family);
 
-    // Dynamic token lookup (for components that iterate tokens).
+    // 按名字取颜色令牌（供遍历令牌的组件用）；未知名字返回无效 QColor
     Q_INVOKABLE QColor color(const QString &name) const;
+    // 按名字取数值令牌；未知名字返回 0.0
     Q_INVOKABLE double metric(const QString &name) const;
 
-    // Derived colors: alpha overlay, hover/press shading whose
-    // direction depends on the variant. QML must use these instead of
-    // Qt.darker/Qt.lighter.
+    // 派生色：alpha 叠加与 hover/press 明暗变化——方向随变体走。QML 必须
+    // 用这些而不是 Qt.darker/Qt.lighter（它们不感知变体）
     Q_INVOKABLE QColor alpha(const QColor &color, qreal a) const;
     Q_INVOKABLE QColor hover(const QColor &color) const;
     Q_INVOKABLE QColor pressed(const QColor &color) const;
 
+    // 颜色令牌 getter：从当前主题按同名键取值，缺键返回无效 QColor
     QColor windowBg() const;
     QColor sidebarBg() const;
     QColor workspaceBg() const;
@@ -152,6 +158,7 @@ public:
     QColor tabInactiveBg() const;
     QColor selectionBg() const;
     QColor scrollbar() const;
+    // 数值令牌 getter（圆角/间距/字号/尺寸/时长）：缺键返回 0.0
     double radiusCard() const;
     double radiusOverlay() const;
     double radiusControl() const;
@@ -176,19 +183,27 @@ public:
     double statusBarHeight() const;
     double tabBarHeight() const;
     double toastWidth() const;
+    // 字体族令牌（空串 = 跟随系统默认）；family 受用户设置覆盖
     QString family() const;
     QString monoFamily() const;
     QStringList fontFamilies() const;
 
-signals:
+Q_SIGNALS:
+    /**
+     * @brief 任一令牌的值变化后发射
+     *
+     * 所有 Q_PROPERTY 共用它做 NOTIFY：主题切换、主题文件热重载、字体
+     * 设置变化各走各的入口，最后都发这一个信号，QML 整体重绑。
+     */
     void changed();
 
 private:
+    // 从注册表重读当前主题并广播 changed()（设置变更与热重载共用）
     void loadCurrent();
 
-    core::Settings *m_settings;
-    ThemeRegistry *m_registry;
-    ThemeFile m_current;
+    core::Settings *m_settings;  ///< 设置：当前主题与字体覆盖的读写
+    ThemeRegistry *m_registry;   ///< 主题来源，提供可用主题与热重载通知
+    ThemeFile m_current;         ///< 当前生效的主题（全部令牌 getter 的数据源）
 };
 
 } // namespace awb::theme

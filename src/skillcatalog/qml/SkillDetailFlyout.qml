@@ -4,16 +4,18 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Hover detail flyout : full description + metadata table.
-// Opened by the card after 400 ms; closes 300 ms after the pointer leaves
-// both the card and this popup, on any key press, or on page scroll.
+// 悬停详情浮层：完整描述 + 元数据表。由卡片悬停 400ms 后打开；指针
+// 离开卡片与浮层 300ms 后关闭，任意按键或页面滚动也会关闭。定位与
+// 开关由 SkillCard 驱动，本组件只负责呈现。
 Popup {
     id: flyout
 
+    // 目标 skill 的 SKILL.md 路径（门面查询的定位键）。
     property string skillFilePath: ""
+    // 延迟关闭标记：tryCloseLater 置真后指针若回到浮层上会被取消。
     property bool closePending: false
 
-    // The definition behind the path (facade lookup).
+    // 路径对应的 skill 定义（经 skills 门面查询）。
     readonly property var info: skills.skill(skillFilePath)
 
     modal: false
@@ -38,7 +40,7 @@ Popup {
         radius: theme.radiusOverlay
     }
 
-    // The pointer entered the flyout: cancel the pending close.
+    // 指针进入浮层：取消待定的关闭（指针在卡片与浮层之间移动时不关）。
     HoverHandler {
         onHoveredChanged: {
             if (hovered)
@@ -46,6 +48,7 @@ Popup {
         }
     }
 
+    // 延迟关闭：先标记，300ms 后指针仍不在卡片/浮层上才真正关闭。
     function tryCloseLater() {
         closePending = true
         closeTimer.restart()
@@ -64,10 +67,11 @@ Popup {
         id: flyoutHostHover
     }
 
-    // Key-press close lives on the card, not here: Keys can only
-    // attach to an Item, and a Popup is a QObject — attaching it here just
-    // logged "Could not attach Keys property … is not an Item" once per card.
+    // 按键关闭放在卡片上而不是这里：Keys 只能附加到 Item，而 Popup 是
+    // QObject——在这里附加只会每张卡片打一条 "Could not attach Keys
+    // property … is not an Item"。
 
+    // 内容列：名称/来源/描述 + 元数据表。
     contentItem: ColumnLayout {
         id: body
         spacing: 0
@@ -146,7 +150,7 @@ Popup {
                     color: theme.separator
                 }
 
-                // Metadata table.
+                // 元数据表：SKILL.md 路径、修改时间、大小。
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
@@ -204,7 +208,7 @@ Popup {
                     }
                 }
 
-                // Extra frontmatter scalars.
+                // frontmatter 的其余标量字段（名称-值成对展示）。
                 Repeater {
                     model: {
                         const extras = flyout.info.extras || {}
@@ -218,9 +222,9 @@ Popup {
                         columns: 2
                         columnSpacing: theme.spacingM
 
-                        // Extra rows are rebuilt whenever the flyout follows a
-                        // different skill — a hovered row dying here froze the
-                        // shared tooltip, exactly like the card delegates.
+                        // 浮层跟随不同 skill 时这些行会重建——悬停中的行
+                        // 在这里死掉会冻住共享 tooltip，与卡片 delegate
+                        // 同理。
                         Component.onDestruction: ToolTip.hide()
 
                         Label {

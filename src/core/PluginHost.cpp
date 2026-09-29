@@ -10,13 +10,19 @@
 #include <QJsonDocument>
 #include <QLibrary>
 #include <QJsonObject>
+#include <utility>
 
 namespace awb::core {
 
 namespace {
 
-// Parse one plugin.json; invalid manifests return an invalid Manifest
-// (empty id) — the caller logs and skips.
+/**
+ * @brief 解析一个 plugin.json
+ *
+ * @param path manifest 文件路径
+ * @return 解析出的 Manifest；无效 manifest 返回 id 为空的实例，
+ *          由调用方记日志后跳过
+ */
 PluginHost::Manifest parseManifest(const QString &path)
 {
     PluginHost::Manifest manifest;
@@ -59,50 +65,80 @@ PluginHost::Manifest parseManifest(const QString &path)
         page.section = o.value(QStringLiteral("section"))
                            .toString(QStringLiteral("extensions"));
         page.order = o.value(QStringLiteral("order")).toInt(50);
-        if (!page.id.isEmpty() && !page.source.isEmpty())
+        if (!page.id.isEmpty() && !page.source.isEmpty()) {
             manifest.pages.append(page);
+        }
     }
     return manifest;
 }
 
 } // namespace
 
+/**
+ * @brief 构造插件宿主
+ *
+ * @param parent QObject 父项
+ */
 PluginHost::PluginHost(QObject *parent)
     : QObject(parent)
 {
 }
 
+/**
+ * @brief 扫描插件目录收集 manifest
+ *
+ * 只读 plugin.json，不加载任何库。没有 plugin.json 的目录、manifest
+ * 无效的目录均跳过。
+ *
+ * @return 发现的插件列表（含未启用的）
+ */
 QList<PluginHost::Manifest> PluginHost::discover() const
 {
     QList<Manifest> manifests;
     const QDir root(Paths::pluginsDir());
-    if (!root.exists())
+    if (!root.exists()) {
         return manifests;
+    }
 
     const QFileInfoList dirs = root.entryInfoList(
         QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo &dir : dirs) {
         const QString manifestPath =
             dir.absoluteFilePath() + QStringLiteral("/plugin.json");
-        if (!QFile::exists(manifestPath))
+        if (!QFile::exists(manifestPath)) {
             continue;
+        }
         Manifest manifest = parseManifest(manifestPath);
-        if (!manifest.id.isEmpty())
+        if (!manifest.id.isEmpty()) {
             manifests.append(manifest);
+        }
     }
     return manifests;
 }
 
+/**
+ * @brief 加载全部已启用的插件
+ *
+ * 版本要过两道校验（manifest 声明 + 二进制导出的 awb_plugin_api_version），
+ * 陈旧的 manifest 不能把不兼容的实现偷运进来。任何失败只记日志并跳过
+ * 该插件——其余插件不受影响，也不抛异常。
+ *
+ * @param manifests discover() 的结果，enabled 已由调用方对照设置解析
+ * @param services  宿主侧服务桥；空指针直接返回 0
+ * @return 成功注册的插件数量
+ */
 int PluginHost::loadEnabled(const QList<Manifest> &manifests,
                             plugin::Services *services)
 {
-    if (!services)
+    if (!services) {
         return 0;
+    }
 
     int loadedCount = 0;
     for (const Manifest &manifest : manifests) {
-        if (!manifest.enabled)
+        if (!manifest.enabled) {
             continue;
+        }
 
         if (manifest.apiVersion != plugin::ApiVersion) {
             qWarning().noquote() << QStringLiteral(
@@ -125,8 +161,8 @@ int PluginHost::loadEnabled(const QList<Manifest> &manifests,
             continue;
         }
 
-        // Re-check the version through the actual binary: a stale manifest
-        // must not smuggle an incompatible implementation past us.
+        // 版本要再按二进制实际导出的值核对一遍：
+        // 陈旧的 manifest 不能把不兼容的实现偷运进来。
         using ApiVersionFn = int (*)();
         auto versionFn = reinterpret_cast<ApiVersionFn>(
             library->resolve("awb_plugin_api_version"));
@@ -171,10 +207,16 @@ int PluginHost::loadEnabled(const QList<Manifest> &manifests,
     return loadedCount;
 }
 
+/**
+ * @brief 卸载全部已加载的插件库
+ *
+ * 库在进程退出路径上统一卸载，中途不卸——页面等注册项可能仍被引用。
+ */
 void PluginHost::shutdown()
 {
-    for (QLibrary *library : m_loaded)
+    for (QLibrary *library : std::as_const(m_loaded)) {
         library->unload();
+    }
     m_loaded.clear();
 }
 

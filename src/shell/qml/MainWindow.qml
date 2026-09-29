@@ -5,15 +5,16 @@ import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The window skeleton: sidebar + workspace + status bar,
-// global shortcuts, exit confirmation and the toast overlay.
+// 窗口骨架：侧栏 + 工作区 + 状态栏，全局快捷键、退出确认与 toast 覆盖层
+// 也都在这里组装。
 //
-// Root aliases bridge the uppercase singleton type names to the lowercase
-// contract names — every descendant resolves `theme.`,
-// `nav.` … through this root.
+// 根部的小写别名把大写的单例类型名桥接成 QML 侧的小写契约名——所有后代
+// 都经这个根解析 `theme.`、`nav.` …。
 ApplicationWindow {
     id: window
 
+    // 根部别名组：QML 契约定死的小写名字（theme/nav/shell/ui/toasts/
+    // agents/web/skills/tools/workbench/environment），见 AGENTS.md。
     readonly property var theme: Theme
     readonly property var nav: Nav
     readonly property var shell: Shell
@@ -35,7 +36,7 @@ ApplicationWindow {
     // 低到足以容纳缩小的逻辑高度（小屏、高 DPI）：页面内部自己滚动，窗口
     // 只需要装得下外壳。
     minimumHeight: 540
-    // Brand name, deliberately not translated.
+    // 品牌名，刻意不翻译。
     title: shell.windowTitle.length > 0 ? shell.windowTitle
                                         : "AgentWorkbench"
     color: theme.windowBg
@@ -46,8 +47,8 @@ ApplicationWindow {
     // 默认值由 main.cpp 的 QGuiApplication::setFont 铺底（引擎创建前）。
     font.family: theme.family.length > 0 ? theme.family : undefined
 
-    // Set to true once the user confirmed the exit dialog, so onClosing
-    // lets the window close without re-prompting.
+    // 用户在退出确认弹窗里点过「退出」后置真，onClosing 据此放行关闭、
+    // 不再重复弹窗。
     property bool exitConfirmed: false
 
     onClosing: function(close) {
@@ -60,7 +61,7 @@ ApplicationWindow {
         }
     }
 
-    // --- Global shortcuts ---------------------------------
+    // --- 全局快捷键 -----------------------------------------
     Shortcut {
         sequence: "Ctrl+B"
         onActivated: shell.sidebarCollapsed = !shell.sidebarCollapsed
@@ -69,7 +70,7 @@ ApplicationWindow {
         sequence: "Ctrl+,"
         onActivated: workbench.showPage("settings")
     }
-    // Ctrl+1…9 switch to the Nth page in order.
+    // Ctrl+1…9 按模型顺序切到第 N 个页面（钉底页排在最后，属预期行为）。
     function goToPageNumber(n) {
         const ids = nav.pageIdsInOrder()
         if (n >= 0 && n < ids.length)
@@ -85,7 +86,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+8"; onActivated: window.goToPageNumber(7) }
     Shortcut { sequence: "Ctrl+9"; onActivated: window.goToPageNumber(8) }
 
-    // --- Layout ----------------------------------------------------------
+    // --- 布局 --------------------------------------------------------------
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -112,10 +113,10 @@ ApplicationWindow {
         }
     }
 
-    // Toasts anchors itself bottom-right inside its own file.
+    // toast 宿主：锚定在窗口右下角（逻辑在它自己的文件里）。
     Toasts {}
 
-    // --- Exit confirmation (0.3.0 behaviour preserved) --------------------
+    // --- 退出确认（保留 0.3.0 行为） ----------------------------------------
     ADialog {
         id: exitConfirmPopup
         width: 440
@@ -166,7 +167,7 @@ ApplicationWindow {
         }
     }
 
-    // --- Legacy data import notice (one-shot) --------------------
+    // --- 旧数据导入提示（一次性） -------------------------------------------
     AAlertDialog {
         id: legacyImportPopup
         danger: false

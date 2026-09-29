@@ -8,32 +8,32 @@
 
 namespace awb::skillcatalog {
 
-// One scan root. `path` may contain wildcards
-// (the ZCode plugin cache entry does) — the scanner expands them.
+/// 一个扫描根。`path` 可以带通配符（ZCode 的插件缓存根就是）——展开
+/// 由扫描器在扫描时完成，这里始终存原始形式。
 struct SkillRoot
 {
-    QString id;
-    QString label;
-    QString path;
-    QString kind = QStringLiteral("custom"); // agents|claude|codex|plugin|project|custom
-    bool enabled = true;
-    bool recursive = true;
-    QString dedupeScope; // plugin roots: marketplace scope for version dedup
+    QString id;      ///< 根的稳定标识（如 "agents"、"zcode-plugins"）
+    QString label;   ///< 显示名
+    QString path;    ///< 原始路径；可含 `~`、`%PWD%` 与通配符
+    QString kind = QStringLiteral("custom"); ///< agents|claude|codex|plugin|project|custom
+    bool enabled = true;   ///< 是否参与扫描
+    bool recursive = true; ///< 是否递归扫子目录
+    QString dedupeScope;   ///< 插件根的去重域：按 marketplace+plugin 跨版本去重
 
+    /// id 与 path 都非空才算可用
     bool isValid() const { return !id.isEmpty() && !path.isEmpty(); }
 };
 
-// The default root list and conversion of
-// `skills.roots` entries from settings.json.
+/// 默认扫描根清单与 settings.json `skills.roots` 条目的转换。
 class SkillRoots
 {
 public:
-    // The platform defaults; `withProjectRoots` adds the cwd-based project
-    // skills directories when a working directory is known.
+    // 平台默认根清单（~/.agents、~/.claude、~/.codex、ZCode 插件缓存、
+    // %PWD% 下的项目目录）；路径一律保持原始占位形式
     static QList<SkillRoot> defaults();
 
-    // Parse settings.json `skills.roots` entries ({path, kind?, id?,
-    // enabled?}); an empty array means "use the defaults".
+    // 解析 settings.json `skills.roots` 条目（{path, kind?, id?, enabled?}）；
+    // 空数组 = 用默认清单
     static QList<SkillRoot> fromJson(const QJsonArray &entries);
 };
 

@@ -7,13 +7,13 @@
 using awb::skillcatalog::SkillFrontmatter;
 using awb::skillcatalog::SkillFrontmatterParser;
 
-// Covers quotes, folded/literal scalars, multi-line indentation,
-// BOM, CRLF, missing frontmatter, colons inside values.
+/// 测 skillcatalog::SkillFrontmatterParser 的 frontmatter 解析：引号、折叠/
+/// 字面块标量、多行缩进、BOM、CRLF、缺失 frontmatter，以及值里带冒号的情况。
 class TestSkillFrontmatter : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testMissingFrontmatter()
     {
         const SkillFrontmatter result =
@@ -46,7 +46,7 @@ private slots:
                  QStringLiteral("1.2.3"));
     }
 
-    // A colon inside the description must not split the key.
+    // description 里的冒号不能把键切开。
     void testColonInValue()
     {
         const SkillFrontmatter result = SkillFrontmatterParser::parse(

@@ -7,22 +7,24 @@
 
 namespace awb::skillcatalog {
 
-// One discovered skill.
+/// 扫描发现的一条 skill 记录：frontmatter 字段 + 定位信息 + 文件统计。
+///
+/// 它是 SkillModel 的数据源，也是 skills_cache.json 的存储单元；
+/// name 为空时由扫描侧回退到目录名。
 struct SkillDefinition
 {
-    QString name;         // frontmatter name, falls back to the directory
-    QString description;
-    QString skillFilePath; // absolute path of SKILL.md
-    QString dirPath;        // the skill's directory
-    QString rootId;
-    QString rootLabel;
-    QString kind; // agents | claude | codex | plugin | project | custom
-    QString pluginId;
-    QString pluginVersion;
-    QDateTime lastModified;
-    qint64 sizeBytes = 0;
-    // Remaining frontmatter scalars (allowed-tools, version, metadata.* …).
-    QVariantMap extras;
+    QString name;           ///< frontmatter 的 name；为空时回退到目录名
+    QString description;    ///< frontmatter 的 description
+    QString skillFilePath;  ///< SKILL.md 的绝对路径
+    QString dirPath;        ///< skill 所在目录
+    QString rootId;         ///< 发现该 skill 的扫描根 id
+    QString rootLabel;      ///< 扫描根的显示名
+    QString kind;           ///< agents | claude | codex | plugin | project | custom
+    QString pluginId;       ///< 插件 skill 的来源插件标识
+    QString pluginVersion;  ///< 插件 skill 的来源插件版本
+    QDateTime lastModified; ///< SKILL.md 的修改时刻
+    qint64 sizeBytes = 0;   ///< SKILL.md 的字节数
+    QVariantMap extras;     ///< 其余 frontmatter 标量（allowed-tools、version、metadata.* …）
 
     /// 全字段相等。SkillModel::setSkills 用它做「扫描结果与现状一致」的
     /// 短路判断（启动后台扫描 vs 缓存恢复的典型情形），一致时跳过

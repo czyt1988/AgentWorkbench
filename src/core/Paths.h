@@ -5,37 +5,35 @@
 
 namespace awb::core {
 
-// The single source of truth for where the application keeps user data.
-// Everything else asks Paths — no other module
-// may derive the data root itself.
-//
-// Non-ASCII user profiles (C:\Users\陈宗衍\…) are handled by using
-// QFile/QDir exclusively; never pass these paths to narrow-char APIs.
+/// 应用数据目录的唯一来源，其它模块一律经它取路径，不得自行推导数据根。
 class Paths
 {
 public:
-    // <dataRoot> — defaults to ~/.AgentWorkbench.
-    // Priority: setDataRootForTesting() > QStandardPaths test mode >
-    // home directory.
+    // <dataRoot>，默认 ~/.AgentWorkbench；优先级见 Paths.cpp
     static QString dataRoot();
 
-    // Point dataRoot() at a specific directory (tests inject a
-    // QTemporaryDir here). Pass an empty string to return to the default.
+    // 把 dataRoot() 指向固定目录（测试注入 QTemporaryDir 用），空串恢复默认
     static void setDataRootForTesting(const QString &dir);
 
-    static QString themesDir();      // <dataRoot>/themes
-    static QString pluginsDir();     // <dataRoot>/plugins
-    static QString logsDir();        // <dataRoot>/log
-    static QString webProfilesDir(); // <dataRoot>/webprofiles
+    // <dataRoot>/themes
+    static QString themesDir();
+    // <dataRoot>/plugins
+    static QString pluginsDir();
+    // <dataRoot>/log
+    static QString logsDir();
+    // <dataRoot>/webprofiles
+    static QString webProfilesDir();
     // <dataRoot>/skills_cache.json —— skillcatalog 的扫描结果缓存。
     static QString skillCacheFile();
-    static QString downloadsDir();   // ~/Downloads (configurable later)
 
-    // True once dataRoot() was overridden by setDataRootForTesting().
+    // ~/Downloads（将来允许用户改）
+    static QString downloadsDir();
+
+    // dataRoot() 是否已被 setDataRootForTesting() 覆盖
     static bool isDataRootOverridden();
 
 private:
-    static QString s_testRoot;
+    static QString s_testRoot;  ///< 测试注入的数据根，空串表示未覆盖
 };
 
 } // namespace awb::core

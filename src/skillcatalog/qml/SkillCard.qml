@@ -5,19 +5,28 @@ import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
-// One skill card : 340x160, click copies the directory path,
-// right-click offers the copy/open actions, hover opens the detail flyout.
+// 单张 skill 卡片：340x160，左键复制目录路径，右键弹出复制/打开动作，
+// 悬停 400ms 打开详情 flyout（SkillDetailFlyout）。剪贴板与文件操作经
+// skills.* 门面，结果用 toast 通知。
 Item {
     id: card
 
+    // SKILL.md 文件路径（skills.* 门面操作的定位键）。
     property string skillFilePath: ""
+    // skill 名称（frontmatter 的 name）。
     property string skillName: ""
+    // skill 描述（frontmatter 的 description）。
     property string description: ""
+    // skill 所在目录路径（复制路径的目标）。
     property string dirPath: ""
+    // 来源类型（builtin/personal/plugin，徽标文字）。
     property string kind: ""
+    // 扫描根的显示标签。
     property string rootLabel: ""
+    // 插件版本（plugin 来源时显示）。
     property string pluginVersion: ""
 
+    // 路径展示文本（当前直接用目录路径）。
     readonly property string pathText: dirPath
 
     // Qt 的 hover 是独占投递：指针下第一个接受 hover 的子项会截住整棵子树的事件。
@@ -26,26 +35,27 @@ Item {
     // 判据，鼠标移到复制图标上时卡片悬停态才不会闪断（高亮消失、浮层被收起）。
     readonly property bool hovered: hoverHandler.hovered || copyButton.hovered
 
-    width: theme.cardMinWidth + 80 // spec width 340
+    width: theme.cardMinWidth + 80 // 规格宽度 340
     height: 160
 
-    // Cards are model delegates: search/filter/rescan destroys them while
-    // hovered, and the ToolTip attached property shares ONE visual tooltip
-    // per window. When the hovered owner dies, its `ToolTip.visible`
-    // binding dies with it and nothing ever hides the shared tooltip again
-    // — it froze on screen. Hide it on destruction; every tooltip also
-    // sets a timeout so even a missed case self-heals.
+    // 卡片是模型 delegate：搜索/过滤/重扫描会在悬停中销毁它们，而
+    // ToolTip 附加属性在每窗口只共享一个可视化 tooltip。悬停宿主死掉时
+    // 它的 `ToolTip.visible` 绑定跟着死，再没有人去隐藏那个共享 tooltip
+    // ——它会冻在屏幕上。销毁时 hide；每个 tooltip 还带 timeout，漏网的
+    // 情况也能自愈。
     Component.onDestruction: ToolTip.hide()
 
-    // --- Hover flyout (400 ms) ---------------------------------
+    // --- 悬停 flyout（400ms 延时）---------------------------------
+    // 悬停满 400ms 才打开，避免扫过卡片就闪出详情。
     Timer {
         id: hoverTimer
         interval: 400
         onTriggered: card.openFlyout()
     }
 
-    // Open with edge-aware placement: sit right of the card, flip left/up
-    // when the window edge would clip it.
+    // 边缘感知的打开：默认落在卡片右侧，会被窗口边缘裁掉时向左/上翻转。
+    // height 现在由内容驱动，但保留 320 的兜底——popup 尚未布局时翻转
+    // 判断不能用 0。
     function openFlyout() {
         const pos = card.mapToItem(null, 0, 0)
         const win = card.Window.window
@@ -76,7 +86,7 @@ Item {
             anchors.margins: theme.spacingM
             spacing: theme.spacingXs
 
-            // Title row + source badge.
+            // 标题行 + 来源徽标。
             RowLayout {
                 Layout.fillWidth: true
                 spacing: theme.spacingS
@@ -97,10 +107,9 @@ Item {
                 }
             }
 
-            // Description, up to three lines. maximumLineCount
-            // already elides after the third line, so implicitHeight is the
-            // right height — no extra clamp (lineHeight is a multiplier, not
-            // pixels; using it as a pixel cap collapsed this to ~4 px).
+            // 描述，至多三行。maximumLineCount 已在第三行后省略，
+            // implicitHeight 就是正确高度——不用额外钳制（lineHeight 是
+            // 倍率不是像素；拿它当像素上限会把这里塌缩到 ~4px）。
             Label {
                 Layout.fillWidth: true
                 text: card.description.length > 0 ? card.description
@@ -121,7 +130,7 @@ Item {
                 color: theme.separator
             }
 
-            // Path + copy button.
+            // 路径 + 复制按钮。
             RowLayout {
                 Layout.fillWidth: true
                 spacing: theme.spacingS
@@ -195,10 +204,9 @@ Item {
         }
     }
 
-    // Keyboard: Tab reaches the card (— focus also shows the
-    // flyout), Enter copies the path, Ctrl+Enter opens the folder.
-    // activeFocusOnTab, NOT focus: true — every delegate setting focus
-    // would make the last-created card steal the page's initial focus.
+    // 键盘：Tab 可聚焦卡片（聚焦同时显示 flyout），Enter 复制路径，
+    // Ctrl+Enter 打开所在文件夹。用 activeFocusOnTab 而不是 focus: true
+    // ——每个 delegate 都设 focus 会让最后创建的卡片抢走页面初始焦点。
     activeFocusOnTab: true
     onActiveFocusChanged: {
         if (activeFocus)
@@ -209,7 +217,7 @@ Item {
     Keys.onReturnPressed: copyPath()
     Keys.onEnterPressed: copyPath()
     Keys.onPressed: function(event) {
-        // Any key closes the flyout first ; the NEXT press acts.
+        // 任意按键先关掉 flyout；再按一次才生效。
         if (flyout.opened) {
             flyout.close()
             event.accepted = true
@@ -222,6 +230,7 @@ Item {
         }
     }
 
+    // 复制目录路径，结果经 toast 反馈。
     function copyPath() {
         const result = skills.copyPath(card.skillFilePath)
         if (result.ok)
@@ -231,6 +240,7 @@ Item {
             workbench.notify("error", qsTr("Copy failed"), result.error)
     }
 
+    // 右键菜单：复制路径/SKILL.md/名称、打开所在文件夹、定位文件。
     Menu {
         id: contextMenu
         MenuItem {
@@ -282,10 +292,10 @@ Item {
         }
     }
 
+    // 详情 flyout：默认落在卡片右下方，出屏时翻转（openFlyout 定位）。
     SkillDetailFlyout {
         id: flyout
         skillFilePath: card.skillFilePath
-        // Sit below-right of the card, flipping when off-screen.
         x: card.width + theme.spacingM
         y: 0
     }

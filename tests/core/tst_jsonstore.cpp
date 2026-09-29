@@ -9,11 +9,13 @@
 
 using awb::core::JsonStore;
 
+/// 测 core::JsonStore 的 JSON 读写：对象往返、写时创建父目录、缺文件与坏
+/// JSON 的降级、字节级原样写入，以及写失败必须带可读错误。
 class TestJsonStore : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testRoundTrip()
     {
         QTemporaryDir tmp;
@@ -28,8 +30,7 @@ private slots:
         QCOMPARE(JsonStore::readFile(path), obj);
     }
 
-    // Parent directories are created on write, and the file appears only
-    // complete (QSaveFile commits atomically).
+    // 写入时创建缺失的父目录；文件只在完整落盘后才出现（QSaveFile 原子提交）。
     void testCreatesParentDirectories()
     {
         QTemporaryDir tmp;
@@ -44,7 +45,7 @@ private slots:
         QCOMPARE(JsonStore::readFile(path), obj);
     }
 
-    // A missing file is a normal first run: empty object, no crash.
+    // 文件缺失是正常的首次运行：返回空对象，不崩溃。
     void testMissingFile()
     {
         QTemporaryDir tmp;
@@ -53,8 +54,7 @@ private slots:
                     tmp.path() + QStringLiteral("/nope.json")).isEmpty());
     }
 
-    // Malformed content degrades to an empty object (plus a log line) so
-    // one corrupt file cannot take the whole app down.
+    // 坏 JSON 降级为空对象（另记一条日志），单个损坏文件不能把整个应用拖挂。
     void testInvalidJson()
     {
         QTemporaryDir tmp;
@@ -85,7 +85,7 @@ private slots:
     {
         QTemporaryDir tmp;
         QVERIFY(tmp.isValid());
-        // A directory in the file's position makes opening for write fail.
+        // 文件位置上是一个目录，让以写模式打开必然失败。
         const QString path = tmp.path() + QStringLiteral("/asdir");
         QVERIFY(QDir().mkpath(path));
 

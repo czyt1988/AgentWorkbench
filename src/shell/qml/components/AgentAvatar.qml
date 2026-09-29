@@ -1,17 +1,20 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Agent icon + status dot, shared by launcher cards and
-// (from S5) web tabs. Status is never color-only: a tooltip carries the
-// text state as well.
+// agent 的可视化入口：图标 + 右下角状态角标，启动卡片与 Web 标签共用。
+// 状态永远不只靠颜色——statusText 经 tooltip 给出文字状态。
 Item {
     id: control
 
+    // agent 图标 URL。
     property url iconSource: ""
+    // agent 主色：点亮状态角标与描边用。
     property color agentColor: theme.accent
+    // 运行状态：点亮右下角角标。
     property bool running: false
+    // 状态文字（tooltip 用；默认按 running 取「运行中/已停止」）。
     property string statusText: running ? qsTr("Running") : qsTr("Stopped")
 
     implicitWidth: 32
@@ -24,7 +27,7 @@ Item {
         fillMode: Image.PreserveAspectFit
     }
 
-    // Status dot, bottom-right.
+    // 状态角标：贴右下角，描边环与底面隔开。
     AStatusDot {
         anchors.right: parent.right
         anchors.bottom: parent.bottom

@@ -63,6 +63,7 @@
 | `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
+| `ASpotlight` | 指针聚光覆盖层 | 玻璃卡的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover |
 | `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |
 | `APill` | 徽标胶囊 | 计数、来源标签 |
 | `AEmptyState` | 空状态 | 「无数据/无匹配」整块占位（`extra` 插槽可放列表等附加内容） |

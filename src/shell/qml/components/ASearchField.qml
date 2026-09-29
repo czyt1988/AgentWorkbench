@@ -1,10 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Search input with leading icon and a clear button.
+// 搜索输入框：前置放大镜图标 + 有文字时出现的清除键，用于列表过滤。
+// 焦点环/内边距等外观契约与 ATextField 一致（32 高、surfaceAlt 背景）。
 TextField {
     id: control
 
@@ -33,7 +34,7 @@ TextField {
         fillMode: Image.PreserveAspectFit
     }
 
-    // Clear (×) when there is text.
+    // 清除键（×）：只在有文字时可见，点击清空输入。
     MouseArea {
         id: clearArea
         anchors.right: parent.right

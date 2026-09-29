@@ -21,6 +21,13 @@ using awb::shell::UiServices;
 
 namespace {
 
+/**
+ * @brief 构造一个最小可注册的页面描述符
+ *
+ * @param id 页面 id（同时充当 title 与 QML source 的一部分）
+ * @param order 排序权重，默认 10
+ * @return 填好 id/title/icon/source/order 的 PageDescriptor
+ */
 PageDescriptor makePage(const QString &id, int order = 10)
 {
     PageDescriptor page;
@@ -35,17 +42,20 @@ PageDescriptor makePage(const QString &id, int order = 10)
 
 } // namespace
 
+/// 测 shell 模块的导航与壳层服务：NavigationModel 的页面注册/徽标/当前页/
+/// keepAlive 快照、QML 调用方法的可调用性回归、ShellController 的状态持久化、
+/// UiServices 的剪贴板 OpResult，以及 Notifications 的队列与按 id 撤销。
 class TestShell : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
     }
 
-    // A duplicate id is rejected and logged; the first page stays
+    // 重复 id 被拒绝并记日志；第一个页面保持不变。
     void testDuplicatePageRejected()
     {
         NavigationModel nav;
@@ -53,7 +63,7 @@ private slots:
         QVERIFY(!nav.registerPage(makePage(QStringLiteral("agents"))));
         QCOMPARE(nav.rowCount(), 1);
 
-        QVERIFY(!nav.registerPage(PageDescriptor{})); // no id at all
+        QVERIFY(!nav.registerPage(PageDescriptor{})); // 连 id 都没有
         QCOMPARE(nav.rowCount(), 1);
 
         QVERIFY(nav.unregisterPage(QStringLiteral("agents")));
@@ -61,7 +71,7 @@ private slots:
         QCOMPARE(nav.rowCount(), 0);
     }
 
-    // Badge updates reach the model role without re-registering.
+    // 徽标更新直达 model role，无需重新注册。
     void testBadgeUpdate()
     {
         NavigationModel nav;
@@ -74,7 +84,7 @@ private slots:
         QCOMPARE(idx.data(NavigationModel::BadgeRole).toString(),
                  QStringLiteral("3"));
 
-        // Same value: no signal churn.
+        // 同值不重发：不制造信号抖动。
         nav.setBadge(QStringLiteral("agents"), QStringLiteral("3"));
         QCOMPARE(changed.count(), 1);
 
@@ -82,8 +92,7 @@ private slots:
         QCOMPARE(changed.count(), 1);
     }
 
-    // Current page selection rejects unknown ids and reports the descriptor
-    // the workspace Loader needs.
+    // 当前页选择拒绝未知 id，并上报工作区 Loader 需要的描述符。
     void testCurrentPage()
     {
         NavigationModel nav;
@@ -102,11 +111,10 @@ private slots:
         QCOMPARE(spy.count(), 1);
     }
 
-    // keepAlive pages land in the keepAlivePages snapshot and expose the
-    // flag through page(); the workspace keeps them alive instead of
-    // destroying them on every switch. A keepAlive flag flipping later must
-    // re-evaluate the snapshot (pagesChanged), and disabled keepAlive pages
-    // are skipped — an unreachable page must not hold a resident instance.
+    // keepAlive 页面进 keepAlivePages 快照并经 page() 暴露标志；工作区让
+    // 它们常驻而不是每次切换都销毁。标志后来翻转必须让快照重算
+    // （pagesChanged），禁用的 keepAlive 页被跳过——够不着的页面不该占着
+    // 常驻实例。
     void testKeepAlivePages()
     {
         NavigationModel nav;
@@ -117,9 +125,8 @@ private slots:
         web.keepAlive = true;
         QVERIFY(nav.registerPage(web));
 
-        // page() exposes the flag so Workspace can tell a keepAlive current
-        // page apart from a regular one (and keep the plain Loader away
-        // from it).
+        // page() 暴露该标志，Workspace 才能把 keepAlive 的当前页与普通页
+        // 区分开（并让普通 Loader 不碰它）。
         QCOMPARE(nav.page(QStringLiteral("web"))
                      .value(QStringLiteral("keepAlive")).toBool(), true);
         QCOMPARE(nav.page(QStringLiteral("agents"))
@@ -134,7 +141,7 @@ private slots:
                      .value(QStringLiteral("source")).toString(),
                  QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/web.qml"));
 
-        // Notifiable so a Repeater binding re-evaluates on registration.
+        // 可通知：注册时 Repeater 的绑定会重算。
         QSignalSpy spy(&nav, &NavigationModel::pagesChanged);
         PageDescriptor extra = makePage(QStringLiteral("tools"), 40);
         extra.keepAlive = true;
@@ -142,7 +149,7 @@ private slots:
         QCOMPARE(spy.count(), 1);
         QCOMPARE(nav.keepAlivePages().size(), 2);
 
-        // Disabled pages are not reachable — no resident instance for them.
+        // 禁用的页面不可达——不给它们常驻实例。
         PageDescriptor off = makePage(QStringLiteral("logs"), 50);
         off.keepAlive = true;
         off.enabled = false;
@@ -150,13 +157,12 @@ private slots:
         QCOMPARE(nav.keepAlivePages().size(), 2);
     }
 
-    // Every method QML calls on the nav/shell singletons must be reachable
-    // through the meta-object — invokeMethod is exactly how QML resolves a
-    // call, and a bare Q_PROPERTY WRITE or plain method is NOT registered.
-    // Regression: sidebar/Ctrl+N clicks and the settings page's surface/
-    // flags switches threw "…is not a function" because setCurrentPageId /
-    // setWebSurface / setWebChromiumFlags were not Q_INVOKABLE (found by a
-    // manual run after the review — page-load smoke never clicks).
+    // QML 在 nav/shell 单例上调用的每个方法都必须经 meta-object 可达
+    // ——invokeMethod 正是 QML 解析调用的方式，裸的 Q_PROPERTY WRITE 或
+    // 普通方法不在表里。回归：侧栏/Ctrl+N 点击与设置页的 surface/flags
+    // 开关曾因 setCurrentPageId / setWebSurface / setWebChromiumFlags 没有
+    // Q_INVOKABLE 而抛「…is not a function」（评审后手动运行才发现——按页
+    // 加载的冒烟从不点击）。
     void testQmlCalledMethodsAreInvokable()
     {
         NavigationModel nav;
@@ -195,11 +201,10 @@ private slots:
         UiServices ui;
         const QStringList failures = awbUnresolvedQmlCallTypes(&ui);
         QVERIFY2(failures.isEmpty(),
-                 qPrintable(failures.join(QLatin1String("\n"))));
+                 qPrintable(failures.join(QStringLiteral("\n"))));
     }
 
-    // Sidebar collapse and window geometry persist to settings.json and
-    // come back after a fresh controller.
+    // 侧栏折叠与窗口几何持久化到 settings.json，新的 controller 读得回来。
     void testSidebarStatePersists()
     {
         QVERIFY(QDir().mkpath(
@@ -225,7 +230,7 @@ private slots:
         QFile::remove(Settings::settingsFilePath());
     }
 
-    // Clipboard writes report success and failure as OpResult.
+    // 剪贴板写入以 OpResult 上报成功与失败。
     void testClipboardResult()
     {
         UiServices ui;
@@ -240,7 +245,7 @@ private slots:
         QVERIFY(!empty.error.isEmpty());
     }
 
-    // Toasts queue behind the visible three; dismiss removes by id.
+    // toast 排队挤在可见的三个后面；dismiss 按 id 移除。
     void testToastQueueAndDismiss()
     {
         Notifications toasts;
@@ -248,10 +253,11 @@ private slots:
         QCOMPARE(toasts.durationFor(QStringLiteral("warning")), 5000);
         QCOMPARE(toasts.durationFor(QStringLiteral("error")), 8000);
 
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 5; ++i) {
             toasts.notify(QStringLiteral("info"), QStringLiteral("T"),
                           QString::number(i));
-        QCOMPARE(toasts.rowCount(), 5); // 2 queue behind the visible 3
+        }
+        QCOMPARE(toasts.rowCount(), 5); // 2 条排在可见的 3 条后面
         const QString firstId =
             toasts.index(0, 0).data(Notifications::IdRole).toString();
         QVERIFY(!firstId.isEmpty());

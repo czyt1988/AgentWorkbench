@@ -12,18 +12,15 @@ namespace awb::agentcatalog {
 
 class AgentModel;
 
-// The agent's own long-running process: launch, stop, force-stop, and the
-// session-scoped PID bookkeeping.
-//
-// PIDs live in memory only: an agent detected as running by the HTTP health
-// check but not started from this launcher session has no PID and can only
-// be force-stopped by port.
-//
-// Token-gated harnesses (dsh) print a per-process authenticated URL to
-// stdout instead of writing it to a token file. launch() redirects the
-// child's output to <logsDir>/output/<id>.log and watches that file until a
-// URL pointing at the agent's webUrl server shows up (sessionUrlChanged) —
-// the web surface needs it because the bare webUrl is answered with 401.
+/// agent 自身长驻进程的运行器：启动、停止、强制停止与会话级的 PID 记账。
+///
+/// PID 只存在内存里：健康检查判定为运行中、但并非本启动器会话启动的
+/// agent 没有 PID，只能按端口强制停止。
+///
+/// 带 token 门禁的 harness（dsh）把每进程的鉴权 URL 打到 stdout 而不写
+/// token 文件。launch() 把子进程输出重定向到 <logsDir>/output/<id>.log
+/// 并轮询该文件，直到出现指向 agent webUrl 同一服务器的 URL
+/// （sessionUrlChanged）——Web 表面需要它，裸 webUrl 会被 401 挡回。
 class AgentRuntime : public QObject
 {
     Q_OBJECT
@@ -31,81 +28,93 @@ class AgentRuntime : public QObject
 public:
     explicit AgentRuntime(AgentModel *model, QObject *parent = nullptr);
 
-    // Start the agent's process detached (it survives this application
-    // exiting). `tokenValue` is handed to the child as QWEN_SERVER_TOKEN
-    // when the definition has a tokenFile.
+    // 启动该 agent 的进程（detached，本应用退出后仍存活）；定义配了
+    // tokenFile 时把 tokenValue 作为 QWEN_SERVER_TOKEN 交给子进程
     void launch(const AgentDefinition &definition, const QString &tokenValue);
 
-    // Kill the process tree of an agent started in this session. Returns
-    // false (and emits launchFailed) when no PID is tracked.
+    // 结束本次会话中由此启动的进程树；没有记账的 PID 时返回 false
+    // 并发 launchFailed
     bool stop(const QString &id);
 
-    // Kill whatever listens on the agent's web port — works even for
-    // agents this launcher did not start (explicit user action).
+    // 杀掉占用该 agent web 端口的进程——对不是本启动器启动的 agent 也
+    // 有效（显式用户动作）
     void forceStop(const QString &id);
 
-    // True if at least one agent was started from this launcher this session.
+    // 本次会话是否至少启动过一个 agent
     bool hasLaunchedAgents() const;
 
-    // Terminate every process started this session; returns the number of
-    // process trees successfully killed.
+    // 结束本次会话启动的全部进程；返回成功杀掉的进程树数量
     int stopAll();
 
-    // Forget the tracked PID (the agent's process keeps running — used when
-    // an agent is removed from the configuration).
+    // 忘掉记账的 PID（agent 进程继续运行——从配置里移除 agent 时用）
     void forget(const QString &id);
 
-    // Return the PIDs of processes listening on the given TCP port. The
-    // port→PID parsing behind forceStop(); public so the mapping can be
-    // verified directly (the logic is kept AND has cases).
+    // 监听给定 TCP 端口的进程 PID；forceStop() 背后的端口→PID 解析，
+    // 公开出来让映射逻辑可以直接验证（有测试用例）
     static QList<qint64> findPidsForPort(int port);
 
-    // The captured session URL for the agent (empty when none). Dropped
-    // when the agent's process is stopped — the per-process token died with
-    // it, so openWeb falls back to the configured webUrl.
+    // 为该 agent 抓到的会话 URL（无则空串）；进程停止时丢弃——每进程
+    // token 已随进程消亡，openWeb 回退到配置的 webUrl
     QString sessionUrl(const QString &id) const;
 
-signals:
-    // A launch/stop attempt failed. The UI shows an at-place flash on the
-    // matching card plus a detailed popup.
+Q_SIGNALS:
+    /**
+     * @brief 启动或停止尝试失败时发射
+     *
+     * 界面据此在对应卡片上原位闪红，并弹出详情说明。
+     *
+     * @param id 出错的 agent id
+     * @param message 可直接展示给用户的失败原因
+     */
     void launchFailed(const QString &id, const QString &message);
 
-    // Ask the health monitor for an immediate re-check so cards flip state
-    // quickly after a launch/stop (0.3.0 re-checked on a short timer).
+    /**
+     * @brief 请求健康监视器立即复查
+     *
+     * launch/stop 之后卡片要尽快翻转状态（0.3.0 靠短定时器复查）。
+     */
     void recheckRequested();
 
-    // The launch captured the agent's authenticated session URL (dsh prints
-    // a per-process token URL to its output). Emitted at most once per
-    // launch; the URL never reaches the log.
+    /**
+     * @brief launch 抓到该 agent 的鉴权会话 URL 时发射
+     *
+     * dsh 把每进程的带 token URL 打到自己的输出里；每次 launch 至多
+     * 发射一次，URL 本身从不进日志。
+     *
+     * @param id agent id
+     * @param url 已合并 token 的会话 URL
+     */
     void sessionUrlChanged(const QString &id, const QString &url);
 
 private:
+    // 轮询该 id 的输出日志找会话 URL（由 m_sessionUrlTimer 每 500 ms 驱动一次）
     void watchSessionUrl(const QString &id);
+    // 丢弃该 id 的会话 URL 与在途监视
     void dropSessionUrl(const QString &id);
 
-    AgentModel *m_model;
+    AgentModel *m_model;  ///< 状态写回的目标模型
 
-    // id -> PID of the most recent process this launcher started (in-memory,
-    // current session only). Cleared when the launcher restarts.
+    // id -> 本启动器最近一次启动的进程 PID（仅在内存、仅当前会话），
+    // 启动器重启后即丢失
     QHash<QString, qint64> m_pids;
 
-    // id -> launch epoch, bumped on each successful launch. Invalidates the
-    // stale "launching" safety timeout of an earlier attempt.
+    // id -> launch 代数，每次成功启动自增；用来让上一次尝试残留的
+    // "launching" 安全超时失效
     QHash<QString, int> m_launchEpoch;
 
-    // id -> the URL captured from that agent's output this launch.
+    // id -> 本次 launch 从该 agent 输出里抓到的 URL
     QHash<QString, QString> m_sessionUrls;
 
-    // One pending output watch: what to match and how many 500 ms ticks are
-    // left before giving up (agents that print no URL).
+    // 一个在途的输出监视：要匹配什么、还剩多少个 500 ms 刻度后放弃
+    //（有些 agent 从不打印 URL）
     struct SessionWatch {
-        QString webUrl;
-        QString tokenFile;
-        int attemptsLeft;
+        QString webUrl;      ///< 要匹配的服务器（配置的 webUrl）
+        QString tokenFile;   ///< 抓到 URL 后要合并的 token 文件
+        int attemptsLeft;    ///< 剩余轮询次数，耗尽即放弃
     };
-    QHash<QString, SessionWatch> m_sessionUrlWatch;
+    QHash<QString, SessionWatch> m_sessionUrlWatch;  ///< id -> 在途的输出监视
 
-    // The output-polling timer while a session URL is still being sought.
+    // 会话 URL 尚在寻找时的输出轮询定时器
     QTimer m_sessionUrlTimer;
 };
 

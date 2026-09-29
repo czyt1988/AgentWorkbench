@@ -1,9 +1,9 @@
 import QtQuick
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Toast host: bottom-right corner of the window.
+// 通知宿主：把 toast 栈锚到窗口右下角（内容与排队逻辑在 AToastStack）。
 AToastStack {
     anchors.right: parent.right
     anchors.bottom: parent.bottom

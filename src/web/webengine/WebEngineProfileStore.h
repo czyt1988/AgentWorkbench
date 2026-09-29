@@ -9,18 +9,17 @@ class QQuickWebEngineProfile;
 
 namespace awb::web {
 
-// One persistent QQuickWebEngineProfile per agent:
-// storageName = "awb-<agentId>", storagePath = WebProfilePaths::profileDir
-// — cookies and localStorage survive restarts, and two agents on the same
-// host but different ports never share a cookie jar.
-//
-// The type must be QQuickWebEngineProfile (the WebEngineProfile QML type):
-// the view's `profile` property takes a QQuickWebEngineProfile*, and QML
-// cannot even call a method whose return type is unregistered — a
-// QWebEngineProfile* return produced "Unknown method return type" and left
-// every embedded tab on the shared default profile.
-//
-// Exposed to QML as the `WebProfiles` singleton (call createProfile).
+/// 每个 agent 一个持久 QQuickWebEngineProfile 的缓存与工厂。
+///
+/// storageName 取 WebProfilePaths::storageName（"awb-<agentId>"）、
+/// persistentStoragePath 取 WebProfilePaths::profileDir——cookie 与
+/// localStorage 落盘、重启不丢，同 host 不同端口的两个 agent 永远不共享
+/// cookie jar。类型必须是 QQuickWebEngineProfile（WebEngineProfile 的
+/// QML 类型）：view 的 profile 属性收的就是它，QML 也调不了返回类型
+/// 未注册的方法——坑的细节见 WebEngineProfileStore.cpp。
+///
+/// 经 AgentWorkbench.App 注册为 QML 单例 `WebProfiles`，QML 调
+/// createProfile。
 class WebEngineProfileStore : public QObject
 {
     Q_OBJECT
@@ -28,14 +27,14 @@ class WebEngineProfileStore : public QObject
 public:
     explicit WebEngineProfileStore(QObject *parent = nullptr);
 
-    // Returns the cached profile for the agent, creating it on first use.
+    // 取该 agent 的 profile；首次调用时创建，之后恒返回同一实例
     Q_INVOKABLE QQuickWebEngineProfile *createProfile(const QString &agentId);
 
-    // Drop every profile (application shutdown).
+    // 丢弃全部 profile（应用退出时用）
     void shutdown();
 
 private:
-    QHash<QString, QQuickWebEngineProfile *> m_profiles;
+    QHash<QString, QQuickWebEngineProfile *> m_profiles;  ///< agentId -> profile
 };
 
 } // namespace awb::web

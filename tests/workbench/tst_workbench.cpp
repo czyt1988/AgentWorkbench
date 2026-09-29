@@ -29,22 +29,26 @@ using awb::workbench::WorkbenchContext;
 
 namespace {
 
-// Captures the URL a "browser open" would have handled, so the test never
-// launches a real browser (QDesktopServices routes to the installed
-// handler instead of the OS).
+/// 捕获「本应交给浏览器打开」的 URL，测试就永远不会真的拉起浏览器
+/// （QDesktopServices 会路由给已安装的处理器而不是操作系统）。
 class UrlRecorder : public QObject
 {
     Q_OBJECT
 public:
     QUrl lastUrl;
-public slots:
+public Q_SLOTS:
     void record(const QUrl &url) { lastUrl = url; }
 };
 
 } // namespace
 
-// The pages WorkbenchContext navigates between ("agents" must be
-// registered too — NavigationModel rejects unknown ids).
+/**
+ * @brief 注册 WorkbenchContext 要在其间导航的页面
+ *
+ * "agents" 必须也注册——NavigationModel 拒绝未知 id。
+ *
+ * @param nav 目标导航模型
+ */
 void registerNavPages(NavigationModel *nav)
 {
     PageDescriptor agentsPage;
@@ -55,18 +59,21 @@ void registerNavPages(NavigationModel *nav)
     QVERIFY2(nav->registerPage(webPage), "web page");
 }
 
+/// 测 workbench::WorkbenchContext 的跨域意图：openWeb 建标签并切页、外置
+/// 表面策略不建标签也不切页、split-button 的外置路线把最终 URL（含 token
+/// 片段）交给系统浏览器。
 class TestWorkbenchContext : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
     }
 
-    // openWeb creates the tab AND takes the user to the web page; the
-    // external-surface policy opens no tab and must not navigate either.
+    // openWeb 既建标签又把用户带到 web 页；外置表面策略不开标签，
+    // 也不得切换页面。
     void testOpenWebNavigates()
     {
         QTemporaryDir tmp;
@@ -89,7 +96,7 @@ private slots:
         registerNavPages(&nav);
         nav.setCurrentPageId(QStringLiteral("agents"));
 
-        // The agent must exist (the bundled defaults seed the model).
+        // agent 必须存在（随包默认种进了模型）。
         const int row = agents.agentModel()->indexOf(
             QStringLiteral("kimi-code"));
         QVERIFY(row >= 0);
@@ -98,22 +105,21 @@ private slots:
         QCOMPARE(web.tabs()->rowCount(), 1);
         QCOMPARE(nav.currentPageId(), QStringLiteral("web"));
 
-        // Leaving the page and opening again activates the existing tab
-        // (no duplicate) and navigates back.
+        // 离开页面再打开会激活既有标签（不重复建）并切回 web 页。
         nav.setCurrentPageId(QStringLiteral("agents"));
         workbench.openWeb(QStringLiteral("kimi-code"));
         QCOMPARE(web.tabs()->rowCount(), 1);
         QCOMPARE(nav.currentPageId(), QStringLiteral("web"));
 
-        // Unknown agent: no tab, no navigation, no crash.
+        // 未知 agent：不建标签、不导航、不崩溃。
         nav.setCurrentPageId(QStringLiteral("agents"));
         workbench.openWeb(QStringLiteral("no-such-agent"));
         QCOMPARE(web.tabs()->rowCount(), 1);
         QCOMPARE(nav.currentPageId(), QStringLiteral("agents"));
     }
 
-    // With the external surface policy openWeb hands the URL to the
-    // browser: no tab is created and the web page is not switched to.
+    // 外置表面策略下 openWeb 把 URL 交给浏览器：不建标签，也不切到
+    // web 页。
     void testOpenWebExternalSurfaceDoesNotNavigate()
     {
         QTemporaryDir tmp;
@@ -140,8 +146,8 @@ private slots:
         QCOMPARE(nav.currentPageId(), QStringLiteral("agents"));
     }
 
-    // The card's split-button alternative: no tab, no navigation, the
-    // final URL (token fragment included) handed to the system browser.
+    // 卡片上 split 按钮的另一条路线：不建标签、不导航，把最终 URL（含
+    // token 片段）交给系统浏览器。
     void testOpenWebExternalHandsUrlToBrowser()
     {
         QTemporaryDir tmp;
@@ -174,7 +180,7 @@ private slots:
         QVERIFY(recorder.lastUrl.isValid());
         QCOMPARE(recorder.lastUrl.host(), QStringLiteral("127.0.0.1"));
 
-        // Unknown agent: nothing handed anywhere, no crash.
+        // 未知 agent：什么都不交出去，也不崩溃。
         recorder.lastUrl.clear();
         workbench.openWebExternal(QStringLiteral("no-such-agent"));
         QVERIFY(!recorder.lastUrl.isValid());
@@ -186,8 +192,10 @@ private slots:
 AWB_TEST(TestWorkbenchContext)
 #include "tst_workbench.moc"
 
-// Entry point of the workbench test suite (single class today, registered
-// through awbtest.h like the other multi-class suites).
+/**
+ * @brief workbench 测试套件入口（今天只有一个类，与其它多类套件一样经
+ *        awbtest.h 注册）
+ */
 int main(int argc, char *argv[])
 {
     return awbRunRegisteredTests(argc, argv);

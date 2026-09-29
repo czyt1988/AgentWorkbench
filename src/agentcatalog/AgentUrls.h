@@ -7,30 +7,23 @@
 
 namespace awb::agentcatalog {
 
-// URL and token handling for agents. Shared by the embedded view and the
-// external browser so both open exactly the same URL
+/// agent 的 URL 与 token 处理。
+///
+/// 内嵌视图与外部浏览器共用它，保证两边打开的最终 URL 完全一致。
 class AgentUrls
 {
 public:
-    // The final URL to open: webUrl plus the bearer token as a #token=<value>
-    // fragment when a tokenFile is configured. The fragment never reaches
-    // the server or the access logs.
+    // 最终打开的 URL：必要时把 token 追加为 #token= 片段，不落服务器日志
     static QString finalUrl(const AgentDefinition &definition);
 
-    // Same merge for an arbitrary base — the session URL captured from the
-    // agent's own output instead of the configured webUrl. A base that
-    // already carries a token= (query or fragment) passes through unchanged.
+    // 同样的合并，作用于任意 base（如启动输出里抓到的会话 URL）；已带 token= 的原样返回
     static QString finalUrl(const QString &baseUrl, const QString &tokenFile);
 
-    // The bearer token from the agent's tokenFile (env-expanded path,
-    // trimmed). Empty when no file is configured, missing or blank.
+    // 从 tokenFile（路径经环境变量展开）读出的 bearer token；未配置、缺失或空白返回空串
     static QString tokenValue(const QString &tokenFile);
 
-    // The first URL in the agent's process output that points at the same
-    // server as `webUrl` (host-equal, or both loopback spellings of it,
-    // same effective port). Token-gated harnesses such as dsh print a
-    // per-process authenticated URL to stdout; this finds it. Empty when
-    // nothing matches.
+    // 从 agent 的启动输出里挑出指向 webUrl 同一服务器的第一条 URL；
+    // 无匹配返回空串
     static QString sessionUrlFromOutput(const QString &output,
                                         const QString &webUrl);
 };

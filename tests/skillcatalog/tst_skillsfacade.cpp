@@ -9,13 +9,13 @@
 using awb::core::Settings;
 using awb::skillcatalog::SkillsFacade;
 
-// kindLabel(): the shared display mapping for skill root kinds (single
-// source for the Settings and Skills pages).
+/// 测 skillcatalog::SkillsFacade 的 kindLabel()：skill 根类型的共享显示映射
+/// （设置页与 Skills 页的单一来源），以及 QML 调用方法的类型可解析性。
 class TestSkillsFacade : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -38,7 +38,7 @@ private slots:
                  QStringLiteral("Project"));
         QCOMPARE(facade.kindLabel(QStringLiteral("custom")),
                  QStringLiteral("Custom"));
-        // Unknown kinds pass through unchanged.
+        // 未知类型按原文透传。
         QCOMPARE(facade.kindLabel(QStringLiteral("future-kind")),
                  QStringLiteral("future-kind"));
         QCOMPARE(facade.kindLabel(QString()), QString());
@@ -53,7 +53,7 @@ private slots:
         SkillsFacade facade(&settings);
         const QStringList failures = awbUnresolvedQmlCallTypes(&facade);
         QVERIFY2(failures.isEmpty(),
-                 qPrintable(failures.join(QLatin1String("\n"))));
+                 qPrintable(failures.join(QStringLiteral("\n"))));
     }
 };
 

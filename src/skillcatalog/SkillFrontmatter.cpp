@@ -2,12 +2,20 @@
 
 #include <QRegularExpression>
 #include <QStringList>
+#include <utility>
 
 namespace awb::skillcatalog {
 
 namespace {
 
-// Strip one pair of matching quotes; '' / \" are unescaped inside.
+/**
+ * @brief 剥掉值文本最外层的一对配对引号
+ *
+ * 双引号内把 `\"` 还原成 `"`、`\\` 还原成 `\`；单引号内把 `''` 还原成 `'`。
+ *
+ * @param value 待清洗的值文本
+ * @return 去掉配对引号并反转义后的值；不是引号包裹时按原样返回
+ */
 QString unquote(QString value)
 {
     value = value.trimmed();
@@ -27,8 +35,14 @@ QString unquote(QString value)
     return value;
 }
 
-// key: value (value may be empty) — the tiny subset used in real skills:
-// letters, digits, dot, dash, underscore.
+/**
+ * @brief 取「key: value」行的匹配正则（value 可为空）
+ *
+ * 键名字符集只覆盖真实 skill 用到的那一小撮：字母、数字、点、横线、
+ * 下划线。捕获组：1 = 行首缩进，2 = 键名，3 = 冒号之后的剩余部分。
+ *
+ * @return 静态持有的正则实例
+ */
 const QRegularExpression &keyLineRegex()
 {
     static const QRegularExpression re(
@@ -36,45 +50,80 @@ const QRegularExpression &keyLineRegex()
     return re;
 }
 
+/**
+ * @brief 量出一行的缩进宽度
+ *
+ * @param line 原始行
+ * @return 行首连续空格与制表符的个数
+ */
 int indentOf(const QString &line)
 {
     int i = 0;
     while (i < line.size() && (line.at(i) == QLatin1Char(' ')
-                               || line.at(i) == QLatin1Char('\t')))
+                               || line.at(i) == QLatin1Char('\t'))) {
         ++i;
+    }
     return i;
 }
 
+/**
+ * @brief 判断一行是否为空白行或整行注释
+ *
+ * @param line 原始行
+ * @return trim 后为空、或以 `#` 开头时返回 true
+ */
 bool isCommentOrBlank(const QString &line)
 {
     const QString trimmed = line.trimmed();
     return trimmed.isEmpty() || trimmed.startsWith(QLatin1Char('#'));
 }
 
-// Assign parsed text to name / description / extras.
+/**
+ * @brief 把解析出的文本派发给 name / description / extras
+ *
+ * 只有 name 与 description 有专属字段，其余键一律进 extras。
+ *
+ * @param out 解析结果，就地更新
+ * @param key 键名
+ * @param value 原始值文本（写入前再 trim + unquote）
+ */
 void setValue(SkillFrontmatter &out, const QString &key, const QString &value)
 {
     const QString clean = value.trimmed();
-    if (key == QLatin1String("name"))
+    if (key == QStringLiteral("name")) {
         out.name = unquote(clean);
-    else if (key == QLatin1String("description"))
+    }
+    else if (key == QStringLiteral("description")) {
         out.description = unquote(clean);
-    else
+    }
+    else {
         out.extras.insert(key, unquote(clean));
+    }
 }
 
-// Append a continuation line (indented text or `- item`) to whatever the
-// key currently holds.
+/**
+ * @brief 给键当前持有的值追加一条续行
+ *
+ * 续行（缩进文本或 `- item` 列表行）以空格拼到已有值后面——本子集
+ * 不区分列表与多行文本，一律按文本收。
+ *
+ * @param out 解析结果，就地更新
+ * @param key 正在收集的键名
+ * @param piece 已 trim 的续行文本
+ */
 void appendValue(SkillFrontmatter &out, const QString &key,
                  const QString &piece)
 {
     QString current;
-    if (key == QLatin1String("name"))
+    if (key == QStringLiteral("name")) {
         current = out.name;
-    else if (key == QLatin1String("description"))
+    }
+    else if (key == QStringLiteral("description")) {
         current = out.description;
-    else
+    }
+    else {
         current = out.extras.value(key);
+    }
 
     const QString joined = current.isEmpty() ? piece
                                              : current + QLatin1Char(' ')
@@ -84,48 +133,64 @@ void appendValue(SkillFrontmatter &out, const QString &key,
 
 } // namespace
 
+/**
+ * @brief 解析 SKILL.md 内容开头的 frontmatter 块
+ *
+ * 块必须从第一行 `---` 开始、以另一条 `---` 结束，未闭合的块按「没有
+ * frontmatter」处理。嵌套映射展平成 parent.child 键；块标量（`>` 折叠 /
+ * `|` 字面）按 YAML 规则折算成值文本。
+ *
+ * @param content SKILL.md 的完整文件内容
+ * @return 解析结果；没有 frontmatter 块时 valid 为 false
+ */
 SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
 {
     SkillFrontmatter result;
 
-    // Tolerate a UTF-8 BOM and CRLF/CR line endings.
+    // 容忍 UTF-8 BOM 与 CRLF/CR 换行。
     QByteArray body = content;
-    if (body.startsWith("\xEF\xBB\xBF"))
+    if (body.startsWith("\xEF\xBB\xBF")) {
         body.remove(0, 3);
+    }
     QString text = QString::fromUtf8(body);
     text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
     text.replace(QStringLiteral("\r"), QStringLiteral("\n"));
 
     const QStringList lines = text.split(QLatin1Char('\n'));
-    if (lines.isEmpty())
+    if (lines.isEmpty()) {
         return result;
-    // The block must start on the very first line.
-    if (lines.first().trimmed() != QStringLiteral("---"))
+    }
+    // 块必须从第一行开始。
+    if (lines.first().trimmed() != QStringLiteral("---")) {
         return result;
+    }
 
-    QString currentKey; // key whose value is still being collected
+    QString currentKey; // 值仍在续行收集中的键
     int currentIndent = 0;
 
-    // Block scalar (`>` folded / `|` literal) state.
+    // 块标量（`>` 折叠 / `|` 字面）的解析状态。
     bool inBlock = false;
     bool folded = false;
     int blockKeyIndent = 0;
     int blockContentIndent = -1;
     QStringList blockLines;
 
+    // 把攒下的块标量行折算成值文本写回 currentKey；块闭合或缩进回退时调用。
     auto flushBlock = [&]() {
-        if (currentKey.isEmpty())
+        if (currentKey.isEmpty()) {
             return;
+        }
         QString value;
         if (folded) {
-            // `>` folds line breaks into spaces; blank lines survive as
-            // paragraph breaks.
+            // `>` 把换行折成空格；空行保留为段落分隔。
             QStringList parts;
-            for (const QString &raw : blockLines) {
-                if (raw.trimmed().isEmpty())
+            for (const QString &raw : std::as_const(blockLines)) {
+                if (raw.trimmed().isEmpty()) {
                     parts.append(QStringLiteral("\n"));
-                else
+                }
+                else {
                     parts.append(raw.trimmed());
+                }
             }
             value = parts.join(QStringLiteral(" "));
             value.replace(QStringLiteral(" \n "), QStringLiteral("\n"));
@@ -133,7 +198,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
             value.replace(QStringLiteral("\n "), QStringLiteral("\n"));
         } else {
             QStringList stripped;
-            for (const QString &raw : blockLines) {
+            for (const QString &raw : std::as_const(blockLines)) {
                 stripped.append(blockContentIndent >= 0
                                     ? raw.mid(blockContentIndent) : raw);
             }
@@ -149,8 +214,9 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         const QString line = lines.at(i);
 
         if (line.trimmed() == QStringLiteral("---")) {
-            if (inBlock)
+            if (inBlock) {
                 flushBlock();
+            }
             result.valid = true;
             return result;
         }
@@ -159,25 +225,27 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
             const int indent = indentOf(line);
             const bool blank = line.trimmed().isEmpty();
             if (blank || indent > blockKeyIndent) {
-                if (blockContentIndent < 0 && !blank)
+                if (blockContentIndent < 0 && !blank) {
                     blockContentIndent = indent;
+                }
                 blockLines.append(line);
                 continue;
             }
-            // Dedent ends the block scalar; re-process this line below.
+            // 缩进回退即块标量结束；本行交回下方按普通行重新处理。
             flushBlock();
             inBlock = false;
         }
 
-        if (isCommentOrBlank(line))
+        if (isCommentOrBlank(line)) {
             continue;
+        }
 
         const QRegularExpressionMatch match = keyLineRegex().match(line);
         if (!match.hasMatch()) {
-            // Continuation of the current key: indented text or a `- item`
-            // list line (kept as text in this tiny subset).
-            if (!currentKey.isEmpty() && indentOf(line) > currentIndent)
+            // 当前键的续行：缩进文本或 `- item` 列表行（本子集一律按文本收）。
+            if (!currentKey.isEmpty() && indentOf(line) > currentIndent) {
                 appendValue(result, currentKey, line.trimmed());
+            }
             continue;
         }
 
@@ -186,7 +254,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         const QString rest = match.captured(3).trimmed();
 
         if (!currentKey.isEmpty() && indent > currentIndent) {
-            // Nested scalar key -> flatten as parent.child.
+            // 嵌套标量键 -> 按 parent.child 展平。
             const QString flatKey = currentKey + QLatin1Char('.') + key;
             if (rest.isEmpty()) {
                 currentKey = flatKey;
@@ -198,17 +266,17 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         }
 
         if (rest.isEmpty()) {
-            // The value (or nested children) follow on later lines.
+            // 值（或嵌套子键）在后续行给出。
             currentKey = key;
             currentIndent = indent;
             continue;
         }
 
         if (rest == QLatin1Char('>') || rest == QLatin1Char('|')
-            || rest.startsWith(QLatin1String(">-"))
-            || rest.startsWith(QLatin1String(">+"))
-            || rest.startsWith(QLatin1String("|-"))
-            || rest.startsWith(QLatin1String("|+"))) {
+            || rest.startsWith(QStringLiteral(">-"))
+            || rest.startsWith(QStringLiteral(">+"))
+            || rest.startsWith(QStringLiteral("|-"))
+            || rest.startsWith(QStringLiteral("|+"))) {
             currentKey = key;
             currentIndent = indent;
             inBlock = true;
@@ -223,7 +291,7 @@ SkillFrontmatter SkillFrontmatterParser::parse(const QByteArray &content)
         currentKey.clear();
     }
 
-    // Unterminated block — treat as no frontmatter at all.
+    // 块未闭合 —— 按完全没有 frontmatter 处理。
     return SkillFrontmatter();
 }
 

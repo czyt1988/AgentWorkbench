@@ -12,12 +12,17 @@ add_library(awb_web_webengine STATIC
 
 target_include_directories(awb_web_webengine PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
-# On Qt 5 QQuickWebEngineView itself is private API (only QQuickWebEngineProfile
-# ships in the public include dir); WebEngineCompat needs it for the version
-# bridging, so the private include dirs are added on that branch only.
+# QQuickWebEngineView itself is private API on BOTH majors (the public
+# include dir only ships Profile/Script/DownloadRequest); WebEngineCompat
+# needs it for the version bridging (signals, request types,
+# grantFeaturePermission, setInspectedView), so the private include dirs
+# are added per version.
 if (QT_VERSION_MAJOR EQUAL 5)
     target_include_directories(awb_web_webengine
         PRIVATE ${Qt5WebEngine_PRIVATE_INCLUDE_DIRS})
+elseif (QT_VERSION_MAJOR EQUAL 6)
+    target_include_directories(awb_web_webengine
+        PRIVATE ${Qt6WebEngineQuick_PRIVATE_INCLUDE_DIRS})
 endif()
 
 target_link_libraries(awb_web_webengine
