@@ -1,18 +1,19 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// The app-wide button: themed variants, fixed height,
-// tokenized radius — no bare Rectangle buttons anywhere else.
+// 全应用通用的文字按钮：变体（primary/secondary/ghost/danger）+ 固定高度
+// + 令牌化圆角一体封装，页面里不再手写裸 Button 配 Rectangle 背景；
+// 需要运行期着色就设 accentColor，不许旁路本组件。
 Button {
     id: control
 
-    // variant: primary | secondary | ghost | danger
+    // 变体：primary（主操作）| secondary（常规）| ghost（弱化）| danger（危险操作）。
     property string variant: "secondary"
-    // Fill for the primary variant — defaults to the theme accent; cards
-    // tint theirs with the agent color instead of bypassing the component.
+    // primary 变体的填充色——默认取主题 accent；卡片场景注入 agent 色，
+    // 而不是绕开本组件自己画背景。
     property color accentColor: theme.accent
     // QToolButton 式下拉箭头：为真时在文字后画一个小下箭头。点击箭头区
     // 发出 dropdownActivated()（由使用方弹菜单）；点击按钮其余部分仍是

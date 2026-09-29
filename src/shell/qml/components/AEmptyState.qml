@@ -1,13 +1,12 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Empty state: icon + title + description + optional extra content +
-// action button. The root is a plain Item — layout-managed, so it must not
-// carry anchors (that would be undefined behavior); the column centers
-// itself inside.
+// 空状态占位：图标 + 标题 + 描述 + 可选的 extra 附加内容 + 动作按钮，
+// 用于「无数据/无匹配」的整块提示。根是普通 Item——由布局接管尺寸，
+// 因此不能带 anchors（那是未定义行为）；列自己在其中居中。
 //
 // 内层容器用普通 Column（positioner）而不是 ColumnLayout：Layout 子项的
 // 高度走「隐式高 → 高度自动跟随 → geometryChanged 同步重排」，叠加描述
@@ -22,8 +21,10 @@ Item {
     property string title: ""
     property string description: ""
     property string actionText: ""
-    // Extra content between description and action button (lists, hints).
+    // 附加内容插槽：插在描述与动作按钮之间（列表、提示等）。
     property alias extra: extraSlot.data
+
+    // 用户点击动作按钮时发出（按钮只在 actionText 非空时渲染）。
     signal actionClicked()
 
     Column {

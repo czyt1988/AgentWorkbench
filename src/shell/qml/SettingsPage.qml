@@ -4,12 +4,11 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The settings shell: a fixed navigation column on the left and one paged
-// StackLayout on the right — pick a section on the left, that section's page
-// shows on the right. Each section is its own Settings<Section>Page.qml
-// (same ScrollView + ColumnLayout + PageHeader skeleton) and owns its
-// dialogs; the pages stay instantiated while switching, so half-typed
-// input (e.g. a new skill root) survives a round trip.
+// 设置页外壳：左侧固定的分区导航列 + 右侧单个分页的 StackLayout——左
+// 边选分区，右边显示该分区的页面。每个分区是独立的 Settings<Section>
+// Page.qml（共用 ScrollView + ColumnLayout + PageHeader 骨架）并自带
+// 弹窗；切换时分区页保持实例化，输入到一半的内容（如新填的 skill 根
+// 目录）往返一趟不丢失。
 Page {
     id: page
 
@@ -25,8 +24,10 @@ Page {
         { id: "plugins", title: qsTr("Plugins") },
         { id: "advanced", title: qsTr("Advanced") }
     ]
+    // 当前选中的分区 id。
     property string currentSection: "appearance"
 
+    // 分区 id → StackLayout 下标（未命中回退到 0）。
     function sectionIndex(id) {
         for (let i = 0; i < page.sections.length; ++i)
             if (page.sections[i].id === id)
@@ -38,7 +39,7 @@ Page {
         anchors.fill: parent
         spacing: 0
 
-        // --- Left: section navigation --------------------------------------
+        // --- 左：分区导航 -------------------------------------------------------
         Rectangle {
             Layout.preferredWidth: 200
             Layout.fillHeight: true
@@ -114,7 +115,8 @@ Page {
             }
         }
 
-        // --- Right: one section page at a time ----------------------------
+        // --- 右：同一时刻显示一个分区页 -----------------------------------------
+        // 分区页保持实例化（见顶部说明），切换只是换 currentIndex。
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true

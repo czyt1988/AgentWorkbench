@@ -5,19 +5,18 @@
 
 namespace awb::web {
 
-// Per-agent persistent profile locations.
-//
-// One profile per agent is a HARD requirement: Chromium indexes cookies by
-// host and IGNORES the port, so a shared profile would cross-contaminate
-// 127.0.0.1:58627 with 127.0.0.1:4096 sessions (docs/research/
-// webengine-embedding.md §3.1 has measured evidence).
+/// 每个 agent 的持久 Web profile 路径，唯一的推导来源。
+///
+/// 「一个 agent 一个 profile」是硬要求：Chromium 按 host 索引 cookie 且忽略
+/// 端口，共享 profile 会让 127.0.0.1:58627 与 127.0.0.1:4096 的本地服务会话
+/// 互相串号（实测证据见 docs/research/webengine-embedding.md §3.1）。
 class WebProfilePaths
 {
 public:
-    // <dataRoot>/webprofiles/<agentId> — cookies + localStorage on disk.
+    // <dataRoot>/webprofiles/<agentId>——cookie 与 localStorage 的落盘目录
     static QString profileDir(const QString &agentId);
 
-    // WebEngine storageName for the agent ("awb-<agentId>").
+    // agent 对应 profile 的 WebEngine storageName（"awb-<agentId>"）
     static QString storageName(const QString &agentId);
 };
 

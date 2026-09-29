@@ -14,15 +14,16 @@ using awb::agentcatalog::AgentRepository;
 using awb::agentcatalog::AgentsFacade;
 
 #ifdef Q_OS_WIN
+/// 测 agentcatalog 的一次性命令执行链（仅 Windows）：install 命令真的经
+/// `cmd /c <installCommand>` 运行，且日志带上命令行、退出码与命令自身的输出。
 class TestAgentScripts : public QObject
 {
     Q_OBJECT
 
-private slots:
-    // End-to-end check of the command log: launching an install really runs
-    // `cmd /c <installCommand>`, and the log then carries the command line,
-    // the exit code and the command's own output (see
-    // testInstallCommandIsLogged).
+private Q_SLOTS:
+    // 命令日志的端到端检查：launch 一个 install 真的在跑
+    // `cmd /c <installCommand>`，日志随后带上命令行、退出码与命令自身的
+    // 输出（见 testInstallCommandIsLogged）。
     void testInstallCommandIsLogged()
     {
         QTemporaryDir dataRoot;
@@ -37,8 +38,7 @@ private slots:
         awb::core::Settings settings;
         AgentsFacade facade(&settings, dataRoot.path());
 
-        // The install command is a cmd builtin: no tooling or network needed,
-        // and it prints something to capture.
+        // install 命令是 cmd 内建：不需要任何工具或网络，且有输出可捕获。
         QVariantMap fields;
         fields.insert(QStringLiteral("name"), QStringLiteral("Log Probe"));
         fields.insert(QStringLiteral("command"),

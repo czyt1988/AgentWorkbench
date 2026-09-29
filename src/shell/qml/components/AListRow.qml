@@ -1,20 +1,21 @@
 import QtQuick
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// One row of a settings/list column: surface background, control radius,
-// subtle border and a content RowLayout with the standard row margins.
-// Inject icon / text column / trailing controls as children; height comes
-// from `rowHeight` (48 by default) or is overridden per instance.
-// implicitHeight mirrors the explicit height: layout parents (ColumnLayout
-// in a Flickable's content, e.g. the web page's running list) size children
-// off implicit*, and without it rows collapsed to ~0 and got clipped.
+// 设置页/列表的单行：surface 背景、控件圆角、细边框 + 带标准行边距的
+// 内容 RowLayout；图标/文本列/尾部控件作为子项注入，行高默认取
+// rowHeight（48），也可按实例覆盖。
+// implicitHeight 镜像显式 height：布局父（如 Flickable content 里的
+// ColumnLayout，Web 页的运行中列表）按 implicit* 给子项定尺寸，缺了它
+// 行会塌缩到 ~0 并被裁掉。
 Rectangle {
     id: control
 
+    // 行内容插槽：注入的图标/文本/尾部控件落在内部 RowLayout 里。
     default property alias contentData: rowLayout.data
 
+    // 行高；隐式高跟随它，保证在布局里不塌缩。
     property real rowHeight: 48
 
     radius: theme.radiusControl

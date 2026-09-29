@@ -15,8 +15,8 @@ using awb::core::PluginHost;
 
 namespace {
 
-// Minimal no-op Services — the two load tests only exercise policy checks
-// that run before any plugin code could call into the host.
+/// 最小化的空实现 Services：两个加载用例只走到「任何插件代码可能回调宿主
+/// 之前」的策略检查，用不到真正的服务逻辑。
 class DummyServices : public awb::plugin::Services
 {
 public:
@@ -32,15 +32,13 @@ public:
 
 } // namespace
 
-// Plugin discovery and load policy: manifests are
-// parsed without loading anything, a broken manifest only hides itself,
-// an API-version mismatch is refused, and nothing loads until the user
-// opts in.
+/// 测 core::PluginHost 的插件发现与加载策略：manifest 只解析不加载、坏
+/// manifest 只隐藏自己、API 版本不符拒绝加载、用户未启用前什么都不加载。
 class TestPluginHost : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -52,8 +50,8 @@ private slots:
         Paths::setDataRootForTesting(QString());
     }
 
-    // discover() reads <dataRoot>/plugins/*/plugin.json and maps every
-    // manifest field — without ever loading a library.
+    // discover() 读取 <dataRoot>/plugins/*/plugin.json 并映射 manifest 的
+    // 每个字段——全程不加载任何库。
     void testDiscoverParsesManifest()
     {
         QTemporaryDir tmp;
@@ -93,12 +91,12 @@ private slots:
         QCOMPARE(m.dir, dir);
         QCOMPARE(m.pages.size(), 1);
         QCOMPARE(m.pages.first().id, QStringLiteral("hello"));
-        // discover() never resolves enablement — that's the loader's job.
+        // discover() 从不判定启用状态——那是 loader 的职责。
         QVERIFY(!m.enabled);
     }
 
-    // A malformed manifest and one missing id/entry are skipped, the valid
-    // sibling still comes through: one bad plugin never hides the others.
+    // 坏 manifest 与缺 id/entry 的被跳过，合法的邻居照常出现：
+    // 一个坏插件不能连累其它插件。
     void testBrokenManifestsAreSkipped()
     {
         QTemporaryDir tmp;
@@ -112,8 +110,9 @@ private slots:
 
         auto write_file = [](const QString &path, const QByteArray &bytes) {
             QFile f(path);
-            if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+            if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
                 return false;
+            }
             return f.write(bytes) == bytes.size();
         };
         QVERIFY(write_file(root + QStringLiteral("/bad-json/plugin.json"),
@@ -131,8 +130,8 @@ private slots:
         QCOMPARE(found.first().id, QStringLiteral("good"));
     }
 
-    // A manifest targeting another API version is refused before any
-    // library is touched (mismatch → log + skip).
+    // 目标其它 API 版本的 manifest 在触碰任何库之前就被拒绝
+    // （版本不符 → 记日志 + 跳过）。
     void testApiVersionMismatchIsRefused()
     {
         PluginHost::Manifest manifest;
@@ -143,13 +142,11 @@ private slots:
 
         DummyServices services;
         PluginHost host;
-        // The mismatch check runs before any load, so the entry file on
-        // disk never matters here.
+        // 版本检查发生在任何加载之前，所以磁盘上的入口文件在这里无关紧要。
         QCOMPARE(host.loadEnabled({manifest}, &services), 0);
     }
 
-    // A discovered plugin starts disabled: loadEnabled() must not touch it
-    // until the user opts in (disabled by default).
+    // 发现的插件初始为禁用：用户启用之前 loadEnabled() 不得碰它（默认禁用）。
     void testDisabledPluginsAreNotLoaded()
     {
         QTemporaryDir tmp;
@@ -167,9 +164,8 @@ private slots:
         QCOMPARE(found.size(), 1);
         QVERIFY(!found.first().enabled);
 
-        // enabled=false → skipped without attempting a load; the entry
-        // file intentionally does not exist, so an attempted load would
-        // be visible in the log.
+        // enabled=false → 直接跳过、不尝试加载；入口文件故意不存在，
+        // 一旦发生加载就会在日志里现形。
         DummyServices services;
         PluginHost loader;
         QCOMPARE(loader.loadEnabled(found, &services), 0);

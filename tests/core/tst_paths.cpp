@@ -9,11 +9,13 @@
 
 using awb::core::Paths;
 
+/// 测 core::Paths：数据根目录在测试模式下的沙箱约束、setDataRootForTesting
+/// 覆盖机制，以及各子目录（themes/plugins/log/webprofiles/downloads）的派生规则。
 class TestPaths : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -25,9 +27,8 @@ private slots:
         Paths::setDataRootForTesting(QString());
     }
 
-    // Test mode must keep the data root inside the sandbox: HomeLocation is
-    // NOT redirected by QStandardPaths, so deriving from it made every test
-    // read and rewrite the developer's real config.
+    // 测试模式必须把数据根目录留在沙箱内：QStandardPaths 的测试模式不重定向
+    // HomeLocation，从它派生会让每个测试都读写开发者真实的配置目录。
     void testDataRootStaysInTestSandbox()
     {
         const QString realDir =
@@ -40,7 +41,7 @@ private slots:
                      QStandardPaths::AppConfigLocation));
     }
 
-    // setDataRootForTesting wins over everything else.
+    // 显式注入的数据根必须压过其它一切来源。
     void testSetDataRootForTesting()
     {
         QTemporaryDir tmp;
@@ -56,7 +57,7 @@ private slots:
         QCOMPARE(Paths::dataRoot(), before);
     }
 
-    // Every sub-directory hangs off the data root.
+    // 所有子目录都必须挂在数据根之下。
     void testSubdirectories()
     {
         QTemporaryDir tmp;

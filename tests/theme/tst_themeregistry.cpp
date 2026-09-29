@@ -15,11 +15,13 @@ using awb::core::Paths;
 using awb::theme::ThemeFile;
 using awb::theme::ThemeRegistry;
 
+/// 测 theme::ThemeRegistry 的主题清单：内置主题的稳定排序、用户主题按内置
+/// id 覆盖、新 id 追加，以及文件名与 id 不符的文件被整体跳过。
 class TestThemeRegistry : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -31,7 +33,7 @@ private slots:
         Paths::setDataRootForTesting(QString());
     }
 
-    // Both built-ins are listed, in a stable order.
+    // 两个内置都列出来，顺序稳定。
     void testBuiltinsListed()
     {
         ThemeRegistry registry;
@@ -43,8 +45,8 @@ private slots:
         QVERIFY(registry.baseline(QStringLiteral("light")).isValid());
     }
 
-    // A user theme file with a built-in id replaces the built-in values;
-    // a new id adds a theme; a file whose name != id is skipped.
+    // 用户主题文件用内置 id 时替换内置值；新 id 追加一个主题；
+    // 文件名 != id 的文件被跳过。
     void testUserOverrideAndNewTheme()
     {
         QTemporaryDir tmp;
@@ -52,7 +54,7 @@ private slots:
         Paths::setDataRootForTesting(tmp.path());
         QVERIFY(QDir().mkpath(tmp.path() + QStringLiteral("/themes")));
 
-        // Override the built-in dark theme's accent only.
+        // 只覆盖内置暗色主题的 accent 一个 token。
         QJsonObject overrideJson;
         overrideJson[QStringLiteral("id")] = QStringLiteral("mocha-dark");
         overrideJson[QStringLiteral("name")] = QStringLiteral("My Mocha");
@@ -63,7 +65,7 @@ private slots:
         writeFile(tmp.path() + QStringLiteral("/themes/mocha-dark.json"),
                   overrideJson);
 
-        // A brand-new light theme.
+        // 全新的亮色主题。
         QJsonObject custom;
         custom[QStringLiteral("id")] = QStringLiteral("custom-light");
         custom[QStringLiteral("name")] = QStringLiteral("Custom Light");
@@ -71,7 +73,7 @@ private slots:
         writeFile(tmp.path() + QStringLiteral("/themes/custom-light.json"),
                   custom);
 
-        // Name mismatch — must be skipped entirely.
+        // 名字对不上——必须被整体跳过。
         QJsonObject mismatch;
         mismatch[QStringLiteral("id")] = QStringLiteral("not-the-file-name");
         mismatch[QStringLiteral("name")] = QStringLiteral("Mismatch");
@@ -86,7 +88,7 @@ private slots:
         QCOMPARE(overridden.name, QStringLiteral("My Mocha"));
         QCOMPARE(overridden.colors.value(QStringLiteral("accent")),
                  QColor(QStringLiteral("#ff0000")));
-        // Untouched tokens still come from the built-in baseline.
+        // 没动过的 token 仍来自内置基线。
         QVERIFY(overridden.colors.contains(QStringLiteral("danger")));
 
         const ThemeFile added = registry.theme(QStringLiteral("custom-light"));
@@ -96,8 +98,9 @@ private slots:
 
         bool sawCustom = false;
         for (const ThemeFile &t : registry.themes()) {
-            if (t.id == QLatin1String("custom-light"))
+            if (t.id == QStringLiteral("custom-light")) {
                 sawCustom = true;
+            }
         }
         QVERIFY(sawCustom);
 
@@ -105,6 +108,12 @@ private slots:
     }
 
 private:
+    /**
+     * @brief 把主题 JSON 对象写进指定路径
+     *
+     * @param path 目标文件路径（父目录需已存在）
+     * @param json 完整的主题根对象
+     */
     static void writeFile(const QString &path, const QJsonObject &json)
     {
         QFile f(path);

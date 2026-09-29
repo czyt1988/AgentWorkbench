@@ -12,15 +12,15 @@
 using awb::tools::FileTreeFlatModel;
 using awb::tools::FileTreeModel;
 
-// FileTreeFlatModel 的投影契约：顶层压平、展开/收起递归、懒 fetch 由
-// toggleExpanded 兜底、modelReset 清空展开状态、refreshed 重建后按路径保留
-// 展开状态。夹具结构与 tst_filetreemodel 相同：
-//   root/ alpha.txt  beta.txt  Beta/inner.txt  Zeta/
+/// 测 tools::FileTreeFlatModel 的投影契约：顶层压平、展开/收起递归、懒 fetch
+/// 由 toggleExpanded 兜底、modelReset 清空展开状态、refreshed 重建后按路径保留
+/// 展开状态。夹具结构与 tst_filetreemodel 相同：
+///   root/ alpha.txt  beta.txt  Beta/inner.txt  Zeta/
 class TestFileTreeFlatModel : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -197,23 +197,42 @@ private slots:
     }
 
 private:
-    /// 按相对路径在投影里找行（相对路径是投影的唯一行身份）。
+    /**
+     * @brief 按相对路径在投影里找行
+     *
+     * 相对路径是投影的唯一行身份。
+     *
+     * @param flat 投影模型
+     * @param relativePath 要找的相对路径
+     * @return 对应行号；不存在时返回 -1
+     */
     static int rowOf(const FileTreeFlatModel &flat, const QString &relativePath)
     {
         for (int row = 0; row < flat.rowCount(); ++row) {
             if (flat.data(flat.index(row, 0),
                           FileTreeFlatModel::RelativePathRole)
-                    .toString() == relativePath)
+                    .toString() == relativePath) {
                 return row;
+            }
         }
         return -1;
     }
 
+    /**
+     * @brief 在夹具根下建一个目录
+     *
+     * @param relative 相对根的路径
+     */
     void makeDir(const QString &relative)
     {
         QVERIFY2(QDir(m_root).mkpath(relative), qPrintable(relative));
     }
 
+    /**
+     * @brief 在夹具根下写一个内容为单字节 "x" 的文件
+     *
+     * @param relative 相对根的路径（父目录需已存在）
+     */
     void makeFile(const QString &relative)
     {
         QFile file(QDir(m_root).filePath(relative));
@@ -221,8 +240,8 @@ private:
         file.write(QByteArrayLiteral("x"));
     }
 
-    std::unique_ptr<QTemporaryDir> m_dir;
-    QString m_root;
+    std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时工作区
+    QString m_root;                         ///< 夹具根路径
 };
 
 #include "tst_filetreeflatmodel.moc"

@@ -1,18 +1,21 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Full add/edit form for one launcher, as a dialog.
-// Empty agentId = add mode.
-// NOTE: do not name the agent map property `data` — it collides with
-// QQuickItem's built-in `data` group and silently breaks field bindings.
+// 单个 launcher 的新增/编辑全量表单弹窗：agentId 为空 = 新增模式。
+// 字段校验在本地 readonly 属性上完成，保存经 agents.* 门面写回 agents.json。
+// 注意：承载 agent 映射的属性不能叫 `data`——它会撞上 QQuickItem 内建的
+// `data` 属性组并静默断掉字段绑定。
 Dialog {
     id: page
 
+    // 目标 agent id（空串 = 新增模式）。
     property string agentId: ""
+    // 是否新增模式。
     readonly property bool isAdd: agentId.length === 0
+    // 目标 agent 的当前数据（新增模式为空对象）。
     property var agentData: agentId.length > 0 ? agents.model.agent(agentId) : ({})
 
     // 挂到窗口 Overlay：对话框以「窗口」而不是「屏幕」为居中与限高的基准
@@ -35,12 +38,15 @@ Dialog {
         radius: theme.radiusOverlay
     }
 
+    // 按目标 agent 打开弹窗（空串 = 新增）。
     function openFor(id) {
         agentId = id
         open()
     }
 
-    // --- Validation --------------------------------------------------------
+    // --- 校验 ---------------------------------------------------------------
+    // 各字段的合法性（name/command/webUrl 必填，颜色须为 #RRGGBB 或空，
+    // 新增时 id 须为合法字符且不与现有 agent 重复），汇总进 formValid。
     readonly property bool nameValid: nameField.text.trim().length > 0
     readonly property bool commandValid: commandField.text.trim().length > 0
     readonly property bool webUrlValid: /^https?:\/\/\S+$/.test(webUrlField.text.trim())
@@ -59,6 +65,8 @@ Dialog {
     readonly property bool formValid: nameValid && commandValid && webUrlValid
                                       && colorValid && cardColorValid && idValid
 
+    // 收集全部字段写回：新增走 addAgent，编辑走 updateAgentFull；
+    // 失败（agents.json 写不进去）时弹出错误提示而不是关窗。
     function save() {
         const fields = {
             "name": nameField.text.trim(),
@@ -88,9 +96,10 @@ Dialog {
     }
 
 
-    // Form rows use the shared AFormLabel / ATextField components
-    // (components/), with Layout.fillWidth set at each use site.
+    // 表单行用共享的 AFormLabel / ATextField（components/），
+    // Layout.fillWidth 在各使用点设置。
 
+    // 表单内的小节标题（accent 色加粗）。
     component SectionLabel: Label {
         color: theme.accent
         font.pixelSize: theme.fontSizeSubtitle
@@ -145,7 +154,7 @@ Dialog {
                 }
             }
 
-            // --- Basics ---------------------------------------------------
+            // --- 基础信息 ------------------------------------------------------
             ColumnLayout {
                 Layout.leftMargin: theme.spacingXl
                 Layout.rightMargin: theme.spacingXl
@@ -225,7 +234,7 @@ Dialog {
                 }
             }
 
-            // --- Appearance -----------------------------------------------
+            // --- 外观 ----------------------------------------------------------
             ColumnLayout {
                 Layout.leftMargin: theme.spacingXl
                 Layout.rightMargin: theme.spacingXl
@@ -248,8 +257,8 @@ Dialog {
                         text: page.agentData.icon || ""
                         placeholderText: qsTr("qrc:/icons/<name>.svg, file path or URL")
                     }
-                    // Live preview (qrc/http/file only; raw local paths are
-                    // resolved by the C++ side on save).
+                    // 实时预览（仅 qrc/http/file；裸本地路径由 C++ 侧在
+                    // 保存时解析）。
                     Image {
                         source: {
                             const t = iconField.text.trim()
@@ -262,7 +271,7 @@ Dialog {
                         fillMode: Image.PreserveAspectFit
                     }
                 }
-                // Built-in icon quick picks.
+                // 内置图标快捷选择。
                 Row {
                     spacing: theme.spacingS
 
@@ -345,7 +354,7 @@ Dialog {
                 }
             }
 
-            // --- Install & maintenance ------------------------------------
+            // --- 安装与维护 ----------------------------------------------------
             ColumnLayout {
                 Layout.leftMargin: theme.spacingXl
                 Layout.rightMargin: theme.spacingXl
@@ -388,7 +397,7 @@ Dialog {
                 }
             }
 
-            // --- Advanced -------------------------------------------------
+            // --- 高级 ----------------------------------------------------------
             ColumnLayout {
                 Layout.leftMargin: theme.spacingXl
                 Layout.rightMargin: theme.spacingXl
@@ -432,7 +441,7 @@ Dialog {
                     AButton {
                         id: saveButton
                         variant: "primary"
-                        // The agent's own color when set; theme accent otherwise.
+                        // 设了 agent 主色就用它，否则回退主题 accent。
                         accentColor: (page.agentData.color || "").length > 0
                                      ? page.agentData.color : theme.accent
                         enabled: page.formValid
@@ -444,7 +453,7 @@ Dialog {
         }
     }
 
-    // Shown when addAgent/updateAgentFull could not write agents.json.
+    // addAgent/updateAgentFull 写不进 agents.json 时展示。
     AAlertDialog {
         id: saveErrorPopup
         titleText: qsTr("Save failed")

@@ -17,13 +17,30 @@
 using awb::core::Settings;
 
 namespace {
-// Capture warnings so "invalid value → default + warn" can be asserted.
+
+/// 捕获到的 Qt 日志消息，配合 qInstallMessageHandler 断言「非法值 → 取默认 + 告警」。
 QStringList g_captured;
+
+/**
+ * @brief 安装给 qInstallMessageHandler 的消息处理器，把日志追加进 g_captured
+ *
+ * @param type 消息级别（本测试不区分，忽略）
+ * @param context 日志上下文（忽略）
+ * @param msg 日志正文
+ */
 void captureMessage(QtMsgType, const QMessageLogContext &, const QString &msg)
 {
     g_captured.append(msg);
 }
 
+/**
+ * @brief 用给定 JSON 覆盖当前的 settings.json
+ *
+ * 测试「从文件读配置」的用例需要精确控制文件内容，而 Settings 的路径来自
+ * 测试模式下的标准位置，这里直接往该路径写文件（先建父目录再截断重写）。
+ *
+ * @param json 完整的 settings.json 文件内容
+ */
 void writeSettingsFile(const QByteArray &json)
 {
     QDir().mkpath(QFileInfo(Settings::settingsFilePath()).absolutePath());
@@ -33,11 +50,13 @@ void writeSettingsFile(const QByteArray &json)
 }
 } // namespace
 
+/// 测 core::Settings：无文件时的默认值、setter 经 save() 的文件往返、缺键与
+/// 非法值的降级告警、未知键忽略、valueChanged 信号，以及日志选项的读写。
 class TestSettings : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -50,8 +69,7 @@ private slots:
         QFile::remove(Settings::settingsFilePath());
     }
 
-    // No file yet: every value is the documented default,
-    // and save() writes a complete file.
+    // 文件尚不存在：每个值都是文档默认值，且 save() 写出完整文件。
     void testDefaults()
     {
         Settings s;
@@ -78,13 +96,13 @@ private slots:
         QVERIFY(s.save().ok);
         QVERIFY(QFile::exists(Settings::settingsFilePath()));
 
-        // Reading the saved file back yields the same values.
+        // 把保存后的文件重新读入，值应与写入前一致。
         Settings reloaded;
         QCOMPARE(reloaded.window().width, 1440);
         QCOMPARE(reloaded.themeId(), QStringLiteral("mocha-dark"));
     }
 
-    // Setters + save() round-trip through the file.
+    // setter 经 save() 写文件再读回，验证整条往返链。
     void testRoundTrip()
     {
         {
@@ -107,8 +125,7 @@ private slots:
         QCOMPARE(again.window().lastPageId, QStringLiteral("web"));
     }
 
-    // Missing keys take defaults, values of the wrong type take defaults and
-    // are reported.
+    // 缺键取默认值；类型不对的值取默认并记告警。
     void testPartialAndInvalidValues()
     {
         writeSettingsFile(R"({
@@ -131,8 +148,9 @@ private slots:
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
             if (msg.contains(QStringLiteral("window.width"))
-                || msg.contains(QStringLiteral("web.surface")))
+                || msg.contains(QStringLiteral("web.surface"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "invalid values must be logged as warnings");
     }
@@ -168,13 +186,14 @@ private slots:
         QCOMPARE(invalid.loggingOptions().level, QStringLiteral("debug"));
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
-            if (msg.contains(QStringLiteral("logging.level")))
+            if (msg.contains(QStringLiteral("logging.level"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "an invalid log level must be logged as a warning");
     }
 
-    // Unknown keys are ignored with a warning, never fatal.
+    // 未知键被忽略并告警，绝不致命。
     void testUnknownKeyWarns()
     {
         writeSettingsFile(R"({ "bogusSection": 1 })");
@@ -188,8 +207,9 @@ private slots:
 
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
-            if (msg.contains(QStringLiteral("bogusSection")))
+            if (msg.contains(QStringLiteral("bogusSection"))) {
                 warned = true;
+            }
         }
         QVERIFY2(warned, "an unknown key must be logged as a warning");
     }

@@ -6,18 +6,18 @@ import QtWebEngine
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The embedded view for one tab: the WebEngineView
-// plus its state overlays. All platform events (popups, downloads,
-// fullscreen, crashes, permissions) are handled here — "no click does
-// nothing".
+// 单个 Web 标签的内嵌视图：WebEngineView + 各状态覆盖层。所有平台事件
+// （弹窗、下载、全屏、崩溃、权限）都在这里处理——不允许「点了没反应」。
+// Web 标签数据在 web.* 门面；profile 经 WebProfiles 按 agent 建立。
 Item {
     id: surface
 
-    // The WebTab this view renders (a role of the tabs model).
+    // 本视图渲染的 WebTab（标签模型的一个 role 对象）。
     property var tab: null
-    // Fullscreen hides the tab bar; Esc leaves it first.
+    // 全屏会隐藏标签栏；Esc 先退出全屏。
     signal fullScreenToggled(bool active)
 
+    // 是否有绑定标签（无标签时不渲染视图内容）。
     readonly property bool hasTab: tab !== null && tab !== undefined
 
     WebEngineView {
@@ -31,17 +31,14 @@ Item {
         profile: surface.hasTab
                  ? WebProfiles.createProfile(tab.agentId) : null
 
-        // Memory policy: switched-away tabs freeze (session kept) once
-        // their load settled; the LRU releases the oldest ones past
-        // web.maxLiveTabs. Two rules the old condition got wrong:
-        // a loading view must NEVER freeze — Frozen suspends the page and
-        // stalled hidden tabs in "loading" forever, so activating them
-        // flashed the loading overlay over an already-rendered page;
-        // and the ACTIVE tab must always be Active whatever its state —
-        // freezing it was rejected by Qt ("page is visible") on every
-        // error-state transition.
-        // LifecycleState is a SCOPED enum: WebEngineView.Active would be
-        // undefined and the assignment silently no-op every time.
+        // 内存策略：切换走的标签在加载稳定后冻结（会话保留）；超过
+        // web.maxLiveTabs 时按 LRU 释放最旧的。旧条件踩错的两个坑：
+        // 加载中的视图绝不能冻结——Frozen 会挂起页面，卡在隐藏
+        // "loading" 的标签永远停在加载中，激活它们时会在已渲染的页面上
+        // 闪一层加载覆盖层；ACTIVE 标签无论状态如何必须保持 Active——
+        // 冻结它会被 Qt 以 "page is visible" 拒绝，每个错误态转换都报。
+        // LifecycleState 是 scoped 枚举：裸写 WebEngineView.Active 是
+        // undefined，赋值每次都静默失效。
         lifecycleState: {
             if (!surface.hasTab
                     || !web.freezeInactiveTabs
@@ -55,13 +52,12 @@ Item {
             if (surface.hasTab)
                 web.setTabUrl(tab.id, String(url))
         }
-        // The tab state machine drives loads: `loading` means "should be
-        // loading". reloadTab()/markOnlineForAgent() flip the state WITHOUT
-        // touching the URL (the url binding above only fires on url
-        // changes), so the transition to loading must trigger the actual
-        // load from here. Without this the spinner ran forever and the
-        // overlay's Cancel had nothing to stop — view.stop() on an idle
-        // view never emits LoadStoppedStatus.
+        // 标签状态机驱动加载：`loading` 表示「应当正在加载」。
+        // reloadTab()/markOnlineForAgent() 只翻转状态、不碰 URL（上面的
+        // url 绑定只在 URL 变化时触发），所以转到 loading 的实际加载必须
+        // 从这里发起。没有这一步转圈会转个不停，覆盖层的「取消」也没有
+        // 东西可停——空闲视图上的 view.stop() 永远不会发
+        // LoadStoppedStatus。
         Connections {
             target: surface.tab
             function onStateChanged() {
@@ -77,8 +73,8 @@ Item {
             if (surface.hasTab)
                 web.setTabProgress(tab.id, loadProgress)
         }
-        // Qt 6 has no loadFinished — load results arrive via loadingChanged
-        // with a LoadStatus enum (state machine).
+        // Qt 6 没有 loadFinished——加载结果经 loadingChanged 的
+        // LoadStatus 枚举（状态机）到达。
         onLoadingChanged: function(loadingInfo) {
             if (!surface.hasTab)
                 return
@@ -90,8 +86,8 @@ Item {
                               String(loadingInfo.url),
                               "domain:", loadingInfo.errorDomain,
                               "code:", loadingInfo.errorCode)
-                // A positive error code is the HTTP status (e.g. 401 from a
-                // token-gated harness); net errors are negative.
+                // 正的错误码是 HTTP 状态（如 token 门禁 harness 的
+                // 401）；网络错误为负。
                 web.setTabLastError(tab.id,
                     loadingInfo.errorCode > 0
                         ? qsTr("Failed to load %1 (HTTP %2)")
@@ -101,13 +97,12 @@ Item {
                               .arg(String(loadingInfo.url)))
                 web.setTabState(tab.id, "error")
             } else if (loadingInfo.status === WebEngineView.LoadStoppedStatus) {
-                // A deliberate stop (toolbar ✕ / overlay Cancel) settles the
-                // state machine — otherwise the spinner runs forever.
+                // 主动停止（工具栏 ✕ / 覆盖层「取消」）也要落定状态机——
+                // 否则转圈永远不停。
                 web.setTabState(tab.id, "ready")
             }
         }
-        // Do NOT auto-reload after a renderer crash — crash loops are worse
-        // than a manual reload.
+        // 渲染进程崩溃后绝不自动重载——崩溃循环比手动重载更糟。
         onRenderProcessTerminated: function(status, exitCode) {
             console.error("WebEngine: render process terminated", status,
                           exitCode)
@@ -117,56 +112,49 @@ Item {
             }
         }
 
-        // --- Popups: loopback -> new in-app tab; anything else -> system
-        // browser. The new-window signal is RENAMED between the Qt majors
-        // (Qt 6 newWindowRequested / Qt 5 newViewRequested) and the request
-        // object answers differently, so QML must not declare the handler
-        // for either name — the other Qt rejects the unknown property and
-        // the WHOLE surface fails to load (the blank-tab bug). The compat
-        // object connects the right signal in C++ and re-emits it as
-        // popupRequested; the routing lives in the Connections at the
-        // surface root, below the view.
+        // --- 弹窗：Qt 大版本间 new-window 信号名不同（Qt 6
+        // newWindowRequested / Qt 5 newViewRequested），请求对象的应答
+        // 方式也不同——QML 两个名字都不能声明（另一版本会因未知属性拒绝
+        // 整个表面的加载，即白标签 bug）。由 compat 对象在 C++ 侧连对的
+        // 信号并以 popupRequested 转发；路由逻辑在表面根部的 Connections。
         Component.onCompleted: WebEngineCompat.watchPopups(view)
 
-        // --- Fullscreen: accept and let the page hide its tab bar. The
-        // request is a gadget on BOTH majors with the same shape —
-        // toggleOn (direction) + accept() (answer). The former
-        // request.accepted / request.fullScreen names exist on neither
-        // version and silently broke fullscreen at runtime.
+        // --- 全屏：接受请求，让页面隐藏自己的标签栏。请求对象在两版上
+        // 都是同形状的 gadget——toggleOn（方向）+ accept()（应答）。此前
+        // 的 request.accepted / request.fullScreen 名字两版都不存在，
+        // 全屏在运行时静默失效。
         onFullScreenRequested: function(request) {
             request.accept()
             surface.fullScreenToggled(request.toggleOn)
         }
 
-        // --- JS alert()/confirm()/prompt(): the engine blocks the page's
-        // JS until answered. Without a handler Qt shows its own dialog, but
-        // if that dialog is dismissed in a way that never answers, every
-        // later interaction silently stalls. Handle it ourselves: a themed
-        // dialog that ALWAYS answers (OK / Cancel), so the page can never
-        // stay blocked.
+        // --- JS alert()/confirm()/prompt()：引擎会阻塞页面 JS 直到应答。
+        // 不处理时 Qt 弹自己的对话框，但那种对话框若被以一种永不应答的
+        // 方式关掉，之后的所有交互都静默卡死。自己处理：主题化对话框
+        // 永远应答（OK / 取消），页面不可能一直被阻塞。
         onJavaScriptDialogRequested: function(request) {
             request.accepted = true
             jsDialog.request = request
             jsDialog.open()
         }
 
-        // --- HTTP basic auth (opencode's login prompt): same shape as the
-        // JS dialog — always answers, Cancel rejects.
+        // --- HTTP Basic 认证（opencode 的登录提示）：与 JS 对话框同一
+        // 形状——永远应答，「取消」即拒绝。
         onAuthenticationDialogRequested: function(request) {
             request.accepted = true
             authDialog.request = request
             authDialog.open()
         }
 
-        // --- window.close() from the page closes the tab (the page asked
-        // for it). Previously the request was silently ignored and the
-        // stuck page could not be dismissed.
+        // --- 页面的 window.close() 关闭标签（页面自己要求的）。此前该
+        // 请求被静默忽略，卡住的页面无法关掉。
         onWindowCloseRequested: {
-            if (surface.hasTab)
+            if (surface.hasTab) {
                 web.closeTab(tab.id)
+            }
         }
 
-        // --- Permissions: all denied in v1, with a visible notice.
+        // --- 权限：v1 一律拒绝并给可见提示。
         // denyFeature 经 WebEngineCompat 收口：两版都是
         // grantFeaturePermission(origin, feature, false)，无需分支。
         onFeaturePermissionRequested: function(securityOrigin, feature) {
@@ -176,11 +164,10 @@ Item {
         }
     }
 
-    // --- Popup routing -------------------------------------------------
-    // The compat side already answered/discarded the engine request; the
-    // URL gets a destination here: loopback -> new in-app tab, anything
-    // else -> system browser. Each tab owns one surface, so only this
-    // surface's view is handled.
+    // --- 弹窗路由 -------------------------------------------------------
+    // compat 侧已应答/丢弃引擎请求；URL 的去向在这里决定：回环地址 →
+    // 应用内新标签，其余 → 系统浏览器。每个标签一个表面，只处理属于
+    // 本表面 view 的请求。
     Connections {
         target: WebEngineCompat
 
@@ -200,23 +187,23 @@ Item {
         }
     }
 
-    // --- JS alert()/confirm()/prompt() ------------------------------------
-    // Themed replacement for the engine's default dialog. IMPORTANT: while
-    // open, the page's JS is blocked, so the buttons must ALWAYS answer the
-    // request — closing this popup via the dialog's own close handling
-    // (e.g. the closePolicy below) must also reject, never leave the
-    // request dangling. That is why closePolicy is NoAutoClose and only
-    // these two buttons settle it.
+    // --- JS alert()/confirm()/prompt() 对话框 --------------------------------
+    // 引擎默认对话框的主题化替代。要点：打开期间页面的 JS 被阻塞，按钮
+    // 必须永远应答请求——经对话框自身的关闭途径（如 closePolicy）关掉
+    // 也必须拒绝，绝不能把请求悬着。所以 closePolicy 是 NoAutoClose，
+    // 只由这两个按钮落定。
     Popup {
         id: jsDialog
 
+        // 待应答的引擎请求（dialogAccept/dialogReject 必须恰好调用一次）。
         property var request: null
-        // alert() has no Cancel; prompt() has an input field.
+        // alert() 没有取消键；prompt() 有输入框。
         readonly property bool isAlert:
             request && request.type === JavaScriptDialogRequest.DialogTypeAlert
         readonly property bool isPrompt:
             request && request.type === JavaScriptDialogRequest.DialogTypePrompt
 
+        // 应答并关闭：accept 时 prompt 回传输入框内容；随后清空请求。
         function settle(accept) {
             if (!request)
                 return
@@ -299,7 +286,7 @@ Item {
                 }
                 AButton {
                     variant: "primary"
-                    // confirm() semantics: OK returns true.
+                    // confirm() 语义：OK 返回 true。
                     text: qsTr("OK")
                     onClicked: jsDialog.settle(true)
                 }
@@ -307,14 +294,16 @@ Item {
         }
     }
 
-    // --- HTTP basic / proxy auth ------------------------------------------
-    // opencode-style logins: the engine blocks the page until credentials
-    // arrive. Same rule as the JS dialog: always answer.
+    // --- HTTP Basic / 代理认证 ----------------------------------------------
+    // opencode 式登录：引擎阻塞页面直到拿到凭据。与 JS 对话框同一条
+    // 规则：永远应答。
     Popup {
         id: authDialog
 
+        // 待应答的引擎请求。
         property var request: null
 
+        // 应答并关闭：accept 回传用户名/密码，否则拒绝。
         function settle(accept) {
             if (!request)
                 return
@@ -418,7 +407,7 @@ Item {
         }
     }
 
-    // --- DevTools in a separate window (Debug builds only) --------
+    // --- 独立窗口的 DevTools（仅 Debug 构建） -----------------------------
     // 挂接经 WebEngineCompat.attachDevTools：给 devToolsView 设
     // inspectedView，它随后自行加载检查器前端（两版同构，地址不参与）。
     Window {
@@ -437,6 +426,7 @@ Item {
         }
     }
 
+    // 打开 DevTools 窗口（WebTabsPage 工具栏的调试入口调用）。
     function openDevTools() {
         WebEngineCompat.attachDevTools(view, devToolsView)
         devToolsWindow.show()
@@ -444,15 +434,14 @@ Item {
         devToolsWindow.requestActivate()
     }
 
-    // Toolbar "stop loading" (⟳ 重载/✕ 停止加载).
+    // 工具栏的「停止加载」（⟳ 重载 / ✕ 停止加载）。
     function stopLoading() {
         view.stop()
     }
 
-    // --- Downloads: both Qt versions expose the signal on the profile;
-    // the item type is WebEngineDownloadRequest (Qt 6) / WebEngineDownloadItem
-    // (Qt 5), so the state enum constants come from WebEngineCompat. Always
-    // accepted, into web.downloadDir.
+    // --- 下载：两个 Qt 版本的信号都在 profile 上；条目类型 Qt 6 叫
+    // WebEngineDownloadRequest、Qt 5 叫 WebEngineDownloadItem，状态枚举
+    // 常量经 WebEngineCompat 取。一律接受，落 web.downloadDir。
     Connections {
         target: view.profile
         enabled: view.profile !== null
@@ -475,7 +464,8 @@ Item {
         }
     }
 
-    // --- State overlays -------------------------------------------
+    // --- 状态覆盖层 ---------------------------------------------------------
+    // loading / offline / crashed / error 四态的居中提示与动作按钮。
     Rectangle {
         id: overlay
         anchors.fill: parent
@@ -490,7 +480,7 @@ Item {
             spacing: theme.spacingM
             width: Math.min(parent.width - 2 * theme.spacingXl, 460)
 
-            // loading -----------------------------------------------------
+            // loading 态：转圈 + 目标地址提示。 ---------------------------
             BusyIndicator {
                 Layout.alignment: Qt.AlignHCenter
                 visible: tab.state === "loading"

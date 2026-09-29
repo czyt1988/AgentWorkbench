@@ -1,20 +1,24 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
+// agent 启动卡片：单个 agent 的可视化入口。聚合头像/名称/运行状态、
+// 启动与停止、安装/更新/初始化的实时控制台输出、右键菜单与强制停止
+// 确认。agent 操作一律经 agents.* 门面，跨域动作（打开 Web、配置目录）
+// 走 workbench.*。根是 Item：模型 role 需先别名化，视觉本体在内层
+// card 上。
 Item {
     id: root
     height: theme.cardHeight
 
-    // Cards are model delegates; agents CRUD/refilter destroys them while
-    // hovered and the shared tooltip's `visible` binding dies with the
-    // hovered child — hide it here so it cannot freeze on screen.
+    // 卡片是模型 delegate：agent 的增删/重过滤会在悬停中销毁它们，共享
+    // tooltip 的 `visible` 绑定随悬停子项一起死掉——在这里 hide，防止
+    // tooltip 冻在屏幕上。
     Component.onDestruction: ToolTip.hide()
 
-    // Alias model roles to distinct local properties (avoids shadowing by
-    // Rectangle.color etc.).
+    // 模型 role 别名化（避免被 Rectangle.color 之类的属性遮蔽）。
     property string agentId_p: agentId
     property string name_p: name
     property string icon_p: icon
@@ -33,6 +37,7 @@ Item {
     property string consoleOutput_p: consoleOutput
     property string webUrl_p: webUrl
 
+    // 请求打开配置编辑（由宿主页面弹 AgentEditDialog）。
     signal configureRequested(string id)
 
     // 卡片级悬停判据。本仓库的 hover 是独占投递：卡内 hoverEnabled 的
@@ -48,10 +53,9 @@ Item {
             || stopArea.containsMouse || consoleCloseArea.containsMouse
             || actionButton.hovered || configureButton.hovered
 
-    // At-place launch/stop error feedback: briefly tint the border red and
-    // show the (elided) reason in the status slot. The full message also pops
-    // up centrally (main.qml). We set `flashing` explicitly (not via a binding
-    // to Timer.running, which is non-NOTIFYable) so updates actually fire.
+    // 就地的启动/停止错误反馈：边框短暂转红，状态槽显示（省略后的）原因；
+    // 完整消息另行居中弹出（main.qml 侧）。flashing 必须显式赋值而非绑定
+    // Timer.running（它无 NOTIFY），更新才会触发。
     property string flashMessage: ""
     property bool flashing: false
     Timer {
@@ -70,23 +74,22 @@ Item {
         }
     }
 
-    // Transient UI state for the stop button: set immediately on click so
-    // the card shows "Stopping…" + a spinner before the health check (500ms
-    // later) confirms the agent is down. Cleared when running_p goes false.
+    // 停止按钮的过渡 UI 状态：点击立即置真，让卡片在健康检查（500ms 后）
+    // 确认 agent 已停之前先显示「Stopping…」+ 转圈；running_p 变假时清除。
     property bool stopping: false
     onRunning_pChanged: if (!running_p) stopping = false
 
-    // Console panel visibility. The panel shows live install/update/setup
-    // output; it is shown while a command runs, hidden on success, shown for
-    // 5s on failure, and can be dismissed (×) or re-opened (context menu).
+    // 控制台面板可见性。面板实时显示 install/update/setup 的输出：
+    // 命令运行期间显示，成功即隐藏，失败保留 5s，可点 × 关闭或经右键
+    // 菜单重新打开。
     property bool consoleVisible: false
     Timer {
         id: consoleHideTimer
         interval: 5000
         onTriggered: root.consoleVisible = false
     }
-    // A new install/update/setup run (re)shows the panel and cancels any
-    // pending hide timer from a previous run.
+    // 新一轮 install/update/setup 启动时（重新）显示面板，并取消上一轮
+    // 遗留的隐藏计时。
     onInstalling_pChanged: if (installing_p) { consoleVisible = true; consoleHideTimer.stop() }
     onSetupping_pChanged: if (setupping_p) { consoleVisible = true; consoleHideTimer.stop() }
     Connections {
@@ -95,12 +98,11 @@ Item {
             if (id !== root.agentId_p)
                 return
             if (success) {
-                // Success: hide the panel immediately.
+                // 成功：立即隐藏面板。
                 consoleVisible = false
                 consoleHideTimer.stop()
             } else {
-                // Failure: keep it visible for 5s so the user can read the
-                // error, then auto-hide.
+                // 失败：保留 5s 让用户读到错误，然后自动隐藏。
                 consoleVisible = true
                 consoleHideTimer.restart()
             }
@@ -177,7 +179,7 @@ Item {
             spotY: cardHover.point.position.y
         }
 
-        // Click the card body: open web UI when running, otherwise launch.
+        // 点击卡片本体：运行中打开 WebUI，否则启动。
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton
@@ -189,7 +191,7 @@ Item {
             }
         }
 
-        // Right-click context menu.
+        // 右键菜单。
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.RightButton
@@ -230,7 +232,7 @@ Item {
             }
             MenuItem {
                 text: qsTr("Show output")
-                // Only meaningful when there is captured output to display.
+                // 只在有已捕获的输出可显示时才有意义。
                 enabled: root.consoleOutput_p.length > 0
                 onTriggered: {
                     root.consoleVisible = true
@@ -252,9 +254,8 @@ Item {
             }
         }
 
-        // Top-left indicator: "checking…" label (version check in progress),
-        // version label (installed), download icon (not installed), or spinner
-        // (installing). Mirrors the top-right × stop button's positioning.
+        // 左上角指示区：版本检查中（转圈）、已安装（版本标签）、未安装
+        // （下载图标）或安装中（转圈），与右上角 × 停止按钮的位置对称。
         Item {
             id: versionIndicator
             anchors.top: parent.top
@@ -264,7 +265,7 @@ Item {
             width: 60
             height: 22
 
-            // Checking version state: small spinner
+            // 版本检查中：小转圈。
             BusyIndicator {
                 visible: root.checkingVersion_p
                 running: root.checkingVersion_p
@@ -273,7 +274,7 @@ Item {
                 anchors.centerIn: parent
             }
 
-            // Installing state: spinner
+            // 安装中：转圈。
             BusyIndicator {
                 visible: root.installing_p
                 running: root.installing_p
@@ -282,7 +283,7 @@ Item {
                 anchors.centerIn: parent
             }
 
-            // Not installed: download icon (clickable → install)
+            // 未安装：下载图标（可点击 → 安装）。
             Item {
                 visible: !root.installed_p && !root.installing_p && !root.checkingVersion_p
                 anchors.fill: parent
@@ -325,7 +326,7 @@ Item {
                 }
             }
 
-            // Installed: version label + update button
+            // 已安装：版本标签 + 更新按钮。
             Item {
                 visible: root.installed_p && !root.installing_p && !root.checkingVersion_p
                 anchors.fill: parent
@@ -342,7 +343,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                 }
 
-                // Update icon button (↻)
+                // 更新图标按钮（↻）。
                 Item {
                     id: updateButton
                     anchors.left: versionLabel.right
@@ -386,11 +387,10 @@ Item {
             }
         }
 
-        // Header stack (icon, name, status) anchored directly to the card so
-        // the console panel can anchor to statusLabel as a sibling — QML only
-        // allows anchoring to a parent or sibling, not to a child of another
-        // item. Keeping these out of a Column also means toggling the console
-        // panel doesn't shift the header.
+        // 头部（图标、名称、状态）直接锚在卡片上，控制台面板才能以
+        // statusLabel 为兄弟锚定——QML 只允许锚到父项或兄弟项，不能锚到
+        // 别的项的子项。不把它们收进 Column 还有一个好处：开关控制台
+        // 面板不会顶动头部。
         Row {
             id: iconRow
             anchors.top: parent.top
@@ -451,13 +451,11 @@ Item {
             elide: Text.ElideRight
         }
 
-        // Live console output: while an install/update/setup command is
-        // running (or its output is still showing), the empty space below the
-        // status line down to the buttons becomes a scrollable log so the user
-        // can watch progress instead of a bare spinner. Auto-scrolls to the
-        // latest line as new output streams in. Visibility is governed by
-        // consoleVisible (see the handlers above); the × in the corner lets
-        // the user dismiss it, and the context menu can bring it back.
+        // 实时控制台输出：install/update/setup 命令运行期间（或输出仍在
+        // 展示时），状态行与按钮行之间的空位变成可滚动日志，让用户看到
+        // 进度而不是干等转圈；新输出流入时自动滚到最新一行。可见性由
+        // consoleVisible 控制（见上方处理器）；角上的 × 供用户收起，右键
+        // 菜单可重新打开。
         Rectangle {
             id: consolePanel
             anchors.top: statusLabel.bottom
@@ -479,7 +477,7 @@ Item {
                 id: consoleFlick
                 anchors.fill: parent
                 anchors.margins: theme.spacingXs
-                anchors.rightMargin: theme.spacingL // leave room for the × button
+                anchors.rightMargin: theme.spacingL // 给 × 按钮留位置
                 clip: true
                 contentWidth: width
                 contentHeight: consoleText.implicitHeight
@@ -497,7 +495,7 @@ Item {
                     textFormat: Text.PlainText
                 }
 
-                // Keep the most recent lines in view as output grows.
+                // 输出增长时保持最新几行可见。
                 onContentHeightChanged: {
                     if (contentHeight > height)
                         contentY = contentHeight - height
@@ -506,8 +504,8 @@ Item {
                 }
             }
 
-            // Dismiss button: hides the panel (the output is retained so the
-            // context-menu "Show output" action can bring it back).
+            // 收起按钮：隐藏面板（输出保留，右键菜单「Show output」可
+            // 重新调出）。
             Item {
                 id: consoleCloseButton
                 anchors.top: parent.top
@@ -565,10 +563,8 @@ Item {
                 width: root.running_p
                        ? (parent.width - 10) * 0.6
                        : (parent.width - 10) / 2
-                // While the agent is booting up or setting up, disable
-                // the button (no double-launch) and show a spinner in
-                // place of the label until the health check confirms it
-                // is running.
+                // agent 启动中或初始化中时禁用按钮（防重复启动），文字
+                // 位置换成转圈，直到健康检查确认运行。
                 enabled: !root.launching_p && !root.setupping_p
                 text: root.launching_p ? "" : (root.running_p ? qsTr("Open") : qsTr("Start"))
                 dropdown: root.running_p
@@ -608,10 +604,9 @@ Item {
             }
         }
 
-        // Subtle "stop" affordance: a faint × in the top-right corner, only
-        // while the agent is running. Brightens on hover. Terminates the
-        // process tree this launcher started (see AgentLauncher::stop).
-        // While stopping, shows a spinner instead of × and is disabled.
+        // 低调的「停止」入口：右上角一个淡淡的 ×，仅在 agent 运行时出现，
+        // 悬停时变亮。终止本次由启动器拉起的进程树（见 AgentRuntime::stop）；
+        // 停止进行中显示转圈替代 × 并禁用。
         Item {
             id: stopButton
             anchors.top: parent.top
@@ -660,11 +655,10 @@ Item {
         }
     }
 
-    // Force-stop confirmation. Kills the process listening on this agent's
-    // web port even when the launcher didn't start it (no tracked PID), so
-    // agents started elsewhere can still be terminated. Danger styling
-    // marks it as a destructive action. Centered over the window (not the
-    // 260px card).
+    // 强制停止确认。按端口杀掉监听该 agent web 端口的进程——即使不是
+    // 本启动器拉起的（无跟踪 PID）也能终止，在别处启动的 agent 因此
+    // 仍可停。danger 样式标明这是破坏性操作。居中于窗口（而不是 260px
+    // 的卡片）。
     AConfirmDialog {
         id: forceStopConfirm
         parent: Overlay.overlay
@@ -682,6 +676,7 @@ Item {
         }
     }
 
+    // 从十六进制颜色串拆出 RGB 分量（0..1），供运行态背景的淡染绑定。
     function tintRed(hex) { return parseInt(hex.substring(1, 3), 16) / 255 }
     function tintGreen(hex) { return parseInt(hex.substring(3, 5), 16) / 255 }
     function tintBlue(hex) { return parseInt(hex.substring(5, 7), 16) / 255 }

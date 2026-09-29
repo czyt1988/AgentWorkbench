@@ -5,23 +5,19 @@
 
 namespace awb::core {
 
-// One-time adoption of the pre-0.4 AgentLauncher data directory
-// (~/.AgentLauncher) into the new data root (~/.AgentWorkbench).
-// Contract:
-//
-// The legacy directory is copied, never moved or deleted, and the import
-// runs at most once: as soon as the new data root holds anything besides
-// the log directory (Logging installs first, see), it is left alone.
+/// 0.4 之前 AgentLauncher 数据目录（~/.AgentLauncher）的一次性收编。
+///
+/// 旧目录只复制、不搬移不删除；导入至多跑一次——新数据根里一旦出现
+/// log 目录以外的任何内容（Logging 先装，见实现）就不再动。
 class LegacyImport
 {
 public:
-    // Adopt the legacy directory into `newRoot` (the app data root).
-    // Returns true when files were imported; `outNotice` then receives a
-    // user-facing message to show once in the UI. Safe to call on every
-    // start — subsequent calls are no-ops.
+    // 把旧目录收编进 newRoot（应用数据根）。返回 true 表示发生了导入，
+    // outNotice 收到一条给用户看的一次性提示。每次启动调用都安全，
+    // 之后的调用是空操作。
     static bool runOnce(const QString &newRoot, QString *outNotice = nullptr);
 
-    // Same, with both directories injected so tests can use temp dirs.
+    // 同 runOnce，两个目录都由外部注入，供测试用临时目录
     static bool importOnce(const QString &newRoot, const QString &oldRoot,
                            QString *outNotice = nullptr);
 };

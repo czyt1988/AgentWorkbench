@@ -9,11 +9,14 @@
 using awb::agentcatalog::AgentDefinition;
 using awb::agentcatalog::AgentUrls;
 
+/// 测 agentcatalog::AgentUrls 的 URL 组装：#token= 片段追加（含已有 fragment
+/// 的拼接规则）、token 文件读取与修剪、从启动输出提取会话 URL（同服务器匹配、
+/// 回环等价、标点修剪）以及已带 token 的 base 原样透传。
 class TestAgentUrls : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void testFinalUrlWithoutToken()
     {
         AgentDefinition def;
@@ -24,9 +27,8 @@ private slots:
         QVERIFY(AgentUrls::finalUrl(def).isEmpty());
     }
 
-    // The bearer token rides as a #token=<value> fragment so the web UI can
-    // authenticate to mutation routes — and the fragment never reaches the
-    // server or the access logs.
+    // bearer token 以 #token=<value> 片段搭车，web UI 据此向变更类路由鉴权
+    // ——片段不会到达服务器，也不进访问日志。
     void testFinalUrlAppendsTokenFragment()
     {
         QTemporaryDir tmp;
@@ -43,8 +45,8 @@ private slots:
         QCOMPARE(AgentUrls::finalUrl(def),
                  QStringLiteral("http://127.0.0.1:4096#token=s3cret-value"));
 
-        // A webUrl that already carries a fragment joins with '&' — a
-        // second '#' would silently truncate the token (review regression).
+        // webUrl 已带 fragment 时用 '&' 接续——再来一个 '#' 会静默截断
+        // token（评审发现的回归）。
         def.webUrl = QStringLiteral("http://127.0.0.1:4096/#/console");
         QCOMPARE(AgentUrls::finalUrl(def),
                  QStringLiteral("http://127.0.0.1:4096/#/console&token=s3cret-value"));
@@ -52,14 +54,14 @@ private slots:
 
     void testTokenValueEdgeCases()
     {
-        // No file configured.
+        // 未配置文件。
         QVERIFY(AgentUrls::tokenValue(QString()).isEmpty());
 
-        // Missing file.
+        // 文件不存在。
         QVERIFY(AgentUrls::tokenValue(
-                     QStringLiteral("C:/no/such/token-file-awb")).isEmpty());
+                    QStringLiteral("C:/no/such/token-file-awb")).isEmpty());
 
-        // Trimming: stray newlines around the token are removed.
+        // 修剪：token 前后误带的换行被去掉。
         QTemporaryDir tmp;
         QVERIFY(tmp.isValid());
         const QString tokenPath = tmp.path() + QStringLiteral("/token");
@@ -72,8 +74,7 @@ private slots:
 
     // --- sessionUrlFromOutput / finalUrl(base, tokenFile) ------------------
 
-    // dsh's console line: the authenticated URL sits among other output and
-    // must be found exactly as printed.
+    // dsh 的控制台行：带鉴权的 URL 混在其它输出中间，必须按打印原样找到。
     void testSessionUrlFromDshStyleOutput()
     {
         const QString output = QStringLiteral(
@@ -84,8 +85,8 @@ private slots:
                  QStringLiteral("http://127.0.0.1:3080/?token=yJeivyv6PONWpBgMhH_GNB"));
     }
 
-    // Only URLs at the SAME server match: another port is a different
-    // service (and a token-gated one would 401 anyway).
+    // 只有指向同一服务器的 URL 才匹配：换个端口就是另一个服务（而且带 token
+    // 门禁的那个本来就会 401）。
     void testSessionUrlIgnoresOtherServers()
     {
         const QString output = QStringLiteral(
@@ -95,7 +96,7 @@ private slots:
         QVERIFY(AgentUrls::sessionUrlFromOutput(
                      output, QStringLiteral("http://127.0.0.1:3080")).isEmpty());
 
-        // No output, empty/unparseable webUrl: nothing, never a crash.
+        // 无输出、webUrl 为空或解析不了：返回空，绝不崩溃。
         QVERIFY(AgentUrls::sessionUrlFromOutput(
                      QString(), QStringLiteral("http://127.0.0.1:3080")).isEmpty());
         QVERIFY(AgentUrls::sessionUrlFromOutput(
@@ -105,8 +106,8 @@ private slots:
                      QStringLiteral("not a url")).isEmpty());
     }
 
-    // localhost and 127.0.0.1 spell the same loopback server; the
-    // default-port rule covers URLs printed without a port.
+    // localhost 与 127.0.0.1 拼的是同一个回环服务器；默认端口规则覆盖
+    // 打印时不带端口的 URL。
     void testSessionUrlLoopbackEquivalence()
     {
         QCOMPARE(AgentUrls::sessionUrlFromOutput(
@@ -115,8 +116,7 @@ private slots:
                  QStringLiteral("http://localhost:3080/x?token=abc"));
     }
 
-    // Sentence punctuation hugging the URL is trimmed, not swallowed into
-    // the match.
+    // 贴着 URL 的句子标点要被修剪掉，而不是吞进匹配结果。
     void testSessionUrlTrimsPunctuation()
     {
         QCOMPARE(AgentUrls::sessionUrlFromOutput(
@@ -125,9 +125,8 @@ private slots:
                  QStringLiteral("http://127.0.0.1:3080/?token=t"));
     }
 
-    // A base that already authenticates (dsh's ?token=… session URL, or a
-    // fragment token) passes through unchanged — no double token, even when
-    // a tokenFile exists and is readable.
+    // 已自带鉴权的 base（dsh 的 ?token=… 会话 URL，或 fragment 形式的
+    // token）原样透传——不叠加第二个 token，即使配置了可读的 tokenFile。
     void testFinalUrlBaseWithOwnTokenUnchanged()
     {
         QTemporaryDir tmp;
@@ -145,12 +144,12 @@ private slots:
                      QStringLiteral("http://127.0.0.1:3080/#token=abc"), tokenPath),
                  QStringLiteral("http://127.0.0.1:3080/#token=abc"));
 
-        // The same readable token file still appends to a plain base.
+        // 同一个可读的 token 文件对普通 base 照常追加。
         QCOMPARE(AgentUrls::finalUrl(QStringLiteral("http://127.0.0.1:3080"),
                                      tokenPath),
                  QStringLiteral("http://127.0.0.1:3080#token=file-token"));
 
-        // Empty base stays empty.
+        // 空 base 保持为空。
         QVERIFY(AgentUrls::finalUrl(QString(), QString()).isEmpty());
     }
 };

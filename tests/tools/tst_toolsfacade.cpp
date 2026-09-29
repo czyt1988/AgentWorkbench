@@ -13,12 +13,13 @@
 using awb::core::Paths;
 using awb::tools::ToolsFacade;
 
-// 门面层：工作区校验/MRU/淘汰与文件树根的联动、草稿跨实例往返。
+/// 测 tools::ToolsFacade 门面层：工作区校验/MRU/淘汰与文件树根的联动、
+/// 草稿跨实例往返，以及 QML 调用面的可调用性与类型可解析性。
 class TestToolsFacade : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -179,7 +180,7 @@ private slots:
         ToolsFacade facade(Paths::dataRoot());
         const QStringList failures = awbUnresolvedQmlCallTypes(&facade);
         QVERIFY2(failures.isEmpty(),
-                 qPrintable(failures.join(QLatin1String("\n"))));
+                 qPrintable(failures.join(QStringLiteral("\n"))));
     }
 
     // 端到端复现 QML 的真实调用路径（newQObject → CallPrecise 的按名
@@ -204,19 +205,19 @@ private slots:
             const QJSValue added = call.call(
                 QJSValueList() << tools << QJSValue(m_ws->path()));
             QVERIFY2(!added.isError(), qPrintable(added.toString()));
-            QCOMPARE(added.toString(), QLatin1String("true|"));
+            QCOMPARE(added.toString(), QStringLiteral("true|"));
 
             const QJSValue rejected = call.call(
                 QJSValueList() << tools
                                << QJSValue(QStringLiteral("/no/such/dir")));
             QVERIFY2(!rejected.isError(), qPrintable(rejected.toString()));
-            QVERIFY(rejected.toString().startsWith(QLatin1String("false|")));
+            QVERIFY(rejected.toString().startsWith(QStringLiteral("false|")));
         }
     }
 
 private:
-    std::unique_ptr<QTemporaryDir> m_dir;
-    std::unique_ptr<QTemporaryDir> m_ws;
+    std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时数据根
+    std::unique_ptr<QTemporaryDir> m_ws;   ///< 每个用例独立的临时工作区
 };
 
 AWB_TEST(TestToolsFacade)

@@ -13,14 +13,14 @@
 
 using awb::tools::FileTreeModel;
 
-// 懒加载文件树的模型契约：roles、目录优先排序、fetch 行为、增量刷新
-// （不 reset、未变的节点原地保留）、隐藏项排除。夹具结构：
-//   root/ alpha.txt  beta.txt  Beta/inner.txt  Zeta/
+/// 测 tools::FileTreeModel 的懒加载文件树契约：roles、目录优先排序、fetch
+/// 行为、增量刷新（不 reset、未变的节点原地保留）、隐藏项排除。夹具结构：
+///   root/ alpha.txt  beta.txt  Beta/inner.txt  Zeta/
 class TestFileTreeModel : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         m_dir = std::make_unique<QTemporaryDir>();
@@ -350,32 +350,53 @@ private slots:
         model.setRootPath(m_root);
 #ifdef Q_OS_WIN
         QCOMPARE(model.rowCount(QModelIndex()), 4);
-        for (int row = 0; row < model.rowCount(QModelIndex()); ++row)
+        for (int row = 0; row < model.rowCount(QModelIndex()); ++row) {
             QVERIFY(model.data(model.index(row, 0), FileTreeModel::NameRole)
                             != QStringLiteral("secret.txt"));
+        }
 #else
         QCOMPARE(model.rowCount(QModelIndex()), 4);
 #endif
     }
 
 private:
-    /// 按名字在 parent 下找子行（模型不提供路径查找，测试自己走一层）。
+    /**
+     * @brief 按名字在 parent 下找子行
+     *
+     * 模型不提供路径查找，测试自己走一层。
+     *
+     * @param model 被查的模型
+     * @param parent 起始父索引
+     * @param name 子项名
+     * @return 匹配的子索引；找不到时返回无效索引
+     */
     static QModelIndex childIndex(QAbstractItemModel &model,
                                   const QModelIndex &parent, const QString &name)
     {
         for (int row = 0; row < model.rowCount(parent); ++row) {
             const QModelIndex index = model.index(row, 0, parent);
-            if (model.data(index, FileTreeModel::NameRole).toString() == name)
+            if (model.data(index, FileTreeModel::NameRole).toString() == name) {
                 return index;
+            }
         }
         return QModelIndex();
     }
 
+    /**
+     * @brief 在夹具根下建一个目录
+     *
+     * @param relative 相对根的路径
+     */
     void makeDir(const QString &relative)
     {
         QVERIFY2(QDir(m_root).mkpath(relative), qPrintable(relative));
     }
 
+    /**
+     * @brief 在夹具根下写一个内容为单字节 "x" 的文件
+     *
+     * @param relative 相对根的路径（父目录需已存在）
+     */
     void makeFile(const QString &relative)
     {
         QFile file(QDir(m_root).filePath(relative));
@@ -383,8 +404,8 @@ private:
         file.write(QByteArrayLiteral("x"));
     }
 
-    std::unique_ptr<QTemporaryDir> m_dir;
-    QString m_root;
+    std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时工作区
+    QString m_root;                         ///< 夹具根路径
 };
 
 AWB_TEST(TestFileTreeModel)

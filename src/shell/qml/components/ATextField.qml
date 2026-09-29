@@ -1,14 +1,15 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Themed single-line text field: surface-alt background, focus ring,
-// optional invalid (red) state. Height matches AButton/ASearchField (32).
-// ASearchField stays separate — it adds the leading icon and clear button.
+// 主题化单行输入框：surface-alt 背景、焦点环、可选 invalid（红）状态，
+// 高度 32，与 AButton/ASearchField 对齐。带前置图标与清除键的搜索框
+// 是独立组件 ASearchField。
 TextField {
     id: control
 
+    // 无效态：为真时边框转 danger 红。
     property bool invalid: false
 
     color: theme.textPrimary

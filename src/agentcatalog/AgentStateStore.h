@@ -6,31 +6,32 @@
 
 namespace awb::agentcatalog {
 
-// agent_state.json: which agents have completed their one-time setup.
-// Loaded once, written atomically via core::JsonStore.
+/// agent_state.json 的读写：记录哪些 agent 已完成一次性 setup。
+///
+/// 启动时整体读入一次；写回经 core::JsonStore 原子落盘。
 class AgentStateStore
 {
 public:
     explicit AgentStateStore(const QString &dataRoot);
 
-    // Read the file once; a missing or broken file means "no setup done".
+    // 读入整个文件；文件缺失或损坏一律视为「未做过 setup」
     void load();
 
+    // 该 agent 是否已完成 setup
     bool isSetupDone(const QString &id) const;
 
-    // Record the setup as done; false when the file cannot be written (the
-    // caller reports that the setup will run again on the next start).
+    // 记录 setup 完成；文件写不下去返回 false（调用方提示下次启动会重跑 setup）
     bool markSetupDone(const QString &id);
 
-    // Forget the record so the setup command runs again before the next
-    // launch. False when there is nothing to write.
+    // 抹掉记录，让 setup 在下次启动前重跑；无东西可写时返回 false
     bool reset(const QString &id);
 
+    // 状态文件的路径
     QString stateFilePath() const;
 
 private:
-    QString m_dataRoot;
-    QHash<QString, bool> m_setupDone;
+    QString m_dataRoot;          ///< 数据根，状态文件从它派生
+    QHash<QString, bool> m_setupDone;  ///< 已完成 setup 的 agent id 集合
 };
 
 } // namespace awb::agentcatalog

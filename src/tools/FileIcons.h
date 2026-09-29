@@ -17,26 +17,26 @@ namespace awb::tools {
 class FileIcons
 {
 public:
+    // 读内置映射表，建好三张查找表与兜底图标
     FileIcons();
 
-    /// 叠加一份用户配置（约定是 <dataRoot>/file_icons.json）。
-    /// 文件不存在时静默返回；读不出来时记一条警告并保留已有映射。
+    // 叠加一份用户配置（约定是 <dataRoot>/file_icons.json），同名键用户赢
     void loadUserFile(const QString &path);
 
-    /// 文件的图标 URL；无匹配时返回默认文件图标。
+    // 文件的图标 URL；无匹配时返回默认文件图标
     QString forFile(const QString &fileName) const;
-    /// 目录的图标 URL；无匹配时返回默认目录图标。
+    // 目录的图标 URL；无匹配时返回默认目录图标
     QString forFolder(const QString &folderName) const;
 
 private:
+    // 把一份磁盘 JSON 并进成员表（内置表与用户配置共用）
     void merge(const QJsonObject &root);
 
-    /// 键一律小写；见 FileIcons.cpp 的查表顺序说明。
-    QHash<QString, QString> m_fileNames;
-    QHash<QString, QString> m_suffixes;
-    QHash<QString, QString> m_folderNames;
-    QString m_fileFallback;
-    QString m_folderFallback;
+    QHash<QString, QString> m_fileNames;   ///< 完整文件名（小写）→ 图标 URL
+    QHash<QString, QString> m_suffixes;    ///< 后缀（小写）→ 图标 URL
+    QHash<QString, QString> m_folderNames; ///< 目录名（小写）→ 图标 URL
+    QString m_fileFallback;                ///< 文件的兜底图标 URL
+    QString m_folderFallback;              ///< 目录的兜底图标 URL
 };
 
 } // namespace awb::tools

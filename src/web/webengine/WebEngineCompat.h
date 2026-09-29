@@ -44,26 +44,32 @@ public:
     int downloadCancelled() const;
     int downloadInterrupted() const;
 
-    /// 转发 view 的弹窗请求为 popupRequested（幂等，可安全重复调用）。
+    // 转发 view 的弹窗请求为 popupRequested（幂等，可安全重复调用）
     Q_INVOKABLE void watchPopups(QQuickWebEngineView *view);
 
-    /// 拒绝一次页面权限请求（v1 全拒）。view 或来源无效时静默返回。
+    // 拒绝一次页面权限请求（v1 全拒）；view 或来源无效时静默返回
     Q_INVOKABLE void denyFeature(QQuickWebEngineView *view,
                                  const QUrl &securityOrigin, int feature);
 
-    /// 恒为空 URL：DevTools 由 attachDevTools 以「检查器视图绑
-    /// inspectedView」的方式挂接，检查器前端自行加载，地址不参与。
+    // 恒为空 URL：DevTools 由 attachDevTools 以「检查器视图绑 inspectedView」
+    // 的方式挂接，检查器前端自行加载，地址不参与
     Q_INVOKABLE QUrl devToolsUrl(QQuickWebEngineView *view);
 
-    /// 把 devToolsView 设为 view 的检查器（inspectedView 绑定，两版同构）。
+    // 把 devToolsView 设为 view 的检查器（inspectedView 绑定，两版同构）
     Q_INVOKABLE void attachDevTools(QQuickWebEngineView *view,
                                     QQuickWebEngineView *devToolsView);
 
 Q_SIGNALS:
-    /// view 内页面请求开新窗口（target=_blank / window.open）。sourceView
-    /// 是发起的视图——每个标签页一个表面实例，QML 据此认领；请求已在
-    /// C++ 侧应答（Qt 6 置 accepted，Qt 5 不调 openIn 即丢弃），QML 只需
-    /// 决定 URL 的去向。
+    /**
+     * @brief view 内页面请求开新窗口（target=_blank / window.open）时发射
+     *
+     * sourceView 是发起的视图——每个标签页一个表面实例，QML 据此认领；
+     * 请求已在 C++ 侧应答（Qt 6 置 accepted，Qt 5 不调 openIn 即丢弃），
+     * QML 只需决定 URL 的去向。
+     *
+     * @param sourceView 发起请求的 WebEngineView
+     * @param target      请求要打开的 URL
+     */
     void popupRequested(QObject *sourceView, const QUrl &target);
 };
 

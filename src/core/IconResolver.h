@@ -5,16 +5,14 @@
 
 namespace awb::core {
 
-// Resolve an icon string from configuration into a displayable image URL.
-// qrc:/, http(s):// and file:// pass through;
-// an existing local file becomes a file:/// URL; anything else (including
-// empty) falls back to `fallback`.
-//
-// The fallback is supplied by the caller — core must not hardcode an
-// application resource path.
+/// 把配置里的图标字符串解析成可显示的图片 URL。
+///
+/// qrc:/、http(s)://、file:// 原样放行；存在的本地文件转成 file:/// URL；
+/// 其余（含空串）回退到 fallback。fallback 由调用方给出——core 不写死应用资源路径。
 class IconResolver
 {
 public:
+    // 解析图标字符串；规则与回退见类注释
     static QString resolve(const QString &raw, const QString &fallback);
 };
 

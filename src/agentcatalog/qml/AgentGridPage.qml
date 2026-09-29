@@ -4,23 +4,23 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The launcher page : header with page actions, search +
-// display filter, and the card grid. Card interactions are unchanged from
-// 0.3.0 (AgentCard.qml).
+// launcher 主页：带页面动作的 header、搜索 + 显示过滤，以及卡片网格。
+// 卡片交互沿用 0.3.0 的行为（AgentCard.qml）。
 Item {
     id: page
 
+    // 搜索框文本（空 = 不过滤）。
     property string filterText: ""
-    // 0 = all, 1 = running, 2 = not installed
+    // 显示过滤：0 = 全部，1 = 运行中，2 = 未安装。
     property int displayFilter: 0
+    // 当前过滤后可见的卡片数（由 recountShown 维护）。
     property int shownCount: 0
 
-    // shownCount is derived from the hidden counter delegates' `matches`
-    // property, never from card visibility: Item.visible reads back the
-    // *effective* visibility, so a card created inside the ScrollView
-    // (hidden while shownCount === 0) can never read visible=true —
-    // counting cards deadlocked shownCount at 0 and pinned the
-    // "No matching launchers" empty state over a fully configured model.
+    // shownCount 从隐藏计数 delegate 的 `matches` 属性汇总而来，绝不从
+    // 卡片可见性读：Item.visible 读回的是*有效*可见性，ScrollView 内创建
+    // 的卡片（shownCount === 0 时整块隐藏）永远读不到 visible=true——
+    // 那样计数会死锁在 0，「无匹配 launcher」空状态就钉死在配置完整的
+    // 模型上面。
     function recountShown() {
         let n = 0
         for (let i = 0; i < counterBox.children.length; ++i) {
@@ -30,6 +30,7 @@ Item {
         page.shownCount = n
     }
 
+    // 单个模型条目是否命中当前搜索 + 显示过滤。
     function matchesFilter(m) {
         if (displayFilter === 1 && !m.running)
             return false
@@ -104,7 +105,7 @@ Item {
             }
         }
 
-        // --- Search + display filter -------------------------------------
+        // --- 搜索 + 显示过滤 -----------------------------------------------
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
@@ -140,11 +141,10 @@ Item {
             }
         }
 
-        // --- Empty states -------------------------------------------------
-        // Hidden counters: total configured launchers, and per-row match
-        // state. `matches` mirrors exactly what the card's visible binding
-        // computes, but lives on an always-hidden delegate so recountShown()
-        // can bootstrap without depending on the ScrollView's visibility.
+        // --- 空状态 ---------------------------------------------------------
+        // 隐藏计数器：launcher 总数与逐条匹配状态。`matches` 镜像卡片
+        // visible 绑定算出的值，但放在永远隐藏的 delegate 上，这样
+        // recountShown() 的自举不依赖 ScrollView 的可见性。
         Item {
             id: counterBox
             visible: false
@@ -185,18 +185,16 @@ Item {
             }
         }
 
-        // --- Card grid ----------------------------------------------------
+        // --- 卡片网格 --------------------------------------------------------
         ScrollView {
             id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            // Match the search row's side margins so the first card never
-            // sits flush against the sidebar.
+            // 与搜索行同侧边距，第一张卡片不会贴死在侧栏边。
             Layout.leftMargin: theme.spacingL
             Layout.rightMargin: theme.spacingL
-            // Only when there is something to show: with zero cards both
-            // this (fillHeight) and the empty state (fillHeight) competed
-            // for the same column height.
+            // 只在有内容可显示时出现：零卡片时它（fillHeight）和空状态
+            // （fillHeight）会争抢同一列的高度。
             visible: page.shownCount > 0
             clip: true
             contentWidth: availableWidth
@@ -226,8 +224,7 @@ Item {
         id: editDialog
     }
 
-    // Central error display for launch/stop failures. The matching card
-    // also flashes red for at-place feedback.
+    // 启动/停止失败的居中错误展示；命中的卡片同时闪红就地反馈。
     AAlertDialog {
         id: errorPopup
         width: 500

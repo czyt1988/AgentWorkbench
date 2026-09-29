@@ -1,25 +1,31 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Confirmation dialog on ADialog: title + message + extra detail rows
-// (any inline children placed between message and buttons) + a
-// right-aligned action row. `danger` marks destructive confirmations.
+// 基于 ADialog 的确认弹窗：标题 + 消息 + 可选的中间详情插槽（detailData）
+// + 右对齐的确认/取消按钮行，发出 confirmed/cancelled 信号后自动关闭。
+// danger 置真时确认按钮转危险变体，用于破坏性操作的二次确认。
 ADialog {
     id: control
 
+    // 正文消息（空串则不渲染）。
     property string message: ""
+    // 确认按钮文字（空串则不渲染该按钮）。
     property string confirmText: ""
+    // 取消按钮文字（空串则不渲染该按钮）。
     property string cancelText: ""
-    // Set by the caller when more than Cancel/Confirm is needed.
+    // 详情插槽：取消/确认之外还需要上下文（警告、列表等）时由调用方插入，
+    // 内容落在消息与按钮行之间。
     default property alias detailData: detailColumn.data
 
+    // 用户点击确认后发出，随按钮点击关闭弹窗。
     signal confirmed()
+    // 用户点击取消后发出，随按钮点击关闭弹窗。
     signal cancelled()
 
-    // Message + caller-provided detail rows + buttons.
+    // 消息 + 调用方插入的详情 + 按钮行，整体作为 dialogContent 装进骨架。
     dialogContent: [
         ColumnLayout {
             Layout.fillWidth: true

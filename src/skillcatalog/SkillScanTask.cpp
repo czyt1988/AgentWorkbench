@@ -20,8 +20,16 @@ namespace {
 
 using ScanStats = SkillScanTask::Stats;
 
-/// plugin 去重的版本比较：0.5.1 > 0.4.2 > 0.3.0。
-/// 按 '.' 分段，能转数字的按数字比，否则按字符串比。
+/**
+ * @brief plugin 去重用的版本比较
+ *
+ * 语义示例：0.5.1 > 0.4.2 > 0.3.0。按 '.' 分段逐段比，能转数字的
+ * 按数字比，否则按字符串比；缺段按空串处理。
+ *
+ * @param a 版本串甲
+ * @param b 版本串乙
+ * @return a 严格小于 b 时返回 true
+ */
 bool versionLess(const QString &a, const QString &b)
 {
     const QStringList partsA = a.split(QLatin1Char('.'));
@@ -35,8 +43,9 @@ bool versionLess(const QString &a, const QString &b)
         const int na = pa.toInt(&numA);
         const int nb = pb.toInt(&numB);
         if (numA && numB) {
-            if (na != nb)
+            if (na != nb) {
                 return na < nb;
+            }
         } else if (pa != pb) {
             return pa < pb;
         }
@@ -44,8 +53,17 @@ bool versionLess(const QString &a, const QString &b)
     return false;
 }
 
-/// 把可能带通配符的路径（plugin 缓存根就是）展开成具体目录。
-/// 不含通配符的尾巴原样追加；含通配符的一层列出匹配的子目录再继续。
+/**
+ * @brief 把可能带通配符的路径展开成具体目录
+ *
+ * plugin 缓存根就是典型输入（cache 下 marketplace/插件/版本/skills
+ * 的多层通配布局）。不含通配符的路径原样追加；含通配符的在第一个
+ * 通配符段处切开，列出其父目录下匹配的子目录，剩余尾巴（可能仍带
+ * 通配符）递归展开。
+ *
+ * @param pattern 原始路径（占位符已由 effectiveRoot 展开）
+ * @param out 展开结果就地追加；目录不存在或无匹配时可能一条都不加
+ */
 void expandPattern(const QString &pattern, QStringList &out)
 {
     if (!pattern.contains(QLatin1Char('*'))) {
@@ -70,50 +88,73 @@ void expandPattern(const QString &pattern, QStringList &out)
 
     QString prefix;
     for (int i = 0; i < wildcardIndex; ++i) {
-        if (!prefix.isEmpty())
+        if (!prefix.isEmpty()) {
             prefix += QLatin1Char('/');
+        }
         prefix += segments.at(i);
     }
     const QString filter = segments.at(wildcardIndex);
     QString rest;
     for (int i = wildcardIndex + 1; i < segments.size(); ++i) {
-        if (!rest.isEmpty())
+        if (!rest.isEmpty()) {
             rest += QLatin1Char('/');
+        }
         rest += segments.at(i);
     }
 
     const QDir dir(prefix.isEmpty() ? QStringLiteral(".") : prefix);
-    if (!dir.exists())
+    if (!dir.exists()) {
         return;
+    }
     const QFileInfoList entries = dir.entryInfoList(
         {filter}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo &info : entries) {
-        if (rest.isEmpty())
+        if (rest.isEmpty()) {
             out.append(info.absoluteFilePath());
-        else
+        }
+        else {
             expandPattern(info.absoluteFilePath() + QLatin1Char('/') + rest,
                           out);
+        }
     }
 }
 
-/// 根路径里第一个通配符之前的固定前缀（用于从缓存布局
-/// "<plugin>/<version>" 里剥出 plugin 标识）。
+/**
+ * @brief 取根路径里第一个通配符之前的固定前缀
+ *
+ * 用于从缓存布局 `<marketplace>/<plugin>/<version>/skills` 里剥出
+ * plugin 标识：扫描到的目录都在该前缀之下，相对前缀的路径段即
+ * marketplace/plugin/version。
+ *
+ * @param path 原始根路径（可含通配符）
+ * @return 通配符前的固定部分；没有通配符时就是整个路径
+ */
 QString fixedPrefix(const QString &path)
 {
     const QStringList segments = path.split(QLatin1Char('/'));
     QString prefix;
     for (const QString &segment : segments) {
-        if (segment.contains(QLatin1Char('*')))
+        if (segment.contains(QLatin1Char('*'))) {
             break;
-        if (!prefix.isEmpty())
+        }
+        if (!prefix.isEmpty()) {
             prefix += QLatin1Char('/');
+        }
         prefix += segment;
     }
     return prefix;
 }
 
-/// 占位符变真实路径的唯一入口。settings 存 RAW 路径（"~"、"%PWD%"、
-/// 通配符），这样回存时不会把某一台机器的 home/cwd 烧进 settings.json。
+/**
+ * @brief 占位符变真实路径的唯一入口
+ *
+ * settings 存 RAW 路径（`~`、`%PWD%`、通配符），这样回存时不会把某台
+ * 机器的 home/cwd 烧进 settings.json；本函数只用于扫描时的临时展开。
+ * 通配符不在此时处理（留给 expandPattern）。
+ *
+ * @param configured 配置形态的根
+ * @return path 已展开 `~` 与 `%PWD%` 的副本；其余字段原样
+ */
 SkillRoot effectiveRoot(const SkillRoot &configured)
 {
     SkillRoot root = configured;
@@ -127,9 +168,24 @@ SkillRoot effectiveRoot(const SkillRoot &configured)
 /// 让扫描逻辑可以从 SkillScanner 的成员状态里剥出来整体搬进 worker 线程。
 struct ScanState
 {
-    QList<SkillDefinition> definitions;
+    QList<SkillDefinition> definitions;  ///< 扫描到的全部 skill（去重前）
 };
 
+/**
+ * @brief 深度优先扫描一个目录：找 SKILL.md、解析并登记 skill
+ *
+ * 一个含 SKILL.md 的目录就是一个 skill，不再向下递归；没有的目录按
+ * maxDepth 上限继续下探（含隐藏目录）。plugin 根的条目同时从相对
+ * base 的路径段里剥出 pluginId/pluginVersion。
+ *
+ * @param dirPath 当前目录的绝对路径
+ * @param root 所属扫描根（id/label/kind 写进定义）
+ * @param depth 当前递归深度（起始为 0）
+ * @param stats 统计就地累积（本函数不写它，仅保持签名统一）
+ * @param base plugin 根的固定前缀；非 plugin 根传空串
+ * @param maxDepth 目录遍历深度上限
+ * @param state 扫描累积状态，发现的 skill 就地追加
+ */
 void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
                    ScanStats &stats, const QString &base, int maxDepth,
                    ScanState &state)
@@ -161,8 +217,9 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         skill.kind = root.kind;
         if (frontmatter.valid) {
             for (auto it = frontmatter.extras.constBegin();
-                 it != frontmatter.extras.constEnd(); ++it)
+                 it != frontmatter.extras.constEnd(); ++it) {
                 skill.extras.insert(it.key(), it.value());
+            }
         }
 
         const QFileInfo skillInfo(skillFile);
@@ -172,11 +229,12 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         // plugin 缓存布局：<base>/<marketplace>/<plugin>/<version>/skills/
         // <skill>。"skills" 段之前的最后一段是版本，其余是 plugin id
         // （marketplace/plugin）。
-        if (root.kind == QLatin1String("plugin") && !base.isEmpty()
+        if (root.kind == QStringLiteral("plugin") && !base.isEmpty()
             && dirPath.startsWith(base)) {
             QString relative = dirPath.mid(base.length());
-            while (relative.startsWith(QLatin1Char('/')))
+            while (relative.startsWith(QLatin1Char('/'))) {
                 relative.remove(0, 1);
+            }
             const QStringList segments = relative.split(QLatin1Char('/'));
             const int skillsIndex = segments.indexOf(QStringLiteral("skills"));
             if (skillsIndex >= 2) {
@@ -192,8 +250,9 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
         return;
     }
 
-    if (depth >= maxDepth)
+    if (depth >= maxDepth) {
         return;
+    }
 
     const QFileInfoList children = dir.entryInfoList(
         QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
@@ -209,6 +268,17 @@ void scanDirectory(const QString &dirPath, const SkillRoot &root, int depth,
     }
 }
 
+/**
+ * @brief 扫描单个根：展开通配符后逐个实体目录扫描
+ *
+ * 所有实体目录都不存在时整根记为跳过（skippedRoots 带 label）；
+ * 只要有一个存在就记为已扫描。
+ *
+ * @param root 已展开占位符的根（见 effectiveRoot）
+ * @param params 扫描参数（maxDepth 从这里取）
+ * @param stats 统计就地累积
+ * @param state 扫描累积状态
+ */
 void scanRoot(const SkillRoot &root, const SkillScanParams &params,
               ScanStats &stats, ScanState &state)
 {
@@ -216,12 +286,13 @@ void scanRoot(const SkillRoot &root, const SkillScanParams &params,
     QStringList concrete;
     expandPattern(root.path, concrete);
     // 不含通配符的路径：即使目录不存在也保留——scanRoot 会把它记成跳过。
-    if (concrete.isEmpty())
+    if (concrete.isEmpty()) {
         concrete.append(root.path);
+    }
     const QString base = fixedPrefix(root.path);
 
     int existing = 0;
-    for (const QString &entry : concrete) {
+    for (const QString &entry : std::as_const(concrete)) {
         const QDir dir(entry);
         if (!dir.exists()) {
             qWarning().noquote() << QStringLiteral(
@@ -241,8 +312,15 @@ void scanRoot(const SkillRoot &root, const SkillScanParams &params,
     }
 }
 
-/// 同一 plugin 在缓存里有多个版本：只保留最高版本。
-/// 非 plugin 根的 skill 不动；不同根里的同名 skill 也都保留。
+/**
+ * @brief 同一 plugin 的缓存多版本去重：每个 skill 只保留最高版本
+ *
+ * 非 plugin 根或没有 pluginId 的条目原样保留；不同根、不同 plugin、
+ * 不同 skill 名之间互不竞争。同版本的重复也丢弃（先到者胜）。
+ *
+ * @param state 扫描累积状态，definitions 就地去重
+ * @param stats duplicatesDropped 就地累积
+ */
 void dedupePluginVersions(ScanState &state, ScanStats &stats)
 {
     QHash<QString, int> bestIndex; // "<rootId>|<pluginId>|<skill name>"
@@ -250,7 +328,7 @@ void dedupePluginVersions(ScanState &state, ScanStats &stats)
     kept.reserve(state.definitions.size());
 
     for (const SkillDefinition &skill : std::as_const(state.definitions)) {
-        if (skill.kind != QLatin1String("plugin")
+        if (skill.kind != QStringLiteral("plugin")
             || skill.pluginId.isEmpty()) {
             kept.append(skill);
             continue;
@@ -280,6 +358,16 @@ void dedupePluginVersions(ScanState &state, ScanStats &stats)
 
 } // namespace
 
+/**
+ * @brief 同步执行整次扫描
+ *
+ * 遍历启用且未被过滤的根（禁用或 plugin 根被排除的记跳过），扫描、
+ * 去重、统计耗时后一次性返回。线程安全：只读 params、只写局部状态
+ * 与返回值，不触碰任何 GUI 对象。
+ *
+ * @param params 扫描输入（根清单、深度上限、是否计入 plugin 缓存）
+ * @return 定义列表 + 统计
+ */
 SkillScanTask::Result SkillScanTask::run(const SkillScanParams &params)
 {
     QElapsedTimer timer;
@@ -293,7 +381,7 @@ SkillScanTask::Result SkillScanTask::run(const SkillScanParams &params)
             ++stats.rootsSkipped;
             continue;
         }
-        if (root.kind == QLatin1String("plugin")
+        if (root.kind == QStringLiteral("plugin")
             && !params.includePluginCaches) {
             ++stats.rootsSkipped;
             continue;

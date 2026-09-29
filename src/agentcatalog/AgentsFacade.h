@@ -23,15 +23,15 @@ class AgentRuntime;
 class AgentScripts;
 class AgentStateStore;
 
-// The QML facade for the agents feature: it
-// aggregates repository, model, runtime, scripts and health monitor, and
-// keeps the Q_INVOKABLE/signature names of the 0.3.0 `launcher` object so
-// the existing QML only needs its prefix renamed (`launcher.` -> `agents.`).
-//
-// openWeb is NOT a facade method: opening the web UI is the
-// cross-domain workbench intent `workbench.openWeb(id)`. openConfigDir
-// stays — WorkbenchContext delegates to it. Python/Node detection lives
-// in EnvironmentService.
+/// agent 功能的 QML 门面。
+///
+/// 聚合 repository、model、runtime、scripts 与健康监视器，并保留 0.3.0
+/// `launcher` 对象的 Q_INVOKABLE 与信号名——既有 QML 只需把前缀改名
+/// （`launcher.` -> `agents.`）。
+///
+/// openWeb 故意不在门面上：打开 Web UI 是跨域的 workbench 意图
+/// `workbench.openWeb(id)`。openConfigDir 留下——WorkbenchContext 把它
+/// 委托到这里。Python/Node 检测在 EnvironmentService。
 class AgentsFacade : public QObject
 {
     Q_OBJECT
@@ -39,81 +39,118 @@ class AgentsFacade : public QObject
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
 
 public:
-    // `theme` supplies the agent auto-assignment palette;
-    // nullptr uses the built-in palette (unit tests).
+    // `theme` 提供自动配色的 agentPalette；nullptr 时用内置色板（单元测试）
     AgentsFacade(core::Settings *settings, const QString &dataRoot,
                  theme::Theme *theme = nullptr, QObject *parent = nullptr);
 
+    // 暴露给 QML 的列表模型
     QAbstractItemModel *model() const;
-    // Typed access for in-module callers and tests.
+    // 模块内调用方与测试用的带类型访问
     AgentModel *agentModel() const { return m_model; }
 
+    // 启动该 agent；有未完成的一次性 setup 时先跑 setup，成功后自动续上启动
     Q_INVOKABLE void launch(const QString &id);
+    // 结束本次会话中由此启动的进程树；没有记账 PID 时返回 false 并发 launchFailed
     Q_INVOKABLE bool stop(const QString &id);
-    // Force-stop: kill the process listening on the agent's web port, even
-    // when the launcher didn't start it (no tracked PID).
+    // 强制停止：杀掉占用该 agent web 端口的进程——对启动器没启动过、
+    // 没有 PID 的 agent 也有效
     Q_INVOKABLE void forceStop(const QString &id);
+    // 在系统的文件管理器里打开该 agent 的配置目录
     Q_INVOKABLE void openConfigDir(const QString &id);
+    // 一次性命令的转发（行为与失败上报见 AgentScripts）
     Q_INVOKABLE void install(const QString &id);
     Q_INVOKABLE void updateTool(const QString &id);
+    // 重置一次性 setup：从 agent_state.json 清掉记录，下次启动前重跑
     Q_INVOKABLE void resetSetup(const QString &id);
 
-    // True if at least one agent was started from the launcher this session.
+    // 本次会话是否至少启动过一个 agent
     Q_INVOKABLE bool hasLaunchedAgents() const;
 
-    // Terminate every process this launcher started this session. Returns
-    // the number of process trees successfully killed.
+    // 结束本次会话启动的全部进程；返回成功杀掉的进程树数量
     Q_INVOKABLE int stopAll();
 
-    // Launcher management (Settings page). All three persist to agents.json
-    // and return false when the file could not be written (or, for addAgent,
-    // when the requested id already exists).
+    // 启动器管理（设置页）。三者都落盘 agents.json，写不进去时返回
+    // false（addAgent 另在 id 已存在时返回 false）
     Q_INVOKABLE bool addAgent(const QVariantMap &fields);
     Q_INVOKABLE bool updateAgentFull(const QString &id, const QVariantMap &fields);
     Q_INVOKABLE bool removeAgent(const QString &id);
     Q_INVOKABLE bool restoreDefaults();
 
-    // True when the id belongs to the bundled default_agents.json.
+    // id 是否属于随包的 default_agents.json
     Q_INVOKABLE bool isDefaultAgent(const QString &id) const;
 
-    // The authenticated session URL captured from this agent's launch output
-    // (token-gated harnesses such as dsh print one per process). Empty when
-    // none was captured — openWeb then falls back to the configured webUrl.
+    // 从该 agent 的启动输出里抓到的鉴权会话 URL（dsh 等 token 门禁的
+    // harness 每进程打印一条）；没抓到时为空串，openWeb 回退到配置的
+    // webUrl
     Q_INVOKABLE QString sessionUrl(const QString &id) const;
 
-    // Path of the on-disk agents.json (shown in error messages).
+    // 磁盘上 agents.json 的路径（错误提示里展示用）
     Q_INVOKABLE QString configFilePath() const;
 
-    // Load state, apply it to the model, then start the health poll, the
-    // version checks and the runtime detection.
+    // 载入状态、套到模型上，然后启动健康轮询、版本检查与运行时检测
     void start();
 
-signals:
-    // Emitted when a launch/stop attempt fails. The UI shows an at-place
-    // flash on the matching card plus a detailed popup.
+Q_SIGNALS:
+    /**
+     * @brief 启动或停止尝试失败时发射
+     *
+     * 界面据此在对应卡片上原位闪红并弹出详情说明。
+     *
+     * @param id      出错的 agent id
+     * @param message 可展示给用户的失败原因
+     */
     void launchFailed(const QString &id, const QString &message);
 
-    // Emitted when an install/update finishes (success or failure).
+    /**
+     * @brief 安装或更新结束时发射（不论成败）
+     *
+     * @param id      agent id
+     * @param success 命令干净退出为 true
+     * @param message 失败原因；成功时为空串
+     */
     void installFinished(const QString &id, bool success, const QString &message);
 
-    // Health transition relay (BuiltinPages wires it to the web tabs —
+    /**
+     * @brief 转发健康检查的状态翻转
+     *
+     * 状态变化要离开本域，BuiltinPages 才能应用跨域规则（Web 标签的
+     * 离线/在线标记）。
+     *
+     * @param id      agent id
+     * @param running true = 健康检查判定运行中
+     */
     void runningChanged(const QString &id, bool running);
-    // An agent was deleted from the configuration (BuiltinPages closes its
-    // tabs).
+
+    /**
+     * @brief 某 agent 从配置中删除时发射
+     *
+     * BuiltinPages 关闭它的标签页。
+     *
+     * @param id 被删除的 agent id
+     */
     void agentRemoved(const QString &id);
-    // The launch captured the agent's authenticated session URL (dsh-style
-    // per-process token). BuiltinPages retargets an open tab at it.
+
+    /**
+     * @brief launch 抓到该 agent 的鉴权会话 URL 时发射
+     *
+     * dsh 一类每进程随机 token 的 URL；BuiltinPages 把已打开的标签
+     * 重定向到它。
+     *
+     * @param id  agent id
+     * @param url 已合并 token 的会话 URL
+     */
     void sessionUrlChanged(const QString &id, const QString &url);
 
 private:
+    // 把模型的当前定义写回 agents.json；成败各记一条日志
     bool saveConfig();
 
-    AgentRepository *m_repo;
-    AgentStateStore *m_stateStore;
-    AgentModel *m_model;
-    AgentRuntime *m_runtime;
-    AgentScripts *m_scripts;
-    AgentHealthMonitor *m_health;
+    AgentRepository *m_repo;        ///< agents.json 的读写与内置同步
+    AgentStateStore *m_stateStore;  ///< agent_state.json（setup 完成记录）
+    AgentModel *m_model;            ///< 暴露给 QML 的列表模型
+    AgentRuntime *m_runtime;        ///< 长驻进程的启动/停止
+    AgentScripts *m_scripts;        ///< 一次性命令
+    AgentHealthMonitor *m_health;   ///< 健康轮询
 };
 
 } // namespace awb::agentcatalog

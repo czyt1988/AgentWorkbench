@@ -4,29 +4,30 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The Web page: its own tab bar serves as the page header,
-// the body hosts one surface per tab, and the empty state lists running
-// agents with one-click open.
+// Web 页：自己的标签栏充当页面头部，主体为每个标签托管一个 surface
+// （WebEngineSurface），空状态列出运行中的 agent 供一键打开。本页经
+// PageDescriptor::keepAlive 常驻，页面状态不随切换销毁。
 Item {
     id: page
 
-    // Fullscreen hides the tab bar; Esc leaves it first.
+    // 全屏时隐藏标签栏；Esc 先退出全屏。
     property bool chromeHidden: false
     // 本页经 PageDescriptor::keepAlive 常驻（Workspace 只隐藏不销毁），
     // 因此切到别的页面后这里的 ApplicationShortcut 仍然存活。所有全局
     // 快捷键必须门控在「本页是当前页」上，否则 Ctrl+W / F5 / F12 会在
     // 设置页之类的地方关掉/重载隐藏的 Web 标签。
     readonly property bool pageCurrent: nav.currentPageId === "web"
-    // Home view: the agent list (the no-tabs page) on demand, without
-    // closing the open tabs — the way back to the launcher's cards while
-    // views are open. Leaving it (clicking a tab, opening an agent,
-    // cycling tabs) restores the active view.
+    // 首页视图：按需把 agent 列表（无标签的那页）盖在已开标签上面，
+    // 不关闭任何标签——视图开着时回到启动卡片的路。离开它（点标签、
+    // 打开 agent、轮换标签）即恢复活动视图。
     property bool homeActive: false
-    // Loaded surface items by tab id — the toolbar reaches the active one
-    // (devtools lives on the surface).
+    // 按 tab id 索引的已装载 surface——工具栏经它访问活动标签的
+    // surface（devtools 挂在 surface 上）。
     property var surfaceItems: ({})
+    // 运行中的 agent 数（运行列表的可见行数，recountRunning 维护）。
     property int runningCount: 0
 
+    // 重数运行列表的可见行：行随模型增删/启停变化后回填 runningCount。
     function recountRunning() {
         let n = 0
         for (let i = 0; i < runningList.children.length; ++i) {
@@ -41,7 +42,7 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // --- Tab bar (the page header) --------------------------
+        // --- 标签栏（即页面头部）----------------------------------------------
         Rectangle {
             Layout.fillWidth: true
             visible: !page.chromeHidden
@@ -54,7 +55,7 @@ Item {
             implicitHeight: theme.tabBarHeight
             color: theme.chromeBg
 
-            // Bottom separator (下边框 theme.separator).
+            // 底部分割线（下边框 theme.separator）。
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
@@ -88,15 +89,14 @@ Item {
                                 required property string title
                                 required property string url
                                 required property string state
-                                // Required properties match model roles BY
-                                // NAME, so this must stay `color`
-                                // (WebTabsModel::ColorRole). The delegate
-                                // root is therefore an Item, not a Rectangle:
-                                // on a Rectangle this property would shadow
-                                // the visual color, the theme binding below
-                                // would land on the string, and the tab body
-                                // would paint default-white (same pattern as
-                                // AgentCard's root Item + inner Rectangle).
+                                // required property 按「属性名 = role 名」
+                                // 匹配，所以这里必须叫 `color`
+                                // （WebTabsModel::ColorRole）。delegate
+                                // 根也因此必须是 Item 而不是 Rectangle：
+                                // 在 Rectangle 上这个属性会遮蔽视觉 color，
+                                // 下面的主题绑定落到字符串上，标签体就
+                                // 永远画成默认白色（与 AgentCard 的
+                                // 根 Item + 内层 Rectangle 同一模式）。
                                 required property string color
                                 required property string iconSource
                                 required property int loadProgress
@@ -119,7 +119,7 @@ Item {
                                                      : theme.tabInactiveBg)
                                 }
 
-                                // Active tab: 2px accent bar on top.
+                                // 活动标签：顶部的 2px accent 指示条。
                                 Rectangle {
                                     visible: tabButton.active
                                     anchors.top: parent.top
@@ -129,17 +129,16 @@ Item {
                                     color: theme.accent
                                 }
 
-                                // Declared BEFORE the content row: the
-                                // close × (inside the row) must sit ABOVE
-                                // this full-size MouseArea, or every click
-                                // on it merely activated the tab.
+                                // 声明在内容行之前：关闭 ×（行内）必须压在
+                                // 这个整块 MouseArea 之上，否则点它只会
+                                // 激活标签。
                                 MouseArea {
                                     id: tabMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    // Middle click must be ACCEPTED, or the
-                                    // button never reaches the handlers.
+                                    // 中键必须 ACCEPT，否则按钮收不到
+                                    // 后续处理器。
                                     acceptedButtons: Qt.LeftButton
                                                      | Qt.MiddleButton
                                     onClicked: function(mouse) {
@@ -164,8 +163,8 @@ Item {
                                     anchors.rightMargin: theme.spacingS
                                     spacing: theme.spacingXs
 
-                                    // Status dot (never color-only: the tab
-                                    // tooltip carries the text state).
+                                    // 状态点（永远不只靠颜色：标签的
+                                    // tooltip 承载文字状态）。
                                     AStatusDot {
                                         diameter: 8
                                         on: state !== "offline"
@@ -179,8 +178,8 @@ Item {
                                         }
                                     }
 
-                                    // Tab icon, 16px: the agent
-                                    // icon, falling back to web.svg.
+                                    // 标签图标 16px：agent 图标，
+                                    // 回退 web.svg。
                                     Image {
                                         width: 16
                                         height: 16
@@ -202,7 +201,7 @@ Item {
                                         elide: Text.ElideMiddle
                                     }
 
-                                    // Busy indicator while loading.
+                                    // 加载中的忙碌指示。
                                     BusyIndicator {
                                         visible: state === "loading"
                                         running: visible
@@ -230,7 +229,7 @@ Item {
                                     }
                                 }
 
-                                // Load progress line at the bar bottom.
+                                // 栏底的加载进度线。
                                 Rectangle {
                                     visible: state === "loading"
                                     anchors.bottom: parent.bottom
@@ -250,23 +249,22 @@ Item {
                                                 : state === "error"
                                                   ? qsTr("Failed to load the page")
                                                   : title
-                                // The shared tooltip outlives this delegate:
-                                // hide it when the tab row (and its hover
-                                // source) goes away, or it stays on screen.
+                                // 共享 tooltip 比这个 delegate 长命：
+                                // 标签行（及其悬停源）消失时要隐藏它，
+                                // 否则它会一直留在屏幕上。
                                 Component.onDestruction: ToolTip.hide()
                             }
                         }
                     }
                 }
 
-                // --- Toolbar (acts on the active tab) -----------
+                // --- 工具栏（作用于活动标签）------------------------------
                 Row {
                     spacing: theme.spacingXs
                     rightPadding: theme.spacingS
 
-                    // Home: back to the agent list (the no-tabs page)
-                    // without closing anything. Disabled when there is
-                    // nothing to come back from — the list is already up.
+                    // 首页：回到 agent 列表（无标签页）而不关闭任何
+                    // 标签。没有可回的地方（列表已在眼前）时禁用。
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: "qrc:/icons/home.svg"
@@ -275,8 +273,7 @@ Item {
                         onClicked: page.homeActive = true
                     }
 
-                    // ⟳ reload / ✕ stop — the button follows the active
-                    // tab's state.
+                    // ⟳ 重载 / ✕ 停止加载——按钮跟随活动标签的状态切换。
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: web.activeState === "loading"
@@ -295,8 +292,7 @@ Item {
                             }
                         }
                     }
-                    // "Open in browser" stays visible at all times — the
-                    // escape hatch must never be hidden.
+                    // 「在浏览器打开」任何时刻都可见——逃生口永远不能藏。
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         iconSource: "qrc:/icons/external-link.svg"
@@ -304,9 +300,9 @@ Item {
                         enabled: web.activeTabId.length > 0
                         onClicked: web.openExternal(web.activeTabId)
                     }
-                    // Qt Quick Controls 2 has no MenuButton type (it was a
-                    // Qt 5 Controls 1 thing) — an icon button popping the
-                    // menu is the supported shape.
+                    // Qt Quick Controls 2 没有 MenuButton 类型（那是
+                    // Qt 5 Controls 1 的东西）——图标按钮弹菜单是受支持
+                    // 的形态。
                     AIconButton {
                         anchors.verticalCenter: parent.verticalCenter
                         enabled: web.activeTabId.length > 0
@@ -357,19 +353,19 @@ Item {
             }
         }
 
-        // --- Body: one surface per tab ------------------------------------
+        // --- 主体：每个标签一个 surface ----------------------------------------
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Running agents with one-click open (the empty state — and,
-            // via homeActive, the home view over open tabs; the surfaces
-            // bind their visibility to this item being hidden).
+            // 运行中 agent 的一键打开列表（空状态；homeActive 时也作为
+            // 已开标签之上的首页视图——surface 把自身可见性绑到本项
+            // 隐藏上）。
             AEmptyState {
                 id: emptyState
                 anchors.fill: parent
-                // tabCount is NOTifiable; rowCount() has no notify signal,
-                // so a binding to it never re-evaluated after the first tab.
+                // tabCount 带 NOTIFY；rowCount() 没有通知信号，绑定
+                // 它在第一个标签之后就永不重算。
                 visible: web.tabCount === 0 || page.homeActive
                 iconSource: "qrc:/icons/web.svg"
                 title: page.homeActive ? qsTr("Home")
@@ -381,8 +377,7 @@ Item {
                 onActionClicked: workbench.showPage("agents")
 
                 extra: [
-                    // Bounded-height scroll so a long running list cannot
-                    // push the action button out of the page.
+                    // 高度封顶的滚动：长运行列表不会把动作按钮顶出页面。
                     Flickable {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.min(contentHeight, 320)
@@ -402,11 +397,10 @@ Item {
                                 delegate: AListRow {
                                     Layout.fillWidth: true
                                     visible: model.running
-                                    // No manual height here: the layout
-                                    // sizes rows off AListRow's
-                                    // implicitHeight (48) and skips hidden
-                                    // rows entirely, which keeps the
-                                    // Flickable's contentHeight truthful.
+                                    // 这里不手写高度：布局按 AListRow 的
+                                    // implicitHeight（48）给行定尺寸并跳过
+                                    // 隐藏行，Flickable 的 contentHeight
+                                    // 因此保持真实。
                                     onVisibleChanged: Qt.callLater(page.recountRunning)
 
                                     AgentAvatar {
@@ -455,8 +449,8 @@ Item {
                 ]
             }
 
-            // Surfaces: every tab keeps its place; released views are
-            // destroyed (Loader inactive), frozen views stay in memory.
+            // surface：每个标签保留自己的位置；released 的视图销毁
+            // （Loader inactive），frozen 的视图留在内存。
             Repeater {
                 model: web.model
                 delegate: Item {
@@ -471,7 +465,7 @@ Item {
                     visible: web.activeTabId === tabId
                              && emptyState.visible === false
 
-                    // Released: grey placeholder until restored.
+                    // released 态：灰占位，直到恢复。
                     Rectangle {
                         anchors.fill: parent
                         visible: tabHost.state === "released"
@@ -508,9 +502,8 @@ Item {
                                 function(active) {
                                     page.chromeHidden = active
                                 })
-                            // Entries are overwritten on reload; stale ones
-                            // for closed tabs are never consulted (the menu
-                            // only reads the active tab's fresh item).
+                            // 重载时条目会被覆盖；已关标签的陈旧条目
+                            // 不会被查询（菜单只读活动标签的新条目）。
                             page.surfaceItems[tabHost.tabId] = item
                         }
                     }
@@ -519,8 +512,10 @@ Item {
         }
     }
 
-    // --- Shortcuts (ApplicationShortcut so Chromium never eats
-    // them) ---------------------------------------------------------------
+    // --- 快捷键（用 ApplicationShortcut，Chromium 才不会吃掉）--------------
+    // 全部门控在 pageCurrent（本页是当前页）上——本页常驻，见 pageCurrent
+    // 属性的说明。
+    // 活动标签的缩放步进（0.5..2.0 钳制）。
     function stepZoom(delta) {
         const id = web.activeTabId
         if (id.length === 0)
@@ -579,7 +574,7 @@ Item {
         enabled: page.pageCurrent && web.activeTabId.length > 0
         onActivated: web.setTabZoom(web.activeTabId, 1.0)
     }
-    // F12 opens devtools — Debug builds only.
+    // F12 打开 devtools——仅 Debug 构建。
     Shortcut {
         sequence: "F12"
         context: Qt.ApplicationShortcut

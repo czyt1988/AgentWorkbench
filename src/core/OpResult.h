@@ -6,10 +6,9 @@
 
 namespace awb::core {
 
-// Result of a fallible synchronous operation. Crossing a module boundary
-// never throws — a failure travels as { ok = false, error = <readable
-// reason> }. Q_GADGET so QML can read `.ok` and
-// `.error` off Q_INVOKABLE results (e.g. UiServices::copyText).
+/// 可失败同步操作的结果：跨模块边界不抛异常，失败以 { ok = false, error = ... } 传递。
+///
+/// Q_GADGET 让 QML 能直接读 Q_INVOKABLE 返回值的 .ok 与 .error（如 UiServices::copyText）。
 struct OpResult
 {
     Q_GADGET
@@ -17,12 +16,16 @@ struct OpResult
     Q_PROPERTY(QString error MEMBER error)
 
 public:
-    bool ok = true;
-    QString error;
+    bool ok = true;    ///< 操作是否成功
+    QString error;     ///< 失败原因（可直接展示给用户，英文 tr() 源串）
 
+    // 构造一个成功结果
     static OpResult success();
+
+    // 构造一个带失败原因的失败结果
     static OpResult failure(const QString &error);
 
+    // 等同于 ok，允许 `if (result)` 式判断
     explicit operator bool() const { return ok; }
 };
 

@@ -27,20 +27,19 @@ using awb::skillcatalog::SkillRoot;
 using awb::skillcatalog::SkillScanTask;
 using awb::skillcatalog::SkillScanner;
 
-// Covers multi-root scanning, plugin multi-version dedup, a
-// missing root never failing the scan, and the JSON cache round trip.
-// Uses fixed text samples in temp dirs — never the machine's real skill
-// directories.
+/// 测 skillcatalog 的扫描链路：多根扫描、插件多版本去重、缺失根不拖挂扫描、
+/// JSON 缓存往返，以及 SkillModel 的过滤与排序。固定文本样本放在临时目录里
+/// ——绝不碰本机真实的 skill 目录。
 class TestSkillScanner : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
-        // A previous run's testMaxDepth file would otherwise leak in and
-        // cap the depth of every later test.
+        // 上一次运行留下的 testMaxDepth 文件否则会漏进来，
+        // 把之后每个用例的深度都封顶。
         QFile::remove(Settings::settingsFilePath());
         QFile::remove(SkillCache::filePath());
     }
@@ -53,7 +52,7 @@ private slots:
                    "---\nname: one\ndescription: First skill\n---\nbody");
         writeSkill(tmp.path() + QStringLiteral("/roots/a/nested/skill-two"),
                    "---\ndescription: Second skill\n---\nbody");
-        // A directory without SKILL.md is not a skill; its child still is.
+        // 没有 SKILL.md 的目录不是 skill；它的子目录仍然是。
         writeSkill(tmp.path() + QStringLiteral("/roots/a/not-a-skill/deep/skill-three"),
                    "---\nname: three\n---\nbody");
 
@@ -64,19 +63,19 @@ private slots:
 
         QVERIFY(scanAndWait(&scanner));
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         QVERIFY(names.contains(QStringLiteral("one")));
         QVERIFY(names.contains(QStringLiteral("three")));
 
-        // name falls back to the directory name.
+        // name 回退为目录名。
         QVERIFY(names.contains(QStringLiteral("skill-two")));
         QCOMPARE(scanner.lastStats().rootsScanned, 1);
         QCOMPARE(scanner.lastStats().skillCount, 3);
     }
 
-    // Multiple versions of the same plugin in the cache: only the highest
-    // survives; unrelated plugins are untouched.
+    // 缓存里同一插件的多个版本：只有最高版活下来；无关插件不受影响。
     void testPluginVersionDedup()
     {
         QTemporaryDir tmp;
@@ -107,25 +106,25 @@ private slots:
         QStringList versions;
         int browserUse = 0;
         for (const SkillDefinition &skill : scanner.definitions()) {
-            if (skill.pluginId == QLatin1String("browser-use")) {
+            if (skill.pluginId == QStringLiteral("browser-use")) {
                 ++browserUse;
                 versions.append(skill.pluginVersion);
             }
         }
         QCOMPARE(browserUse, 1);
         QCOMPARE(versions, QStringList{QStringLiteral("0.5.1")});
-        // The other plugin survives.
+        // 另一个插件安然无恙。
         bool docxFound = false;
         for (const SkillDefinition &skill : scanner.definitions()) {
-            if (skill.pluginId == QLatin1String("docx"))
+            if (skill.pluginId == QStringLiteral("docx")) {
                 docxFound = true;
+            }
         }
         QVERIFY(docxFound);
     }
 
-    // One plugin ships SEVERAL skills: the dedup key includes the skill
-    // name, so a second skill is not mistaken for a version-duplicate of
-    // the first (review regression: only 1 of 2 skills survived).
+    // 一个插件带好几个 skill：去重键包含 skill 名，第二个 skill 不会被误判
+    // 为第一个的版本重复（评审回归：2 个 skill 只活下来 1 个）。
     void testMultiSkillPluginKeepsAllSkills()
     {
         QTemporaryDir tmp;
@@ -135,7 +134,7 @@ private slots:
                    "---\nname: alpha\n---\nx");
         writeSkill(cache + QStringLiteral("/bundle/0.5.1/skills/beta"),
                    "---\nname: beta\n---\ny");
-        // Older copy of the same bundle: its two skills must drop.
+        // 同一 bundle 的旧拷贝：它的两个 skill 必须被丢弃。
         writeSkill(cache + QStringLiteral("/bundle/0.4.0/skills/alpha"),
                    "---\nname: alpha\n---\nx");
         writeSkill(cache + QStringLiteral("/bundle/0.4.0/skills/beta"),
@@ -153,17 +152,18 @@ private slots:
         SkillScanner scanner(&settings);
         QVERIFY(scanAndWait(&scanner));
 
-        // Both 0.5.1 skills survive; the two 0.4.0 copies drop.
+        // 0.5.1 的两个 skill 都活下来；0.4.0 的两份拷贝被丢弃。
         QCOMPARE(scanner.lastStats().duplicatesDropped, 2);
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         std::sort(names.begin(), names.end());
         QCOMPARE(names, QStringList({QStringLiteral("alpha"),
                                      QStringLiteral("beta")}));
     }
 
-    // A missing root is skipped with a warning — the scan still succeeds.
+    // 缺失的根被跳过并告警——扫描仍然成功。
     void testMissingRootIsSkipped()
     {
         QTemporaryDir tmp;
@@ -183,7 +183,7 @@ private slots:
         QVERIFY(scanner.lastStats().skippedRoots.contains(QStringLiteral("missing")));
     }
 
-    // maxDepth caps the walk (default 6; configured here to 1).
+    // maxDepth 封顶遍历深度（默认 6；这里配成 1）。
     void testMaxDepth()
     {
         QTemporaryDir tmp;
@@ -193,8 +193,8 @@ private slots:
         writeSkill(tmp.path() + QStringLiteral("/r/a/b/deep"),
                    "---\nname: deep\n---\nx");
 
-        // The settings file must exist BEFORE the Settings instance reads
-        // it — load() runs in the constructor.
+        // settings 文件必须在 Settings 实例读它之前就位——load() 在构造
+        // 函数里就跑。
         QJsonObject skills;
         skills[QStringLiteral("maxDepth")] = 1;
         QJsonObject json;
@@ -213,14 +213,15 @@ private slots:
         SkillScanner scanner(&settings);
         QVERIFY(scanAndWait(&scanner));
         QStringList names;
-        for (const SkillDefinition &skill : scanner.definitions())
+        for (const SkillDefinition &skill : scanner.definitions()) {
             names.append(skill.name);
+        }
         QVERIFY(names.contains(QStringLiteral("shallow")));
         QVERIFY(!names.contains(QStringLiteral("deep")));
     }
 
-    // A refresh() while a scan is in flight is ignored (debounce): exactly
-    // one scanFinished arrives for two immediate refresh() calls.
+    // 扫描在途中时再来一次 refresh() 被忽略（防抖）：两次紧挨着的 refresh()
+    // 只等来恰好一次 scanFinished。
     void testRefreshWhileScanningIsIgnored()
     {
         QTemporaryDir tmp;
@@ -236,15 +237,14 @@ private slots:
         QSignalSpy finished(&scanner, &SkillScanner::scanFinished);
         scanner.refresh();
         QVERIFY(scanner.scanning());
-        scanner.refresh(); // in flight — must be a no-op
+        scanner.refresh(); // 在途中——必须是 no-op
         QVERIFY(waitForScan(&scanner));
         QCOMPARE(finished.count(), 1);
         QVERIFY(!scanner.scanning());
     }
 
-    // The JSON cache round trip: save() then load() returns the same
-    // definitions (every serialized field), and a broken file degrades to
-    // an invalid snapshot instead of failing.
+    // JSON 缓存往返：save() 之后 load() 拿回相同的定义（每个序列化字段），
+    // 坏文件降级为无效快照而不是报错。
     void testCacheRoundTrip()
     {
         QList<SkillDefinition> saved;
@@ -304,21 +304,20 @@ private slots:
         QCOMPARE(snapshot.stats.skippedRoots,
                  QStringList{QStringLiteral("gone")});
 
-        // A corrupted cache file degrades to an invalid snapshot (the
-        // startup scan rebuilds it) — never an error path.
+        // 损坏的缓存文件降级为无效快照（启动扫描会重建它）——绝不走报错路径。
         QFile f(SkillCache::filePath());
         QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
         f.write("not json {");
         f.close();
         QVERIFY(!SkillCache::load().isValid());
 
-        // A missing file is the first-start path, also invalid.
+        // 文件缺失是首次启动的路径，同样返回无效。
         QVERIFY(QFile::remove(SkillCache::filePath()));
         QVERIFY(!SkillCache::load().isValid());
     }
 
-    // adoptResults (startup cache restore) lands through the same
-    // scanFinished path but must NOT look like a scan: scanning stays false.
+    // adoptResults（启动时的缓存恢复）走同一条 scanFinished 路径，但绝不
+    // 能看起来像一次扫描：scanning 保持 false。
     void testAdoptResultsDoesNotFlipScanning()
     {
         Settings settings;
@@ -343,7 +342,7 @@ private slots:
         QCOMPARE(scanner.lastStats().skillCount, 1);
     }
 
-    // Filtering: search + kind facets + sort on the model.
+    // 过滤：搜索 + kind 分面 + 模型上的排序。
     void testModelFilterAndSort()
     {
         QList<SkillDefinition> skills;
@@ -371,20 +370,35 @@ private slots:
     }
 
 private:
-    // 触发一次扫描并等它在 worker 线程上完成（泵事件循环；超时 5 s，
-    // 测试不挂死）。
+    /**
+     * @brief 触发一次扫描并等它在 worker 线程上完成
+     *
+     * 泵事件循环；超时 5 s，测试不挂死。
+     *
+     * @param scanner 待驱动的扫描器
+     * @param timeoutMs 最长等待毫秒数
+     * @return 超时时间内扫描是否结束
+     */
     static bool scanAndWait(SkillScanner *scanner, int timeoutMs = 5000)
     {
         scanner->refresh();
         return waitForScan(scanner, timeoutMs);
     }
 
-    // 等一个进行中的扫描完成（不触发；防抖用例在两次 refresh() 之间
-    // 依赖它只等不发）。
+    /**
+     * @brief 等一个进行中的扫描完成（不触发）
+     *
+     * 防抖用例在两次 refresh() 之间依赖它只等不发。
+     *
+     * @param scanner 正在扫描的扫描器
+     * @param timeoutMs 最长等待毫秒数
+     * @return 超时时间内扫描是否结束；本来就没在扫时恒为 true
+     */
     static bool waitForScan(SkillScanner *scanner, int timeoutMs = 5000)
     {
-        if (!scanner->scanning())
+        if (!scanner->scanning()) {
             return true;
+        }
         QEventLoop loop;
         QTimer timer;
         timer.setSingleShot(true);
@@ -397,6 +411,12 @@ private:
         return !scanner->scanning();
     }
 
+    /**
+     * @brief 在指定目录下造一个带 frontmatter 的 SKILL.md
+     *
+     * @param dir skill 目录（不存在会先创建）
+     * @param front SKILL.md 的完整内容（末尾自动补一个换行）
+     */
     static void writeSkill(const QString &dir, const QByteArray &front)
     {
         QDir().mkpath(dir);
@@ -406,6 +426,14 @@ private:
         f.write("\n");
     }
 
+    /**
+     * @brief 构造一个最小可用的扫描根
+     *
+     * @param id 根 id（同时充当 label）
+     * @param path 根路径（原样写入，不展开）
+     * @param kind 根类型（custom 等）
+     * @return 填好基本字段的 SkillRoot
+     */
     static SkillRoot makeRoot(const QString &id, const QString &path,
                               const QString &kind)
     {
@@ -417,6 +445,12 @@ private:
         return root;
     }
 
+    /**
+     * @brief 把扫描根列表写进 Settings
+     *
+     * @param settings 目标 Settings 实例
+     * @param roots 要生效的根列表
+     */
     static void setRoots(Settings *settings, const QList<SkillRoot> &roots)
     {
         QJsonArray array;
@@ -432,6 +466,13 @@ private:
         settings->setSkillRoots(array);
     }
 
+    /**
+     * @brief 用给定根对象覆盖当前的 settings.json
+     *
+     * 用于「Settings 构造时就得读到文件内容」的用例（如 maxDepth）。
+     *
+     * @param json 完整的 settings.json 根对象
+     */
     static void writeSettings(const QJsonObject &json)
     {
         QDir().mkpath(QFileInfo(Settings::settingsFilePath()).absolutePath());
@@ -440,6 +481,14 @@ private:
         f.write(QJsonDocument(json).toJson());
     }
 
+    /**
+     * @brief 构造一个仅含名字、类型与路径的 skill 定义
+     *
+     * @param name skill 名
+     * @param kind 类型（custom 等）
+     * @param dirName 目录名（拼进 /x/<dirName> 的路径）
+     * @return 可塞进 SkillModel 的最小 SkillDefinition
+     */
     static SkillDefinition makeSkill(const QString &name, const QString &kind,
                                      const QString &dirName)
     {

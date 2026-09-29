@@ -15,13 +15,13 @@ using awb::core::Settings;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
 
-// Theme::family 的优先级（设置覆盖 → 主题 JSON → 空串）与运行时切换
-// （setFontFamily 写设置、changed 信号驱动 QML 令牌重绑）。
+/// 测 theme::Theme::family 的优先级（设置覆盖 → 主题 JSON → 空串）与运行时
+/// 切换（setFontFamily 写设置、changed 信号驱动 QML 令牌重绑）。
 class TestThemeFontFamily : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);

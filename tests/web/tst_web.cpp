@@ -11,14 +11,15 @@ using awb::web::WebTab;
 using awb::web::WebTabsFacade;
 using awb::web::WebTabsModel;
 
-// Web tabs without Qt WebEngine: the embedded surface is registered
-// manually so openTab() takes the tab path instead of the external
-// fallback (tst_web runs in any configuration).
+/// 测 web 模块的 Web 标签页（不带 Qt WebEngine）：内嵌表面手工注册，让
+/// openTab() 走标签路径而不是外置浏览器回退（tst_web 在任何配置下都能跑）。
+/// 覆盖同 agent 复用标签、关标签不动进程、离线/在线状态迁移、表面解析、
+/// Ctrl+Tab 循环、活动标签的行偏移回归、LRU 释放与会话 URL 重定向。
 class TestWebTabs : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void init()
     {
         QStandardPaths::setTestModeEnabled(true);
@@ -40,15 +41,14 @@ private slots:
         QVERIFY(!first.isEmpty());
         QCOMPARE(web.tabs()->rowCount(), 1);
 
-        // Opening the same agent again activates the existing tab.
+        // 再开同一个 agent 激活既有标签。
         const QString second = web.openTab(fields);
         QCOMPARE(second, first);
         QCOMPARE(web.tabs()->rowCount(), 1);
         QCOMPARE(web.activeTabId(), first);
     }
 
-    // Closing drops the tab only — nothing about the agent process is
-    // touched (the launcher keeps its own PID bookkeeping).
+    // 关闭只丢标签本身——agent 进程毫发无损（启动器有自己的 PID 簿记）。
     void testCloseKeepsProcessAlone()
     {
         Settings settings;
@@ -64,10 +64,10 @@ private slots:
         web.closeTab(id);
         QCOMPARE(web.tabs()->rowCount(), 0);
         QVERIFY(web.activeTabId().isEmpty());
-        web.closeTab(QStringLiteral("missing")); // no crash
+        web.closeTab(QStringLiteral("missing")); // 不崩溃
     }
 
-    // The offline/online cross-domain rules.
+    // 离线/在线的跨域规则。
     void testOfflineOnlineTransitions()
     {
         Settings settings;
@@ -85,37 +85,36 @@ private slots:
         web.markOfflineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("offline"));
 
-        // Agent back -> loading (the surface reloads).
+        // agent 回来 → loading（表面重载）。
         web.markOnlineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("loading"));
 
-        // An error tab with the agent STILL up (e.g. HTTP 401 from a token
-        // gate) is NOT auto-reloaded — that was an endless 3s retry loop.
+        // agent 仍在线时的 error 标签（如 token 门禁返回 HTTP 401）不被
+        // 自动重载——那曾是一个每 3 秒重试的死循环。
         web.setTabState(id, QStringLiteral("error"));
         web.markOnlineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("error"));
 
-        // An error observed while the agent is down becomes offline, so the
-        // normal recovery path (agent back -> loading) still works.
+        // agent 掉线期间观察到的 error 变成 offline，正常的恢复路径
+        // （agent 回来 → loading）因此依然可用。
         web.setTabState(id, QStringLiteral("error"));
         web.markOfflineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("offline"));
         web.markOnlineForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(tab->state(), QStringLiteral("loading"));
 
-        // Offline again, then deleted -> the tab is closed entirely.
+        // 再次离线，然后删除 → 标签整个关掉。
         web.setTabState(id, QStringLiteral("ready"));
         web.markOfflineForAgent(QStringLiteral("kimi-code"));
         web.closeTabsForAgent(QStringLiteral("kimi-code"));
         QCOMPARE(web.tabs()->rowCount(), 0);
 
-        // Unknown agent: no-ops.
+        // 未知 agent：no-op。
         web.markOfflineForAgent(QStringLiteral("ghost"));
         web.markOnlineForAgent(QStringLiteral("ghost"));
     }
 
-    // Surface resolution: registered kinds resolve, unknown kinds
-    // come back empty, `external` always exists.
+    // 表面解析：注册过的类型能解析，未知类型返回空，`external` 永远存在。
     void testSurfaceUrlResolution()
     {
         Settings settings;
@@ -130,7 +129,7 @@ private slots:
         QVERIFY(web.engineAvailable());
     }
 
-    // Ctrl+Tab cycling wraps around and tracks the active id.
+    // Ctrl+Tab 循环换到头会回绕，并跟踪活动 id。
     void testStepActiveTab()
     {
         Settings settings;
@@ -138,7 +137,7 @@ private slots:
         web.registerSurface(QStringLiteral("embedded"),
                             QStringLiteral("qrc:/fake/Surface.qml"));
 
-        web.stepActiveTab(1); // no tabs yet: no-op
+        web.stepActiveTab(1); // 还没有标签：no-op
         QVERIFY(web.activeTabId().isEmpty());
 
         QVariantMap a;
@@ -153,13 +152,13 @@ private slots:
         QCOMPARE(web.activeTabId(), idB);
 
         web.stepActiveTab(1);
-        QCOMPARE(web.activeTabId(), idA); // wrapped
+        QCOMPARE(web.activeTabId(), idA); // 回绕了
         web.stepActiveTab(-1);
         QCOMPARE(web.activeTabId(), idB);
     }
 
-    // Closing a tab LEFT of the active one keeps the active tab pointing at
-    // the same tab (rows shift down) — the review's activeIndex regression.
+    // 关掉活动标签左侧的标签时，活动标签仍指向同一个标签（行号整体下移）
+    // ——评审发现的 activeIndex 回归。
     void testCloseLeftOfActiveKeepsActiveTab()
     {
         Settings settings;
@@ -175,22 +174,21 @@ private slots:
                 QStringLiteral("http://127.0.0.1:%1").arg(6000 + i);
             ids.append(web.openTab(fields));
         }
-        // The last opened tab is active.
+        // 最后打开的标签是活动标签。
         QCOMPARE(web.activeTabId(), ids.at(2));
 
-        // Close the FIRST tab: the active one must stay ids[2], not slip
-        // onto a neighbour.
+        // 关掉第一个标签：活动标签必须仍是 ids[2]，不能滑到邻居身上。
         web.closeTab(ids.at(0));
         QCOMPARE(web.tabs()->rowCount(), 2);
         QCOMPARE(web.activeTabId(), ids.at(2));
 
-        // Closing the active tab itself activates its right neighbour.
+        // 关掉活动标签本身则激活它右侧的邻居。
         web.closeTab(ids.at(2));
         QCOMPARE(web.activeTabId(), ids.at(1));
     }
 
-    // Past maxLiveTabs the least recently used inactive view is released
-    // (tab kept, state "released").
+    // 超过 maxLiveTabs 后最久未用的非活动视图被释放（标签保留，状态
+    // "released"）。
     void testLruRelease()
     {
         Settings settings;
@@ -209,21 +207,22 @@ private slots:
         QCOMPARE(web.tabs()->rowCount(), 10);
 
         int released = 0;
-        for (const QString &id : ids) {
-            if (web.tabs()->tabById(id)->state() == QLatin1String("released"))
+        for (const QString &id : std::as_const(ids)) {
+            if (web.tabs()->tabById(id)->state() == QStringLiteral("released")) {
                 ++released;
+            }
         }
-        // Default maxLiveTabs = 8: 10 tabs, the newest is active, the
-        // oldest inactive ones got released.
+        // 默认 maxLiveTabs = 8：10 个标签里最新的那个是活动的，
+        // 最老的非活动标签被释放了。
         QVERIFY(released >= 1);
-        // The active tab is never released.
+        // 活动标签绝不释放。
         QVERIFY(web.tabs()->tabById(web.activeTabId())->state()
-                != QLatin1String("released"));
+                != QStringLiteral("released"));
 
-        // Reopen restores the view.
+        // 重新打开恢复视图。
         QString releasedId;
         for (const QString &id : ids) {
-            if (web.tabs()->tabById(id)->state() == QLatin1String("released")) {
+            if (web.tabs()->tabById(id)->state() == QStringLiteral("released")) {
                 releasedId = id;
                 break;
             }
@@ -234,9 +233,8 @@ private slots:
                  QStringLiteral("loading"));
     }
 
-    // A captured session URL (dsh's per-process token) retargets an open
-    // tab: URL swap, error cleared, view reloads. Unknown agents and empty
-    // URLs are no-ops.
+    // 捕获到的会话 URL（dsh 的每进程 token）重定向已开的标签：换 URL、清
+    // error、视图重载。未知 agent 与空 URL 是 no-op。
     void testRetargetTabForAgent()
     {
         Settings settings;
@@ -261,7 +259,7 @@ private slots:
         QCOMPARE(tab->state(), QStringLiteral("loading"));
         QVERIFY(tab->lastError().isEmpty());
 
-        // No tab for the agent / invalid URL: nothing happens.
+        // 该 agent 没有标签 / URL 无效：什么都不发生。
         web.retargetTabForAgent(QStringLiteral("ghost"),
                                 QUrl(QStringLiteral("http://127.0.0.1:1")));
         web.retargetTabForAgent(QStringLiteral("dsh"), QUrl());
@@ -272,3 +270,4 @@ private slots:
 
 QTEST_MAIN(TestWebTabs)
 #include "tst_web.moc"
+#include <utility>

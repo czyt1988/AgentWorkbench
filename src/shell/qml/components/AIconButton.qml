@@ -1,19 +1,22 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Icon-only button: 28px (large 44), hover fill derived
-// from the icon color, tooltip required.
+// 纯图标按钮：常规 28px（large 44px），悬停填充色由图标色派生，tooltip
+// 必填——图标本身不表意，文字说明不能省。导航场景用 active 表示当前
+// 目的地（侧栏钉底的系统图标即此用法）。
 Button {
     id: control
 
+    // 图标 URL。
     property string iconSource: ""
+    // 悬停提示文字（必填约定，空串则不显示 tooltip）。
     property string tooltip: ""
-    // "large" grows to 44 for floating action buttons.
+    // "large" 撑到 44px，用于悬浮动作按钮。
     property string size: "normal"
-    // Navigation state: fills the button like an active sidebar row when
-    // it represents the current destination (footer system icons).
+    // 导航态：为真时像侧栏当前行一样填充按钮背景，用于表示
+    // 「当前目的地」（footer 的系统区图标）。
     property bool active: false
 
     implicitWidth: size === "large" ? 44 : 28
@@ -31,7 +34,7 @@ Button {
                             : (control.active ? theme.surfaceBg
                              : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
                                                 : "transparent"))
-        // Keyboard focus ring.
+        // 键盘焦点环。
         border.color: control.activeFocus ? theme.focusRing : "transparent"
         border.width: control.activeFocus ? 2 : 0
     }

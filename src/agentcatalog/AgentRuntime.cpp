@@ -25,13 +25,22 @@ namespace awb::agentcatalog {
 
 namespace {
 
-// Session-URL watch budget: 500 ms ticks for 60 s — the dsh log shows ~35 s
-// between launch and the printed URL on a cold boot.
+// 会话 URL 的监视预算：500 ms 一个刻度、共 60 s——dsh 日志显示冷启动时
+// 从 launch 到打印 URL 约 35 s。
 constexpr int kSessionUrlTickMs = 500;
 constexpr int kSessionUrlTicks = 120;
 
-// The operational log for spawned processes ("[cmd] …"), kept identical to
-// 0.3.0 so existing log-parsing expectations hold.
+/**
+ * @brief 拼运行日志的前缀
+ *
+ * 形如 "[cmd] launch \"qwen\": "。与 0.3.0 保持一致，既有的日志解析
+ * 依赖它。
+ *
+ * @param tag       分类标签（"cmd" 或 "app"）
+ * @param operation 操作名（launch、stop…）
+ * @param id        agent id；空串时省去 id 段
+ * @return 可直接拼接消息的前缀
+ */
 QString logPrefix(const QString &tag, const QString &operation, const QString &id)
 {
     return id.isEmpty()
@@ -39,21 +48,49 @@ QString logPrefix(const QString &tag, const QString &operation, const QString &i
                : QStringLiteral("[%1] %2 \"%3\": ").arg(tag, operation, id);
 }
 
+/**
+ * @brief 记一条 [cmd] 级的运行日志
+ *
+ * @param operation 操作名
+ * @param id        agent id
+ * @param message   消息（英文）
+ */
 void cmdLog(const QString &operation, const QString &id, const QString &message)
 {
     qInfo().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
 }
 
+/**
+ * @brief 记一条 [cmd] 级的告警日志
+ *
+ * @param operation 操作名
+ * @param id        agent id
+ * @param message   消息（英文）
+ */
 void cmdLogError(const QString &operation, const QString &id, const QString &message)
 {
     qWarning().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
 }
 
+/**
+ * @brief 记一条 [app] 级的运行日志
+ *
+ * @param operation 操作名
+ * @param id        agent id；空串表示应用级事件
+ * @param message   消息（英文）
+ */
 void appLog(const QString &operation, const QString &id, const QString &message)
 {
     qInfo().noquote() << logPrefix(QStringLiteral("app"), operation, id) + message;
 }
 
+/**
+ * @brief 记一条 [app] 级的告警日志
+ *
+ * @param operation 操作名
+ * @param id        agent id；空串表示应用级事件
+ * @param message   消息（英文）
+ */
 void appLogError(const QString &operation, const QString &id, const QString &message)
 {
     qWarning().noquote() << logPrefix(QStringLiteral("app"), operation, id) + message;
@@ -61,49 +98,66 @@ void appLogError(const QString &operation, const QString &id, const QString &mes
 
 } // namespace
 
+/**
+ * @brief 构造运行器
+ *
+ * @param model  agent 列表来源，launch 状态写回它
+ * @param parent QObject 父项
+ */
 AgentRuntime::AgentRuntime(AgentModel *model, QObject *parent)
     : QObject(parent)
     , m_model(model)
 {
-    // Poll the redirected output for a session URL. 500 ms is gentle on the
-    // disk (a handful of reads per agent launch) while still landing the
-    // retarget well inside the first health check after launch.
+    // 轮询重定向出来的输出找会话 URL。500 ms 对磁盘很温和（每次 launch
+    // 只读几次文件），又能在 launch 后第一次健康检查之前完成换靶。
     m_sessionUrlTimer.setInterval(kSessionUrlTickMs);
     m_sessionUrlTimer.setSingleShot(false);
     connect(&m_sessionUrlTimer, &QTimer::timeout, this, [this]() {
         const QList<QString> ids = m_sessionUrlWatch.keys();
-        for (const QString &id : ids)
+        for (const QString &id : ids) {
             watchSessionUrl(id);
+        }
     });
 }
 
+/**
+ * @brief 启动 agent 的进程
+ *
+ * 启动命令按空白拆分、经 PATH 解析（Windows 上含 PATHEXT，找得到 npm
+ * 风格的 .cmd/.bat 垫片），垫片再包一层 cmd /c 执行；stdout+stderr 重定向
+ * 到 <logsDir>/output/<id>.log 供会话 URL 监视。启动成功后卡片进入
+ * "launching" 态，直到健康检查确认起来或 30 s 安全超时清掉（代数防旧
+ * 尝试的超时误清新一次启动）。
+ *
+ * @param definition  agent 定义
+ * @param tokenValue  从 tokenFile 读出的 token；定义未配置 tokenFile 时
+ *                    忽略
+ */
 void AgentRuntime::launch(const AgentDefinition &definition,
                           const QString &tokenValue)
 {
     const QString id = definition.id;
 
-    // A fresh launch clears any install/setup log so the running card isn't
-    // left showing stale console output.
+    // 新一次启动清掉旧的 install/setup 日志，运行中的卡片不能停在
+    // 过时的控制台输出上。
     m_model->setConsoleOutput(id, QString());
 
-    // Split command into program + arguments on whitespace. The portable
-    // ProcessRunner twin is used on both Qt versions (QProcess::splitCommand
-    // itself is Qt 6 only).
+    // 命令按空白拆成程序 + 参数。两个 Qt 版本都走 ProcessRunner 的
+    // 可移植实现（QProcess::splitCommand 只有 Qt 6 才有）。
     const QStringList parts = core::ProcessRunner::splitCommand(definition.command);
     if (parts.isEmpty()) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("skipped, the startup command is empty"));
-        emit launchFailed(id, tr("Startup command is empty."));
+        Q_EMIT launchFailed(id, tr("Startup command is empty."));
         return;
     }
 
     const QString program = parts.first();
     const QStringList args = parts.mid(1);
 
-    // Resolve the bare program through PATH (PATHEXT on Windows) so npm-style
-    // .cmd/.bat shims (e.g. "qwen" -> "qwen.cmd") are found. CreateProcess on
-    // its own does not try those extensions, which is why "qwen serve" failed
-    // silently before.
+    // 裸程序名经 PATH 解析（Windows 上含 PATHEXT），npm 风格的 .cmd/.bat
+    // 垫片（如 "qwen" -> "qwen.cmd"）才找得到。CreateProcess 自己不会
+    // 试这些扩展名——"qwen serve" 之前就是这么静默失败的。
     const QString resolved = core::ProcessRunner::findExecutable(program);
     if (resolved.isEmpty()) {
         const QString msg = tr("Cannot find '%1' on your PATH. "
@@ -113,13 +167,13 @@ void AgentRuntime::launch(const AgentDefinition &definition,
                     QStringLiteral("cannot resolve '%1' on PATH "
                                    "(configured command: %2)")
                         .arg(program, definition.command));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
-    // Build the real command line: a .cmd/.bat shim cannot be executed
-    // directly by CreateProcess, so it is wrapped in cmd.exe (and a /T kill
-    // later covers the whole cmd -> qwen.cmd -> node tree).
+    // 拼出真正执行的命令行：.cmd/.bat 垫片不能被 CreateProcess 直接执行，
+    // 要包一层 cmd.exe（之后 /T 一次 kill 就覆盖整棵 cmd -> qwen.cmd ->
+    // node 进程树）。
     QString execProgram = resolved;
     QStringList execArgs = args;
 #ifdef Q_OS_WIN
@@ -132,22 +186,20 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     const QString cwd =
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
 
-    // The line the log exists for: what is really executed, after PATH
-    // resolution and the cmd.exe wrapping of .cmd/.bat shims.
+    // 日志为这一行而存在：PATH 解析与 cmd.exe 包装之后真正执行的是什么。
     cmdLog(QStringLiteral("launch"), id,
            QStringLiteral("running: %1  (cwd: %2)")
                .arg(core::TextUtils::formatCommandLine(execProgram, execArgs),
                     cwd));
 
-    // If a token file is configured, hand the token to the child as
-    // QWEN_SERVER_TOKEN so the daemon picks up the bearer token without a
-    // complex --token argument on the command line.
+    // 配了 token 文件时把 token 作为 QWEN_SERVER_TOKEN 交给子进程，
+    // 免去命令行上复杂的 --token 参数。
     QProcessEnvironment env;
     if (!definition.tokenFile.isEmpty()) {
         if (!tokenValue.isEmpty()) {
             env = QProcessEnvironment::systemEnvironment();
             env.insert(QStringLiteral("QWEN_SERVER_TOKEN"), tokenValue);
-            // The token value itself never reaches the log.
+            // token 值本身从不进日志。
             cmdLog(QStringLiteral("launch"), id,
                    QStringLiteral("injecting QWEN_SERVER_TOKEN from the "
                                   "configured token file"));
@@ -159,9 +211,9 @@ void AgentRuntime::launch(const AgentDefinition &definition,
 
     qint64 pid = 0;
     QString startError;
-    // Token-gated harnesses print their authenticated URL to stdout. Capture
-    // it into a per-launch log file (the health probe proves the port is up
-    // but the bare webUrl is answered with 401 — only the printed URL works).
+    // 带 token 门禁的 harness 把鉴权 URL 打到 stdout。收进每次 launch
+    // 独立的日志文件（健康探测只能证明端口起来了，裸 webUrl 会被 401
+    // 挡回——只有打印出来的那个 URL 可用）。
     const QString outputDir =
             core::Paths::logsDir() + QStringLiteral("/output");
     QDir().mkpath(outputDir);
@@ -172,7 +224,7 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     if (!ok) {
         cmdLogError(QStringLiteral("launch"), id,
                     QStringLiteral("failed to start: %1").arg(startError));
-        emit launchFailed(id, tr("Failed to start '%1'.").arg(program));
+        Q_EMIT launchFailed(id, tr("Failed to start '%1'.").arg(program));
         return;
     }
 
@@ -180,30 +232,42 @@ void AgentRuntime::launch(const AgentDefinition &definition,
     cmdLog(QStringLiteral("launch"), id,
            QStringLiteral("started, pid %1").arg(pid));
 
-    // Same-server URLs in the output are the session URL (dsh); no match
-    // after a grace period (qwen & co. print none) ends the watch quietly.
+    // 输出里指向同一服务器的 URL 就是会话 URL（dsh）；宽限期后仍无匹配
+    //（qwen 等从不打印）则安静地结束监视。
     if (!definition.webUrl.isEmpty()) {
         m_sessionUrlWatch.insert(id, {definition.webUrl, definition.tokenFile,
                                       kSessionUrlTicks});
-        if (!m_sessionUrlTimer.isActive())
+        if (!m_sessionUrlTimer.isActive()) {
             m_sessionUrlTimer.start();
+        }
     }
 
-    // Mark the card as "launching" so the action button shows a spinner until
-    // the health check confirms the server is up — or a 30s safety timeout
-    // fires in case the agent crashes on boot. The epoch guards against a
-    // stale timeout from an earlier attempt clearing a newer launch.
+    // 把卡片标成 "launching"：操作按钮显示转圈，直到健康检查确认服务
+    // 起来——或者 30 s 安全超时兜底（agent 启动即崩时）。代数用来挡上
+    // 一次尝试的陈旧超时误清新的启动。
     const int epoch = ++m_launchEpoch[id];
     m_model->setLaunching(id, true);
     QTimer::singleShot(30000, this, [this, id, epoch]() {
-        if (m_launchEpoch.value(id) == epoch)
+        if (m_launchEpoch.value(id) == epoch) {
             m_model->setLaunching(id, false);
+        }
     });
 
-    // Re-check shortly so the card flips to running fast.
+    // 稍后复查一次，让卡片尽快翻成运行中。
     QTimer::singleShot(1500, this, &AgentRuntime::recheckRequested);
 }
 
+/**
+ * @brief 结束本次会话中由此启动器启动的进程树
+ *
+ * 只有由本启动器启动的进程才有 PID：健康检查判定为运行中、但并非此处
+ * 启动的 agent 走 stop() 只会收到提示（见 launchFailed 的消息），要用它
+ * 们自己的命令或 forceStop() 停止。
+ *
+ * @param id agent id
+ * @return 成功发起 kill 返回 true；没有记账的 PID 返回 false（同时发
+ *         launchFailed 说明原因）
+ */
 bool AgentRuntime::stop(const QString &id)
 {
     const auto it = m_pids.constFind(id);
@@ -214,14 +278,14 @@ bool AgentRuntime::stop(const QString &id)
         cmdLogError(QStringLiteral("stop"), id,
                     QStringLiteral("no PID tracked in this launcher session, "
                                    "nothing to kill"));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return false;
     }
 
     const qint64 pid = *it;
     m_pids.erase(it);
-    // The per-process token died with the process — the bare webUrl is all
-    // that is left to open until the next launch captures a fresh URL.
+    // 每进程 token 已随进程消亡——下一次 launch 抓到新 URL 之前，
+    // 只剩裸 webUrl 可开。
     dropSessionUrl(id);
 
     const QString killProgram = core::ProcessRunner::killProgram();
@@ -233,33 +297,43 @@ bool AgentRuntime::stop(const QString &id)
     if (!ok) {
         cmdLogError(QStringLiteral("stop"), id,
                     QStringLiteral("failed to kill pid %1").arg(pid));
-        emit launchFailed(id, tr("Failed to stop process (PID %1).")
+        Q_EMIT launchFailed(id, tr("Failed to stop process (PID %1).")
                                   .arg(pid));
     } else {
         cmdLog(QStringLiteral("stop"), id,
                QStringLiteral("killed process tree, pid %1").arg(pid));
     }
 
-    // Re-check so the card flips back to Stopped once the port is down.
+    // 稍后复查，端口下去之后卡片翻回「已停止」。
     QTimer::singleShot(500, this, &AgentRuntime::recheckRequested);
     return ok;
 }
 
+/**
+ * @brief 按端口强制结束占用该 agent web 端口的进程
+ *
+ * 对并非本启动器启动的 agent 也有效（右键菜单的显式动作）：没有 PID 可
+ * 依，就经 netstat/lsof 按端口找。若本启动器同时记着该 agent 的 PID，
+ * 一并清掉，避免之后普通的 stop() 去杀已经死掉的 PID。
+ *
+ * @param id agent id
+ */
 void AgentRuntime::forceStop(const QString &id)
 {
     const int row = m_model->indexOf(id);
-    if (row < 0)
+    if (row < 0) {
         return;
+    }
     const AgentDefinition def = m_model->definitions().at(row);
 
-    // No tracked PID for agents not started here, so target by port instead.
+    // 不是这里启动的没有 PID 记账，改按端口定位。
     const int port = core::HttpProbe::portFromUrl(def.webUrl);
     if (port < 0) {
         const QString msg = tr("Cannot determine port from web URL.");
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("cannot determine a port from web URL '%1'")
                         .arg(def.webUrl));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
@@ -270,13 +344,14 @@ void AgentRuntime::forceStop(const QString &id)
                         "the agent may already be stopped.").arg(port);
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("no process listening on port %1").arg(port));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
         return;
     }
 
     QStringList pidList;
-    for (const qint64 pid : pids)
+    for (const qint64 pid : pids) {
         pidList << QString::number(pid);
+    }
     const QString pidsText = pidList.join(QStringLiteral(", "));
     cmdLog(QStringLiteral("forceStop"), id,
            QStringLiteral("port %1 is held by pid(s) %2").arg(port).arg(pidsText));
@@ -288,12 +363,13 @@ void AgentRuntime::forceStop(const QString &id)
         cmdLog(QStringLiteral("forceStop"), id,
                QStringLiteral("running: %1")
                    .arg(core::TextUtils::formatCommandLine(killProgram, args)));
-        if (core::ProcessRunner::startDetached(killProgram, args))
+        if (core::ProcessRunner::startDetached(killProgram, args)) {
             anyOk = true;
+        }
     }
 
-    // If this launcher also tracked a PID for the agent, drop it so a later
-    // normal stop() doesn't try to kill an already-dead PID.
+    // 本启动器也记着该 agent 的 PID 时一并清掉，之后的普通 stop() 不会
+    // 去杀一个已经死掉的 PID。
     m_pids.remove(id);
     dropSessionUrl(id);
 
@@ -302,22 +378,35 @@ void AgentRuntime::forceStop(const QString &id)
             tr("Failed to stop process (PID %1).").arg(pids.constFirst());
         cmdLogError(QStringLiteral("forceStop"), id,
                     QStringLiteral("failed to kill pid(s) %1").arg(pidsText));
-        emit launchFailed(id, msg);
+        Q_EMIT launchFailed(id, msg);
     } else {
         cmdLog(QStringLiteral("forceStop"), id,
                QStringLiteral("killed the process tree(s) holding port %1")
                    .arg(port));
     }
 
-    // Re-check so the card flips back to Stopped once the port is down.
+    // 稍后复查，端口下去之后卡片翻回「已停止」。
     QTimer::singleShot(500, this, &AgentRuntime::recheckRequested);
 }
 
+/**
+ * @brief 判断本次会话是否启动过 agent
+ *
+ * @return 至少记着一个 PID 时返回 true
+ */
 bool AgentRuntime::hasLaunchedAgents() const
 {
     return !m_pids.isEmpty();
 }
 
+/**
+ * @brief 结束本次会话启动的全部进程
+ *
+ * 退出路径调用。逐个 PID 杀进程树；无论成败都清空全部记账与会话 URL
+ * 监视。
+ *
+ * @return 成功杀掉的进程树数量
+ */
 int AgentRuntime::stopAll()
 {
     const int tracked = m_pids.size();
@@ -325,14 +414,16 @@ int AgentRuntime::stopAll()
     const QString killProgram = core::ProcessRunner::killProgram();
     for (auto it = m_pids.constBegin(); it != m_pids.constEnd(); ++it) {
         const qint64 pid = *it;
-        if (pid == 0)
+        if (pid == 0) {
             continue;
+        }
         const QStringList args = core::ProcessRunner::killProgramArgs(pid);
         cmdLog(QStringLiteral("stopAll"), it.key(),
                QStringLiteral("running: %1")
                    .arg(core::TextUtils::formatCommandLine(killProgram, args)));
-        if (core::ProcessRunner::startDetached(killProgram, args))
+        if (core::ProcessRunner::startDetached(killProgram, args)) {
             ++killed;
+        }
     }
     m_pids.clear();
     m_sessionUrls.clear();
@@ -345,6 +436,14 @@ int AgentRuntime::stopAll()
     return killed;
 }
 
+/**
+ * @brief 忘掉该 id 的全部记账
+ *
+ * agent 从配置里移除时用：清 PID、launch 代数与会话 URL，agent 进程
+ * 本身继续运行。
+ *
+ * @param id agent id
+ */
 void AgentRuntime::forget(const QString &id)
 {
     m_pids.remove(id);
@@ -352,24 +451,43 @@ void AgentRuntime::forget(const QString &id)
     dropSessionUrl(id);
 }
 
+/**
+ * @brief 取为该 agent 抓到的会话 URL
+ *
+ * @param id agent id
+ * @return 已合并 token 的会话 URL；本次会话没抓到（或已随停止丢弃）返回空串
+ */
 QString AgentRuntime::sessionUrl(const QString &id) const
 {
     return m_sessionUrls.value(id);
 }
 
+/**
+ * @brief 轮询一次该 id 的输出日志，尝试抓会话 URL
+ *
+ * 由 m_sessionUrlTimer 每 500 ms 调一次。日志里出现指向 webUrl 同一
+ * 服务器的 URL 即捕获成功：经 AgentUrls::finalUrl 合并 token 后存入
+ * m_sessionUrls 并发 sessionUrlChanged，随后撤销监视。宽限期（剩余
+ * 轮询次数）耗尽则安静放弃——有些 agent 从不打印 URL。
+ *
+ * @param id agent id
+ * @sa AgentUrls::sessionUrlFromOutput
+ */
 void AgentRuntime::watchSessionUrl(const QString &id)
 {
     const auto it = m_sessionUrlWatch.find(id);
-    if (it == m_sessionUrlWatch.end())
+    if (it == m_sessionUrlWatch.end()) {
         return;
+    }
     SessionWatch watch = it.value();
 
     QString text;
     {
         QFile file(core::Paths::logsDir() + QStringLiteral("/output/")
                     + id + QStringLiteral(".log"));
-        if (file.open(QIODevice::ReadOnly))
+        if (file.open(QIODevice::ReadOnly)) {
             text = core::ProcessRunner::decodeOutput(file.readAll());
+        }
     }
 
     const QString captured = AgentUrls::sessionUrlFromOutput(text, watch.webUrl);
@@ -377,33 +495,56 @@ void AgentRuntime::watchSessionUrl(const QString &id)
         const QString url = AgentUrls::finalUrl(captured, watch.tokenFile);
         m_sessionUrls.insert(id, url);
         m_sessionUrlWatch.erase(it);
-        if (m_sessionUrlWatch.isEmpty())
+        if (m_sessionUrlWatch.isEmpty()) {
             m_sessionUrlTimer.stop();
-        // The URL itself never reaches the log — it carries the token.
+        }
+        // URL 本身从不进日志——它带着 token。
         cmdLog(QStringLiteral("session-url"), id,
                QStringLiteral("captured an authenticated URL from the "
                               "agent output"));
-        emit sessionUrlChanged(id, url);
+        Q_EMIT sessionUrlChanged(id, url);
         return;
     }
 
     if (--watch.attemptsLeft <= 0) {
         m_sessionUrlWatch.erase(it);
-        if (m_sessionUrlWatch.isEmpty())
+        if (m_sessionUrlWatch.isEmpty()) {
             m_sessionUrlTimer.stop();
+        }
     } else {
         it.value() = watch;
     }
 }
 
+/**
+ * @brief 丢弃该 id 的会话 URL 与在途监视
+ *
+ * 会话 URL 带着每进程的 token，进程一死 token 就失效，继续用只会得到
+ * 401；监视也一并撤销，最后一个撤销时停掉轮询定时器。
+ *
+ * @param id agent id
+ */
 void AgentRuntime::dropSessionUrl(const QString &id)
 {
     m_sessionUrls.remove(id);
     m_sessionUrlWatch.remove(id);
-    if (m_sessionUrlWatch.isEmpty())
+    if (m_sessionUrlWatch.isEmpty()) {
         m_sessionUrlTimer.stop();
+    }
 }
 
+/**
+ * @brief 找出监听给定 TCP 端口的进程
+ *
+ * Windows 走 netstat -ano -p tcp：一行一个连接（协议、本地地址、外部
+ * 地址、状态、PID），只保留本地地址以 ":<port>" 结尾的 LISTENING 行
+ * ——不碰外部地址列，也避免 ":3000" 误中 ":53000" 这类更长端口（前导
+ * 冒号是分隔符）。其它平台走 lsof -ti :<port>，一行一个 PID。结果按
+ * 出现顺序去重。
+ *
+ * @param port TCP 端口
+ * @return 监听该端口的 PID 列表；命令超时（5 s）或无监听时为空
+ */
 QList<qint64> AgentRuntime::findPidsForPort(int port)
 {
     QList<qint64> pids;
@@ -411,22 +552,19 @@ QList<qint64> AgentRuntime::findPidsForPort(int port)
 
     QProcess proc;
 #ifdef Q_OS_WIN
-    // netstat -ano prints one row per connection: proto local foreign state PID.
-    // Keep only LISTENING rows whose local address ends with ":<port>" — this
-    // avoids matching the foreign-address column and avoids ":3000" hitting a
-    // longer port like ":53000" (the leading colon is a delimiter).
     proc.setProgram(QStringLiteral("cmd"));
     proc.setArguments({QStringLiteral("/c"),
                        QStringLiteral("netstat -ano -p tcp")});
 #else
-    // lsof -ti :<port> prints just the owning PIDs, one per line.
+    // lsof -ti :<port> 只打印持有端口的 PID，一行一个。
     proc.setProgram(QStringLiteral("lsof"));
     proc.setArguments({QStringLiteral("-ti"),
                        QStringLiteral(":%1").arg(port)});
 #endif
     proc.start();
-    if (!proc.waitForFinished(5000))
+    if (!proc.waitForFinished(5000)) {
         return pids;
+    }
 
     const QString output =
         core::ProcessRunner::decodeOutput(proc.readAllStandardOutput());
@@ -435,25 +573,29 @@ QList<qint64> AgentRuntime::findPidsForPort(int port)
 
     for (const QString &line : lines) {
         const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty())
+        if (trimmed.isEmpty()) {
             continue;
+        }
 #ifdef Q_OS_WIN
         const QStringList cols =
             trimmed.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-        if (cols.size() < 5)
+        if (cols.size() < 5) {
             continue;
+        }
         bool isListening = false;
         for (const QString &c : cols) {
-            if (c == QLatin1String("LISTENING")) {
+            if (c == QStringLiteral("LISTENING")) {
                 isListening = true;
                 break;
             }
         }
-        if (!isListening)
+        if (!isListening) {
             continue;
-        // cols[0]=proto, cols[1]=local address, cols[2]=foreign, then state, PID.
-        if (!cols.at(1).endsWith(portSuffix, Qt::CaseInsensitive))
+        }
+        // cols[0]=协议，cols[1]=本地地址，cols[2]=外部地址，其后是状态、PID。
+        if (!cols.at(1).endsWith(portSuffix, Qt::CaseInsensitive)) {
             continue;
+        }
         bool ok = false;
         const qint64 pid = cols.constLast().toLongLong(&ok);
         if (ok && pid > 0 && !seen.contains(pid)) {
