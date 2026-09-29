@@ -197,7 +197,7 @@ Item {
                                              : String(url).replace(/^https?:\/\//, "").replace(/[?#].*$/, "")
                                         color: active ? theme.textPrimary
                                                       : theme.textMuted
-                                        font.pixelSize: theme.fontSizeSmall
+                                        font.pixelSize: theme.fontSizeCaption
                                         elide: Text.ElideMiddle
                                     }
 
@@ -420,7 +420,7 @@ Item {
                                         Label {
                                             text: model.webUrl
                                             color: theme.textMuted
-                                            font.pixelSize: theme.fontSizeSmall
+                                            font.pixelSize: theme.fontSizeCaption
                                             font.family: theme.monoFamily
                                             elide: Text.ElideMiddle
                                             Layout.fillWidth: true
@@ -444,7 +444,7 @@ Item {
                         visible: page.runningCount === 0
                         text: qsTr("No agent is running - start one from the launcher page.")
                         color: theme.textMuted
-                        font.pixelSize: theme.fontSizeSmall
+                        font.pixelSize: theme.fontSizeCaption
                     }
                 ]
             }

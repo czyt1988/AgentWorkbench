@@ -52,7 +52,7 @@ ADialog {
                     text: control.detail
                     color: theme.textSecondary
                     font.family: theme.monoFamily
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                     wrapMode: Text.WrapAnywhere
                     textFormat: Text.PlainText
                 }

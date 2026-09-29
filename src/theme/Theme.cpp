@@ -577,7 +577,7 @@ double Theme::spacingXl() const
 }
 
 /**
- * @brief 取说明文字字号
+ * @brief 取备注文字字号（字号阶梯的第 4 档，最小）
  */
 double Theme::fontSizeCaption() const
 {
@@ -585,15 +585,7 @@ double Theme::fontSizeCaption() const
 }
 
 /**
- * @brief 取小号字号
- */
-double Theme::fontSizeSmall() const
-{
-    return m_current.metrics.value(QStringLiteral("fontSizeSmall"), 0.0);
-}
-
-/**
- * @brief 取正文字号
+ * @brief 取正文字号（字号阶梯的第 3 档）
  */
 double Theme::fontSizeBody() const
 {
@@ -601,7 +593,7 @@ double Theme::fontSizeBody() const
 }
 
 /**
- * @brief 取副标题字号
+ * @brief 取副标题字号（字号阶梯的第 2 档）
  */
 double Theme::fontSizeSubtitle() const
 {
@@ -609,15 +601,7 @@ double Theme::fontSizeSubtitle() const
 }
 
 /**
- * @brief 取卡片标题字号
- */
-double Theme::fontSizeCardTitle() const
-{
-    return m_current.metrics.value(QStringLiteral("fontSizeCardTitle"), 0.0);
-}
-
-/**
- * @brief 取页面标题字号
+ * @brief 取标题字号（字号阶梯的第 1 档，最大）
  */
 double Theme::fontSizePageTitle() const
 {

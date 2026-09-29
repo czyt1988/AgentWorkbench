@@ -75,10 +75,8 @@ class Theme : public QObject
     Q_PROPERTY(double spacingL READ spacingL NOTIFY changed)
     Q_PROPERTY(double spacingXl READ spacingXl NOTIFY changed)
     Q_PROPERTY(double fontSizeCaption READ fontSizeCaption NOTIFY changed)
-    Q_PROPERTY(double fontSizeSmall READ fontSizeSmall NOTIFY changed)
     Q_PROPERTY(double fontSizeBody READ fontSizeBody NOTIFY changed)
     Q_PROPERTY(double fontSizeSubtitle READ fontSizeSubtitle NOTIFY changed)
-    Q_PROPERTY(double fontSizeCardTitle READ fontSizeCardTitle NOTIFY changed)
     Q_PROPERTY(double fontSizePageTitle READ fontSizePageTitle NOTIFY changed)
     Q_PROPERTY(double cardMinWidth READ cardMinWidth NOTIFY changed)
     Q_PROPERTY(double cardHeight READ cardHeight NOTIFY changed)
@@ -171,10 +169,8 @@ public:
     double spacingL() const;
     double spacingXl() const;
     double fontSizeCaption() const;
-    double fontSizeSmall() const;
     double fontSizeBody() const;
     double fontSizeSubtitle() const;
-    double fontSizeCardTitle() const;
     double fontSizePageTitle() const;
     double cardMinWidth() const;
     double cardHeight() const;

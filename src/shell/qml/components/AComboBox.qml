@@ -50,7 +50,7 @@ ComboBox {
         y: control.topPadding + (control.availableHeight - height) / 2
         text: "\u25BE"
         color: control.enabled ? theme.textMuted : theme.textDisabled
-        font.pixelSize: theme.fontSizeSmall
+        font.pixelSize: theme.fontSizeCaption
     }
 
     // 主题化默认条目：字符串列表直接显示 modelData，数组模型按 textRole

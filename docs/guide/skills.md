@@ -37,7 +37,7 @@ reports how many skills were found and how long it took.
 ## Reading a card
 
 Each card shows the skill's name, a small badge for its source, a short
-description, and its folder path, plus a copy button.
+description, and its folder path.
 
 Hover a card for a moment and a details panel opens with the full description,
 the source, the exact location of the `SKILL.md` file, when it was last

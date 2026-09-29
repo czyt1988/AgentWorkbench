@@ -44,7 +44,7 @@ Item {
                     Layout.fillWidth: true
                     text: agents.configFilePath()
                     color: theme.textSecondary
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                     font.family: theme.monoFamily
                     elide: Text.ElideMiddle
                 }

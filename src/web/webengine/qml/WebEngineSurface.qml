@@ -616,7 +616,7 @@ Item {
                 visible: tab.state === "offline"
                 text: String(tab.url).replace(/#.*$/, "")
                 color: theme.textMuted
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
                 font.family: theme.monoFamily
                 elide: Text.ElideMiddle
                 horizontalAlignment: Text.AlignHCenter
@@ -649,7 +649,7 @@ Item {
                          && tab.lastError.length > 0
                 text: tab.lastError
                 color: theme.textSecondary
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
                 wrapMode: Text.WrapAnywhere
                 horizontalAlignment: Text.AlignHCenter
             }

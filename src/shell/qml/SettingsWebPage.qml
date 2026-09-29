@@ -59,7 +59,7 @@ ScrollView {
                 text: shell.webChromiumFlags
                 placeholderText: qsTr("Chromium flags, e.g. --disable-gpu (applies after restart)")
                 font.family: theme.monoFamily
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
                 onEditingFinished: shell.setWebChromiumFlags(text.trim())
             }
         }
@@ -69,7 +69,7 @@ ScrollView {
             Layout.rightMargin: theme.spacingL
             text: qsTr("If embedded views fail to start (GPU driver issues), add --disable-gpu here. The in-app 'Open in browser' action always works as a fallback.")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             wrapMode: Text.WordWrap
         }
     }

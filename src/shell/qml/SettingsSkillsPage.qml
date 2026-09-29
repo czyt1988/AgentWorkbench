@@ -88,7 +88,7 @@ ScrollView {
                     Layout.fillWidth: true
                     placeholderText: qsTr("Add a skill root directory...")
                     font.family: theme.monoFamily
-                    font.pixelSize: theme.fontSizeSmall
+                    font.pixelSize: theme.fontSizeCaption
                     onAccepted: {
                         if (skills.addRoot(text.trim()))
                             text = ""

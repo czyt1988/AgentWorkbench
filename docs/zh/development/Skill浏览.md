@@ -82,8 +82,9 @@ workbench 门面（`workbench.showPage()`、`workbench.notify()`）。
 `ASpotlight` 指针聚光。悬停升举用 `Translate` 变换加 `z`，绝不改卡的 `x`/`y`
 （那是网格写的）。
 
-- **悬停合并。** `hovered: hoverHandler.hovered || copyButton.hovered`。Qt 的 hover
-  是独占投递；复制按钮是 `Control`，其 `hovered` 否则会把事件从卡片手里抢走。
+- **悬停判据。** `hovered: hoverHandler.hovered`。Qt 的 hover 是独占投递，卡内因此
+  不放带 hoverEnabled 的 `Control`（路径 tooltip 用被动的 `HoverHandler`）；任何
+  会吞 hover 的子项都必须并进这个判据。
 - **延迟浮层。** 一个 400 ms 的 `Timer` 在悬停时打开 `SkillDetailFlyout`，打开前
   先取消浮层待定的关闭；离开时停表并调浮层的 `tryCloseLater()`。
 - **惰性弹层。** 浮层藏在 `active: false` 的 `Loader` 后，首次悬停才创建并常驻

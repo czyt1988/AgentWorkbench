@@ -64,9 +64,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   handle below, horizontally centered) when collapsed. The collapsed
   sidebar width shrinks from 64 to 42 px — exactly the width of one nav
   icon.
+- **Typographic scale unified to four steps**: all text now uses exactly
+  four font-size tokens — `fontSizePageTitle` (24), `fontSizeSubtitle`
+  (16), `fontSizeBody` (13), `fontSizeCaption` (11). The `fontSizeSmall`
+  and `fontSizeCardTitle` tokens are removed (usages merged into `caption`
+  and `subtitle` respectively; the caption step itself rises from 10 to
+  11 so auxiliary text stays legible), and the ladder is codified in
+  `designs.md` together with an icon-rendering rule (see Fixed).
+- **Skill cards lost their copy button**: the card footer now shows the
+  folder path only — clicking the card still copies it, and the right-click
+  menu keeps every copy action, so the button was pure visual weight.
+- **Sidebar top header removed**: the app icon + name block (and its
+  divider) no longer render at the top of the sidebar, which now starts
+  directly with the workflow navigation — the window title bar already
+  carries the application identity.
 
 ### Fixed
 
+- **Icon buttons rendered blurry and oversized**: `AIconButton` used the
+  icon `Image` directly as the Control's `contentItem`, so the control
+  forced it to 28×28 and `PreserveAspectFit` upscaled the 16 px raster —
+  every icon button in the app (settings gear, collapse chevrons, the Web
+  tab toolbar) drew 1.75× too large through bilinear filtering. The icon
+  is now centred in an `Item` and renders 1:1 at its `sourceSize`. The
+  file-tree arrows in Agent Tools gained the matching `sourceSize` (an
+  SVG without one rasterises at its natural 24 px and downscales soft).
 - **Agent Tools "Add Folder" did nothing on Qt 5**: the facade invokables
   returned `core::OpResult` written in short form, but the gadget's
   automatic metatype registration name is the fully qualified

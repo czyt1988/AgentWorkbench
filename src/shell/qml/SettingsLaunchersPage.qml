@@ -121,7 +121,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: model.command
                                 color: theme.textMuted
-                                font.pixelSize: theme.fontSizeSmall
+                                font.pixelSize: theme.fontSizeCaption
                                 elide: Text.ElideMiddle
                             }
                         }
