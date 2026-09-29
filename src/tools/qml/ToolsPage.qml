@@ -180,6 +180,7 @@ Item {
 
             ATextArea {
                 id: promptEditor
+                objectName: "promptEditor"
 
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 260
@@ -229,6 +230,7 @@ Item {
 
                 MarkdownContextMenu {
                     id: editorMenu
+                    objectName: "editorMenu"
                 }
             }
 
@@ -260,8 +262,10 @@ Item {
                     // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model 暴露）：
                     // Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本统一用
                     // ListView + depth/expanded role 渲染同一份数据。
-                    ListView {
-                        id: fileTree
+                        // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
+                        ListView {
+                            id: fileTree
+                            objectName: "fileTree"
 
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -286,7 +290,11 @@ Item {
                             property bool rebinding: false
 
                             // role 一律经 required property 声明（模型上下文
-                            // 与之混用会静默取不到值）。
+                            // 与之混用会静默取不到值）。index 同理：Qt 5.15
+                            // 里声明了任何 required property 后 contextObject
+                            // 即被清空，裸 index 会抛 ReferenceError——单击
+                            // 目录的 handler 因此整段中止、树无法展开
+                            // （Qt 6 无此坑）。
                             required property string name
                             required property string path
                             required property string relativePath
@@ -295,6 +303,7 @@ Item {
                             required property int depth
                             required property bool expanded
                             required property bool hasChildren
+                            required property int index
 
                             // ListView 没有 TableView 的池化信号：reset 期间
                             // 用模型的计数变化闭动画。
@@ -363,14 +372,16 @@ Item {
                                 }
                             }
 
-                            Menu {
+                            AMenu {
                                 id: pathMenu
 
-                                MenuItem {
+                                AMenuItem {
+                                    icon.source: "qrc:/icons/copy.svg"
                                     text: qsTr("Copy relative path")
                                     onTriggered: workbench.copyText(treeRow.relativePath)
                                 }
-                                MenuItem {
+                                AMenuItem {
+                                    icon.source: "qrc:/icons/copy.svg"
                                     text: qsTr("Copy absolute path")
                                     onTriggered: workbench.copyText(treeRow.path)
                                 }

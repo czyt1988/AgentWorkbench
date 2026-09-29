@@ -359,13 +359,13 @@ Item {
     }
 
     // 右键菜单：复制路径/SKILL.md/名称、打开所在文件夹、定位文件。
-    Menu {
+    AMenu {
         id: contextMenu
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy path")
             onTriggered: card.copyPath()
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy SKILL.md path")
             onTriggered: {
                 const result = skills.copySkillFile(card.skillFilePath)
@@ -376,7 +376,7 @@ Item {
                     workbench.notify("error", qsTr("Copy failed"), result.error)
             }
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy name")
             onTriggered: {
                 const result = skills.copyName(card.skillFilePath)
@@ -387,8 +387,8 @@ Item {
                     workbench.notify("error", qsTr("Copy failed"), result.error)
             }
         }
-        MenuSeparator {}
-        MenuItem {
+        AMenuSeparator {}
+        AMenuItem {
             text: qsTr("Open containing folder")
             onTriggered: {
                 const result = skills.openFolder(card.skillFilePath)
@@ -397,7 +397,7 @@ Item {
                                      result.error)
             }
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Reveal SKILL.md")
             onTriggered: {
                 const result = skills.revealSkillFile(card.skillFilePath)
