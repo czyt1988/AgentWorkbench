@@ -401,6 +401,9 @@ Item {
                                 width: 14
                                 height: 14
                                 source: "qrc:/icons/chevron-right.svg"
+                                // sourceSize 与显示尺寸一致：SVG 不设时按
+                                // 24px 自然尺寸栅格再缩小绘制，箭头会发糊。
+                                sourceSize: Qt.size(14, 14)
                                 visible: treeRow.hasChildren
                                 rotation: treeRow.expanded ? 90 : 0
 
@@ -420,6 +423,7 @@ Item {
                                 width: 16
                                 height: 16
                                 source: treeRow.iconSource
+                                sourceSize: Qt.size(16, 16)
                             }
 
                             Label {

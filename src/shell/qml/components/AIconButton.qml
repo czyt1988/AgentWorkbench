@@ -42,11 +42,19 @@ Button {
         border.width: control.visualFocus ? 2 : 0
     }
 
-    contentItem: Image {
-        source: control.iconSource
-        sourceSize: Qt.size(size === "large" ? 22 : 16,
-                            size === "large" ? 22 : 16)
-        fillMode: Image.PreserveAspectFit
-        opacity: control.enabled ? 1 : 0.5
+    // 图标必须包一层 Item 居中、按 sourceSize 的隐式尺寸渲染，不能直接拿
+    // Image 当 contentItem：Control 会把 contentItem 强制成自己的可用尺寸
+    // （本按钮 28×28），PreserveAspectFit 随之把 16px 的栅格放大到 28px
+    // 绘制——图标按钮曾因此普遍发糊、图标偏大。1:1 无缩放后 SVG 依旧
+    // 清晰（sourceSize 是逻辑像素，Qt 对 SVG 自动乘 DPR 栅格化）。
+    contentItem: Item {
+        Image {
+            anchors.centerIn: parent
+            source: control.iconSource
+            sourceSize: Qt.size(control.size === "large" ? 22 : 16,
+                                control.size === "large" ? 22 : 16)
+            fillMode: Image.PreserveAspectFit
+            opacity: control.enabled ? 1 : 0.5
+        }
     }
 }
