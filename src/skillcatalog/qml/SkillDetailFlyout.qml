@@ -40,11 +40,17 @@ Popup {
         radius: theme.radiusOverlay
     }
 
-    // 指针进入浮层：取消待定的关闭（指针在卡片与浮层之间移动时不关）。
+    // 指针进出浮层：进入取消待定的关闭（指针在卡片与浮层之间移动时不
+    // 关）；离开重新武装延迟关闭。离开这一半不可省——指针从浮层直接移
+    // 到页面空白处时，卡片的 hover 早已是 false，不会再有任何路径触发
+    // 关闭，浮层就滞留在屏上，直到指针重新扫过那张卡片。
     HoverHandler {
+        id: flyoutHostHover
         onHoveredChanged: {
-            if (hovered)
+            if (flyoutHostHover.hovered)
                 flyout.closePending = false
+            else
+                flyout.tryCloseLater()
         }
     }
 
@@ -54,6 +60,13 @@ Popup {
         closeTimer.restart()
     }
 
+    // 取消待定的关闭：指针回到宿主卡片上时由 SkillCard 调用。卡片悬停
+    // 的 400ms 重开晚于这里的 300ms 关闭，不取消的话浮层会先关再开闪
+    // 一次。
+    function cancelClose() {
+        closePending = false
+    }
+
     Timer {
         id: closeTimer
         interval: 300
@@ -61,10 +74,6 @@ Popup {
             if (flyout.closePending && !flyoutHostHover.hovered)
                 flyout.close()
         }
-    }
-
-    HoverHandler {
-        id: flyoutHostHover
     }
 
     // 按键关闭放在卡片上而不是这里：Keys 只能附加到 Item，而 Popup 是
@@ -169,14 +178,15 @@ Popup {
                         font.pixelSize: theme.fontSizeCaption
                         font.family: theme.monoFamily
                         elide: Text.ElideMiddle
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            ToolTip.visible: containsMouse
-                            ToolTip.delay: 300
-                            ToolTip.timeout: 10000
-                            ToolTip.text: flyout.info.skillFilePath || ""
-                        }
+                        // tooltip 用被动的 HoverHandler 而不是 hoverEnabled 的
+                        // MouseArea：hover 是独占投递，MouseArea 会截断根
+                        // HoverHandler——指针停在这条路径上时浮层自己会在
+                        // 300ms 后关闭。
+                        HoverHandler { id: pathHover }
+                        ToolTip.visible: pathHover.hovered
+                        ToolTip.delay: 300
+                        ToolTip.timeout: 10000
+                        ToolTip.text: flyout.info.skillFilePath || ""
                     }
 
                     Label {
@@ -238,14 +248,12 @@ Popup {
                             color: theme.textSecondary
                             font.pixelSize: theme.fontSizeCaption
                             elide: Text.ElideRight
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                ToolTip.visible: containsMouse
-                                ToolTip.delay: 300
-                                ToolTip.timeout: 10000
-                                ToolTip.text: modelData.value
-                            }
+                            // 同上：被动 HoverHandler，不截断根 HoverHandler。
+                            HoverHandler { id: valueHover }
+                            ToolTip.visible: valueHover.hovered
+                            ToolTip.delay: 300
+                            ToolTip.timeout: 10000
+                            ToolTip.text: modelData.value
                         }
                     }
                 }

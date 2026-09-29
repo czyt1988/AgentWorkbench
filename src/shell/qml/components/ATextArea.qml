@@ -22,6 +22,10 @@ TextArea {
     // TextEdit 的 selectByMouse 默认 false（Controls2 各风格也不覆盖）：
     // 不显式打开，用户能输入却无法用鼠标选中文字复制。
     selectByMouse: true
+    // 失焦默认清选区，且只有失焦原因为 PopupFocusReason 时豁免；而右键
+    // 菜单夺焦走的是 OtherFocusReason（Menu 硬编码 setFocus(true)），选区
+    // 会在菜单弹出的瞬间被清空——菜单里的 Copy/格式化动作随之全部落空。
+    persistentSelection: true
 
     background: Rectangle {
         radius: theme.radiusControl
