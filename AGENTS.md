@@ -143,9 +143,9 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 - **源语言是英文。** 绝不要在 `tr()` 或 `qsTr()` 里写中文（或任何其它非英文语言）——源字符串必须是英文，`check_architecture` 规则3 会拒绝非 ASCII 源串。中文及其它语言的翻译放在 `translations/` 下的 `.ts` 文件里。
 - **C++**：每个面向用户的字符串都用 `tr()` 包裹。
 - **QML**：每个面向用户的字符串都用 `qsTr()` 包裹。
-- 翻译文件位于 `translations/`。构建时通过 `cmake/AwbTranslations.cmake` 里的源清单运行 `lupdate`（从源码同步 `.ts`）和 `lrelease`（编译 `.qm`）。编译出的 `.qm` 以 Qt 资源形式嵌入在 `:/i18n/` 下。**新增可翻译文件时把它加进 `AWB_TS_SOURCES`**，不要改 `qt6_create_translation` 调用本身。
+- 翻译文件位于 `translations/`。**构建只跑 `lrelease`**（编译 `.qm`，以 Qt 资源形式嵌入 `:/i18n/`）——`lupdate`（从源码同步 `.ts`）会按源码行号重写 `<location>`，挂进构建会让工作区永远带着 `agentworkbench_zh_CN.ts` 的假改动，所以它是显式步骤：**改了 `tr()`/`qsTr()` 源串（或新增可翻译文件）后、提交前，跑一次 `bash scripts/update-ts.sh`**（等价于 `cmake --build build --target update_ts`），把 `.ts` 与代码同一次提交。新增可翻译文件时同时把它加进 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。忘跑的后果只是新串在已翻译语言里回退英文，不会构建失败。
 - `app/main.cpp` 安装 `QTranslator`，根据系统区域设置自动加载（前缀 `agentworkbench`）。
-- 添加新语言：创建 `translations/agentworkbench_<locale>.ts`，把它加入 `AWB_TS_SOURCES`，然后构建（lupdate 会填充内容）。填写翻译后重新构建。
+- 添加新语言：创建 `translations/agentworkbench_<locale>.ts`，把它加入 `AWB_TS_SOURCES`（同时加进根 CMakeLists 的 `qt_add_translation` 调用），跑一次 `scripts/update-ts.sh`（lupdate 会填充内容）。填写翻译后重新构建。
 - **注释用中文，其余一律英文**：标识符、日志信息与提交信息用英文；代码注释（含 Doxygen 文档注释）按 `docs/zh/standards/coding-standard.md` 的规定用中文。注释不是面向用户的字符串，与上一条不冲突。
 - 本地化文档（`docs/zh/`、`README-zh.md`）以及 `mkdocs.yml` 中的语言名称标签**不是**源代码——它们是正当的本地化内容，不受本规则约束。
 
@@ -163,7 +163,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
      `git worktree add <临时路径> dev && git -C <临时路径> merge --ff-only <工作分支> && bash scripts/worktree-add.sh --remove <临时路径>`（临时路径建议也放 `.worktree/` 下，如 `.worktree/_merge-dev`；本机 git 2.7.2 没有 `git worktree remove`）；
   3. `dev` 被占、又无法走上述路径 → 先与用户协调，不要抢别人正在用的工作树。
 - **降低并行冲突**：动手前先把 `dev` 最新改动合并进工作分支；收尾合并前**再**合并一次 `dev`，让冲突提前暴露，而不是攒到最后一次；配合下节的原子提交纪律。
-- **冲突就地解决**：按双方改动的**意图**合并而不是机械取一侧；解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交。`translations/*.ts` 的行号差异是每次构建 lupdate 重写 location 造成的噪声，取任一侧即可。
+- **冲突就地解决**：按双方改动的**意图**合并而不是机械取一侧；解决后必须重跑 `bash scripts/build.sh --test` 全绿再提交。`translations/*.ts` 的行号差异是 lupdate 重写 `<location>` 造成的噪声（构建不再跑 lupdate，只在有人跑过 `scripts/update-ts.sh` 后出现），取任一侧即可，翻译内容有分歧才需要手工合并。
 - **「任务完成」的定义包含「已合并回 `dev`」**——不许把冲突、分叉或「没合并回 dev」的状态留给下一个任务。
 
 ## 提交

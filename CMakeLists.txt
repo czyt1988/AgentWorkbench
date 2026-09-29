@@ -67,17 +67,37 @@ add_subdirectory(src/skillcatalog) # L2 skill catalog
 add_subdirectory(src/tools)     # L2 agent tools (workspace memory, prompt draft)
 add_subdirectory(src/workbench) # L3 application layer
 
-# Translations: lupdate syncs .ts from source, lrelease compiles .qm.
-# The scan list lives in cmake/AwbTranslations.cmake.
+# Translations. The default build only runs lrelease (.ts -> .qm) via
+# qt_add_translation — lupdate (source -> .ts sync) rewrites <location> line
+# numbers on every run, which used to leave the .ts perpetually modified in
+# the worktree. Syncing the .ts is now an explicit step instead:
+# scripts/update-ts.sh (or cmake --build build --target update_ts), to be run
+# before committing a tr()/qsTr() source string change. The scan list lives
+# in cmake/AwbTranslations.cmake.
 include(cmake/AwbTranslations.cmake)
-qt_create_translation(QM_FILES
-    ${AWB_TS_SOURCES}
+qt_add_translation(QM_FILES
     translations/agentworkbench_zh_CN.ts
 )
 # Order-only target: the .qm custom commands live in this directory while the
 # resource embedding happens in app/; the exe depends on this target so MSBuild
 # cannot run rcc before lrelease.
 add_custom_target(awb_translations DEPENDS ${QM_FILES})
+# Explicit .ts sync (NOT part of the default build). lupdate reads the source
+# list through an @file (90+ paths exceed the Windows command-line limit);
+# the list file is regenerated at configure time, so it never goes stale.
+set(AWB_LUPDATE_LIST_FILE "${CMAKE_BINARY_DIR}/awb_ts_sources.lst")
+string(REPLACE ";" "\n" AWB_TS_SOURCES_LINES "${AWB_TS_SOURCES}")
+file(WRITE "${AWB_LUPDATE_LIST_FILE}" "${AWB_TS_SOURCES_LINES}\n")
+if (QT_VERSION_MAJOR EQUAL 6)
+    # Qt 6 ships lupdate as the Qt6::lupdate executable target.
+    set(AWB_LUPDATE_EXECUTABLE Qt6::lupdate)
+else()
+    set(AWB_LUPDATE_EXECUTABLE ${Qt5_LUPDATE_EXECUTABLE})
+endif()
+add_custom_target(update_ts
+    COMMAND ${AWB_LUPDATE_EXECUTABLE} "@${AWB_LUPDATE_LIST_FILE}"
+            -ts "${CMAKE_SOURCE_DIR}/translations/agentworkbench_zh_CN.ts"
+    VERBATIM)
 # L4 executable: assembly + QML module + all embedded resources.
 add_subdirectory(app)
 

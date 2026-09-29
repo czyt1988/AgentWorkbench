@@ -33,90 +33,90 @@
 <context>
     <name>AgentCard</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="137"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="576"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="205"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="645"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="137"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="501"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="205"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="569"/>
         <source>Start</source>
         <translation>开启</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="146"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="598"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="601"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="214"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="667"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="670"/>
         <source>Force Stop</source>
         <translation>强制停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="151"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="524"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="219"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="592"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="156"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="304"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="224"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
         <source>Update</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="156"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="245"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="224"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="313"/>
         <source>Install</source>
         <translation>安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="166"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="234"/>
         <source>Show output</source>
         <translation>显示输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="175"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="530"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="243"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="599"/>
         <source>Configure</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="179"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="247"/>
         <source>Open config folder</source>
         <translation>打开配置文件夹</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="183"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="251"/>
         <source>Re-initialize</source>
         <translation>重新初始化</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="251"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="319"/>
         <source>Please close before installing</source>
         <translation>请先关闭后再安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="310"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="378"/>
         <source>Please close before updating</source>
         <translation>请先关闭后再更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="368"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="436"/>
         <source>Setting up...</source>
         <translation>正在设置…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="369"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="437"/>
         <source>Installing...</source>
         <translation>正在安装…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="370"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="438"/>
         <source>Starting...</source>
         <translation>正在启动…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="371"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="439"/>
         <source>Stopping...</source>
         <translation>正在停止…</translation>
     </message>
@@ -125,17 +125,17 @@
         <translation type="vanished">更多打开方式</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="599"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="668"/>
         <source>Force stop %1? This will terminate the process serving %2.</source>
         <translation>强制停止 %1？这将终止服务 %2 的进程。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="602"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="671"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="268"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="336"/>
         <source>Installed</source>
         <translation>已安装</translation>
     </message>
@@ -156,22 +156,22 @@
         <translation type="vanished">正在停止…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="440"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="440"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="468"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="536"/>
         <source>Hide output</source>
         <translation>隐藏输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="501"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="569"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
@@ -675,78 +675,78 @@
 <context>
     <name>AgentGridPage</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="52"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="91"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="53"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="92"/>
         <source>Launch AI coding agents and open their web UI</source>
         <translation>启动 AI 编程代理并打开其 Web 界面</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="57"/>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="131"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="96"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="170"/>
         <source>Add Launcher</source>
         <translation>添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="61"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="100"/>
         <source>Restore Defaults</source>
         <translation>恢复默认</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="80"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="119"/>
         <source>Search launchers...</source>
         <translation>搜索启动器…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="88"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="127"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="93"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="132"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="98"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="137"/>
         <source>Not installed</source>
         <translation>未安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="129"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="168"/>
         <source>No launchers configured yet</source>
         <translation>还没有配置启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="130"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="169"/>
         <source>Add your first AI coding agent, or restore the built-in defaults.</source>
         <translation>添加第一个 AI 编码 agent，或恢复内置默认项。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="140"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="179"/>
         <source>No matching launchers</source>
         <translation>没有匹配的启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="141"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="180"/>
         <source>No launcher matches the current search or filter.</source>
         <translation>没有启动器匹配当前的搜索或过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="142"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="181"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="192"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="231"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="195"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="234"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1587,62 +1587,62 @@ Command: %2
 <context>
     <name>SkillCard</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="99"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="105"/>
         <source>Plugin: %1</source>
         <translation>插件：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="110"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="116"/>
         <source>No description.</source>
         <translation>没有描述。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="150"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="232"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="158"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="247"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="222"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="237"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="225"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="243"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="236"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="248"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="263"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="252"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="267"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="261"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="276"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="265"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="274"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="280"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="289"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="285"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -2088,22 +2088,22 @@ Command: %2
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="433"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="451"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="437"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="455"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="442"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="460"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="167"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="162"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
@@ -2113,90 +2113,90 @@ Command: %2
         <translation>无法加载 %1（HTTP %2）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="168"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="163"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="272"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="290"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="326"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="385"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="344"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="403"/>
         <source>Sign in</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="334"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="352"/>
         <source>The site &quot;%1&quot; requires authentication.</source>
         <translation>站点“%1”要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="336"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="354"/>
         <source>This site requires authentication.</source>
         <translation>此站点要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="344"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="362"/>
         <source>Username</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="360"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="378"/>
         <source>Password</source>
         <translation>密码</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="400"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="418"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="474"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="492"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="483"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="501"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="505"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="523"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="515"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="533"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="266"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="380"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="539"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="284"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="398"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="557"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="545"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="563"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="550"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="568"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="555"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="573"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="560"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="578"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
@@ -2573,7 +2573,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="279"/>
+        <location filename="../app/main.cpp" line="285"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
