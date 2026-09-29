@@ -35,6 +35,19 @@ Item {
 
     signal configureRequested(string id)
 
+    // 卡片级悬停判据。本仓库的 hover 是独占投递：卡内 hoverEnabled 的
+    // MouseArea 与 AButton（Control）会吞掉 hover，根部 HoverHandler 在
+    // 它们上面会丢态，所以全部并进这里的判据；以后新增会吞 hover 的子项
+    // 必须同样并入，否则聚光/增亮会在指针移到该子项上时闪断。
+    // HoverHandler 是被动的，不影响卡内既有的 tooltip 投递。
+    HoverHandler {
+        id: cardHover
+    }
+    readonly property bool hovered: cardHover.hovered
+            || downloadArea.containsMouse || updateArea2.containsMouse
+            || stopArea.containsMouse || consoleCloseArea.containsMouse
+            || actionButton.hovered || configureButton.hovered
+
     // At-place launch/stop error feedback: briefly tint the border red and
     // show the (elided) reason in the status slot. The full message also pops
     // up centrally (main.qml). We set `flashing` explicitly (not via a binding
@@ -99,15 +112,70 @@ Item {
         anchors.fill: parent
         radius: theme.radiusCard
 
-        // Visual state: running => tinted background with colored border.
+        // 玻璃底：半透明（页面底衬光斑可透）+ hover 整体提亮一档
+        // （theme.hover 在深色主题提亮、浅色主题压暗）。用户自定义的
+        // cardColor 同样纳入半透明处理，保证整页质感一致；运行时沿用
+        // agent 色 tint，hover 时 tint 略加深。
+        readonly property color glassBase: root.cardColor_p.length > 0 ? root.cardColor_p
+                                                                       : theme.surfaceBg
         color: root.running_p
-              ? Qt.rgba(tintRed(root.agentColor), tintGreen(root.agentColor), tintBlue(root.agentColor), 0.16)
-              : (root.cardColor_p.length > 0 ? root.cardColor_p : theme.surfaceBg)
+              ? Qt.rgba(tintRed(root.agentColor), tintGreen(root.agentColor), tintBlue(root.agentColor), root.hovered ? 0.22 : 0.16)
+              : theme.alpha(root.hovered ? theme.hover(glassBase) : glassBase, root.hovered ? 0.78 : 0.62)
         border.width: root.running_p ? 2.5 : 1
         border.color: root.flashing ? theme.danger
-                                    : (root.running_p ? root.agentColor : theme.borderSubtle)
+                                    : (root.running_p ? root.agentColor
+                                                      : (root.hovered ? theme.borderStrong : theme.borderSubtle))
         Behavior on color { ColorAnimation { duration: theme.durationNormal } }
         Behavior on border.color { ColorAnimation { duration: theme.durationNormal } }
+
+        // agent 色纱（常驻层 + hover 增亮层）：复刻参照实现的场景色渐变
+        // 罩层（24%→6%→13%，hover 提到 38%→12%→19%，此处按本主题密度
+        // 折算）。纵向 Gradient 近似其 155deg 斜向——肉眼几乎无差、零成本。
+        Rectangle {
+            anchors.fill: parent
+            radius: card.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: theme.alpha(root.agentColor, 0.10) }
+                GradientStop { position: 0.55; color: theme.alpha(root.agentColor, 0.02) }
+                GradientStop { position: 1.0; color: theme.alpha(root.agentColor, 0.06) }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: card.radius
+            opacity: root.hovered ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: theme.durationNormal } }
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: theme.alpha(root.agentColor, 0.14) }
+                GradientStop { position: 0.55; color: theme.alpha(root.agentColor, 0.04) }
+                GradientStop { position: 1.0; color: theme.alpha(root.agentColor, 0.09) }
+            }
+        }
+
+        // 内缘 1px 高光：玻璃厚度感（参照实现的 inset 0 1px 0，扩成整圈
+        // 内缘）。深色主题取 textOnAccent 的微白；浅色主题下白高光不可见、
+        // 留空即可。
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(0, card.radius - 1)
+            color: "transparent"
+            border.width: 1
+            border.color: theme.variant === "dark" ? theme.alpha(theme.textOnAccent, 0.07)
+                                                   : "transparent"
+        }
+
+        // 悬停聚光：光斑跟随指针 + 渐变描边流光（契约见 ASpotlight 头注
+        // 释），叠在底色/纱层之上、内容子项之下。flashing 期间让位给红色
+        // 错误反馈，不与之叠色。
+        ASpotlight {
+            anchors.fill: parent
+            radius: card.radius
+            accentColor: root.agentColor
+            active: root.hovered && !root.flashing
+            spotX: cardHover.point.position.x
+            spotY: cardHover.point.position.y
+        }
 
         // Click the card body: open web UI when running, otherwise launch.
         MouseArea {
@@ -531,6 +599,7 @@ Item {
             }
 
             AButton {
+                id: configureButton
                 text: qsTr("Configure")
                 width: root.running_p
                        ? (parent.width - 10) * 0.4

@@ -33,90 +33,90 @@
 <context>
     <name>AgentCard</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="135"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="581"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="203"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="650"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="135"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="505"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="203"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="573"/>
         <source>Start</source>
         <translation>开启</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="144"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="604"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="607"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="212"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="673"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="676"/>
         <source>Force Stop</source>
         <translation>强制停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="149"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="528"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="217"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="596"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="154"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="303"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="222"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="371"/>
         <source>Update</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="154"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="244"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="222"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="312"/>
         <source>Install</source>
         <translation>安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="164"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="232"/>
         <source>Show output</source>
         <translation>显示输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="173"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="534"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="241"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="603"/>
         <source>Configure</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="177"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="245"/>
         <source>Open config folder</source>
         <translation>打开配置文件夹</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="181"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="249"/>
         <source>Re-initialize</source>
         <translation>重新初始化</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="250"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="318"/>
         <source>Please close before installing</source>
         <translation>请先关闭后再安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="309"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="377"/>
         <source>Please close before updating</source>
         <translation>请先关闭后再更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="368"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="436"/>
         <source>Setting up...</source>
         <translation>正在设置…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="369"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="437"/>
         <source>Installing...</source>
         <translation>正在安装…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="370"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="438"/>
         <source>Starting...</source>
         <translation>正在启动…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="371"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="439"/>
         <source>Stopping...</source>
         <translation>正在停止…</translation>
     </message>
@@ -125,17 +125,17 @@
         <translation type="vanished">更多打开方式</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="605"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="674"/>
         <source>Force stop %1? This will terminate the process serving %2.</source>
         <translation>强制停止 %1？这将终止服务 %2 的进程。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="608"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="677"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="267"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="335"/>
         <source>Installed</source>
         <translation>已安装</translation>
     </message>
@@ -156,22 +156,22 @@
         <translation type="vanished">正在停止…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="440"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="372"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="440"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="470"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="538"/>
         <source>Hide output</source>
         <translation>隐藏输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="505"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="573"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
@@ -675,78 +675,78 @@
 <context>
     <name>AgentGridPage</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="51"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="90"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="52"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="91"/>
         <source>Launch AI coding agents and open their web UI</source>
         <translation>启动 AI 编程代理并打开其 Web 界面</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="56"/>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="131"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="95"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="170"/>
         <source>Add Launcher</source>
         <translation>添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="60"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="99"/>
         <source>Restore Defaults</source>
         <translation>恢复默认</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="79"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="118"/>
         <source>Search launchers...</source>
         <translation>搜索启动器…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="87"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="126"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="92"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="131"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="97"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="136"/>
         <source>Not installed</source>
         <translation>未安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="129"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="168"/>
         <source>No launchers configured yet</source>
         <translation>还没有配置启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="130"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="169"/>
         <source>Add your first AI coding agent, or restore the built-in defaults.</source>
         <translation>添加第一个 AI 编码 agent，或恢复内置默认项。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="140"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="179"/>
         <source>No matching launchers</source>
         <translation>没有匹配的启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="141"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="180"/>
         <source>No launcher matches the current search or filter.</source>
         <translation>没有启动器匹配当前的搜索或过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="142"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="181"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="195"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="234"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="198"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="237"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1559,62 +1559,62 @@ Command: %2
 <context>
     <name>SkillCard</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="89"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="95"/>
         <source>Plugin: %1</source>
         <translation>插件：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="101"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="107"/>
         <source>No description.</source>
         <translation>没有描述。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="141"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="222"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="149"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="237"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="213"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="230"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="228"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="245"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="216"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="233"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="245"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="231"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="248"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="260"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="226"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="241"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="238"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="253"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="242"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="257"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="266"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="264"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="279"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="260"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="275"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
