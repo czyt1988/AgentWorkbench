@@ -326,3 +326,45 @@ cp build/al_probe.exe deploy/ && C:/Qt/6.7.3/msvc2019_64/bin/windeployqt.exe \
   full screen, notifications, printing).
 - **Inference to re-verify**: QtWebEngine's background throttling (based on shared Chromium logic plus
   the Edge measurement; not separately reproduced on the Qt side).
+
+## Appendix C: The Qt 5.15 engine era gap (addendum 2026-09-29)
+
+> Trigger: on a machine whose only Qt is 5.15.16 LTS, **every** embedded agent WebUI stayed blank
+> while the same pages worked in the system browser. Evidence: `~/.AgentWorkbench/log/agentworkbench.log`
+> `[js]` CRITICAL lines plus the on-disk frontend bundles.
+
+Qt 5.15.16 embeds **Chromium 87.0.4280.144** (`<Qt>/Src/qtwebengine/src/3rdparty/chromium/chrome/VERSION`),
+versus Chromium 118 for Qt 6.7.3 used in the main study. Agent frontends built for modern browsers fail
+in two distinct ways on 87:
+
+| Failure class | Observed instance | Missing feature (Chrome since) | Polyfillable? |
+| --- | --- | --- | --- |
+| Runtime API gap | qwen-code: `mte.at is not a function` | `Array/String.prototype.at` (92) | yes |
+| Runtime API gap | kimi-code: `e.toSorted is not a function` | `Array.prototype.toSorted` (110) | yes |
+| Runtime API gap | dsh inline bootstrap: `Promise.withResolvers is not a function` | `Promise.withResolvers` (119) | yes |
+| **Syntax gap** | dsh main bundle: `Uncaught SyntaxError: Unexpected token '{'` | class static initialization blocks (94) | **no** |
+
+The syntax gap is the hard limit: a bundle containing `static { ... }` fails to *parse* on Chromium 87,
+and no injected script can repair that. There is no V8 flag for it in 8.7 either.
+
+Remediation shipped in `fix/web-js-compat`:
+
+- `src/web/webengine/compat-polyfills.js` — feature-guarded polyfills for the runtime gaps above
+  (plus `findLast(Index)`, `toReversed/toSpliced/with`, `Object.hasOwn`, `Object/Map.groupBy`,
+  `structuredClone`, `AbortSignal.timeout/any`, `crypto.randomUUID`, `URL.canParse`, `Response.json`).
+  Injected MainWorld + DocumentCreation: Qt 6 per-profile via `QWebEngineProfile::scripts()`; Qt 5
+  per-view via `QQuickWebEngineScript` (its Quick profile does not inherit the core class and has no
+  `scripts()`), appended from `Component.onCompleted` — early enough because Qt 5 defers adapter
+  initialization with `singleShot(0)` and binds user scripts in `initializationFinished()`.
+- Blank-page fallback in `WebEngineSurface.qml` — when a load ends with uncaught JS exceptions *and*
+  the body is still blank (no text, no canvas/svg/img/video/iframe), the tab drops to the `error`
+  state whose overlay offers "Open in browser". This is the honest outcome for syntax-gap bundles
+  (dsh on Chromium 87): they cannot run in the embedded engine at all.
+- The surface also took over `javaScriptConsoleMessage`: connecting the signal suppresses Qt's default
+  `[js]` log routing on both majors, so the surface re-logs Warning+Error itself — with `token=`
+  values redacted, which the default route did **not** do (tokens leaked into the log file).
+
+Remaining risk on Chromium 87: further unpolyfillable syntax (top-level await, regex `/d` flag,
+private brand checks) and unfillable CSS (`:has()`, container queries, nesting, `color-mix()`).
+Bundles that parse may still degrade visually. The durable fix for the Qt 5 route is a newer engine;
+polyfills only extend Chromium 87's reach for runtime APIs.

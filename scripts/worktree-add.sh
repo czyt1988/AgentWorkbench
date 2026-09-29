@@ -86,7 +86,10 @@ init_submodules() {
         if [ -z "$donor" ]; then
             die "no populated checkout of '$path' in any worktree — initialize it in the main worktree first (needs network once): git submodule update --init $path"
         fi
-        git -C "$wt" -c "submodule.$name.url=$donor" submodule update --init "$path" >&2 \
+        # protocol.file.allow：git ≥2.38.1 默认拒绝 file:// 协议的子模块
+        # 克隆（CVE-2022-39253 缓解），本地 donor 路径是合法用途，显式放行。
+        git -C "$wt" -c "submodule.$name.url=$donor" -c protocol.file.allow=always \
+            submodule update --init "$path" >&2 \
             || die "offline submodule init failed for '$path' (donor: $donor). If the donor lacks commit $sha, fetch it there first (needs network) or pick a base the donor covers."
         echo "  submodule: $path @ ${sha:0:7} (cloned from $donor)"
     done < <(git config -f "$modfile" --get-regexp '^submodule\..*\.path$')

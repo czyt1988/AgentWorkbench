@@ -4,6 +4,13 @@
 
 #include <QQuickWebEngineProfile>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include "web/webengine/WebEngineCompat.h"
+
+#include <QWebEngineScript>
+#include <QWebEngineScriptCollection>
+#endif
+
 namespace awb::web {
 
 /**
@@ -24,6 +31,11 @@ WebEngineProfileStore::WebEngineProfileStore(QObject *parent)
  * 时 QML 报 "Unknown method return type"，所有嵌入标签全部落在共享的
  * 默认 profile 上。新建的 profile 设磁盘 HTTP 缓存与强制持久 cookie，
  * 路径与名字按 agent 划分（见 WebProfilePaths）。
+ *
+ * Qt 6 上还在这里给 profile 注入旧引擎兼容 polyfill（scripts() 集合，
+ * 一次注入、本 profile 全部视图生效）；Qt 5 的 Quick profile 不继承
+ * core 类、没有 scripts()，注入走 WebEngineCompat::installCompatScript
+ * 的 view 级路径。
  *
  * @param agentId agent id
  * @return 该 agent 的 profile；同一 agent 恒返回同一实例（本类持有它）
@@ -49,6 +61,20 @@ QQuickWebEngineProfile *WebEngineProfileStore::createProfile(const QString &agen
     profile->setHttpCacheType(QQuickWebEngineProfile::DiskHttpCache);
     profile->setPersistentCookiesPolicy(
         QQuickWebEngineProfile::ForcePersistentCookies);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // 旧引擎兼容 polyfill：MainWorld + DocumentCreation（早于页面任何
+    // 脚本、页面脚本可见），子框架同注。源码全部带特性检测，Chromium
+    // 118+ 上等于空转。profile 每个 agent 只创建一次，无需防重。
+    QWebEngineScript script;
+    script.setName(QStringLiteral("awb-compat-polyfills"));
+    script.setSourceCode(WebEngineCompat::compatScriptSource());
+    script.setInjectionPoint(QWebEngineScript::DocumentCreation);
+    script.setWorldId(QWebEngineScript::MainWorld);
+    script.setRunsOnSubFrames(true);
+    profile->scripts()->insert(script);
+#endif
+
     m_profiles.insert(agentId, profile);
     return profile;
 }

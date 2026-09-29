@@ -16,8 +16,9 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
-                   ATextArea AScrollBar AgentAvatar ASpotlight AComboBox
-                   AColorPicker AColorSwatch AColorField)
+                   ATextArea AScrollBar AgentAvatar ASpotlight
+                   AWorkspaceGlow AMenu AMenuItem AMenuSeparator
+                   AComboBox AColorPicker AColorSwatch AColorField)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml ToolsPage MarkdownContextMenu)
@@ -157,6 +158,9 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/terminal.svg
     ${CMAKE_SOURCE_DIR}/icons/file.svg
     ${CMAKE_SOURCE_DIR}/icons/tools.svg
+    ${CMAKE_SOURCE_DIR}/icons/undo.svg
+    ${CMAKE_SOURCE_DIR}/icons/redo.svg
+    ${CMAKE_SOURCE_DIR}/icons/cut.svg
     ${CMAKE_SOURCE_DIR}/icons/web.svg
 )
 foreach(icon IN LISTS AWB_ICON_FILES)
@@ -211,12 +215,17 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_agents.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_agents.json")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_file_icons.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+# Old-engine JS polyfills injected into every embedded page (webengine
+# adapter reads :/web/compat-polyfills.js).
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
+    PROPERTIES QT_RESOURCE_ALIAS "web/compat-polyfills.js")
 
 awb_add_resources(AgentWorkbench "app_resources"
     PREFIX "/"
     FILES
         ${CMAKE_SOURCE_DIR}/config/default_agents.json
         ${CMAKE_SOURCE_DIR}/config/default_file_icons.json
+        ${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
         ${AWB_ICON_FILES}
         ${AWB_FILETYPE_ICON_FILES}
         ${AWB_FOLDERTYPE_ICON_FILES}

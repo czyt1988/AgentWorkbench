@@ -15,6 +15,7 @@ TextField {
     color: theme.textPrimary
     placeholderTextColor: theme.textMuted
     selectionColor: theme.selectionBg
+    selectedTextColor: theme.selectionText
     font.pixelSize: theme.fontSizeBody
     implicitHeight: 32
 

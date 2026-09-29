@@ -35,6 +35,16 @@ awb_add_resources(tst_webengine "test_themes"
         ${_tst_webengine_themes}
 )
 
+# The compat polyfills injected into every embedded page — same alias as in
+# app/CMakeLists.txt, so WebEngineCompat reads the identical :/web/ URL.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
+    PROPERTIES QT_RESOURCE_ALIAS "web/compat-polyfills.js")
+awb_add_resources(tst_webengine "test_compat_polyfills"
+    PREFIX "/"
+    FILES
+        ${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
+)
+
 set(_tst_webengine_qml
     ${CMAKE_SOURCE_DIR}/src/web/webengine/qml/WebEngineSurface.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml)

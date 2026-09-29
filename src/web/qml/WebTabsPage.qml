@@ -311,9 +311,9 @@ Item {
                         onClicked: tabMenu.popup()
                     }
 
-                    Menu {
+                    AMenu {
                         id: tabMenu
-                            MenuItem {
+                            AMenuItem {
                                 text: qsTr("Copy URL")
                                 onTriggered: {
                                     const item = page.surfaceItems[web.activeTabId]
@@ -321,21 +321,21 @@ Item {
                                         workbench.copyText(String(item.tab.url))
                                 }
                             }
-                            MenuSeparator {}
-                            MenuItem {
+                            AMenuSeparator {}
+                            AMenuItem {
                                 text: qsTr("Zoom in")
                                 onTriggered: stepZoom(0.1)
                             }
-                            MenuItem {
+                            AMenuItem {
                                 text: qsTr("Zoom out")
                                 onTriggered: stepZoom(-0.1)
                             }
-                            MenuItem {
+                            AMenuItem {
                                 text: qsTr("Reset zoom")
                                 onTriggered: web.setTabZoom(web.activeTabId, 1.0)
                             }
-                            MenuSeparator {}
-                            MenuItem {
+                            AMenuSeparator {}
+                            AMenuItem {
                                 visible: web.devToolsEnabled
                                 text: qsTr("Developer tools")
                                 onTriggered: {
@@ -344,7 +344,7 @@ Item {
                                         item.openDevTools()
                                 }
                             }
-                            MenuItem {
+                            AMenuItem {
                                 text: qsTr("Close tab")
                                 onTriggered: web.closeTab(web.activeTabId)
                             }

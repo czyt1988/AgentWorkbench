@@ -20,6 +20,45 @@ Item {
     // 是否有绑定标签（无标签时不渲染视图内容）。
     readonly property bool hasTab: tab !== null && tab !== undefined
 
+    // 本次加载期间页面抛出的未捕获 JS 异常条数（onJavaScriptConsoleMessage
+    // 统计；LoadStarted 清零）——白屏检测的证据之一。
+    property int uncaughtErrors: 0
+
+    // 白屏探测脚本：无可见文本且无媒体元素即视为空白。SPA 的根容器
+    // （div#root 之类）永远存在，不能当「渲染过」的证据；反过来，
+    // body 里的内联 <script>/<style> 源码会被 textContent 计入，也不能
+    // 当「有内容」的证据——用 TreeWalker 只数可见文本节点。
+    readonly property string blankProbeScript:
+        "(function () {"
+        + "var body = document.body;"
+        + "if (!body)"
+        + "    return JSON.stringify({ blank: true, ua: navigator.userAgent });"
+        + "var walker = document.createTreeWalker("
+        + "    body, NodeFilter.SHOW_TEXT, null);"
+        + "var hasText = false;"
+        + "var node;"
+        + "while (!hasText && (node = walker.nextNode())) {"
+        + "    var parent = node.parentElement;"
+        + "    if (parent) {"
+        + "        var tag = parent.tagName;"
+        + "        if (tag === 'SCRIPT' || tag === 'STYLE'"
+        + "            || tag === 'TEMPLATE' || tag === 'NOSCRIPT')"
+        + "            continue;"
+        + "    }"
+        + "    hasText = node.textContent.replace(/\\s+/g, '').length > 0;"
+        + "}"
+        + "var hasMedia = !!body.querySelector('canvas, svg, img, video, iframe');"
+        + "return JSON.stringify({"
+        + "    blank: !hasText && !hasMedia, ua: navigator.userAgent });"
+        + "})()"
+
+    // 抹掉 URL 里的 token 值（?token= 与 #token= 两种拼写）——控制台
+    // 转发日志里不允许出现明文 token（约定见 WebTabsFacade 的
+    // redactedUrl）。
+    function redactedSource(sourceID) {
+        return String(sourceID).replace(/token=[^&#]*/g, "token=[redacted]")
+    }
+
     WebEngineView {
         id: view
         anchors.fill: parent
@@ -78,10 +117,17 @@ Item {
         onLoadingChanged: function(loadingInfo) {
             if (!surface.hasTab)
                 return
-            if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
+            if (loadingInfo.status === WebEngineView.LoadStartedStatus) {
+                // 新一轮加载开始：清零未捕获异常计数、撤掉待决的白屏
+                // 检查（两者都只针对「本次加载」的结果）。
+                surface.uncaughtErrors = 0
+                blankCheckTimer.stop()
+            } else if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
                 web.setTabProgress(tab.id, 100)
                 web.setTabState(tab.id, "ready")
+                blankCheckTimer.restart()
             } else if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
+                blankCheckTimer.stop()
                 console.error("WebEngine: failed to load",
                               String(loadingInfo.url),
                               "domain:", loadingInfo.errorDomain,
@@ -99,8 +145,28 @@ Item {
             } else if (loadingInfo.status === WebEngineView.LoadStoppedStatus) {
                 // 主动停止（工具栏 ✕ / 覆盖层「取消」）也要落定状态机——
                 // 否则转圈永远不停。
+                blankCheckTimer.stop()
                 web.setTabState(tab.id, "ready")
             }
+        }
+        // --- JS 控制台：连接本信号后引擎不再走默认的 [js] 日志路由
+        // （两版都是检测到 receivers 即 return），日志转发由这里自己
+        // 负责，且 sourceID 必须先脱敏——默认路由会把 #token=/?token=
+        // 原样写进日志文件。Info 级不转发：默认路由的 js 日志分类缺省
+        // 级别就是 Warning，保持同样的日志量。
+        // 未捕获异常（"Uncaught ..." 前缀）另行计数，作为白屏检测的
+        // 证据——HTTP 200 但脚本全挂的页面（旧引擎跑新 bundle）状态机
+        // 停在 ready，不加检测就是一张没有任何提示的空白页。
+        onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {
+            if (level === WebEngineView.InfoMessageLevel)
+                return
+            const where = surface.redactedSource(sourceID) + ":" + lineNumber
+            if (level === WebEngineView.ErrorMessageLevel)
+                console.error("[js]", where, message)
+            else
+                console.warn("[js]", where, message)
+            if (/^Uncaught\b/i.test(message))
+                surface.uncaughtErrors += 1
         }
         // 渲染进程崩溃后绝不自动重载——崩溃循环比手动重载更糟。
         onRenderProcessTerminated: function(status, exitCode) {
@@ -117,7 +183,15 @@ Item {
         // 方式也不同——QML 两个名字都不能声明（另一版本会因未知属性拒绝
         // 整个表面的加载，即白标签 bug）。由 compat 对象在 C++ 侧连对的
         // 信号并以 popupRequested 转发；路由逻辑在表面根部的 Connections。
-        Component.onCompleted: WebEngineCompat.watchPopups(view)
+        //
+        // --- polyfill：旧引擎兼容脚本同样经 compat 注入（Qt 5 的 view 级
+        // userScripts；Qt 6 在 profile 级、此调用为空操作）。必须在完成
+        // 阶段调：Qt 5 的适配器初始化经 singleShot(0) 排在其后，此时追加
+        // 仍赶得上首次加载。
+        Component.onCompleted: {
+            WebEngineCompat.watchPopups(view)
+            WebEngineCompat.installCompatScript(view)
+        }
 
         // --- 全屏：接受请求，让页面隐藏自己的标签栏。请求对象在两版上
         // 都是同形状的 gadget——toggleOn（方向）+ accept()（应答）。此前
@@ -184,6 +258,38 @@ Item {
             } else {
                 workbench.openExternalUrl(targetUrl)
             }
+        }
+    }
+
+    // --- 白屏兜底 ---------------------------------------------------------
+    // HTTP 层成功但页面脚本抛过未捕获异常、且延迟检查时 body 仍是空白
+    // （SPA 没起来——典型场景：旧引擎解析不了新语法的 bundle，polyfill
+    // 救不了语法级缺口），把标签落到 error 态。否则用户面对一张零提示
+    // 的空白页（状态机停在 ready，dsh 在 Chromium 87 上的实际症状），
+    // error 覆盖层自带「在浏览器中打开」的外置出口。
+    // 仅在「有过未捕获异常」时检查：正常空白页（如刚启动的服务）不受
+    // 影响，部分渲染成功但有零星报错的页面也不会被覆盖层盖住。
+    Timer {
+        id: blankCheckTimer
+        interval: 3000
+        onTriggered: {
+            if (!surface.hasTab || surface.uncaughtErrors === 0
+                    || tab.state !== "ready")
+                return
+            view.runJavaScript(surface.blankProbeScript, function(result) {
+                let info = null
+                try {
+                    info = JSON.parse(result)
+                } catch (e) {
+                    return
+                }
+                if (!info || !info.blank || !surface.hasTab
+                        || tab.state !== "ready")
+                    return
+                const chrome = /Chrome\/(\d+)/.exec(String(info.ua))
+                web.setTabLastError(tab.id, qsTr("The page stayed blank because its scripts failed to run. The embedded browser engine (Chromium %1) is too old for this page; open it in an external browser.").arg(chrome ? chrome[1] : "?"))
+                web.setTabState(tab.id, "error")
+            })
         }
     }
 

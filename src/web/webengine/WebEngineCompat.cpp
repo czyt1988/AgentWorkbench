@@ -1,5 +1,8 @@
 #include "web/webengine/WebEngineCompat.h"
 
+#include <QDebug>
+#include <QFile>
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickWebEngineDownloadRequest>
 // QQuickWebEngineView 在 Qt 6 里同样是私有 API（公共包含目录只提供
@@ -11,7 +14,10 @@
 #else
 // Qt 5：QQuickWebEngineView 与 QQuickWebEngineDownloadItem 都是私有 API
 // （公共包含目录里只有 Profile/Script），经 webengine 目标的
-// Qt5WebEngine_PRIVATE_INCLUDE_DIRS 引入。
+// Qt5WebEngine_PRIVATE_INCLUDE_DIRS 引入。QQuickWebEngineScript 是公共
+// API（Qt 5 的 polyfill 注入走 view 级 userScripts，见 installCompatScript）。
+#include <QQuickWebEngineScript>
+#include <QQmlListProperty>
 #include <QtWebEngine/private/qquickwebenginedownloaditem_p.h>
 #include <QtWebEngine/private/qquickwebenginenewviewrequest_p.h>
 #include <QtWebEngine/private/qquickwebengineview_p.h>
@@ -181,6 +187,88 @@ void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
     if (view && devToolsView) {
         devToolsView->setInspectedView(view);
     }
+}
+
+/**
+ * @brief 给 view 挂旧引擎兼容 polyfill 脚本（Qt 5 的注入路径）
+ *
+ * Qt 5.15 内嵌的 Chromium 是 87（本机 Src 树 chrome/VERSION 可查证），
+ * 现代 agent WebUI 启动即调用 .at / toSorted / Promise.withResolvers 等
+ * Chrome 92–120 的 API，缺一个就是整页白屏。polyfill 源码在
+ * :/web/compat-polyfills.js（全部带特性检测，新引擎上空转），必须以
+ * MainWorld + DocumentCreation 注入——早于页面任何脚本、且页面脚本可见。
+ *
+ * 两版注入位置不同：Qt 6 的 QQuickWebEngineProfile 继承 core 的
+ * QWebEngineProfile、有 scripts() 集合，profile 级注入一次全视图生效
+ * （在 WebEngineProfileStore::createProfile 完成，本函数为空操作）；
+ * Qt 5 的 Quick profile 只是 QObject 包装、没有 scripts()，只能走
+ * view 级 userScripts。调用时机须在 view 的 Component.onCompleted——
+ * Qt 5 的适配器初始化（lazyInitialize）经 singleShot(0) 排在完成阶段
+ * 之后，此时追加的脚本仍能赶上首次加载（initializationFinished 统一
+ * bind，qquickwebengineview.cpp 可查证）。
+ *
+ * 幂等：动态属性标记，与 watchPopups 同一套路。
+ *
+ * @param view 要注入的视图；为空时不动作
+ */
+void WebEngineCompat::installCompatScript(QQuickWebEngineView *view)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    Q_UNUSED(view);
+#else
+    if (!view || view->property("_awbCompatScriptInstalled").toBool()) {
+        return;
+    }
+    view->setProperty("_awbCompatScriptInstalled", true);
+
+    const QString source = compatScriptSource();
+    if (source.isEmpty()) {
+        return;
+    }
+    auto *script = new QQuickWebEngineScript(view);
+    script->setName(QStringLiteral("awb-compat-polyfills"));
+    script->setSourceCode(source);
+    script->setInjectionPoint(QQuickWebEngineScript::DocumentCreation);
+    script->setWorldId(QQuickWebEngineScript::MainWorld);
+    // Qt 5 的 Quick 脚本类方法是 setRunOnSubframes（小写 f）；Qt 6 core 的
+    // QWebEngineScript 才是 setRunsOnSubFrames——见 WebEngineProfileStore。
+    script->setRunOnSubframes(true);
+
+    // userScripts 是 QQmlListProperty（私有头里的 REVISION 1 属性）：
+    // C++ 侧经函数指针追加，等价于 QML 里 userScripts: WebEngineScript{}
+    // 的声明式写法——而后者在 Qt 6 会因 WebEngineScript 不可创建
+    // （值类型，qmltypes 里 isCreatable:false）打挂整个表面组件。
+    // append 的首参要非 const 指针，故 scripts 不能声明为 const。
+    QQmlListProperty<QQuickWebEngineScript> scripts = view->userScripts();
+    if (scripts.append) {
+        scripts.append(&scripts, script);
+    }
+#endif
+}
+
+/**
+ * @brief 取 polyfill 脚本源码（进程内缓存）
+ *
+ * 资源文件 :/web/compat-polyfills.js 由 app 与 tst_webengine 各自嵌入
+ * （资源不进静态库，见 app/CMakeLists.txt 头注释）。读失败时返回空串并
+ * 记警告——注入路径会静默跳过，页面回到「旧引擎裸奔」的行为，不至于
+ * 让内嵌视图整体失效。
+ *
+ * @return 脚本源码；资源缺失时为空串
+ */
+QString WebEngineCompat::compatScriptSource()
+{
+    static const QString source = [] {
+        QFile file(QStringLiteral(":/web/compat-polyfills.js"));
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning().noquote() << QStringLiteral(
+                "WebEngineCompat: cannot read :/web/compat-polyfills.js — "
+                "old engines will run pages without the JS polyfills");
+            return QString();
+        }
+        return QString::fromUtf8(file.readAll());
+    }();
+    return source;
 }
 
 } // namespace awb::web

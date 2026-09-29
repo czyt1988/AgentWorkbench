@@ -36,6 +36,7 @@
     "tabActiveBg": "#ffffff",
     "tabInactiveBg": "#e6e9ef",
     "selectionBg": "#acb0be",
+    "selectionText": "#4c4f69",
     "scrollbar": "#bcc0cc"
   },
   "metrics": {
