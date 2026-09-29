@@ -7,6 +7,7 @@
 #include "shell/UiServices.h"
 
 #include <QClipboard>
+#include <QColor>
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QStandardPaths>
@@ -243,6 +244,67 @@ private Q_SLOTS:
         const auto empty = ui.copyText(QString());
         QVERIFY(!empty.ok);
         QVERIFY(!empty.error.isEmpty());
+    }
+
+    // 颜色选择器的最近记忆（进程内）：最新在前、重复去重并移到队首、
+    // 上限 10 条、非法串忽略；recentColorsChanged 边沿触发——队首同色
+    // 时不重发（订阅方不会无谓重排网格）。
+    void testColorMemory()
+    {
+        UiServices ui;
+        QSignalSpy spy(&ui, &UiServices::recentColorsChanged);
+
+        ui.rememberColor(QStringLiteral("#ff0000"));
+        QCOMPARE(ui.recentColors(),
+                 QStringList{QStringLiteral("#ff0000")});
+        QCOMPARE(spy.count(), 1);
+
+        // 大小写与首尾空白归一成同一颜色：队首同色短路，不发信号。
+        ui.rememberColor(QStringLiteral("#FF0000"));
+        QCOMPARE(ui.recentColors(),
+                 QStringList{QStringLiteral("#ff0000")});
+        QCOMPARE(spy.count(), 1);
+
+        ui.rememberColor(QStringLiteral("#00ff00"));
+        ui.rememberColor(QStringLiteral("#0000ff"));
+        QCOMPARE(ui.recentColors().first(), QStringLiteral("#0000ff"));
+        QCOMPARE(ui.recentColors().size(), 3);
+
+        // 重复的旧色：删旧插队首，记忆仍无重复。
+        ui.rememberColor(QStringLiteral("#ff0000"));
+        QCOMPARE(ui.recentColors().first(), QStringLiteral("#ff0000"));
+        QCOMPARE(ui.recentColors().size(), 3);
+        QCOMPARE(ui.recentColors().count(QStringLiteral("#ff0000")), 1);
+
+        // 超出上限：灌 12 个不同颜色（队首同色会被短路，必须互不相同），
+        // 记忆只保留最近 10 个。
+        for (int i = 0; i < 12; ++i) {
+            ui.rememberColor(QStringLiteral("#")
+                             + QString::number(i, 16).rightJustified(6, '0'));
+        }
+        QCOMPARE(ui.recentColors().size(), 10);
+        // 最新在前：队首是最后记进来的，最早的一条（#000000）被挤出。
+        QCOMPARE(ui.recentColors().first(), QStringLiteral("#00000b"));
+        QVERIFY(!ui.recentColors().contains(QStringLiteral("#000000")));
+
+        // 非法输入：忽略，不发信号也不动记忆。
+        spy.clear();
+        ui.rememberColor(QString());
+        ui.rememberColor(QStringLiteral("not-a-color"));
+        QCOMPARE(spy.count(), 0);
+        QCOMPARE(ui.recentColors().size(), 10);
+
+        // 支撑数据是常量：主题色 10 列、标准色 10 项，全部可解析。
+        QCOMPARE(ui.colorThemes().size(), 10);
+        QCOMPARE(ui.standardColors().size(), 10);
+        for (const QString &hex : ui.colorThemes()) {
+            QVERIFY2(QColor(hex).isValid(),
+                     qPrintable(QStringLiteral("bad theme color: %1").arg(hex)));
+        }
+        for (const QString &hex : ui.standardColors()) {
+            QVERIFY2(QColor(hex).isValid(),
+                     qPrintable(QStringLiteral("bad standard color: %1").arg(hex)));
+        }
     }
 
     // toast 排队挤在可见的三个后面；dismiss 按 id 移除。

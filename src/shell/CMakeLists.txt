@@ -21,3 +21,8 @@ target_link_libraries(awb_shell
         Qt::Core
         Qt::Gui
 )
+
+# ChooseColorW（UiServices::pickColor 的原生颜色对话框）在 comdlg32。
+if (WIN32)
+    target_link_libraries(awb_shell PUBLIC comdlg32)
+endif()
