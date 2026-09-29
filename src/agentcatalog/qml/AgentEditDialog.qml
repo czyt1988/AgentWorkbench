@@ -307,50 +307,28 @@ Dialog {
 
                 AFormLabel {
                     labelText: qsTr("Color")
-                    tip: qsTr("Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette.")
+                    tip: qsTr("Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette. Click the swatch to pick a color.")
                 }
-                RowLayout {
+                // 颜色行用 AColorField：文本框仍是真相源（校验、保存都
+                // 读它的 text），色卡点开 AColorPicker 快速选色。
+                AColorField {
                     Layout.fillWidth: true
-                    spacing: theme.spacingS
-                    ATextField {
-        Layout.fillWidth: true
-                        id: colorField
-                        text: page.agentData.color || ""
-                        placeholderText: qsTr("auto-assigned")
-                        invalid: !page.colorValid
-                    }
-                    Rectangle {
-                        width: 30
-                        height: 30
-                        radius: theme.radiusControl
-                        color: page.colorValid && colorField.text.trim().length > 0
-                               ? colorField.text.trim() : "transparent"
-                        border.color: theme.borderSubtle
-                    }
+                    id: colorField
+                    text: page.agentData.color || ""
+                    placeholderText: qsTr("auto-assigned")
+                    invalid: !page.colorValid
                 }
 
                 AFormLabel {
                     labelText: qsTr("Card color")
-                    tip: qsTr("Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background.")
+                    tip: qsTr("Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background. Click the swatch to pick a color.")
                 }
-                RowLayout {
+                AColorField {
                     Layout.fillWidth: true
-                    spacing: theme.spacingS
-                    ATextField {
-        Layout.fillWidth: true
-                        id: cardColorField
-                        text: page.agentData.cardColor || ""
-                        placeholderText: qsTr("default: surface background")
-                        invalid: !page.cardColorValid
-                    }
-                    Rectangle {
-                        width: 30
-                        height: 30
-                        radius: theme.radiusControl
-                        color: page.cardColorValid && cardColorField.text.trim().length > 0
-                               ? cardColorField.text.trim() : "transparent"
-                        border.color: theme.borderSubtle
-                    }
+                    id: cardColorField
+                    text: page.agentData.cardColor || ""
+                    placeholderText: qsTr("default: surface background")
+                    invalid: !page.cardColorValid
                 }
             }
 

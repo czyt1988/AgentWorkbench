@@ -63,6 +63,9 @@
 | `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `AComboBox` | 下拉选择框 | 一切下拉选择（主题化背景/内容/弹层——Default 样式的调色板是硬编码浅色系，深色主题下不可读）；要定制省略方向或行内控件就在使用点覆写 contentItem/delegate |
+| `AColorField` | 颜色输入行 | 一切「#RRGGBB 输入 + 色卡」的表单字段（文本框是真相源，点色卡弹 AColorPicker；AgentEditDialog 的 Color / Card color） |
+| `AColorPicker` | 颜色选择器 | Office/WPS 式弹层：主题色 10 列×深浅阶、固定标准色、自定义色（原生对话框 + 最近 10 个记忆，进程内）；经 `openBelow(锚点)` 弹出 |
+| `AColorSwatch` | 色块 | 选择器网格的一格 / 迷你色卡（空值 = 中性底 + 斜线；checked 环 + 勾标记当前色） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
 | `ASpotlight` | 指针聚光覆盖层 | 玻璃卡的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover |
 | `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |

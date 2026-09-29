@@ -2,6 +2,47 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
+    <name>AColorField</name>
+    <message>
+        <location filename="../src/shell/qml/components/AColorField.qml" line="40"/>
+        <source>Pick a color</source>
+        <translation>选择颜色</translation>
+    </message>
+</context>
+<context>
+    <name>AColorPicker</name>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="205"/>
+        <source>No color</source>
+        <translation>无颜色</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="226"/>
+        <source>Theme Colors</source>
+        <translation>主题颜色</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="282"/>
+        <source>Standard Colors</source>
+        <translation>标准颜色</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="308"/>
+        <source>Custom Colors</source>
+        <translation>自定义颜色</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="335"/>
+        <source>Colors defined in the dialog show up here.</source>
+        <translation>在对话框中定义的颜色会显示在这里。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/components/AColorPicker.qml" line="344"/>
+        <source>More Colors...</source>
+        <translation>其他颜色...</translation>
+    </message>
+</context>
+<context>
     <name>ASearchField</name>
     <message>
         <location filename="../src/shell/qml/components/ASearchField.qml" line="12"/>
@@ -315,132 +356,140 @@
     </message>
     <message>
         <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="310"/>
-        <source>Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette.</source>
-        <translation>卡片的强调色，#RRGGBB 形式（例如 #89B4FA）。留空则从当前主题调色板自动分配。</translation>
+        <source>Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette. Click the swatch to pick a color.</source>
+        <translation>卡片的强调色，#RRGGBB 形式（例如 #89B4FA）。留空则从内置调色板自动分配。点击色卡可以快速选色。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="319"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="324"/>
+        <source>Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background. Click the swatch to pick a color.</source>
+        <translation>agent 未运行时的卡片背景色，#RRGGBB 形式。留空使用默认的表面背景。点击色卡可以快速选色。</translation>
+    </message>
+    <message>
+        <source>Accent color of the card in #RRGGBB form, e.g. #89B4FA. Leave empty to auto-assign a color from the built-in palette.</source>
+        <translation type="vanished">卡片的强调色，#RRGGBB 形式（例如 #89B4FA）。留空则从当前主题调色板自动分配。</translation>
+    </message>
+    <message>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="318"/>
         <source>auto-assigned</source>
         <translation>留空自动分配</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="333"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="323"/>
         <source>Card color</source>
         <translation>卡片背景色</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="334"/>
         <source>Background color of the card in #RRGGBB form while the agent is not running. Leave empty for the default surface background.</source>
-        <translation>agent 未运行时的卡片背景色，#RRGGBB 形式。留空使用默认的表面背景。</translation>
+        <translation type="vanished">agent 未运行时的卡片背景色，#RRGGBB 形式。留空使用默认的表面背景。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="343"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="330"/>
         <source>default: surface background</source>
         <translation>默认：表面背景</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="364"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="342"/>
         <source>Install &amp; Maintenance</source>
         <translation>安装与维护</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="367"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="345"/>
         <source>Install command</source>
         <translation>安装命令</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="368"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="346"/>
         <source>Command that installs the agent, e.g. &quot;npm install -g @kimi-code/cli&quot;. Offered on the card when the agent is not installed.</source>
         <translation>安装该 Agent 的命令，例如 &quot;npm install -g @kimi-code/cli&quot;。Agent 未安装时显示在卡片上。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="374"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="352"/>
         <source>e.g. npm install -g opencode-ai</source>
         <translation>例如 npm install -g opencode-ai</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="378"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="356"/>
         <source>Update command</source>
         <translation>更新命令</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="379"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="357"/>
         <source>Command that updates the agent to the latest version, e.g. &quot;npm update -g @kimi-code/cli&quot;. Run from the card&apos;s context menu.</source>
         <translation>将 Agent 更新到最新版本的命令，例如 &quot;npm update -g @kimi-code/cli&quot;。可从卡片右键菜单执行。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="385"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="363"/>
         <source>e.g. npm update -g opencode-ai</source>
         <translation>例如 npm update -g opencode-ai</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="389"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="367"/>
         <source>Version command</source>
         <translation>版本命令</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="390"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="368"/>
         <source>Command that prints the agent&apos;s version, e.g. &quot;kimi --version&quot;. Run silently at startup to detect whether the agent is installed.</source>
         <translation>输出 Agent 版本号的命令，例如 &quot;kimi --version&quot;。启动时静默执行，用于检测 Agent 是否已安装。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="396"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="374"/>
         <source>e.g. opencode --version</source>
         <translation>例如 opencode --version</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="408"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="386"/>
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="411"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="389"/>
         <source>First-run setup command</source>
         <translation>首次运行准备命令</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="412"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="390"/>
         <source>One-time command run before the agent&apos;s first launch (e.g. generating a token). Runs only once; a successful run is remembered. Leave empty for no setup.</source>
         <translation>首次启动前执行的一次性命令（例如生成令牌）。仅执行一次，成功后会被记录。留空表示无需准备。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="418"/>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="429"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="396"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="407"/>
         <source>optional</source>
         <translation>选填</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="422"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="400"/>
         <source>Token file</source>
         <translation>令牌文件</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="423"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="401"/>
         <source>Path to a bearer-token file (%VAR% and ~ expanded). Its content is passed to the agent on launch and appended to the Web URL as #token=... when opening the browser.</source>
         <translation>Bearer 令牌文件路径（支持 %VAR% 与 ~ 展开）。内容会在启动时传给 Agent，并在打开浏览器时以 #token=... 追加到 Web 地址。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="438"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="416"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="448"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="426"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="459"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="437"/>
         <source>Save failed</source>
         <translation>保存失败</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="460"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="438"/>
         <source>Could not write the configuration file:</source>
         <translation>无法写入配置文件：</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="462"/>
+        <location filename="../src/agentcatalog/qml/AgentEditDialog.qml" line="440"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1332,7 +1381,7 @@ Command: %2
         <translation type="vanished">外观、启动器与应用选项</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="19"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="20"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
@@ -1341,7 +1390,7 @@ Command: %2
         <translation type="vanished">主题</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="20"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="21"/>
         <source>Launchers</source>
         <translation>启动器</translation>
     </message>
@@ -1362,7 +1411,7 @@ Command: %2
         <translation type="vanished">编辑</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="21"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="22"/>
         <source>Environment</source>
         <translation>环境</translation>
     </message>
@@ -1387,7 +1436,7 @@ Command: %2
         <translation type="vanished">重新检测</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="22"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="23"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
@@ -1412,7 +1461,7 @@ Command: %2
         <translation type="vanished">同一插件的缓存可能保留多个版本，只列出最高的一个。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="24"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="25"/>
         <source>Plugins</source>
         <translation>插件</translation>
     </message>
@@ -1429,7 +1478,7 @@ Command: %2
         <translation type="vanished">Skill 根目录与扫描选项将随 Skills 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="23"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="24"/>
         <source>Web</source>
         <translation>Web</translation>
     </message>
@@ -1458,7 +1507,7 @@ Command: %2
         <translation type="vanished">内嵌 / 外部表面选项将随 Web 页面一起提供。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsPage.qml" line="25"/>
+        <location filename="../src/shell/qml/SettingsPage.qml" line="26"/>
         <source>Advanced</source>
         <translation>高级</translation>
     </message>
@@ -1598,51 +1647,51 @@ Command: %2
     </message>
     <message>
         <location filename="../src/skillcatalog/qml/SkillCard.qml" line="158"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="247"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="250"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="237"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="243"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="261"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="273"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="254"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="263"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="266"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="267"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="276"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="279"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="280"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="289"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="283"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="292"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="285"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="288"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -1650,22 +1699,22 @@ Command: %2
 <context>
     <name>SkillDetailFlyout</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="161"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="170"/>
         <source>SKILL.md</source>
         <translation>SKILL.md</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="183"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="193"/>
         <source>Modified</source>
         <translation>修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="197"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="207"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="254"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="262"/>
         <source>Click the card to copy the path</source>
         <translation>点击卡片即可复制路径</translation>
     </message>
@@ -1857,37 +1906,37 @@ Command: %2
 <context>
     <name>StatusBar</name>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="64"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="89"/>
         <source>Python %1</source>
         <translation>Python %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="65"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="90"/>
         <source>Python is not installed or not in PATH. Agents requiring Python may not work.</source>
         <translation>未安装 Python 或 Python 不在环境变量中，这可能影响依赖 Python 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="106"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="131"/>
         <source>Node.js %1</source>
         <translation>Node.js %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="107"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="132"/>
         <source>Node.js is not installed or not in PATH. Agents requiring Node.js may not work.</source>
         <translation>未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="124"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="34"/>
         <source>Running: %1</source>
         <translation>运行中：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="125"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="35"/>
         <source>Running: 0</source>
         <translation>运行中：0</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="132"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="42"/>
         <source>Tabs: %1</source>
         <translation>标签：%1</translation>
     </message>
@@ -1966,7 +2015,7 @@ Command: %2
         <translation>安心编写提示词，不会误触发送</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="148"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="155"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
@@ -1976,58 +2025,58 @@ Command: %2
         <translation>工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="115"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="122"/>
         <source>Remove this workspace</source>
         <translation>移除此工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="121"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="128"/>
         <source>Could not remove the workspace</source>
         <translation>无法移除工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="130"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="440"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="137"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="447"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="136"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="143"/>
         <source>Refresh the file tree</source>
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="186"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="193"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="255"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="262"/>
         <source>Files</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="370"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="377"/>
         <source>Copy relative path</source>
         <translation>复制相对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="374"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="381"/>
         <source>Copy absolute path</source>
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="425"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="432"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="438"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="445"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="439"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="446"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>
@@ -2035,42 +2084,42 @@ Command: %2
 <context>
     <name>UiServices</name>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="44"/>
+        <location filename="../src/shell/UiServices.cpp" line="72"/>
         <source>Nothing to copy.</source>
         <translation>没有可复制的内容。</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="48"/>
+        <location filename="../src/shell/UiServices.cpp" line="76"/>
         <source>The clipboard is not available.</source>
         <translation>剪贴板不可用。</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="64"/>
+        <location filename="../src/shell/UiServices.cpp" line="92"/>
         <source>Invalid URL.</source>
         <translation>无效的 URL。</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="68"/>
+        <location filename="../src/shell/UiServices.cpp" line="96"/>
         <source>No application accepted %1.</source>
         <translation>没有应用接受 %1。</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="89"/>
+        <location filename="../src/shell/UiServices.cpp" line="117"/>
         <source>The path does not exist: %1</source>
         <translation>路径不存在：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="99"/>
+        <location filename="../src/shell/UiServices.cpp" line="127"/>
         <source>Could not open the file manager.</source>
         <translation>无法打开文件管理器。</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="120"/>
+        <location filename="../src/shell/UiServices.cpp" line="148"/>
         <source>Not a directory: %1</source>
         <translation>不是目录：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/UiServices.cpp" line="124"/>
+        <location filename="../src/shell/UiServices.cpp" line="152"/>
         <source>Could not open the folder: %1</source>
         <translation>无法打开文件夹：%1</translation>
     </message>

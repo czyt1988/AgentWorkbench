@@ -49,6 +49,8 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AFormLabel.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AgentAvatar.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AColorPicker.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AColorField.qml
     # agent catalog QML
     ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/AgentCard.qml
     ${CMAKE_SOURCE_DIR}/src/agentcatalog/qml/AgentGridPage.qml
