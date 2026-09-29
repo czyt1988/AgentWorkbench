@@ -2,13 +2,19 @@
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickWebEngineDownloadRequest>
-#include <QQuickWebEngineView>
+// QQuickWebEngineView 在 Qt 6 里同样是私有 API（公共包含目录只提供
+// Profile/Script/DownloadRequest），与 Qt 5 一样经 webengine 目标的
+// *_PRIVATE_INCLUDE_DIRS 引入；newWindowRequested 信号与请求类型的声明
+// 就在这些私有头里。
+#include <QtWebEngineQuick/private/qquickwebenginenewwindowrequest_p.h>
+#include <QtWebEngineQuick/private/qquickwebengineview_p.h>
 #else
 // Qt 5：QQuickWebEngineView 与 QQuickWebEngineDownloadItem 都是私有 API
 // （公共包含目录里只有 Profile/Script），经 webengine 目标的
 // Qt5WebEngine_PRIVATE_INCLUDE_DIRS 引入。
-#include <QtWebEngine/private/qquickwebengineview_p.h>
 #include <QtWebEngine/private/qquickwebenginedownloaditem_p.h>
+#include <QtWebEngine/private/qquickwebenginenewviewrequest_p.h>
+#include <QtWebEngine/private/qquickwebengineview_p.h>
 #endif
 
 namespace awb::web {
@@ -74,11 +80,60 @@ int WebEngineCompat::downloadInterrupted() const
 }
 
 /**
+ * @brief 给 view 挂弹窗转发
+ *
+ * Qt 6 连 newWindowRequested 并在转发前置 accepted（不置则该次弹窗请求
+ * 被引擎拒绝）；Qt 5 连 newViewRequested，不调 openIn 即为丢弃
+ * （qquickwebengineview.cpp 里未被认领的请求返回 nullptr，页面侧拿到
+ * 空的新建窗口）。两版的 URL 去向都由本应用决定，绝不让引擎自己开窗。
+ *
+ * 请求对象两版的属性形状不同（Qt 6 才谈得上 accepted），故 Qt 6 分支经
+ * 元对象读写（setProperty/property），只依赖 QML 文档稳定暴露的名字
+ * （accepted / requestedUrl）；Qt 5 的 requestedUrl() 直接调（本机源码
+ * 可查证）。
+ *
+ * 幂等：重复传入同一个 view 只连接一次——一次弹窗开两个标签的错误很
+ * 难查。用动态属性做标记，随视图销毁自动消失，不留悬垂指针；
+ * Component.onCompleted 每个实例只触发一次，防的是将来的其它调用点。
+ *
+ * @param view 要监视的视图；为空时不动作
+ */
+void WebEngineCompat::watchPopups(QQuickWebEngineView *view)
+{
+    if (!view || view->property("_awbPopupsWatched").toBool()) {
+        return;
+    }
+    view->setProperty("_awbPopupsWatched", true);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    connect(view, &QQuickWebEngineView::newWindowRequested,
+            this, [this, view](QQuickWebEngineNewWindowRequest *request) {
+        if (!request) {
+            return;
+        }
+        // Qt 6 的应答入口随小版本演进（6.7 文档为 accepted 属性，6.11 的
+        // 属性表里只剩 openIn/acceptAsNewWindow）：置位不存在的属性只会
+        // 退化为忽略（弹窗被引擎拒绝，URL 仍由本应用接管路由，用户可见
+        // 行为一致），因此这里不必按小版本分支。
+        request->setProperty("accepted", true);
+        Q_EMIT popupRequested(view, request->property("requestedUrl").toUrl());
+    });
+#else
+    connect(view, &QQuickWebEngineView::newViewRequested,
+            this, [this, view](QQuickWebEngineNewViewRequest *request) {
+        if (!request) {
+            return;
+        }
+        Q_EMIT popupRequested(view, request->requestedUrl());
+    });
+#endif
+}
+
+/**
  * @brief 拒绝一次页面权限请求（v1 策略：全部拒绝）
  *
- * 两版拒绝的写法不同：Qt 6 是 view.rejectFeature(feature)，Qt 5 是
- * view.grantFeaturePermission(origin, feature, false)——QML 无法对
- * 不存在的成员做条件引用，差异因此收在这条 #if 里。
+ * grantFeaturePermission(..., false) 在两个大版本上同名同义（Qt 6 文档
+ * 亦以此示例），无需分支；曾用过的 rejectFeature 名字并不存在于任何
+ * 一版的 API 表里。
  *
  * @param view 权限请求所属的视图；为空时静默返回
  * @param securityOrigin 请求来源；无效时静默返回
@@ -90,62 +145,42 @@ void WebEngineCompat::denyFeature(QQuickWebEngineView *view,
     if (!view || !securityOrigin.isValid()) {
         return;
     }
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    view->rejectFeature(
-        static_cast<QQuickWebEngineView::Feature>(feature));
-#else
-    // Qt 5：Feature 是普通枚举，拒绝 = grantFeaturePermission(..., false)。
     view->grantFeaturePermission(
         securityOrigin,
         static_cast<QQuickWebEngineView::Feature>(feature), false);
-#endif
 }
 
 /**
  * @brief 取 view 的 DevTools 前端地址
  *
- * Qt 6 直接读 view->devToolsUrl() 喂给独立窗口；Qt 5 没有这条路径——
- * 那边由 attachDevTools() 以「检查器视图绑 inspectedView」的方式挂接，
- * 地址不参与，恒返回空 URL。
+ * 恒为空 URL：DevTools 不经地址加载。两版 QML 属性表里 devToolsView 与
+ * inspectedView 成对出现（没有可读的 devToolsUrl），挂接方式见
+ * attachDevTools。
  *
- * @param view 被检查的视图；可为空（Qt 6 下返回空 URL）
- * @return Qt 6 的 DevTools 地址；Qt 5 恒为空 URL
+ * @param view 被检查的视图（未使用）
+ * @return 恒为空 URL
  * @sa attachDevTools
  */
 QUrl WebEngineCompat::devToolsUrl(QQuickWebEngineView *view)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    return view ? view->devToolsUrl() : QUrl();
-#else
     Q_UNUSED(view);
     return QUrl();
-#endif
 }
 
 /**
  * @brief 把 devToolsView 挂成 view 的检查器视图
  *
- * Qt 5 的检查方向与 Qt 6 相反：不是给主视图一个地址，而是给检查器视图
- * 设 inspectedView，它随后自己加载 chrome-devtools:// 前端。Qt 6 下
- * 无操作（devToolsUrl + url 绑定已覆盖），两个参数都不使用。
+ * 设 inspectedView 后检查器视图自行加载前端，两版同构。
  *
  * @param view 被检查的主视图；为空时不挂接
  * @param devToolsView 检查器视图；为空时不挂接
- * @sa devToolsUrl
  */
 void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
                                      QQuickWebEngineView *devToolsView)
 {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    // Qt 5 的检查方向与 Qt 6 相反：给 devTools 视图设 inspectedView，
-    // 它自己随后加载 chrome-devtools:// 前端。
     if (view && devToolsView) {
         devToolsView->setInspectedView(view);
     }
-#else
-    Q_UNUSED(view);
-    Q_UNUSED(devToolsView);
-#endif
 }
 
 } // namespace awb::web

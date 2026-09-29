@@ -112,26 +112,20 @@ Item {
             }
         }
 
-        // --- 弹窗：回环地址 → 应用内新标签；其余 → 系统浏览器。
-        // request.accepted 必须置位，否则请求静默失败。
-        onNewWindowRequested: function(request) {
-            request.accepted = true
-            const target = String(request.requestedUrl)
-            const hostMatch = /^https?:\/\/([^\/?#:]+)/.exec(target)
-            const host = hostMatch ? hostMatch[1].toLowerCase() : ""
-            const loopback = host === "127.0.0.1" || host === "localhost"
-                             || host === "::1" || host.startsWith("127.")
-            if (loopback) {
-                web.openDetachedTab(tab.agentId, target, host)
-            } else {
-                workbench.openExternalUrl(target)
-            }
-        }
+        // --- 弹窗：Qt 大版本间 new-window 信号名不同（Qt 6
+        // newWindowRequested / Qt 5 newViewRequested），请求对象的应答
+        // 方式也不同——QML 两个名字都不能声明（另一版本会因未知属性拒绝
+        // 整个表面的加载，即白标签 bug）。由 compat 对象在 C++ 侧连对的
+        // 信号并以 popupRequested 转发；路由逻辑在表面根部的 Connections。
+        Component.onCompleted: WebEngineCompat.watchPopups(view)
 
-        // --- 全屏：接受请求，让页面隐藏自己的标签栏。
+        // --- 全屏：接受请求，让页面隐藏自己的标签栏。请求对象在两版上
+        // 都是同形状的 gadget——toggleOn（方向）+ accept()（应答）。此前
+        // 的 request.accepted / request.fullScreen 名字两版都不存在，
+        // 全屏在运行时静默失效。
         onFullScreenRequested: function(request) {
-            request.accepted = true
-            surface.fullScreenToggled(request.fullScreen)
+            request.accept()
+            surface.fullScreenToggled(request.toggleOn)
         }
 
         // --- JS alert()/confirm()/prompt()：引擎会阻塞页面 JS 直到应答。
@@ -155,17 +149,41 @@ Item {
         // --- 页面的 window.close() 关闭标签（页面自己要求的）。此前该
         // 请求被静默忽略，卡住的页面无法关掉。
         onWindowCloseRequested: {
-            if (surface.hasTab)
+            if (surface.hasTab) {
                 web.closeTab(tab.id)
+            }
         }
 
         // --- 权限：v1 一律拒绝并给可见提示。
-        // denyFeature 经 WebEngineCompat：Qt 6 是 view.rejectFeature，
-        // Qt 5 是 grantFeaturePermission(origin, feature, false)。
+        // denyFeature 经 WebEngineCompat 收口：两版都是
+        // grantFeaturePermission(origin, feature, false)，无需分支。
         onFeaturePermissionRequested: function(securityOrigin, feature) {
             WebEngineCompat.denyFeature(view, securityOrigin, feature)
             workbench.notify("warning", qsTr("Permission denied"),
                              qsTr("This page requested a browser permission; the current version does not support it."))
+        }
+    }
+
+    // --- 弹窗路由 -------------------------------------------------------
+    // compat 侧已应答/丢弃引擎请求；URL 的去向在这里决定：回环地址 →
+    // 应用内新标签，其余 → 系统浏览器。每个标签一个表面，只处理属于
+    // 本表面 view 的请求。
+    Connections {
+        target: WebEngineCompat
+
+        function onPopupRequested(sourceView, target) {
+            if (sourceView !== view || !surface.hasTab)
+                return
+            const targetUrl = String(target)
+            const hostMatch = /^https?:\/\/([^\/?#:]+)/.exec(targetUrl)
+            const host = hostMatch ? hostMatch[1].toLowerCase() : ""
+            const loopback = host === "127.0.0.1" || host === "localhost"
+                             || host === "::1" || host.startsWith("127.")
+            if (loopback) {
+                web.openDetachedTab(tab.agentId, targetUrl, host)
+            } else {
+                workbench.openExternalUrl(targetUrl)
+            }
         }
     }
 
@@ -390,8 +408,8 @@ Item {
     }
 
     // --- 独立窗口的 DevTools（仅 Debug 构建） -----------------------------
-    // devToolsUrl/devToolsView 两版名字不同，经 WebEngineCompat 取版本中立
-    // 的地址；Qt 5 那边另有 attachDevTools 挂接检查器视图。
+    // 挂接经 WebEngineCompat.attachDevTools：给 devToolsView 设
+    // inspectedView，它随后自行加载检查器前端（两版同构，地址不参与）。
     Window {
         id: devToolsWindow
         width: 900
