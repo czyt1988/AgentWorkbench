@@ -8,6 +8,8 @@ AgentWorkbench 是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：
 
 **界面设计原则固化在仓库根目录的 `designs.md`**（布局骨架、侧栏钉底规则、组件复用目录与已知重复清单）。**任何涉及 UI/QML 的任务，动手前先读 `designs.md`**——本文只管 QML 技术契约，布局与视觉一致性以它为准。
 
+**文档撰写原则固化在 `docs/AGENTS.md`**（目录骨架与中英文同步规则、`architecture`/`development`/`guide` 三个板块各自的读者与语气、mermaid 作图与链接约定、以及「改了代码要同步改哪些文档」的对照表）。**任何写或改 `docs/` 下文档的任务，动手前先读它**——本文只管工程契约，文档怎么写以它为准。
+
 **代码风格与注释规范固化在 `docs/zh/standards/coding-standard.md`**（文件与命名、C++/Qt/QML 写法、Qt 最佳实践——`Q_OBJECT` 必写、一律大写 `Q_SIGNALS`/`Q_SLOTS`/`Q_EMIT` 宏、单语句 `if`/`for` 也带花括号、非 const Qt 容器经 `std::as_const()` 范围迭代、模块内部用异常不用 `std::optional`、线程不直接操作 GUI、高 DPI 下 `QPixmap` 尺寸除以 `devicePixelRatio()`——以及 Doxygen 注释规范：注释用中文，头文件成员函数写简短普通注释、`.cpp` 函数实现前写完整 `/** ... */` Doxygen 注释，信号/枚举/成员变量（`///<`）写在头文件）。**任何写代码的任务，动手前先读它并按它写**——新代码与你改动到的类、函数都必须符合该规范，不要凭习惯另起一套风格。英文版见 `docs/standards/coding-standard.md`。
 
 ## 构建
@@ -59,7 +61,7 @@ resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json、default_file_icons.json（打包为 Qt 资源）
 icons/         SVG 图标（打包为 Qt 资源）；filetypes/ 与 foldertypes/ 是文件树的类型图标
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
-docs/          MkDocs 站点（英文 + zh/）与调研记录（research/）
+docs/          MkDocs 站点（英文为源 + zh/ 中文镜像）：architecture/（架构）、development/（功能实现）、guide/（用户指引）、standards/、research/；写作规范见 docs/AGENTS.md
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
 scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh、generate_icon.py
 ```
@@ -77,6 +79,14 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 `icon` 解析在 `core::IconResolver`（fallback 由调用方给出，core 不写死应用资源路径）；环境变量展开在 `core::EnvExpander`（`%VAR%` 与 `~`）。`color` 留空时从**当前主题**的 `agentPalette` 按位置循环分配（`AgentRepository::paletteColorAt` 是回退）。配了 `tokenFile` 时，最终打开的 URL 一律由 `agentcatalog::AgentUrls::finalUrl()` 生成（追加 `#token=` 片段，不落服务器日志）——内嵌视图与外部浏览器都走它，不要另拼。
 
 文件树的图标也是数据不是代码：`config/default_file_icons.json` 的三张表（`fileNames`、`suffixes`、`folderNames`，键一律小写）把名字映射到图标 URL，`defaults` 给兜底；`tools::FileIcons` 负责查表（完整文件名 → 后缀 → 默认），值经 `IconResolver` 归一，因此用户能在 `<dataRoot>/file_icons.json` 里按键覆盖或追加（支持 `%VAR%`、`~` 与本机文件路径）。加一种图标 = 往 `icons/filetypes/`（或 `foldertypes/`）放一个 SVG + 在 JSON 里加一行 + 在 `app/CMakeLists.txt` 的资源清单里登记；**不要在 C++ 或 QML 里写后缀判断**。
+
+## 文档
+
+产品文档在 `docs/`（MkDocs 站点，**英文是源头，`docs/zh/` 是必须同步的中文镜像**），分三个板块：`architecture/`（软件是怎么搭起来的：总体架构、前端设计原则、C++ 库设计原则、扩展点）、`development/`（每个功能一个文档：前端设计、后端设计、业务逻辑，点名涉及的文件与类）、`guide/`（每个功能一个面向最终用户的使用指引：做什么用、怎么配、出问题怎么办）。
+
+**写文档前先读 `docs/AGENTS.md`**——它规定目录骨架与中英文一一对应规则、三个板块各自的读者与语气红线（尤其 `guide/` 不许出现代码文件名、类名、函数名）、**全文档不写行号**、mermaid 作图规范、站内链接方式，以及维护对照表。文档与代码不一致时以代码为准，并当场把文档改对。
+
+**每个任务完成后都必须过一遍 `docs/AGENTS.md` 的「什么时候必须改文档」对照表**：功能行为、配置键、界面文案、QML 组件、构建选项、插件 ABI、模块依赖的任何改动，都可能要求同步英文文档与中文镜像、并登记进 `mkdocs.yml` 的导航。这不是「有空再补」的加分项，而是任务完成的一部分——**先把文档改对，再判定任务完成**；新增功能没有对应文档，等于任务没做完。
 
 ## 约定
 
@@ -124,7 +134,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 ### 测试
 
-- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（9 个测试目标 + `check_architecture`；WebEngine 关闭时 `tst_webengine` 不参与）。
+- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（9 个测试目标 + `check_architecture`；WebEngine 关闭时 `tst_webengine` 不参与），**并且**已按 `docs/AGENTS.md` 的「什么时候必须改文档」对照表检查过文档（该改的英文文档、中文镜像与 `mkdocs.yml` 导航都已同步）。
 - 一个模块一个可执行；多个测试类经 `tests/awbtest.h` 的 `AWB_TEST(Class)` 注册，由 `awbtest_runner.cpp` 依次执行（`tst_shell` 单类且需要 `QApplication`，用 `QTEST_MAIN`）。
 - **用例必须写在 `private Q_SLOTS:` 里**（大写宏，见编程规范；小写 `slots` 已禁用）：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
 - 测试不许依赖网络、本机已安装的 agent 工具或真实数据目录。
