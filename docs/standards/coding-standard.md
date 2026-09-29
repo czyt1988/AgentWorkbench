@@ -38,7 +38,7 @@ Together with two other documents it forms the full set of constraints:
 
 - The namespace is always `awb::<module directory>`: `awb::core`, `awb::theme`, `awb::agentcatalog`, `awb::skillcatalog`, `awb::shell`, `awb::web`, `awb::workbench`, `awb::plugin`. Use the C++17 nested form `namespace awb::core {`, and always close with the comment: `} // namespace awb::core`.
 - Header guards are `AWB_<MODULE>_<FILE>_H` in capitals, e.g. `AWB_CORE_PATHS_H`. When a module is renamed, do **not** chase the existing guards — it buys nothing and creates diff noise.
-- Never use `using namespace`. To shorten a name, add a using-declaration inside the `.cpp`: `using awb::core::EnvExpander;`.
+- **`using namespace` is forbidden in headers** — it leaks into every translation unit that includes the header. Do not use it in `.cpp` files either; to shorten a name, add a using-declaration inside the `.cpp`: `using awb::core::EnvExpander;`.
 - Private helpers in a `.cpp` go into an anonymous namespace (`namespace { ... }`), not into `static` functions.
 
 ## 2. Naming
@@ -79,13 +79,14 @@ The language baseline is **C++17**. The rules below are ordered the way you meet
 - Parameters: pass `QString`, containers and custom types by `const &`; pass by value for small types or when the function needs its own copy. Rely on RVO — never `return std::move(x)`.
 - `const` wherever it applies: a member function that does not modify the object is a `const` member function.
 - Return early and keep nesting shallow: handle failures and edge cases first, write the happy path last. An `if` nested more than three deep is a function that wants to be extracted.
-- A single-statement `if` / `for` may omit braces (matching the existing code), but braces are required for multi-statement bodies, inside an `if / else if / else` chain, or when the nesting is easy to misread.
+- **A single-statement `if` / `for` / `while` always gets braces**, no exceptions. When editing existing code, add braces to the statements you touch; do not sweep whole files mechanically.
 - String literals: user-visible text goes through `tr()`, everything else through `QStringLiteral`. Path fragments use `QStringLiteral("/log")`, not `QLatin1String` or a bare literal.
 - Enums: expose plain `enum` + `Q_ENUM` when QML or meta-objects need them (see `AgentModel::Roles`); use `enum class` for purely internal state.
 
 ### 3.2 Error handling and cross-module contracts
 
-- **Nothing throws across a module boundary**: fallible synchronous operations return `core::OpResult` (`{ ok, error }`, readable from QML as `.ok` / `.error`); asynchronous work reports through signals.
+- **Nothing throws across a module boundary**: fallible synchronous operations return `core::OpResult` (`{ ok, error }`, readable from QML as `.ok` / `.error`); asynchronous work reports through signals. Exceptions cannot cross the C++/QML boundary, so for anything QML touches this is a hard constraint.
+- **Use exceptions, not `std::optional`**: inside a module (pure C++), a fallible operation or a possibly-absent value is expressed by throwing; do not introduce `std::optional` returns — callers forget the `has_value()` check and the failure propagates silently as an empty value. Division of labour with the rule above: `OpResult` / signals at module boundaries (especially towards QML), exceptions inside a module.
 - A failure carries a readable reason (in English). Returning `false` and leaving the caller to guess is not acceptable.
 - Do not swallow errors: when you cannot handle and cannot fix a problem, log a `qWarning()` and propagate the failure.
 - Modules talk only through their public interfaces. The domain modules (`agentcatalog`, `skillcatalog`, `web`) have zero dependencies on each other; cross-domain behaviour lives in `awb_workbench`.
@@ -112,9 +113,9 @@ class AgentsFacade : public QObject
 public:
     // 1. type aliases, enums, constructor
     // 2. plain methods, Q_INVOKABLE methods
-signals:
+Q_SIGNALS:
     // 3. signals
-public slots:
+public Q_SLOTS:
     // 4. public slots
 private:
     // 5. private methods
@@ -122,6 +123,8 @@ private:
 };
 ```
 
+- **Every `QObject`-derived class carries the `Q_OBJECT` macro**, without exception: without it moc generates no meta-object code for the class, and signals/slots, `Q_PROPERTY` and `qobject_cast` stop working — silently in most cases.
+- **Use the capitalised Qt macros throughout**: `Q_OBJECT`, `Q_PROPERTY`, `Q_ENUM`, `Q_INVOKABLE`, `Q_SIGNALS`, `Q_SLOTS`, `Q_EMIT`. **The lowercase `signals`, `slots` and `emit` keywords are forbidden** — they only exist when `QT_NO_KEYWORDS` is not defined, while the capitalised macros compile identically under any Qt configuration. This is also what the official Qt best practices recommend.
 - `Q_OBJECT` is the first line after the class name, `Q_PROPERTY` / `Q_ENUM` follow immediately.
 - Constructors take `QObject *parent = nullptr` as the last parameter with a default; injected dependencies (`Settings *`, `Theme *`) come before it.
 - Write a destructor only when non-QObject resources need cleanup; otherwise `= default` the base destructor.
@@ -145,11 +148,33 @@ private:
 
   `SIGNAL()` / `SLOT()` string macros are forbidden — they give up compile-time checking and fail silently after a rename.
 
+- **A signal and its slot take literally the same parameter types, including the value form**: do not pair a by-value signal parameter with a `const &` slot parameter (signal `void changed(Foo foo)` with slot `void onChanged(const Foo &foo)`). Qt fails to recognise such a connection in some situations — it compiles yet never connects, or drops arguments at runtime — and the failure leaves almost no trail, which makes it extremely expensive to debug.
+- **Passing a pointer to a custom class through a signal/slot needs the complete type at the `connect` site**: with only a forward declaration in the header this is an "incomplete type" compile error. Keep the existing split — headers forward-declare wherever possible, and the `.cpp` includes the class's full header; do not move the include into the header for the sake of a `connect`.
 - **Emit a signal only when the state actually changes (edge-triggered).** Re-emitting the same state makes subscribers reload and replay animations; `AgentHealthMonitor::runningChanged` is the reference implementation of this rule.
 - One signal states one fact. When "who + result + reason" must travel together, use several parameters or an `OpResult` — do not invent a catch-all signal.
 - Long operations (network, processes, disk scans) must not block the UI thread, and synchronous waits such as `waitForFinished()` are not allowed; use signals and callbacks.
 
-### 4.4 User-facing strings and logging
+### 4.4 Threads and the GUI
+
+- **Never manipulate GUI controls directly from a thread**: Qt's GUI objects (windows, widgets, QML elements, `QQuickItem`) may only be accessed from the main thread. Cross-thread access is undefined behaviour — it shows up as sporadic crashes and a garbled screen, not as a reproducible error.
+- A worker thread hands results back to the main thread in exactly two ways: **signals and slots** (a cross-thread connection is queued onto the receiver's thread automatically) or an explicit `QMetaObject::invokeMethod(receiver, ...)`. The thread only emits the signal / calls `invokeMethod`; every line that touches the UI lives in the slot (or lambda) that runs on the main thread.
+- The QML-facing APIs of this project are asynchronous by design (`refresh()` returns immediately + an `xxxFinished` signal, see 4.2) precisely to leave room for moving work into a thread: results always arrive via signals, and the UI is only ever updated in a main-thread slot.
+
+### 4.5 Container iteration and high DPI
+
+- **Never range-iterate a non-const Qt container directly.** Qt containers are implicitly shared (COW): a range-`for` over a non-const container — whether written as `for (T &v : container)` or `for (const T &v : container)` — calls the non-const `begin()` and triggers a detaching deep copy; `const T &` does not save you. Two correct shapes: declare the container itself `const`, or wrap it with `std::as_const()`:
+
+  ```cpp
+  for (const AgentDefinition &def : std::as_const(m_definitions)) {
+      ...
+  }
+  ```
+
+  `std::as_const` comes from `<utility>` (C++17) and works on both the Qt 5 and the Qt 6 route; do not use `qAsConst` (Qt 5-only, deprecated in Qt 6).
+
+- **Under high DPI / scaling ≠ 100%, a `QPixmap`'s physical size is not its logical size**: `width()` / `height()` return physical pixels, and painting or positioning computed from them is offset — **divide by `devicePixelRatio()` to get the logical size**. The Qt 6 route can call `deviceIndependentSize()` directly; the Qt 5 compatibility branch divides by hand.
+
+### 4.6 User-facing strings and logging
 
 - User-visible strings are wrapped in `tr()` and the source string must be English (`check_architecture` rule 3); translations live in `translations/`, with `%1` placeholders filled by `.arg()`.
 - Internal literals use `QStringLiteral`; do not wrap things that must not be translated (command lines, JSON keys, URL fragments) in `tr()`.
@@ -224,25 +249,27 @@ QML resources are never put into a static library (the linker drops qrc initiali
 
 This is the section most often written badly. Comments here are not personal notes: they are the project's **code documentation**. All comments are written in Chinese, as thoroughly as the subject deserves, and **never with sentences that carry no information**.
 
+The division of labour in one sentence: **member functions in headers carry a short plain comment only, and every function implementation in the `.cpp` carries the complete Doxygen comment**; entities with no `.cpp` to go to — signals, enums, member variables, header-only types — are the exception, and their complete comments stay in the header.
+
 ### 6.1 General rules
 
-1. **Format**: API documentation comments always use Doxygen syntax (`///` line comments, trailing `///<`, `@param`-style tags). Do not express documentation-worthy content in plain `//` comments — it then appears in no generated documentation at all.
+1. **Style**: follow **Doxygen** comment style, but where and in what format is written follows the division of labour of this section — complete Doxygen blocks (`/** ... */`) go above function definitions in the `.cpp` and above signal declarations in headers; a member function in a header carries a single short **plain** comment (`//`) whose content equals a `@brief`.
 2. **Language**: Chinese. Technical terms and type/function names stay in English (`Q_INVOKABLE`, facade, role); do not force a translation.
-3. **Division of labour**: **the header carries the brief (the contract), the `.cpp` carries the detail (the implementation)**. A header should answer "what does this do" at a glance; the reader who wants the details goes to the `.cpp`.
-4. **Keep it in sync**: changing behaviour, parameters, return values or failure conditions means changing the comments in the same commit. A comment that contradicts the code is a defect.
-5. **No filler**: do not restate what the code already says. `// set the name`, `// loop over the list`, `// constructor` — none of these.
+3. **Why this split**: a header is included by many translation units, so complete documentation in the header means every doc edit recompiles every dependent; complete documentation in the `.cpp` keeps a doc change to a single translation unit (details in 6.6). The header therefore keeps only the "what does this do at a glance" sentence.
+4. **Keep it in sync**: changing behaviour, parameters, return values or failure conditions means changing the comments in the same commit (both the header and the `.cpp`). A comment that contradicts the code is a defect.
+5. **No filler**: do not restate what the code already says. `// set the name`, `// loop over the list`, `// constructor` — none of these. The brief comment states the contract — when to use it, what it guarantees — not a translation of the function name.
 6. **No mechanical migration**: do not rewrite files you are not otherwise changing just to unify comment syntax (section 0).
 
 Comments inside a `.cpp` are of two kinds and live in different places:
 
-- **Documentation comments** (Doxygen, `///`): the function's contract — parameter meaning, return value, side effects, failure conditions. Placed above the definition.
+- **Documentation comments** (Doxygen, `/** ... */`): the function's contract — `@brief`, parameter meaning, return value, side effects, failure conditions. Placed above the definition, **separated from the preceding code by a blank line**.
 - **Soft comments** (plain `//`): why this implementation is written this way, what constrains it, what went wrong before. Placed above the code they explain.
 
-Both live in the `.cpp` only. Headers carry no implementation-level explanation.
+Implementation-level explanation appears in the `.cpp` only. Headers carry none of it.
 
 The examples in the following sections are taken from real code in this repository and show the **target style of this standard**. Where existing files have not caught up, apply the migration rule from section 0: bring the class you are editing up to the standard, and do not rewrite the repository.
 
-### 6.2 Headers: the brief only
+### 6.2 Headers: short plain comments for member functions
 
 What gets commented in a header, and how:
 
@@ -258,26 +285,31 @@ class AgentHealthMonitor : public QObject
 };
 ```
 
-The **detailed** class description (design trade-offs, how it collaborates with other modules) goes in the `.cpp`, above the first member definition — usually the constructor. Doxygen merges the brief from the declaration with the detail from the definition into one entry (see 6.6).
+The **detailed** class description (design trade-offs, how it collaborates with other modules) goes at the top of the `.cpp` implementation file, as a comment block.
 
-**Functions / methods** — one to three `///` lines above the declaration, saying what it does and, if needed, what constrains it:
+**Member functions** — **no complete Doxygen comment** (a documentation change in a header would trigger a full rebuild of every dependent): keep a short **plain** comment (`//`) whose content equals a `@brief`, and let a **`get` / `set` pair share one comment**:
 
 ```cpp
-/// 启动该 agent 并开始轮询它的会话 URL。
-/// 已在运行、或 command 为空时直接返回，不报错。
-Q_INVOKABLE void launch(const QString &id);
+public:
+    // 启动该 agent 并开始轮询它的会话 URL；已在运行或 command 为空时直接返回，不报错
+    Q_INVOKABLE void launch(const QString &id);
+
+    // agent 的显示名
+    QString name() const;
+    void setName(const QString &name);
 ```
 
-Everything deeper (per-parameter meaning, failure paths, return value) belongs at the definition in the `.cpp`. The exception is anything with no `.cpp` to go to (below).
+Everything deeper (per-parameter meaning, failure paths, return value) belongs at the definition in the `.cpp` (6.3), never piled up in the header.
 
-**Signals** — a signal has **no `.cpp` implementation**, so its full documentation, `@param` included, must be written at the signal declaration in the header:
+**Signals** — a signal has **no `.cpp` implementation** and is the exception to the split: its complete Doxygen comment, `@brief` and `@param` included, is written at the signal declaration in the header:
 
 ```cpp
-signals:
-    /// 启动或停止失败时发射，界面据此在卡片上闪红并弹出原因。
-    ///
-    /// @param id      出错的 agent id
-    /// @param message 可直接展示给用户的失败原因
+Q_SIGNALS:
+    /**
+     * @brief 启动或停止失败时发射，界面据此在卡片上闪红并弹出原因
+     * @param id 出错的 agent id
+     * @param message 可直接展示给用户的失败原因（英文 `tr()` 源串）
+     */
     void launchFailed(const QString &id, const QString &message);
 ```
 
@@ -294,12 +326,12 @@ enum Roles {
 Q_ENUM(Roles)
 ```
 
-**Member variables** — no `.cpp` either, so the brief goes above the declaration; a group of related members may share one comment above the group instead of one per line:
+**Member variables** — commented with a trailing `///<`; a group of related members may also share one comment above the group instead of one per line:
 
 ```cpp
 private:
-    /// 本次会话中由本启动器启动过的进程，键为 agent id。
-    QHash<QString, qint64> m_pids;
+    QTimer m_timer;                 ///< 探测定时器
+    QHash<QString, qint64> m_pids;  ///< 本次会话中由本启动器启动过的进程，键为 agent id
 ```
 
 **Header-only entities** — structs, templates and inline functions have no `.cpp` definition, so the complete comment (brief + detail + tags) stays in the header:
@@ -314,20 +346,24 @@ struct OpResult
 };
 ```
 
-### 6.3 .cpp: the detail
+### 6.3 .cpp: a complete Doxygen comment above every implementation
 
-Above the definition, write a Doxygen block that **does not repeat the header sentence** but adds the implementation-level contract:
+**Every function implementation** gets a complete Doxygen comment above it: `/** ... */` format, **separated from the preceding code by a blank line**, using tags such as `@brief`, `@param`, `@return` and `@sa`, with the text in Chinese:
 
 ```cpp
-/// 从 agent 的启动输出里挑出会话 URL。
-///
-/// 带 token 门禁的 harness（dsh 一类）把每进程随机的带 token URL 打到 stdout，
-/// 而不是写 token 文件，所以这里扫日志内容而不是读文件。只取第一条指向
-/// 同一服务器（协议 + 主机 + 端口相同）的 URL，避免把文档链接误当会话入口。
-///
-/// @param output  启动输出（已做 token 脱敏）
-/// @param webUrl  agent 配置的 web 地址，用于比对服务器
-/// @return 找到的会话 URL；没有匹配时返回空字符串
+
+/**
+ * @brief 从 agent 的启动输出里挑出会话 URL
+ *
+ * 带 token 门禁的 harness（dsh 一类）把每进程随机的带 token URL 打到 stdout，
+ * 而不是写 token 文件，所以这里扫日志内容而不是读文件。只取第一条指向
+ * 同一服务器（协议 + 主机 + 端口相同）的 URL，避免把文档链接误当会话入口。
+ *
+ * @param output 启动输出（已做 token 脱敏）
+ * @param webUrl agent 配置的 web 地址，用于比对服务器
+ * @return 找到的会话 URL；没有匹配时返回空字符串
+ * @sa finalUrl
+ */
 QString AgentUrls::sessionUrlFromOutput(const QString &output, const QString &webUrl)
 {
     ...
@@ -336,12 +372,12 @@ QString AgentUrls::sessionUrlFromOutput(const QString &output, const QString &we
 
 Rules:
 
-- **No `@brief`**: the brief lives in the header, the definition carries the detailed text directly. Doxygen joins the two (6.6).
+- `@brief` says what the function does in one sentence; the motivation, constraints and past pitfalls go into the body paragraphs below it — do not cram them into the `@brief` line.
+- Even a trivial function gets the complete block — pure forwarders and one-line getter implementations included (a single `@brief` line is fine): the documentation tool can then extract something for every implementation, and the style stays uniform.
 - Write `@param` whenever there is anything to say: ranges, units, what an empty string or `nullptr` does, ownership, failure semantics. Omit it only when the signature already says everything (e.g. `const QString &id` with no extra convention).
 - Write `@return` for what the value means: what an empty string stands for, what `-1` stands for, in what order a container comes back, what is returned on failure. Tautologies like "returns true on success" are the exception.
-- `@note` for usage caveats, `@warning` for constraints with consequences, `@see` for related functions, `@deprecated` for the replacement. When there is nothing to say, write no tag — do not fill in empty ones to look complete.
-- When a function has nothing to add (a pure forwarder, the implementation of a one-line getter), write **no** Doxygen block in the `.cpp` at all — the header sentence is enough.
-- Helpers in an anonymous namespace and file-level constants exist only in the `.cpp` and have no declaration, so their **complete** comment (brief sentence + detail + tags) goes above the definition.
+- `@note` for usage caveats, `@warning` for constraints with consequences, `@sa` (or `@see`) for related functions — a getter/setter pair cross-references each other with `@sa` — and `@deprecated` for the replacement. When there is nothing to say, write no tag — do not fill in empty ones to look complete.
+- Helpers in an anonymous namespace and file-level constants exist only in the `.cpp` and have no declaration, so their complete comment goes above the definition as well.
 
 ### 6.4 .cpp: soft comments
 
@@ -350,8 +386,9 @@ A soft comment is a plain `//` explaining "why", never "what". The test: if the 
 ```cpp
 // QStandardPaths 的测试模式只重定向 App* 位置，不动 HomeLocation，
 // 因此单元测试会写到开发者真实的配置目录。测试模式下必须换用被重定向的位置。
-if (QStandardPaths::isTestModeEnabled())
+if (QStandardPaths::isTestModeEnabled()) {
     return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+}
 ```
 
 What makes this kind of comment valuable is that it records **the reasoning and the cost**:
@@ -370,19 +407,11 @@ For a long stretch of implementation, separate stages with a blank line and a sh
 - Do not write "to be optimised" or "temporary for now"; if something is genuinely pending, use `@todo` and state the condition and the alternative.
 - No personal names and no external links (they rot). To cite background material, point at a document in this repository, e.g. `docs/research/webengine-embedding.md`.
 
-### 6.6 Why this split works (Doxygen's merge rule)
+### 6.6 Why this split works
 
-The Doxygen manual explicitly supports "brief before the declaration, detail before the definition". It says:
-
-> As a compromise the brief description could be placed before the declaration and the detailed description before the member definition.
-
-and that descriptions in several places are merged ("They will be joined. Note that this is also the case if the descriptions are at different places in the code!").
-
-For us that means:
-
-- the **first paragraph** of a `///` block in the header is the brief; paragraphs after a blank `///` line are the detailed description;
-- the detailed text and tags written at the definition in the `.cpp` are merged with the header's brief into one documentation entry;
-- the two are therefore **complementary**: repeating the header sentence in the `.cpp` achieves nothing.
+- **Rebuild cost**: a header is included by many translation units, so complete documentation in the header means every doc revision triggers a full rebuild of all dependents; complete documentation in the `.cpp` recompiles exactly one translation unit. That is why member functions in a header carry no complete Doxygen comment.
+- **The exceptions must be complete**: signals, enums, member variables and header-only types have no `.cpp` definition, so their complete comments can only live in the header — otherwise the information appears in no generated documentation at all.
+- **The plain comment in a header serves code readers only**: Doxygen does not extract it, so it stays at the one "what does this do at a glance" sentence (equal to the `@brief`), and everything else belongs to the `.cpp`. Where the two overlap, the complete comment in the `.cpp` wins, kept in sync per rule 4 of 6.1.
 
 ### 6.7 Anti-patterns
 
@@ -395,18 +424,29 @@ def.setName(name);
 // 这里可能有问题，先这样
 return m_cache.value(id);
 
-// 错：把实现细节写进头文件，头文件应该只留契约
-/// 先查 QHash，未命中再扫目录，扫的时候跳过 .tmp 后缀……
+// 错：把实现细节写进头文件，头文件应该只留简略说明
+// 先查 QHash，未命中再扫目录，扫的时候跳过 .tmp 后缀……
 QVariantMap load(const QString &id);
 
-// 错：该是 Doxygen 的文档写成了普通注释，生成文档时什么都看不到
-// 启动 agent 并轮询会话 URL
+// 错：头文件的成员函数写完整 Doxygen 注释——文档一改，所有依赖该头的翻译单元全部重编
+/**
+ * @brief 启动该 agent 并开始轮询它的会话 URL
+ * @param id agent 的 id
+ */
 Q_INVOKABLE void launch(const QString &id);
+
+// 错：.cpp 的函数实现只写普通注释，文档工具什么都提取不到
+// 启动 agent 并轮询会话 URL
+void AgentsFacade::launch(const QString &id) { ... }
+
+// 错：信号没有 .cpp 实现，头文件里又不写注释——它在任何文档里都不会出现
+Q_SIGNALS:
+    void launchFailed(const QString &id, const QString &message);
 ```
 
 ## 7. Test rules
 
-How tests are registered, the "cases must be in `private slots:`" rule, and the ban on network access and the real data directory are all in `AGENTS.md` (the "测试" section). Style-level rules:
+How tests are registered, the "cases must be in `private Q_SLOTS:`" rule, and the ban on network access and the real data directory are all in `AGENTS.md` (the "测试" section). Style-level rules:
 
 - One `QObject`-derived class per unit under test; case names say `testXxx` and describe **the behaviour verified**, not the implementation (`testTildeExpansion`, not `testExpand2`).
 - Assert with `QCOMPARE` / `QVERIFY2`; give `QVERIFY2` a human-readable reason (`qPrintable(actual)`).
@@ -416,10 +456,12 @@ How tests are registered, the "cases must be in `private slots:`" rule, and the 
 
 ## 8. Pre-commit checklist
 
-- [ ] `bash scripts/build.sh --test` is green (6 test targets + `check_architecture`).
+- [ ] `bash scripts/build.sh --test` is green (8 test targets + `check_architecture`).
 - [ ] Any added or moved `.qml` is listed in the matching area list in `app/CMakeLists.txt`, and (when it contains `qsTr()`) in `AWB_TS_SOURCES`.
 - [ ] Every C++ method/property used from QML is callable (`Q_INVOKABLE` / `WRITE`).
+- [ ] New code uses the capitalised Qt macros (`Q_SIGNALS` / `Q_SLOTS` / `Q_EMIT`), every `QObject`-derived class has `Q_OBJECT`, and each signal/slot pair matches literally in parameter types and value form.
+- [ ] Single-statement `if` / `for` / `while` bodies have braces; range-iteration over non-const Qt containers goes through `std::as_const()` or a `const`-declared container.
 - [ ] New panels/pages were read in both the dark and the light theme, with no literal colours.
-- [ ] The classes and functions you touched have comments that follow this document; no new "restates the code" comments were introduced.
+- [ ] The classes and functions you touched have comments that follow the section 6 split (brief plain comments in headers, complete `/** ... */` Doxygen blocks in the `.cpp`); no new "restates the code" comments were introduced.
 - [ ] No non-ASCII text inside `tr()` / `qsTr()`; comments, identifiers, logs and commit messages each use their prescribed language.
 - [ ] No `qDebug()`, no temporary code, no commented-out old implementations left behind.

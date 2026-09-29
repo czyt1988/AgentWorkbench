@@ -38,7 +38,7 @@
 
 - 命名空间统一为 `awb::<模块目录名>`：`awb::core`、`awb::theme`、`awb::agentcatalog`、`awb::skillcatalog`、`awb::shell`、`awb::web`、`awb::workbench`、`awb::plugin`。命名空间用 C++17 的嵌套写法 `namespace awb::core {`，右花括号后必须带注释：`} // namespace awb::core`。
 - 头文件保护宏为 `AWB_<模块>_<文件名>_H`，全大写，如 `AWB_CORE_PATHS_H`。重命名模块时**不要**去改既有文件的保护宏——没有收益，只制造 diff。
-- 不使用 `using namespace`。需要缩短名字时，在 `.cpp` 里用单名声明：`using awb::core::EnvExpander;`。
+- **禁止在头文件中使用 `using namespace`**——它会污染所有 include 该头的翻译单元；`.cpp` 里同样不使用。需要缩短名字时，在 `.cpp` 里用单名声明：`using awb::core::EnvExpander;`。
 - `.cpp` 里的私有辅助函数放进匿名命名空间（`namespace { ... }`），不要用 `static` 函数。
 
 ## 2. 命名
@@ -79,13 +79,14 @@
 - 传参：`QString`、容器与自定义类型按 `const &` 传（小到 8 字节以内、或需要在函数内修改副本时按值传）；返回值依赖 RVO，不要写 `return std::move(x)`。
 - 能加 `const` 就加：不修改成员的成员函数必须是 `const` 成员函数。
 - 提前返回、减少嵌套：先处理失败与边界，再写主流程；嵌套超过 3 层的 `if` 说明该抽函数了。
-- 单语句的 `if` / `for` 允许不写花括号（与既有代码保持一致），但当分支体是多语句、或处于 `if / else if / else` 链、或内外层容易看错时，必须写花括号。
+- **单语句的 `if` / `for` / `while` 也必须写花括号**，不省略。改既有代码时把你动到的语句补上花括号即可，不做全文件机械替换。
 - 字符串字面量：面向用户的走 `tr()`，其余一律 `QStringLiteral`。路径拼接用 `QStringLiteral("/log")` 而不是 `QLatin1String` 或裸字面量。
 - 枚举：需要暴露给 QML 或需要元信息的用普通 `enum` + `Q_ENUM`（见 `AgentModel::Roles`）；纯内部的状态量用 `enum class`。
 
 ### 3.2 错误处理与跨模块契约
 
-- **跨模块边界不抛异常**：同步可失败的操作用 `core::OpResult`（`{ ok, error }`，QML 可直接读 `.ok` / `.error`），异步操作用信号回报结果。
+- **跨模块边界不抛异常**：同步可失败的操作用 `core::OpResult`（`{ ok, error }`，QML 可直接读 `.ok` / `.error`），异步操作用信号回报结果。异常无法穿越 C++/QML 边界，这条对 QML 暴露面是硬约束。
+- **用异常，不用 `std::optional`**：模块内部的 C++ 代码里，"可能失败 / 值不存在"用异常表达，不要引入 `std::optional` 返回值——调用方容易漏查 `has_value()`，让失败以空值形式静默传播。与上一条的分工：跨模块边界（尤其面向 QML）用 `OpResult` / 信号，模块内部用异常。
 - 失败必须带可读原因（英文），不要只返回 `false` 就让调用方猜。
 - 不吞错误：捕获不到、修不了的情况记一条 `qWarning()` 再向上返回失败。
 - 模块之间只通过公开接口交互；领域模块（`agentcatalog`、`skillcatalog`、`web`）之间零依赖，跨域行为写在 `awb_workbench`。
@@ -112,9 +113,9 @@ class AgentsFacade : public QObject
 public:
     // 1. 类型别名、枚举、构造函数
     // 2. 普通方法、Q_INVOKABLE 方法
-signals:
+Q_SIGNALS:
     // 3. 信号
-public slots:
+public Q_SLOTS:
     // 4. 公有槽
 private:
     // 5. 私有方法
@@ -122,6 +123,8 @@ private:
 };
 ```
 
+- **继承 `QObject` 的类必须写 `Q_OBJECT` 宏**，无一例外：漏掉它 moc 不会为该类生成元对象代码，信号槽、`Q_PROPERTY`、`qobject_cast` 会静默失效或编译失败。
+- **一律使用大写 Qt 宏**：`Q_OBJECT`、`Q_PROPERTY`、`Q_ENUM`、`Q_INVOKABLE`、`Q_SIGNALS`、`Q_SLOTS`、`Q_EMIT`；**禁止小写的 `signals`、`slots`、`emit` 关键字**——它们只在未定义 `QT_NO_KEYWORDS` 时可用，大写宏保证代码在任何 Qt 配置下都能编译，这也是 Qt 官方推荐的最佳实践。
 - `Q_OBJECT` 紧跟类名后的第一行；`Q_PROPERTY` / `Q_ENUM` 紧随其后。
 - 构造函数：`QObject *parent = nullptr` 作为最后一个参数并带默认值；需要注入的依赖（`Settings *`、`Theme *`）排在前面的参数里。
 - 析构函数只在需要清理非 QObject 资源时才写；此时基类析构用 `= default`。
@@ -129,7 +132,7 @@ private:
 ### 4.2 与 QML 的接口
 
 - **QML 要调用的每个方法都必须 `Q_INVOKABLE`（或槽/信号），要赋值的每个属性都必须有 `WRITE`**。裸方法不在 meta-object 方法表里，QML 调用时抛「is not a function」，而且只有点击才会暴露；`check_architecture` 规则 5 在构建期拦截。
-- 面向 QML 的属性用 `Q_PROPERTY`，按 `READ` / `WRITE` / `NOTIFY` 排列；不变的用 `CONSTANT`。属性变化时必须 `emit xxxChanged()`。
+- 面向 QML 的属性用 `Q_PROPERTY`，按 `READ` / `WRITE` / `NOTIFY` 排列；不变的用 `CONSTANT`。属性变化时必须 `Q_EMIT xxxChanged()`。
 - 面向 QML 的 API 按**异步**设计：`refresh()` 立即返回，结果经 `refreshFinished` 类信号送达。这样以后挪到工作线程不需要改 QML。
 - 与 QML 交互的模型继承 `QAbstractListModel`，暴露 `roleNames()`；role 名与顺序是对 QML 的稳定契约，改动前先确认所有页面。
 - 全局对象只在组装处经 `qmlRegisterSingletonInstance` 注册到纯 C++ URI `AgentWorkbench.App`，**类型名必须大写**。不要用 `setContextProperty`，也不要往 `AgentWorkbench` URI 手工注册单例。QML 侧的小写契约名（`theme`、`agents`、`web`…）是 `MainWindow.qml` 根部的别名。
@@ -145,11 +148,33 @@ private:
 
   禁止 `SIGNAL()` / `SLOT()` 字符串宏——它放弃编译期检查，重命名后会静默失效。
 
+- **信号与槽的参数类型必须逐字匹配，包括传递形式**：不要信号按值传、槽却用 `const &` 接收（如信号 `void changed(Foo foo)` 配槽 `void onChanged(const Foo &foo)`）。参数不一致的连接 Qt 在某些情况下会识别不了——能编译、却连不上或运行时静默丢弃，几乎没有线索可查，调试代价极高。
+- **信号槽传递自定义类指针时，`connect` 处需要完整类型**：头文件里只有前向声明会导致「不完整类型」编译错误。做法保持既有分工——头文件尽量前向声明，`.cpp` 里 `#include` 该类的完整头文件，不要为了 `connect` 把 include 搬进头文件。
 - **信号只在状态真正变化时发射（边沿触发）**。重复发射同一个状态会让订阅方反复重载、重放动画；`AgentHealthMonitor::runningChanged` 就是这个规则的样板。
 - 一个信号表达一个事实。需要同时传达"谁 + 结果 + 原因"时用多参数或 `OpResult`，不要发明"万能信号"。
 - 耗时操作（网络、进程、磁盘扫描）不得阻塞 UI 线程，也不要写 `waitForFinished()` 式的同步等待；用信号/回调。
 
-### 4.4 用户可见字符串与日志
+### 4.4 线程与 GUI
+
+- **永远不要在线程里直接操作 GUI 控件**：Qt 的 GUI 对象（窗口、控件、QML 元素、`QQuickItem`）只能在主线程访问，跨线程访问是未定义行为——典型表现是偶发崩溃与画面错乱，而不是稳定复现的报错。
+- 工作线程把结果交回主线程只有两条路：**信号槽**（跨线程连接自动排队到接收者线程执行）或 `QMetaObject::invokeMethod(接收者, ...)` 显式切换。线程侧只负责发信号 / 调 `invokeMethod`，所有触碰 UI 的代码写在主线程执行的槽（或 lambda）里。
+- 本项目面向 QML 的 API 一律异步设计（`refresh()` 立即返回 + `xxxFinished` 信号，见 4.2），正是为把工作挪进线程留好余地：结果永远经信号回报，界面更新永远发生在主线程。
+
+### 4.5 容器迭代与高 DPI
+
+- **禁止对非 const 的 Qt 容器直接范围迭代**。Qt 容器是隐式共享（COW）的，对非 const 容器写范围 `for`——无论 `for (T &v : container)` 还是 `for (const T &v : container)`——都会调用非 const 的 `begin()`，触发 detach 深拷贝，`const T &` 救不了。正确写法二选一：容器本身声明成 `const`，或用 `std::as_const()` 包裹：
+
+  ```cpp
+  for (const AgentDefinition &def : std::as_const(m_definitions)) {
+      ...
+  }
+  ```
+
+  `std::as_const` 来自 `<utility>`（C++17），Qt 5 / Qt 6 两条路线通用；不要用 `qAsConst`（Qt 5 专属，Qt 6 已废弃）。
+
+- **高 DPI / 缩放比例 ≠ 100% 的环境下，`QPixmap` 的物理尺寸与逻辑尺寸不一致**：`width()` / `height()` 返回的是物理像素，直接拿来计算绘制或摆放位置会偏移，**必须除以 `devicePixelRatio()` 换算成逻辑尺寸**。Qt 6 路线可直接用 `deviceIndependentSize()` 一步取得；Qt 5 兼容分支手工做除法。
+
+### 4.6 用户可见字符串与日志
 
 - 用户可见字符串用 `tr()` 包裹，源串必须是英文（`check_architecture` 规则 3）；翻译放 `translations/`，用 `%1` 占位符配 `.arg()`。
 - 内部字面量用 `QStringLiteral`，不要用 `tr()` 包不该翻译的内容（命令行、JSON 键、URL 片段）。
@@ -224,25 +249,27 @@ QML 资源不放进静态库（qrc 初始化器会被链接器丢掉），所以
 
 这是最容易被写歪的一节：注释不是"给自己看的便条"，而是这个项目的**代码文档**。所有注释用中文写，尽量说清楚，但**不写没有信息量的句子**。
 
+总分工一句话：**头文件的成员函数只留简短普通注释，`.cpp` 的函数实现承载完整 Doxygen 注释**；信号、枚举、成员变量等没有 `.cpp` 可去的实体是例外，完整注释写在头文件里。
+
 ### 6.1 总则
 
-1. **格式**：API 文档注释一律用 Doxygen 语法（`///` 行注释、行尾 `///<`、`@param` 等标签）。不要用普通 `//` 去写本该是文档的内容，那样它不会出现在任何生成的文档里。
+1. **风格**：遵循 **Doxygen** 注释风格，但写在哪、用什么格式按本节分工执行——完整 Doxygen 块（`/** ... */`）写在 `.cpp` 的函数实现前，以及头文件的信号声明处；头文件的成员函数只写一行简短**普通**注释（`//`），内容等同于 `@brief`。
 2. **语言**：中文。术语、类型名、函数名保留英文原文（`Q_INVOKABLE`、`facade`、role），不要硬译。
-3. **分工**：**头文件写简要说明（契约），`.cpp` 写详细说明（实现）**。头文件要"扫一眼就知道这个函数干什么"，细节留给想深入的人去 `.cpp` 看。
-4. **同步**：改了行为、参数、返回值、失败条件，必须在同一次提交里改注释。与代码不一致的注释视同缺陷。
-5. **不写废话**：不复述代码已经说清楚的事。`// 设置名称`、`// 遍历列表`、`// 构造函数` 这类注释一律不要。
+3. **为什么这样分工**：头文件被大量翻译单元 include，完整文档写在头文件里，文档一改所有依赖者全部重编；完整文档放 `.cpp`，改文档只重编单个翻译单元（详见 6.6）。头文件因此只保留"扫一眼就知道这个函数干什么"的那一句。
+4. **同步**：改了行为、参数、返回值、失败条件，必须在同一次提交里改注释（头文件与 `.cpp` 两处都要改）。与代码不一致的注释视同缺陷。
+5. **不写废话**：不复述代码已经说清楚的事。`// 设置名称`、`// 遍历列表`、`// 构造函数` 这类注释一律不要。简略注释说的是契约——什么时候用、保证什么——不是函数名的翻译。
 6. **不做机械迁移**：不要为了统一格式去重写你没有改动的文件（见第 0 节）。
 
 `.cpp` 里的注释分两类，位置不同：
 
-- **文档注释**（Doxygen，`///`）：描述函数的契约——参数含义、返回值、副作用、失败条件。写在函数定义的上方。
+- **文档注释**（Doxygen，`/** ... */`）：描述函数的契约——`@brief`、参数含义、返回值、副作用、失败条件。写在函数定义上方，**注释前空一行**，与上一段代码分隔。
 - **软注释**（普通 `//`）：解释这段实现为什么这么写、有什么约束、踩过什么坑。写在被解释的代码上方。
 
-两者都只写在 `.cpp` 里，头文件不承载实现层面的解释。
+实现层面的解释只出现在 `.cpp` 里，头文件不承载。
 
 下面各节的示例取自本仓库的真实代码，演示的是**本规范的目标写法**。既有文件里尚未补齐的地方按第 0 节的迁移约定处理：你改到哪个类，就把那个类补齐，不做全库重写。
 
-### 6.2 头文件：只写简略说明
+### 6.2 头文件：成员函数只写简短普通注释
 
 头文件里需要注释的对象，以及各自的写法：
 
@@ -258,26 +285,31 @@ class AgentHealthMonitor : public QObject
 };
 ```
 
-类的**详细**说明（设计取舍、与其他模块的协作方式）写在 `.cpp` 里该类第一个成员函数定义之前——通常是构造函数。Doxygen 会把声明处的简略说明和定义处的详细说明合并成一条文档（依据见 6.6）。
+类的**详细**说明（设计取舍、与其他模块的协作方式）写在 `.cpp` 实现文件的开头，作为注释块。
 
-**函数 / 方法**——声明上方一到三行 `///`，一句话说清"做什么"，必要时补一句约束：
+**成员函数**——**不写完整 Doxygen 注释**（避免文档变更触发全量构建），只保留简短**普通**注释（`//`），内容等同于 `@brief`；**`get` / `set` 配对函数共用一条注释**：
 
 ```cpp
-/// 启动该 agent 并开始轮询它的会话 URL。
-/// 已在运行、或 command 为空时直接返回，不报错。
-Q_INVOKABLE void launch(const QString &id);
+public:
+    // 启动该 agent 并开始轮询它的会话 URL；已在运行或 command 为空时直接返回，不报错
+    Q_INVOKABLE void launch(const QString &id);
+
+    // agent 的显示名
+    QString name() const;
+    void setName(const QString &name);
 ```
 
-再往下的细节（每个参数的含义、失败路径、返回值）写在 `.cpp` 的定义处，不在这里堆。头文件里没有 cpp 可去的对象除外（见下）。
+参数含义、失败路径、返回值细节全部写在 `.cpp` 的定义处（见 6.3），不在头文件里堆。
 
-**信号**——信号**没有 `.cpp` 实现**，所以它的完整注释（含 `@param`）必须写在头文件的信号声明处：
+**信号**——信号**没有 `.cpp` 实现**，是分工的例外：完整的 Doxygen 注释（含 `@brief`、`@param`）写在头文件的信号声明处：
 
 ```cpp
-signals:
-    /// 启动或停止失败时发射，界面据此在卡片上闪红并弹出原因。
-    ///
-    /// @param id      出错的 agent id
-    /// @param message 可直接展示给用户的失败原因（英文 `tr()` 源串）
+Q_SIGNALS:
+    /**
+     * @brief 启动或停止失败时发射，界面据此在卡片上闪红并弹出原因
+     * @param id 出错的 agent id
+     * @param message 可直接展示给用户的失败原因（英文 `tr()` 源串）
+     */
     void launchFailed(const QString &id, const QString &message);
 ```
 
@@ -294,12 +326,12 @@ enum Roles {
 Q_ENUM(Roles)
 ```
 
-**成员变量**——没有 `.cpp` 可写，简略说明写在声明上方；同一组同类成员可以在组上方写一条，不必逐个重复：
+**成员变量**——注释用行尾 `///<`；同一组同类成员也可以在组上方共用一条，不必逐个重复：
 
 ```cpp
 private:
-    /// 本次会话中由本启动器启动过的进程，键为 agent id。
-    QHash<QString, qint64> m_pids;
+    QTimer m_timer;                 ///< 探测定时器
+    QHash<QString, qint64> m_pids;  ///< 本次会话中由本启动器启动过的进程，键为 agent id
 ```
 
 **header-only 实体**——结构体、模板、内联函数没有 `.cpp` 定义处，完整注释（简略 + 详细 + 标签）就写在头文件里：
@@ -314,20 +346,24 @@ struct OpResult
 };
 ```
 
-### 6.3 .cpp：写详细说明
+### 6.3 .cpp：所有函数实现前写完整 Doxygen 注释
 
-在函数定义上方写 Doxygen 块，**不重复头文件里的那句话**，直接补充实现层面的契约：
+**所有函数实现前**都写完整的 Doxygen 注释：`/** ... */` 格式，**注释前空一行**与上一段代码分隔，使用 `@brief`、`@param`、`@return`、`@sa` 等标签，说明用中文：
 
 ```cpp
-/// 从 agent 的启动输出里挑出会话 URL。
-///
-/// 带 token 门禁的 harness（dsh 一类）把每进程随机的带 token URL 打到 stdout，
-/// 而不是写 token 文件，所以这里扫日志内容而不是读文件。只取第一条指向
-/// 同一服务器（协议 + 主机 + 端口相同）的 URL，避免把文档链接误当会话入口。
-///
-/// @param output  启动输出（已做 token 脱敏）
-/// @param webUrl  agent 配置的 web 地址，用于比对服务器
-/// @return 找到的会话 URL；没有匹配时返回空字符串
+
+/**
+ * @brief 从 agent 的启动输出里挑出会话 URL
+ *
+ * 带 token 门禁的 harness（dsh 一类）把每进程随机的带 token URL 打到 stdout，
+ * 而不是写 token 文件，所以这里扫日志内容而不是读文件。只取第一条指向
+ * 同一服务器（协议 + 主机 + 端口相同）的 URL，避免把文档链接误当会话入口。
+ *
+ * @param output 启动输出（已做 token 脱敏）
+ * @param webUrl agent 配置的 web 地址，用于比对服务器
+ * @return 找到的会话 URL；没有匹配时返回空字符串
+ * @sa finalUrl
+ */
 QString AgentUrls::sessionUrlFromOutput(const QString &output, const QString &webUrl)
 {
     ...
@@ -336,12 +372,12 @@ QString AgentUrls::sessionUrlFromOutput(const QString &output, const QString &we
 
 规则：
 
-- **不写 `@brief`**：简略说明在头文件里，定义处直接写详细内容。Doxygen 会把两处合并（6.6）。
+- `@brief` 一句话说清"做什么"；设计动机、约束、踩过的坑写在后面的正文段落，不要塞进 `@brief` 一行里。
+- 函数再简单也要有完整的注释块——纯转发、单行 getter 的实现也写（`@brief` 一行即可）：既保证文档工具对每个实现都能提取到内容，也保证风格一致。
 - `@param` 该写就写，不要因为参数名看起来自解释就一律跳过：取值范围、单位、为空或 `nullptr` 时的行为、所有权、失败语义都要交代。只有签名已经把话说尽（如 `const QString &id`，且没有任何附加约定）时才省略。
 - `@return` 写清楚返回值的语义：空串代表什么、`-1` 代表什么、容器的顺序、失败时返回什么。"成功返回 true" 这种同义反复除外。
-- `@note` 写使用上的注意事项，`@warning` 写会产生后果的约束，`@see` 指向相关函数，`@deprecated` 注明替代品。没有这些东西就不写标签，别为了凑格式写空标签。
-- 函数简单到没什么可说（纯转发、单行 getter 的对应实现）时，`.cpp` 里**不写** Doxygen 块——头文件那句已经够了。
-- 匿名 namespace 里的辅助函数、文件级常量只在 `.cpp` 里存在，没有声明处，所以**完整**注释（简略句 + 详细 + 标签）写在定义上方。
+- `@note` 写使用上的注意事项，`@warning` 写会产生后果的约束，`@sa`（或 `@see`）指向相关函数——配对的 getter / setter 互相 `@sa`，`@deprecated` 注明替代品。没有这些东西就不写标签，别为了凑格式写空标签。
+- 匿名 namespace 里的辅助函数、文件级常量只在 `.cpp` 里存在，没有声明处，同样在定义上方写完整注释。
 
 ### 6.4 .cpp：软注释
 
@@ -350,8 +386,9 @@ QString AgentUrls::sessionUrlFromOutput(const QString &output, const QString &we
 ```cpp
 // QStandardPaths 的测试模式只重定向 App* 位置，不动 HomeLocation，
 // 因此单元测试会写到开发者真实的配置目录。测试模式下必须换用被重定向的位置。
-if (QStandardPaths::isTestModeEnabled())
+if (QStandardPaths::isTestModeEnabled()) {
     return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+}
 ```
 
 这类注释的价值在于它记录的是**当时的推理与代价**：
@@ -370,19 +407,11 @@ if (QStandardPaths::isTestModeEnabled())
 - 不写"待优化"、"暂时这样"这类没有结论的话；确实要留待办就写 `@todo` 并说清条件与替代方案。
 - 不写死人的名字与外部链接（会失效）；要引用背景材料就指向仓库内的文档，例如 `docs/research/webengine-embedding.md`。
 
-### 6.6 为什么这样分工（Doxygen 的合并规则）
+### 6.6 为什么这样分工
 
-Doxygen 官方手册明确支持"简略说明放声明前、详细说明放定义前"这种分工，原文：
-
-> As a compromise the brief description could be placed before the declaration and the detailed description before the member definition.
-
-并且多处描述会被合并（"They will be joined. Note that this is also the case if the descriptions are at different places in the code!"）。
-
-对我们来说这意味着：
-
-- 头文件里 `///` 的**第一段**是简略说明（brief），空 `///` 行之后的段落属于详细说明；
-- `.cpp` 定义处写的详细说明与标签，会与头文件的简略说明合并成同一条文档；
-- 所以两者是**互补**关系，在 `.cpp` 里重复一遍头文件那句话没有意义。
+- **重建代价**：头文件被大量翻译单元 include，完整文档写在头文件里意味着任何一次文档修订都触发依赖者全量重编；完整文档放 `.cpp`，改文档只重编那一个翻译单元。这就是"头文件成员函数不写完整 Doxygen 注释"的原因。
+- **例外必须完整**：信号、枚举、成员变量、header-only 类型没有 `.cpp` 定义处，它们的完整注释只能写在头文件里——否则这些信息不会出现在任何生成的文档中。
+- **头文件的普通注释只服务读代码的人**：它不被 Doxygen 提取，因此只写"扫一眼知道这个函数干什么"的那一句（等同 `@brief`），其余内容全部留给 `.cpp`。两处内容有重叠时，以 `.cpp` 的完整注释为准，并按 6.1 第 4 条保持同步。
 
 ### 6.7 反例
 
@@ -395,18 +424,29 @@ def.setName(name);
 // 这里可能有问题，先这样
 return m_cache.value(id);
 
-// 错：把实现细节写进头文件，头文件应该只留契约
-/// 先查 QHash，未命中再扫目录，扫的时候跳过 .tmp 后缀……
+// 错：把实现细节写进头文件，头文件应该只留简略说明
+// 先查 QHash，未命中再扫目录，扫的时候跳过 .tmp 后缀……
 QVariantMap load(const QString &id);
 
-// 错：该是 Doxygen 的文档写成了普通注释，生成文档时什么都看不到
-// 启动 agent 并轮询会话 URL
+// 错：头文件的成员函数写完整 Doxygen 注释——文档一改，所有依赖该头的翻译单元全部重编
+/**
+ * @brief 启动该 agent 并开始轮询它的会话 URL
+ * @param id agent 的 id
+ */
 Q_INVOKABLE void launch(const QString &id);
+
+// 错：.cpp 的函数实现只写普通注释，文档工具什么都提取不到
+// 启动 agent 并轮询会话 URL
+void AgentsFacade::launch(const QString &id) { ... }
+
+// 错：信号没有 .cpp 实现，头文件里又不写注释——它在任何文档里都不会出现
+Q_SIGNALS:
+    void launchFailed(const QString &id, const QString &message);
 ```
 
 ## 7. 测试规范
 
-测试的注册方式、"用例必须写在 `private slots:`"、不依赖网络与真实数据目录等硬性约定见 `AGENTS.md` 的「测试」一节。风格层面的要求：
+测试的注册方式、"用例必须写在 `private Q_SLOTS:` 里"、不依赖网络与真实数据目录等硬性约定见 `AGENTS.md` 的「测试」一节。风格层面的要求：
 
 - 一个 `QObject` 派生类对应一个被测单元，用例名 `testXxx` 描述**被验证的行为**，不是描述实现（`testTildeExpansion`，不是 `testExpand2`）。
 - 断言用 `QCOMPARE` / `QVERIFY2`；`QVERIFY2` 的第二参数给出人能读的原因（`qPrintable(actual)`）。
@@ -416,10 +456,12 @@ Q_INVOKABLE void launch(const QString &id);
 
 ## 8. 提交前自检
 
-- [ ] `bash scripts/build.sh --test` 全绿（6 个测试目标 + `check_architecture`）。
+- [ ] `bash scripts/build.sh --test` 全绿（8 个测试目标 + `check_architecture`）。
 - [ ] 新增/移动的 `.qml` 已同步 `app/CMakeLists.txt` 的区域清单与（含 `qsTr()` 时）`cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。
 - [ ] QML 用到的 C++ 方法/属性可调用（`Q_INVOKABLE` / `WRITE`）。
+- [ ] 新代码一律大写 Qt 宏（`Q_SIGNALS` / `Q_SLOTS` / `Q_EMIT`），`QObject` 派生类带 `Q_OBJECT`；信号与槽的参数类型和传递形式逐字匹配。
+- [ ] 单语句 `if` / `for` / `while` 都带花括号；非 const Qt 容器的范围迭代经 `std::as_const()` 或容器已声明为 `const`。
 - [ ] 新增的面板/页面在深浅两套主题下都读过一遍，没有字面颜色。
-- [ ] 改动的类与函数补齐了符合本文的注释；没有引入新的"复述代码"式注释。
+- [ ] 改动的类与函数补齐了符合第 6 节分工的注释（头文件简短普通注释、`.cpp` 完整 `/** ... */` Doxygen 注释）；没有引入新的"复述代码"式注释。
 - [ ] `tr()` / `qsTr()` 里没有非 ASCII 字符；注释、标识符、日志、提交信息各自使用规定的语言。
 - [ ] 没有留下 `qDebug()`、临时代码、被注释掉的旧实现。

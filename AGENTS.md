@@ -8,7 +8,7 @@ AgentWorkbench 是一个用 Qt6/QML + C++ 开发的 AI 编码 agent 工作台：
 
 **界面设计原则固化在仓库根目录的 `designs.md`**（布局骨架、侧栏钉底规则、组件复用目录与已知重复清单）。**任何涉及 UI/QML 的任务，动手前先读 `designs.md`**——本文只管 QML 技术契约，布局与视觉一致性以它为准。
 
-**代码风格与注释规范固化在 `docs/zh/standards/coding-standard.md`**（文件与命名、C++/Qt/QML 写法、Doxygen 注释规范：注释用中文，头文件写简略说明、`.cpp` 写详细说明，信号/枚举/类写在头文件）。**任何写代码的任务，动手前先读它并按它写**——新代码与你改动到的类、函数都必须符合该规范，不要凭习惯另起一套风格。英文版见 `docs/standards/coding-standard.md`。
+**代码风格与注释规范固化在 `docs/zh/standards/coding-standard.md`**（文件与命名、C++/Qt/QML 写法、Qt 最佳实践——`Q_OBJECT` 必写、一律大写 `Q_SIGNALS`/`Q_SLOTS`/`Q_EMIT` 宏、单语句 `if`/`for` 也带花括号、非 const Qt 容器经 `std::as_const()` 范围迭代、模块内部用异常不用 `std::optional`、线程不直接操作 GUI、高 DPI 下 `QPixmap` 尺寸除以 `devicePixelRatio()`——以及 Doxygen 注释规范：注释用中文，头文件成员函数写简短普通注释、`.cpp` 函数实现前写完整 `/** ... */` Doxygen 注释，信号/枚举/成员变量（`///<`）写在头文件）。**任何写代码的任务，动手前先读它并按它写**——新代码与你改动到的类、函数都必须符合该规范，不要凭习惯另起一套风格。英文版见 `docs/standards/coding-standard.md`。
 
 ## 构建
 
@@ -123,7 +123,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、generate_icon.py
 
 - 「做完」的定义是 `bash scripts/build.sh --test` 全绿（8 个测试目标 + `check_architecture`）。
 - 一个模块一个可执行；多个测试类经 `tests/awbtest.h` 的 `AWB_TEST(Class)` 注册，由 `awbtest_runner.cpp` 依次执行（`tst_shell` 单类且需要 `QApplication`，用 `QTEST_MAIN`）。
-- **用例必须写在 `private slots:` 里**：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
+- **用例必须写在 `private Q_SLOTS:` 里**（大写宏，见编程规范；小写 `slots` 已禁用）：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
 - 测试不许依赖网络、本机已安装的 agent 工具或真实数据目录。
 
 ### Qt 5 / Qt 6 双版本兼容
