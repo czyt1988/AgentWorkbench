@@ -55,68 +55,73 @@ public:
     bool canFetchMore(const QModelIndex &parent) const override;
     void fetchMore(const QModelIndex &parent) override;
 
-    /// 设定树的内容根（工作区目录的绝对路径）；空串 = 无工作区的空树。
-    /// 换根是整棵树换内容，走 model reset；顶层一层立即读盘，更深层保持懒加载。
+    // 设定树的内容根（工作区目录的绝对路径）；空串 = 无工作区的空树。
+    // 换根是整棵树换内容，走 model reset；顶层一层立即读盘，更深层保持懒加载
     void setRootPath(const QString &path);
 
+    // 工作区根的绝对路径（正斜杠）；空串表示没有工作区
     QString rootPath() const { return m_rootPath; }
 
-    /// 与磁盘对账：只改变化的行，展开状态与未变的节点原样保留。
+    // 与磁盘对账：只改变化的行，展开状态与未变的节点原样保留
     void refresh();
 
-    /// 叠加用户图标配置（<dataRoot>/file_icons.json）。
-    /// 要在 setRootPath() 之前调用：之后调用不会给已渲染的行补发 dataChanged。
+    // 叠加用户图标配置（<dataRoot>/file_icons.json）；须在 setRootPath() 之前调用
     void loadUserIconFile(const QString &path);
 
+    // 根层条目数；空状态占位绑定它（Q_PROPERTY 的 READ 侧）
     int topLevelCount() const;
 
-    /// 幂等的 fetch 兜底：目录未读取则读，其余情况静默返回。
-    /// TreeView 展开未驱动 fetchMore 时由 QML 调用。
+    // 幂等的 fetch 兜底：目录未读取则读，其余静默返回（QML 在视图未驱动 fetchMore 时调用）
     Q_INVOKABLE void fetchChildren(const QModelIndex &parent);
 
 Q_SIGNALS:
-    /// 一次 refresh 完成（手动或 watcher 触发）；无论有无变化都会发。
+    /**
+     * @brief 一次 refresh 完成（手动或 watcher 触发）都会发射；无论有无变化
+     */
     void refreshed();
-    /// 根层条目数变化（工作区切换、顶层增删）。
+    /**
+     * @brief 根层条目数变化时发射（工作区切换、顶层增删）
+     */
     void topLevelCountChanged();
 
 private:
     struct Node;
 
+    // 索引 ↔ 节点互查（internalPointer 存 Node *）
     Node *nodeForIndex(const QModelIndex &index) const;
     QModelIndex indexForNode(Node *node) const;
 
-    /// 读盘并排序（目录优先、名字大小写不敏感）；只列目录项，不建节点。
+    // 读盘并排序（目录优先、名字大小写不敏感）；只列目录项，不建节点
     static QFileInfoList readSortedEntries(const QString &dirPath);
     static std::unique_ptr<Node> makeChildNode(const QFileInfo &entry, Node *parent);
     static std::unique_ptr<Node> makeRootNode(const QString &path);
-    /// 读盘构造 parent 的子节点数组（不挂树、不发信号）。
+    // 读盘构造 parent 的子节点数组（不挂树、不发信号）
     static std::vector<std::unique_ptr<Node>> readChildNodes(Node *parent);
-    /// 把子节点挂到 node 上（parent/row/fetched 落位），不带任何模型信号。
+    // 把子节点挂到 node 上（parent/row/fetched 落位），不带任何模型信号
     static void attachChildren(Node *node,
                                std::vector<std::unique_ptr<Node>> children);
-    /// 结构变化后重排行号；parent 指针由建节点时落位。
+    // 结构变化后重排行号；parent 指针由建节点时落位
     static void renumberChildren(Node *node);
-    /// 无信号版 fetch：构造期（staging 树）使用。
+    // 无信号版 fetch：构造期（staging 树）使用
     void populateNode(Node *node);
-    /// 活树上的 fetch：对视图发 rowsInserted。
+    // 活树上的 fetch：对视图发 rowsInserted
     void fetchNode(Node *node);
 
-    /// 对账一个已读取的目录并递归其已读取的子目录；返回整棵子树是否有变化。
+    // 对账一个已读取的目录并递归其已读取的子目录；返回整棵子树是否有变化
     bool syncNode(Node *node);
-    /// 单层对账：发最小的 remove/insert 行信号；返回本层是否有变化。
+    // 单层对账：发最小的 remove/insert 行信号；返回本层是否有变化
     bool syncChildren(Node *node);
 
+    // 收集整棵树里已读目录的路径（armWatchers 布防用）
     void collectWatchedDirs(const Node *node, QStringList *out) const;
+    // 全量重布防文件系统监听
     void armWatchers();
 
-    /// 工作区根的绝对路径（正斜杠）；空串表示还没有工作区。
-    QString m_rootPath;
-    std::unique_ptr<Node> m_root;
-    /// 名字/后缀 → 图标；IconRole 的唯一来源。
-    FileIcons m_icons;
-    QFileSystemWatcher m_watcher;
-    QTimer m_watcherDebounce;
+    QString m_rootPath;             ///< 工作区根的绝对路径（正斜杠）；空串表示没有工作区
+    std::unique_ptr<Node> m_root;   ///< invisible root 节点；无工作区时为空
+    FileIcons m_icons;              ///< 名字/后缀 → 图标；IconRole 的唯一来源
+    QFileSystemWatcher m_watcher;   ///< 已读目录的监听，directoryChanged 防抖后触发 refresh()
+    QTimer m_watcherDebounce;       ///< directoryChanged 的防抖定时器（单次、300 ms）
 };
 
 } // namespace awb::tools

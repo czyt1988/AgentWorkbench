@@ -48,18 +48,36 @@
 #include <windows.h>
 #endif
 
+/**
+ * @brief 应用入口：装配整个对象图并启动 QML 引擎
+ *
+ * 启动顺序是本文件的核心契约，不能随意调换：
+ * 1) 日志最先装（之后任何失败都有磁盘记录）；
+ * 2) 设置在 QGuiApplication 之前读（Chromium flags 必须在
+ *    QtWebEngineQuick::initialize() 之前注入，而后者又必须先于
+ *    QGuiApplication）；
+ * 3) 自底向上装配各域（core → theme → shell → agentcatalog →
+ *    workbench），插件在页面恢复之前加载；
+ * 4) QML 全局注册（AgentWorkbench.App，类型名大写）之后加载主窗口。
+ *
+ * UI 加载失败时打出足够排查的上下文（QML import 路径），Windows 上再
+ * 弹一个说明弹窗，排空日志队列后以非零码退出。
+ *
+ * @param argc 参数个数（未使用）
+ * @param argv 参数数组（未使用）
+ * @return app.exec() 的退出码；UI 加载失败返回 -1
+ */
 int main(int argc, char *argv[])
 {
-    // 1) Logging first: any later failure must be on disk
+    // 1) 日志最先装：之后的任何失败都必须落在磁盘上
     QGuiApplication::setApplicationName(QStringLiteral("AgentWorkbench"));
     awb::core::Logging::install();
 
-    // Settings are read before QGuiApplication: the user's Chromium flags
-    // must be injected BEFORE QtWebEngineQuick::initialize(), which itself
-    // has to run before QGuiApplication. The first-run save
-    // is deferred until after LegacyImport::runOnce — writing settings.json
-    // early would make its untouched-check (data root holds nothing but
-    // log/) fail forever.
+    // 设置要在 QGuiApplication 之前读：用户配的 Chromium flags 必须在
+    // QtWebEngineQuick::initialize() 之前注入，而后者又必须先于
+    // QGuiApplication。首次运行的 save() 推迟到 LegacyImport::runOnce
+    // 之后——过早写 settings.json 会让它的「数据根只有 log/」未触碰
+    // 判定永远失败。
     awb::core::Settings settings;
     // 应用配置的日志选项（轮转策略、级别、stderr 镜像）。上面第一次
     // install() 必须先用默认值跑——Settings 构造期间的告警要落盘——所以
@@ -80,8 +98,8 @@ int main(int argc, char *argv[])
         qputenv("QTWEBENGINE_CHROMIUM_FLAGS", chromiumFlags);
     }
 #ifdef AWB_ENABLE_WEBENGINE
-    // GPU/driver problems are worked around through web.chromiumFlags
-    // a hard failure logs and continues degraded.
+    // GPU/驱动问题经 web.chromiumFlags 绕过；此处硬失败只记日志、
+    // 降级继续。
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QtWebEngineQuick::initialize();
 #else
@@ -92,15 +110,15 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     app.setApplicationVersion(QStringLiteral("0.4.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
-    // The flat fallback style: Qt 6 renamed "Default" to "Basic".
+    // 扁平的兜底样式：Qt 6 把 "Default" 改名成了 "Basic"。
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 #else
     QQuickStyle::setStyle(QStringLiteral("Default"));
 #endif
 
-    // Load locale-appropriate translation from embedded:/i18n/ resources.
-    // locale.override forces a locale; empty follows the system.
+    // 按系统区域加载内嵌 :/i18n/ 里的翻译；locale.override 强制区域，
+    // 空串跟随系统。
     QTranslator translator;
     const QString forcedLocale = settings.locale().overrideName;
     const QLocale locale = forcedLocale.isEmpty() ? QLocale()
@@ -110,11 +128,10 @@ int main(int argc, char *argv[])
         app.installTranslator(&translator);
     }
 
-    // Global UI font, applied before the engine exists: family only, the
-    // platform point size is kept. A missing family (e.g. Microsoft YaHei
-    // on non-Windows) falls back to the system default via QFont matching;
-    // later runtime switches are driven by MainWindow's font.family
-    // binding on theme.family.
+    // 全局 UI 字体，在引擎创建之前应用：只设 family，平台字号保留。
+    // 缺字体（比如非 Windows 上的 Microsoft YaHei）经 QFont 匹配退回
+    // 系统默认；运行期换字体由 MainWindow 的 font.family 绑定
+    // theme.family 驱动。
     {
         const QString fontFamily = settings.appearance().fontFamily;
         if (!fontFamily.isEmpty()) {
@@ -124,20 +141,19 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Adopt a pre-0.4 ~/.AgentLauncher data directory on the first start
-    // after the upgrade, before anything else touches the data root
+    // 升级后首次启动时收编升级前的 ~/.AgentLauncher 数据目录，赶在
+    // 其它任何东西碰数据根之前
     QString legacyNotice;
     const bool legacyImported = awb::core::LegacyImport::runOnce(
         awb::core::Paths::dataRoot(), &legacyNotice);
-    // First run: materialize default settings.json only now — before this,
-    // the data root had to stay empty (except log/) for the legacy adoption
-    // check above.
+    // 首次运行：现在才落默认 settings.json——在此之前数据根必须保持
+    // 空置（除 log/），上面的 legacy 收编判定才成立。
     if (!QFile::exists(awb::core::Settings::settingsFilePath())) {
         settings.save();
     }
 
-    // 3) Assembly, dependency order from the bottom up:
-    //    core -> theme -> shell -> agentcatalog -> workbench.
+    // 3) 装配：依赖顺序自底向上——core → theme → shell →
+    //    agentcatalog → workbench。
     awb::theme::ThemeRegistry themeRegistry;
     awb::theme::Theme theme(&settings, &themeRegistry);
 
@@ -163,10 +179,9 @@ int main(int argc, char *argv[])
                                                &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
-    // Plugins: discover manifests always (for the settings
-    // list), load libraries only when the user opted in — failures log and
-    // never block startup. This runs BEFORE BuiltinPages restores the last
-    // page, so a plugin page id survives a restart.
+    // 插件：manifest 总是发现（设置页列表要用），库只在用户开启总开关后
+    // 才装载——失败一律记日志、绝不阻塞启动。这段在 BuiltinPages 恢复
+    // 上次页面之前跑，插件页面 id 才能活过一次重启。
     awb::core::PluginHost pluginHost;
     const QList<awb::core::PluginHost::Manifest> manifests =
         pluginHost.discover();
@@ -197,8 +212,8 @@ int main(int argc, char *argv[])
             if (!enabledIds.contains(manifest.id)) {
                 continue;
             }
-            // resolve() flips the flag loadEnabled() filters on — discover()
-            // leaves it false (disabled until the user opts in).
+            // resolve() 翻的是 loadEnabled() 过滤的那个标志——discover()
+            // 留它为 false（用户没开启之前不装载）。
             awb::core::PluginHost::Manifest copy = manifest;
             copy.enabled = true;
             enabled.append(copy);
@@ -211,9 +226,8 @@ int main(int argc, char *argv[])
 
 
 #ifdef AWB_ENABLE_WEBENGINE
-    // The embedded surface registers itself with the web domain; profiles
-    // are exposed to QML for the per-agent views. WebEngineCompat bridges
-    // the member names/enum shapes that differ between Qt 5 and Qt 6.
+    // 内嵌表面把自己注册进 web 域；profile 经 QML 暴露给每个 agent 的
+    // 视图。WebEngineCompat 弥合 Qt 5 / Qt 6 的成员名与枚举形状差异。
     awb::web::WebEngineSurfaceProvider webSurface(&webTabs);
     awb::web::WebEngineProfileStore profileStore;
     awb::web::WebEngineCompat webEngineCompat;
@@ -223,9 +237,8 @@ int main(int argc, char *argv[])
                                  &webEngineCompat);
 #endif
 
-    // 4) Register the QML globals: uppercase type names on
-    //    the AgentWorkbench.App URI; the QML-facing lowercase names are
-    //    root aliases in MainWindow.qml.
+    // 4) 注册 QML 全局：AgentWorkbench.App URI 上一律大写类型名；
+    //    QML 侧的小写名字是 MainWindow.qml 根部的别名。
     qRegisterMetaType<awb::core::OpResult>();
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &theme);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Nav", &nav);
@@ -243,8 +256,8 @@ int main(int argc, char *argv[])
                                  &environment);
 
     QQmlApplicationEngine engine;
-    // Prefer the QML modules deployed next to the executable (deployed Qt
-    // runtime on end-user machines).
+    // 优先用部署在可执行文件旁边的 QML 模块（终端用户机器上是随包
+    // 部署的 Qt 运行时）。
     engine.addImportPath(QCoreApplication::applicationDirPath()
                          + QStringLiteral("/qml"));
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -256,9 +269,8 @@ int main(int argc, char *argv[])
     engine.load(QUrl(
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/shell/MainWindow.qml")));
     if (engine.rootObjects().isEmpty()) {
-        // The UI failed to load. Log enough context so deployment problems
-        // on end-user machines are diagnosable from the log file alone, and
-        // tell the user what happened.
+        // UI 加载失败。打出足够的上下文，让终端用户机器上的部署问题
+        // 光靠日志文件就能排查；再告知用户发生了什么。
         qWarning() << "QML import paths:" << engine.importPathList();
 #ifdef Q_OS_WIN
         ::MessageBoxW(

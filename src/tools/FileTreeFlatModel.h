@@ -44,41 +44,48 @@ public:
 
     explicit FileTreeFlatModel(QObject *parent = nullptr);
 
-    /// 设定树源；接好信号后立即投影一次。
+    // 设定树源；接好信号后立即投影一次
     void setSourceModel(FileTreeModel *model);
 
+    // 投影行数（Q_PROPERTY 的 READ 侧；ListView 只认模型本身）
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    // 把扁平行的 role 转发到源模型的对应节点
     QVariant data(const QModelIndex &index,
                   int role = Qt::DisplayRole) const override;
+    // role 名表；与 FileTreeModel::roleNames 同名（多出 depth 等扁平专属 role）
     QHash<int, QByteArray> roleNames() const override;
 
+    // 当前投影里的行数
     int visibleCount() const { return static_cast<int>(m_rows.size()); }
 
-    /// 展开/收起 row（须为目录行）。展开时先 fetchChildren 兜底再投影子
-    /// 行；收起是递归的——子目录的展开状态一并清掉。
+    // 展开/收起 row（须为目录行）；收起是递归的——子目录的展开状态一并清掉
     Q_INVOKABLE void toggleExpanded(int row);
 
-    /// 重新投影：源模型根变化与刷新时由信号触发，也可手动调用。
+    // 重新投影：源模型根变化与刷新时由信号触发，也可手动调用
     void rebuild();
 
 Q_SIGNALS:
+    /**
+     * @brief 投影行数变化时发射（展开/收起、换根、重投影都会引起）
+     */
     void visibleCountChanged();
 
 private:
+    // 接上源模型的事实信号（modelReset / refreshed）并初始化展开状态
     void connectSource(FileTreeModel *model);
 
     /// 投影行：源模型索引 + 快照的层级/展开状态。
     struct Row {
-        QModelIndex source;
-        int depth = 0;
-        bool expanded = false;
+        QModelIndex source;    ///< 源模型里的对应索引
+        int depth = 0;         ///< 缩进层级（顶层为 0）
+        bool expanded = false; ///< 快照的展开态（行信号由本类自己维护）
     };
 
-    /// 追加 row 并在其展开键命中时递归追加子树（fetch 兜底在内）。
+    // 追加 row 并在其展开键命中时递归追加子树（fetch 兜底在内）
     void appendExpanded(std::vector<Row> &out, const Row &row);
 
-    FileTreeModel *m_source = nullptr;
-    std::vector<Row> m_rows;
+    FileTreeModel *m_source = nullptr; ///< 树源；未设定时投影为空
+    std::vector<Row> m_rows;           ///< 当前的扁平投影
     /// 已展开目录的路径集合（相对工作区根），跨源模型 refresh 保留。
     QSet<QString> m_expandedPaths;
 };

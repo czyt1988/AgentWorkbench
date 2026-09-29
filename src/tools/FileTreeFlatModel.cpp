@@ -4,11 +4,24 @@
 
 namespace awb::tools {
 
+/**
+ * @brief 构造扁平投影模型
+ *
+ * @param parent QObject 父项
+ */
 FileTreeFlatModel::FileTreeFlatModel(QObject *parent)
     : QAbstractListModel(parent)
 {
 }
 
+/**
+ * @brief 设定树源并接好事实信号
+ *
+ * 同一个模型重复设定时只重接信号；换 nullptr 断开旧源并清空投影。
+ * 接好后立即投影一次。
+ *
+ * @param model 树源；可为 nullptr（投影清空）
+ */
 void FileTreeFlatModel::setSourceModel(FileTreeModel *model)
 {
     if (m_source == model) {
@@ -32,11 +45,27 @@ void FileTreeFlatModel::setSourceModel(FileTreeModel *model)
     rebuild();
 }
 
+/**
+ * @brief 取投影行数
+ *
+ * @param parent 列表模型无层级，有效索引恒返回 0
+ * @return 当前投影的行数
+ */
 int FileTreeFlatModel::rowCount(const QModelIndex &parent) const
 {
     return parent.isValid() ? 0 : static_cast<int>(m_rows.size());
 }
 
+/**
+ * @brief 按 role 派发投影行数据
+ *
+ * 深度/展开是扁平模型自己的状态；文本与图标 role 转发到源模型的对应
+ * 节点（role 枚举数值不同，映射见函数内的 case 表）。
+ *
+ * @param index 投影行索引
+ * @param role 请求的 role
+ * @return 对应数据；行越界时返回无效 QVariant
+ */
 QVariant FileTreeFlatModel::data(const QModelIndex &index, int role) const
 {
     if (index.row() < 0 || index.row() >= static_cast<int>(m_rows.size())) {
@@ -69,6 +98,15 @@ QVariant FileTreeFlatModel::data(const QModelIndex &index, int role) const
     }
 }
 
+/**
+ * @brief role 名表：role 号 → QML 端的属性名
+ *
+ * 名字与 FileTreeModel 的同名 role 保持一致（多出 depth/expanded/
+ * hasChildren 三个扁平专属 role），QML delegate 的 required property
+ * 因此不用改。
+ *
+ * @return role 号到 role 名的映射
+ */
 QHash<int, QByteArray> FileTreeFlatModel::roleNames() const
 {
     return {
@@ -84,6 +122,17 @@ QHash<int, QByteArray> FileTreeFlatModel::roleNames() const
     };
 }
 
+/**
+ * @brief 展开或收起投影里的一个目录行
+ *
+ * 展开路径：先 fetchChildren 兜底（未读目录立刻有子行），再把子树按
+ * 当前展开键递归投影成行、一次 rowsInserted 插到该行之后；空目录没有
+ * 行可插，只翻展开态（箭头由 hasChildren 的 dataChanged 自然消失）。
+ * 收起路径是递归的：子树内所有目录的展开键一并清掉，再展开父级时不会
+ * 「记得」深层状态。
+ *
+ * @param row 投影行号；越界或非目录行静默返回
+ */
 void FileTreeFlatModel::toggleExpanded(int row)
 {
     if (row < 0 || row >= static_cast<int>(m_rows.size())) {
@@ -154,6 +203,12 @@ void FileTreeFlatModel::toggleExpanded(int row)
     Q_EMIT visibleCountChanged();
 }
 
+/**
+ * @brief 从源模型重新投影整张扁平表
+ *
+ * 换根（modelReset）与一次 refresh 结束（refreshed）时由信号触发；
+ * 走 model reset，收起的目录不投影。结束时发 visibleCountChanged()。
+ */
 void FileTreeFlatModel::rebuild()
 {
     beginResetModel();
@@ -171,6 +226,15 @@ void FileTreeFlatModel::rebuild()
     Q_EMIT visibleCountChanged();
 }
 
+/**
+ * @brief 追加一行，命中展开键时递归追加整棵子树
+ *
+ * 展开键跨 refresh 保留；目录可能还没读过盘，投影前先 fetchChildren
+ * 兜底。
+ *
+ * @param out 投影行的追加目标
+ * @param row 待追加的行（depth 已按父级算好）
+ */
 void FileTreeFlatModel::appendExpanded(std::vector<Row> &out, const Row &row)
 {
     out.push_back(row);

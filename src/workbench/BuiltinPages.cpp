@@ -11,6 +11,18 @@
 
 namespace awb::workbench {
 
+/**
+ * @brief 构造并完成全部注册与布线
+ *
+ * @param nav 页面注册与徽标
+ * @param shell 上次页面的持久化
+ * @param agents agent 运行状态
+ * @param web Web 标签页域
+ * @param notifications toast 通知
+ * @param skills Skills 页门面
+ * @param tools Tools 页门面
+ * @param parent QObject 父项
+ */
 BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
                            shell::ShellController *shell,
                            agentcatalog::AgentsFacade *agents,
@@ -33,6 +45,11 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
     wireWebRules();
 }
 
+/**
+ * @brief 注册五个内置页面
+ *
+ * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径。
+ */
 void BuiltinPages::registerPages()
 {
     // Page list and metadata: The `web` and
@@ -93,9 +110,15 @@ void BuiltinPages::registerPages()
     m_nav->registerPage(settings);
 }
 
+/**
+ * @brief 布线侧栏徽标
+ *
+ * launcher 徽标 = 运行中的 agent 数（为 0 时不显示）：监听模型的
+ * dataChanged（限 RunningRole）/ rowsInserted / rowsRemoved。启动时先
+ * 算一次初值。
+ */
 void BuiltinPages::wireBadges()
 {
-    // Launcher badge = number of running agents (hidden at 0) —
     auto update = [this]() {
         const QList<awb::agentcatalog::AgentDefinition> &definitions =
             m_agents->agentModel()->definitions();
@@ -122,11 +145,16 @@ void BuiltinPages::wireBadges()
     update();
 }
 
+/**
+ * @brief 布线 web 相关的跨域规则
+ *
+ * agent 停止 → 标签离线遮罩；agent 回来 → 重载；agent 删除 → 关掉
+ * 它的标签；启动输出里捕获的会话 URL（dsh 每进程一个新 token）→
+ * 换掉已开标签的 URL，免得它停在会被 token 门禁 401 的裸 webUrl 上；
+ * 外部打开 → 一条 toast。最后挂 web 标签数徽标。
+ */
 void BuiltinPages::wireWebRules()
 {
-    // Cross-domain rules: agent stopped -> tab offline; agent
-    // back -> reload; agent deleted -> close its tab. The external-surface
-    // notice becomes a toast.
     connect(m_agents, &agentcatalog::AgentsFacade::runningChanged, this,
             [this](const QString &id, bool running) {
                 if (running) {
@@ -139,9 +167,6 @@ void BuiltinPages::wireWebRules()
     connect(m_agents, &agentcatalog::AgentsFacade::agentRemoved, this,
             [this](const QString &id) { m_web->closeTabsForAgent(id); });
 
-    // A session URL captured from the agent's launch output (a fresh
-    // per-process token for dsh) retargets an already-open tab instead of
-    // leaving it on the bare webUrl the token gate rejects with 401.
     connect(m_agents, &agentcatalog::AgentsFacade::sessionUrlChanged, this,
             [this](const QString &id, const QString &url) {
                 m_web->retargetTabForAgent(id, url);
@@ -154,7 +179,7 @@ void BuiltinPages::wireWebRules()
                     url);
             });
 
-    // Web tab count badge.
+    // web 标签数徽标。
     auto updateWebBadge = [this]() {
         const int count = m_web->model() ? m_web->model()->rowCount() : 0;
         m_nav->setBadge(QStringLiteral("web"),
@@ -167,10 +192,13 @@ void BuiltinPages::wireWebRules()
     updateWebBadge();
 }
 
+/**
+ * @brief 布线当前页持久化
+ *
+ * 启动时恢复上次访问的页面（记过才恢复），之后每次切换立即保存。
+ */
 void BuiltinPages::wirePagePersistence()
 {
-    // Restore the last visited page once and
-    // persist every switch.
     const QString last = m_shell->lastPageId();
     if (!last.isEmpty()) {
         m_nav->setCurrentPageId(last);
