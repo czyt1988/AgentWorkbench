@@ -22,6 +22,7 @@
 
 // 与 Logging.h 里的 Q_DECLARE_LOGGING_CATEGORY 同在全局作用域。
 Q_LOGGING_CATEGORY(lcAwbEvent, "awb.event")
+Q_LOGGING_CATEGORY(lcAwbPerf, "awb.perf")
 
 namespace awb::core {
 

@@ -53,6 +53,11 @@ QString Paths::webProfilesDir()
     return dataRoot() + QStringLiteral("/webprofiles");
 }
 
+QString Paths::skillCacheFile()
+{
+    return dataRoot() + QStringLiteral("/skills_cache.json");
+}
+
 QString Paths::downloadsDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);

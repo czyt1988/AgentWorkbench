@@ -1,6 +1,7 @@
 #ifndef AWB_CORE_LOGGING_H
 #define AWB_CORE_LOGGING_H
 
+#include <QDebug>
 #include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
@@ -13,6 +14,10 @@
 /// 声明在全局作用域——宏展开处按未限定名查找，放进命名空间就解析不到。
 Q_DECLARE_LOGGING_CATEGORY(lcAwbEvent)
 
+/// 性能埋点日志的 category（"awb.perf"）：由 AWB_PERF 宏绑定。
+/// 同样声明在全局作用域（原因同上）。
+Q_DECLARE_LOGGING_CATEGORY(lcAwbPerf)
+
 /// 应用级事件日志的分级宏——级别取宏名，分类固定 awb.event：行前缀会带
 /// 该分类（供按事件过滤），将来的 UI 日志通道也按它分流。模块内部的一般
 /// 日志仍用 qInfo()/qWarning() 加 [module] 前缀。
@@ -20,6 +25,20 @@ Q_DECLARE_LOGGING_CATEGORY(lcAwbEvent)
 #define AWB_INFO      qCInfo(lcAwbEvent)
 #define AWB_WARNING   qCWarning(lcAwbEvent)
 #define AWB_CRITICAL  qCCritical(lcAwbEvent)
+
+/// 性能埋点专用宏：记录耗时观测（缓存加载、目录扫描、模型重建等），
+/// 只在排查性能问题时打开。开关分两层：
+///  - 编译期：CMake 给 awb_core 及其下游仅在 Debug 配置定义
+///    AWB_PERF_ENABLED——release 构建里本宏展开为空语句，任何日志规则
+///    都打不开，参数表达式也不求值；
+///  - 运行期（Debug 构建）：分类默认关闭，用
+///    QT_LOGGING_RULES "awb.perf.debug=true" 开启，输出经 Logging 的
+///    消息处理器落盘。
+#ifdef AWB_PERF_ENABLED
+#define AWB_PERF qCDebug(lcAwbPerf)
+#else
+#define AWB_PERF while (false) QNoDebug()
+#endif
 
 namespace awb::core {
 

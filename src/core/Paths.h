@@ -27,6 +27,8 @@ public:
     static QString pluginsDir();     // <dataRoot>/plugins
     static QString logsDir();        // <dataRoot>/log
     static QString webProfilesDir(); // <dataRoot>/webprofiles
+    // <dataRoot>/skills_cache.json —— skillcatalog 的扫描结果缓存。
+    static QString skillCacheFile();
     static QString downloadsDir();   // ~/Downloads (configurable later)
 
     // True once dataRoot() was overridden by setDataRootForTesting().
