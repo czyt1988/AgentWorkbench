@@ -12,6 +12,7 @@
 #include "shell/UiServices.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
@@ -153,6 +154,9 @@ int main(int argc, char *argv[])
     // 页不再触发任何扫描。
     skills.start();
     awb::tools::ToolsFacade tools(awb::core::Paths::dataRoot());
+    // Agent Tools 编辑器的 markdown 支持：语法高亮 + 右键菜单的格式化动作。
+    // 配色跟 Theme 走（切换主题即时重扫）。
+    awb::tools::MarkdownEdit markdownEdit(&theme);
 
     awb::workbench::EnvironmentService environment;
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
@@ -231,6 +235,8 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Web", &webTabs);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Skills", &skills);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools", &tools);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownEdit",
+                                 &markdownEdit);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",

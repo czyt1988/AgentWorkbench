@@ -1,5 +1,5 @@
 # tst_tools — workspace store, lazy file tree model (tree + flat projection),
-# icon map, facade wiring.
+# icon map, facade wiring, markdown editing support.
 add_executable(tst_tools
     tst_tools_main.cpp
     tst_toolsstore.cpp
@@ -7,6 +7,7 @@ add_executable(tst_tools
     tst_filetreeflatmodel.cpp
     tst_fileicons.cpp
     tst_toolsfacade.cpp
+    tst_markdownedit.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
 )
 

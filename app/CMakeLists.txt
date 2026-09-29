@@ -19,7 +19,7 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    ATextArea AScrollBar AgentAvatar)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
-set(_tools_qml ToolsPage)
+set(_tools_qml ToolsPage MarkdownContextMenu)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
 
@@ -126,10 +126,13 @@ awb_add_resources(AgentWorkbench "i18n"
 set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/app-icon.png
     ${CMAKE_SOURCE_DIR}/icons/bot.svg
+    ${CMAKE_SOURCE_DIR}/icons/bold.svg
+    ${CMAKE_SOURCE_DIR}/icons/bullet-list.svg
     ${CMAKE_SOURCE_DIR}/icons/chevron-down.svg
     ${CMAKE_SOURCE_DIR}/icons/chevron-left.svg
     ${CMAKE_SOURCE_DIR}/icons/chevron-right.svg
     ${CMAKE_SOURCE_DIR}/icons/close.svg
+    ${CMAKE_SOURCE_DIR}/icons/code.svg
     ${CMAKE_SOURCE_DIR}/icons/copy.svg
     ${CMAKE_SOURCE_DIR}/icons/cube.svg
     ${CMAKE_SOURCE_DIR}/icons/default.svg
@@ -144,6 +147,7 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/menu.svg
     ${CMAKE_SOURCE_DIR}/icons/openclaw.svg
     ${CMAKE_SOURCE_DIR}/icons/opencode.svg
+    ${CMAKE_SOURCE_DIR}/icons/paste.svg
     ${CMAKE_SOURCE_DIR}/icons/plus.svg
     ${CMAKE_SOURCE_DIR}/icons/qwen-code.svg
     ${CMAKE_SOURCE_DIR}/icons/refresh.svg

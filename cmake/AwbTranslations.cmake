@@ -66,4 +66,5 @@ set(AWB_TS_SOURCES
     # tools
     ${CMAKE_SOURCE_DIR}/src/tools/ToolsFacade.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
 )

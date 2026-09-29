@@ -185,7 +185,12 @@ Item {
                 SplitView.minimumWidth: 260
                 placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
                 // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
-                Component.onCompleted: text = tools.draft
+                Component.onCompleted: {
+                    text = tools.draft
+                    // markdown 语法高亮在此时挂到 textDocument 上；主题切换
+                    // 由 MarkdownEdit 自己跟随。
+                    MarkdownEdit.attach(promptEditor)
+                }
                 onTextChanged: tools.draft = text
 
                 // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
@@ -207,6 +212,23 @@ Item {
                                             drop.text)
                         drop.acceptProposedAction()
                     }
+                }
+
+                // 右键弹 markdown 异型菜单（顶部格式化工具栏 + 复制/粘贴）。
+                // TextEdit 只吃左/中键，右键不触碰编辑器选区；MouseArea 只
+                // 接受右键，左键的选中/点击不受影响，鼠标处给 I-beam 光标。
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    cursorShape: Qt.IBeamCursor
+                    onClicked: function(mouse) {
+                        editorMenu.editor = promptEditor
+                        editorMenu.popup(mouse.x, mouse.y)
+                    }
+                }
+
+                MarkdownContextMenu {
+                    id: editorMenu
                 }
             }
 
