@@ -63,6 +63,7 @@ class Theme : public QObject
     Q_PROPERTY(QColor tabActiveBg READ tabActiveBg NOTIFY changed)
     Q_PROPERTY(QColor tabInactiveBg READ tabInactiveBg NOTIFY changed)
     Q_PROPERTY(QColor selectionBg READ selectionBg NOTIFY changed)
+    Q_PROPERTY(QColor selectionText READ selectionText NOTIFY changed)
     Q_PROPERTY(QColor scrollbar READ scrollbar NOTIFY changed)
     Q_PROPERTY(double radiusCard READ radiusCard NOTIFY changed)
     Q_PROPERTY(double radiusOverlay READ radiusOverlay NOTIFY changed)
@@ -157,6 +158,7 @@ public:
     QColor tabActiveBg() const;
     QColor tabInactiveBg() const;
     QColor selectionBg() const;
+    QColor selectionText() const;
     QColor scrollbar() const;
     // 数值令牌 getter（圆角/间距/字号/尺寸/时长）：缺键返回 0.0
     double radiusCard() const;

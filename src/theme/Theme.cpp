@@ -485,6 +485,18 @@ QColor Theme::selectionBg() const
 }
 
 /**
+ * @brief 取选区上的文字色
+ *
+ * 与 selectionBg 成对保证可读：不设的话 TextEdit 回落到系统 palette 的
+ * HighlightedText（Windows 亮色主题下近黑），配深色主题的 selectionBg
+ * 几乎不可辨。
+ */
+QColor Theme::selectionText() const
+{
+    return m_current.colors.value(QStringLiteral("selectionText"));
+}
+
+/**
  * @brief 取滚动条颜色
  */
 QColor Theme::scrollbar() const
