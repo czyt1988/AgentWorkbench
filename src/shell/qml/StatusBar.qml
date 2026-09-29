@@ -1,11 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Status bar: runtime badges on the left, activity counts
-// in the middle, app version on the right. Height = theme.statusBarHeight.
+// 底部状态栏：左侧运行环境徽标（Python/Node.js），中部活动计数（运行中
+// 的 agent、Web 标签数），右侧应用版本。高度取 theme.statusBarHeight。
 Rectangle {
     id: statusBar
 
@@ -21,7 +21,7 @@ Rectangle {
         anchors.rightMargin: theme.spacingM
         spacing: theme.spacingM
 
-        // --- Runtime badges (Python / Node.js) --------------------------
+        // --- 运行环境徽标（Python / Node.js） ------------------------------
         Row {
             spacing: theme.spacingS
 
@@ -114,11 +114,11 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        // --- Activity counts ---------------------------------------------
+        // --- 活动计数 -------------------------------------------------------
         Label {
-            // The agents badge already counts running agents (BuiltinPages).
-            // nav.badges is the NOTifiable map — page("agents") is a method
-            // call whose binding never re-evaluated on badge changes.
+            // agents 徽标已是「运行中的 agent 数」（BuiltinPages 维护）。
+            // nav.badges 是带 NOTIFY 的映射——page("agents") 是方法调用，
+            // 徽标变化时那种绑定永远不会重算。
             readonly property string running: nav.badges["agents"] || ""
             text: running.length > 0
                   ? qsTr("Running: %1").arg(running)
@@ -136,7 +136,7 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        // --- Version -----------------------------------------------------
+        // --- 版本 -----------------------------------------------------------
         Label {
             text: "v" + Qt.application.version
             color: theme.textMuted

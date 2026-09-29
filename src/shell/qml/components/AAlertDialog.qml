@@ -1,23 +1,28 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Alert dialog on ADialog (danger-styled by default): title + message +
-// an optional scrollable detail block (mono font, for command output /
-// file paths) + a dismiss button.
+// 基于 ADialog 的提示弹窗（默认 danger 样式）：标题 + 消息 + 可选的等宽
+// 字体详情块（命令输出/文件路径之类）+ 关闭按钮，用于错误与通知的呈现。
+// 用户点关闭或按 Esc 即发出 dismissed 并关闭。
 ADialog {
     id: control
 
     danger: true
 
+    // 正文消息（空串则不渲染）。
     property string message: ""
+    // 详情文本（空串则不渲染详情块）。
     property string detail: ""
+    // 关闭按钮文字。
     property string dismissText: ""
 
+    // 用户关闭弹窗时发出。
     signal dismissed()
 
+    // 消息 + 可滚动详情 + 关闭按钮，整体作为 dialogContent 装进骨架。
     dialogContent: [
         ColumnLayout {
             Layout.fillWidth: true
@@ -32,8 +37,8 @@ ADialog {
                 wrapMode: Text.Wrap
             }
 
-            // Scrollable mono detail, height-capped so long command output
-            // cannot push the buttons off screen.
+            // 可滚动的等宽详情，高度封顶，超长的命令输出不会把按钮行
+            // 顶出屏幕。
             ScrollView {
                 Layout.fillWidth: true
                 visible: control.detail.length > 0

@@ -1,19 +1,21 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Form field label: text + red required marker + info icon; hovering the
-// label or the info icon shows the tip (both are hover sources so a long
-// tip is reachable from either end of the row).
+// 表单字段标签行：文字 + 红色必填星号 + 信息图标。悬停标签或信息图标都
+// 会显示 tip——两者都是 hover 源，长提示从行的任一端都能触发。
 RowLayout {
     id: labelRow
 
     Layout.fillWidth: true
 
+    // 标签文字。
     property string labelText: ""
+    // 为真时显示红色必填星号。
     property bool isRequired: false
+    // 提示文本（非空时才渲染信息图标并启用 tooltip）。
     property string tip: ""
 
     spacing: theme.spacingXs

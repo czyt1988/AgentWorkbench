@@ -1,14 +1,18 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Pill badge: rounded capsule on the badge background.
+// 徽标胶囊：badge 背景上的圆角胶囊，用于计数与来源标签；文字、底色、
+// 前景色可按实例注入。
 Rectangle {
     id: control
 
+    // 胶囊文字。
     property string text: ""
+    // 胶囊底色（默认 badge 令牌）。
     property color fillColor: theme.badgeBg
+    // 胶囊文字色。
     property color textColor: theme.textSecondary
 
     implicitWidth: label.implicitWidth + theme.spacingS + theme.spacingXs
@@ -16,9 +20,8 @@ Rectangle {
     radius: theme.radiusPill
     color: fillColor
 
-    // Tooltip for long labels (e.g. plugin id + version). The timeout keeps
-    // the shared tooltip self-dismissing (see SkillCard for the stuck-case
-    // background).
+    // 长标签的悬停提示（如插件 id + 版本）。timeout 保证共享 tooltip
+    // 会自动消失（卡死场景的背景见 SkillCard）。
     property string tooltip: ""
     HoverHandler { id: hover }
     ToolTip.visible: tooltip.length > 0 && hover.hovered

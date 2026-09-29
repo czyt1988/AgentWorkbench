@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
 // 全局滚动条：常驻显示、走主题令牌。Basic 样式自带的滚动条是 6px 宽的
 // 临时条——停止滚动即淡出，页面等于没有任何可滚动的提示（用户反馈就是

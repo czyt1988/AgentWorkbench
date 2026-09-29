@@ -4,14 +4,17 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// The Skills page: search, source facets, sort, the card
-// grid, skeleton while scanning, and the partial-failure footer.
+// Skills 主页：搜索、来源 facet 过滤、排序、卡片网格，扫描期的骨架屏
+// 与部分失败的尾部提示。列表状态在 skills.model（C++ 侧），页面本身
+// 可毁掉重建。
 Item {
     id: page
 
+    // facet 过滤的全部来源类型（“全部”按钮单独处理，不在此列）。
     readonly property var kinds: ["agents", "claude", "codex", "plugin",
                                   "project", "custom"]
 
+    // 切换一个来源 facet：空串 = 清空全部；已选中的再点一次取消。
     function applyFacet(kind) {
         if (kind.length === 0) {
             skills.model.activeKinds = []
@@ -41,7 +44,7 @@ Item {
             }
         }
 
-        // --- Toolbar: search + facets + sort --------------------
+        // --- 工具栏：搜索 + facet + 排序 --------------------------------------
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
@@ -91,7 +94,7 @@ Item {
             }
         }
 
-        // --- First-scan skeleton (no cached data yet) ------------------
+        // --- 首扫骨架屏（尚无缓存数据） ----------------------------------------
         // 数据经启动时的缓存恢复先行到位；这里的骨架只服务首次启动
         // （无缓存）或缓存为空的扫描期——已有数据时后台重扫不打扰网格。
         Flow {
@@ -111,7 +114,7 @@ Item {
                     color: theme.surfaceBg
                     opacity: 0.5 + 0.2 * Math.sin(index)
 
-                    // Subtle shimmer via a slow pulse.
+                    // 缓慢的明暗脉冲，做成轻微的 shimmer 动效。
                     SequentialAnimation on opacity {
                         running: visible && skills.scanning
                         loops: Animation.Infinite
@@ -133,7 +136,8 @@ Item {
             font.pixelSize: theme.fontSizeCaption
         }
 
-        // --- Empty state ----------------------------------------------------
+        // --- 空状态 ------------------------------------------------------------
+        // 完全没有 skill（根目录里一个 SKILL.md 都没有）。
         AEmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -146,7 +150,7 @@ Item {
             onActionClicked: workbench.showPage("settings")
         }
 
-        // Filtered to empty (some skills exist, none match).
+        // 过滤后为空（有 skill，但都不命中当前条件）。
         AEmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -162,7 +166,7 @@ Item {
             }
         }
 
-        // --- Grid ------------------------------------------------------------
+        // --- 网格 ----------------------------------------------------------------
         // 已有数据（缓存恢复）时扫描中也不隐藏网格：后台重扫静默进行，
         // 结果落地后模型整体刷新。
         ScrollView {
@@ -197,7 +201,7 @@ Item {
             }
         }
 
-        // --- Footer: stats + partial failures ---------------------
+        // --- 尾部：统计与部分失败的提示 --------------------------------------------
         Label {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL

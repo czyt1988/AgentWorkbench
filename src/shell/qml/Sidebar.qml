@@ -1,32 +1,27 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// The sidebar: "where to go", never a business action.
-// Renders the navigation model grouped by section, with badges, keyboard
-// hints and a footer of system-page icon buttons plus the collapse handle.
+// 侧栏：只回答「去哪里」，永远不放业务动作。按 section 分组渲染导航模型
+// （含徽标、键盘序号），底部是系统页图标按钮 + 折叠手柄。
 //
-// Layout (fixed): workflow pages (sections main/extensions) scroll in the
-// middle; system pages (section system, e.g. Settings) are PINNED to the
-// bottom as icon-only buttons sharing the footer row with the collapse
-// handle — they stay at the bottom no matter how long the list grows
-// (see designs.md).
+// 布局（固定结构，见 designs.md）：工作流页（main/extensions 区）在中间
+// 滚动；系统页（system 区，如 Settings）以纯图标按钮**钉在侧栏最底部**，
+// 与折叠手柄同排——无论列表多长都留在底部。
 Rectangle {
     id: sidebar
 
-    // Kept in sync with ShellController by MainWindow.
+    // 折叠态：由 MainWindow 与 ShellController 保持同步。
     property bool collapsed: false
 
     color: theme.sidebarBg
-    // Expanded width: window.sidebarWidth from settings (ShellController
-    // owns it), falling back to the theme token when the
-    // key is explicitly cleared (0). Both default to 240.
-    // implicitWidth, NOT width: this item is managed by the RowLayout in
-    // MainWindow, and layouts re-distribute from implicit-size changes —
-    // a child's width changing behind the layout's back left the workspace
-    // frozen at its old size with a gap next to the collapsed sidebar.
+    // 展开宽度：取设置里的 window.sidebarWidth（ShellController 持有），
+    // 键被显式清空（0）时回退主题令牌，两者默认都是 240。
+    // 用 implicitWidth 而不是 width：本项由 MainWindow 的 RowLayout 接管，
+    // 布局只跟随隐式尺寸的变化重新分配——子项绕过布局直改 width 会让
+    // 工作区冻在旧尺寸，折叠后的侧栏旁留出一条空隙。
     implicitWidth: collapsed ? theme.sidebarCollapsedWidth
                              : (shell.sidebarWidth > 0 ? shell.sidebarWidth
                                                        : theme.sidebarWidth)
@@ -35,23 +30,24 @@ Rectangle {
         NumberAnimation { duration: theme.durationNormal }
     }
 
-    // One navigation row in the scrollable workflow list (sections
-    // main/extensions). Each row draws the divider for a new non-main
-    // section above itself; system pages render in the footer below
-    // instead of here.
+    // 可滚动工作流列表里的一行导航（main/extensions 区）。新区段的
+    // 分割线由每个非 main 区的首行画在自己上方；system 页不在这里，
+    // 渲染在下方的 footer 里。
     component NavRow: Item {
         id: row
 
+        // 是否为本区段的第一行（用于判断是否需要画分割线）。
         readonly property bool firstInSection:
             index === nav.rowOfFirstInSection(model.section)
+        // 需要分割线：非 main 区段的首行上方留出空隙并画线。
         readonly property bool needsDivider:
             firstInSection && model.section !== "main"
 
         Layout.fillWidth: true
         Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
         visible: model.enabled && model.section !== "system"
-        // Rows are delegates (page plugins come and go) — a row dying
-        // while hovered must not freeze the shared tooltip on screen.
+        // 行是 delegate（页面插件会来去）——悬停中的行被销毁时不能让
+        // 共享 tooltip 冻在屏幕上。
         Component.onDestruction: ToolTip.hide()
 
         Rectangle {
@@ -65,13 +61,13 @@ Rectangle {
             color: theme.separator
         }
 
-        // Active background + 3px accent bar.
+        // 当前项背景 + 3px accent 指示条。
         Rectangle {
             anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            // Collapsed: tighter margins keep the highlight a squarish
-            // pill around the centered icon in the narrow sidebar.
+            // 折叠态：更紧的边距让高亮在窄侧栏里包住居中图标，
+            // 保持近似方块的胶囊形。
             anchors.leftMargin: sidebar.collapsed ? theme.spacingXs
                                                   : theme.spacingS
             anchors.rightMargin: sidebar.collapsed ? theme.spacingXs
@@ -103,8 +99,8 @@ Rectangle {
         RowLayout {
             anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
             anchors.left: parent.left
-            // Collapsed: center the 24px icon slot (its width is set on
-            // the slot below) in the icon-width sidebar.
+            // 折叠态：24px 图标槽（宽度在下方槽位上定死）在
+            // 图标宽度的侧栏里水平居中。
             anchors.leftMargin: sidebar.collapsed
                 ? (theme.sidebarCollapsedWidth - 24) / 2
                 : theme.spacingM
@@ -149,7 +145,7 @@ Rectangle {
             onClicked: nav.setCurrentPageId(model.pageId)
         }
 
-        // Collapsed state: tooltip with the page title.
+        // 折叠态：tooltip 显示页面标题（文字被收起时补足说明）。
         ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
         ToolTip.delay: 300
         ToolTip.timeout: 10000
@@ -160,7 +156,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // --- Header: app icon + name ------------------------------------
+        // --- header：应用图标 + 名称 ---------------------------------------
         Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
@@ -194,9 +190,8 @@ Rectangle {
             color: theme.separator
         }
 
-        // --- Scrollable workflow list (sections main + extensions; the
-        // model is already sorted by section + order, and each row draws
-        // the divider for a new non-main section above itself) ------------
+        // --- 可滚动的工作流列表（main + extensions 区；模型已按
+        // section + order 排好，新区段的分割线由各行画在自己上方）-------
         Flickable {
             id: flick
             Layout.fillWidth: true
@@ -219,13 +214,10 @@ Rectangle {
             }
         }
 
-        // --- Footer: system-page icons + collapse handle ------------------
-        // System pages (Settings & friends) leave the workflow list and
-        // render as icon-only buttons (the tooltip carries the title)
-        // sharing the footer row with the collapse handle. Expanded:
-        // icons on the left, handle on the right. Collapsed: icons
-        // stacked above the handle, everything centered in the
-        // icon-width sidebar.
+        // --- footer：系统页图标 + 折叠手柄 -----------------------------------
+        // 系统页（Settings 一类）不进工作流列表，以纯图标按钮渲染（标题由
+        // tooltip 承载），与折叠手柄同排。展开：图标在左、手柄在右；
+        // 收起：图标堆在手柄上方，全部在图标宽度的侧栏里居中。
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingS
@@ -237,12 +229,12 @@ Rectangle {
         Item {
             id: footer
 
-            // 28 = AIconButton's normal implicit size; keep in sync with
-            // it. buttonGap paces the vertical stack and the footer edge
-            // padding when collapsed.
+            // 28 = AIconButton 常规隐式尺寸，需与它保持同步；buttonGap
+            // 既是收起时垂直堆叠的间距，也是 footer 的边缘留白。
             readonly property int buttonSize: 28
             readonly property int buttonGap: 6
 
+            // system 区的页面数（决定收起时的堆叠高度）。
             readonly property int systemCount: nav.countInSection("system")
 
             Layout.fillWidth: true
@@ -255,8 +247,8 @@ Rectangle {
             Repeater {
                 model: nav
                 AIconButton {
-                    // Stacking slot among the system pages (the model is
-                    // sorted by section, system last).
+                    // 在 system 页里的堆叠序号（模型按 section 排序，
+                    // system 在最后）。
                     readonly property int systemIndex:
                         index - nav.rowOfFirstInSection("system")
 
@@ -265,9 +257,8 @@ Rectangle {
                     tooltip: model.title
                     active: nav.currentPageId === model.pageId
                     onClicked: nav.setCurrentPageId(model.pageId)
-                    // Delegates die with the model (pages come and go) —
-                    // a button dying while hovered must not freeze the
-                    // shared tooltip on screen.
+                    // delegate 随模型生灭（页面会来去）——悬停中的按钮被
+                    // 销毁时不能让共享 tooltip 冻在屏幕上。
                     Component.onDestruction: ToolTip.hide()
 
                     x: sidebar.collapsed

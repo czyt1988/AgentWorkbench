@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
 // 主题化多行文本编辑器：surface-alt 背景、焦点环、可选 invalid 红边，
 // 外观契约与 ATextField 一致（同为 surfaceAltBg/focusRing/borderSubtle）。
@@ -9,6 +9,7 @@ import AgentWorkbench
 TextArea {
     id: control
 
+    // 无效态：为真时边框转 danger 红。
     property bool invalid: false
 
     color: theme.textPrimary

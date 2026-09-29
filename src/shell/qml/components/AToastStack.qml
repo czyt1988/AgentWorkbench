@@ -1,12 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// Toast stack: at most three visible, queued behind them;
-// each toast auto-dismisses after its level's duration, and the timer
-// pauses while the pointer is over it.
+// 右下角通知栈：最多同屏 3 条，其余在后面排队；每条按级别时长自动消失，
+// 指针悬停其上时计时暂停。数据来自 toasts 单例，dismiss 经 toastId 回调。
 ColumnLayout {
     id: stack
 
@@ -17,7 +16,9 @@ ColumnLayout {
         delegate: Rectangle {
             id: toast
 
+            // 该级别的自动消失时长（来自 toasts 门面）。
             readonly property int duration: toasts.durationFor(model.level)
+            // 排队：超出 maxVisible 的条目隐藏在后面等前面的让位。
             visible: index < toasts.maxVisible()
 
             Layout.preferredWidth: theme.toastWidth
@@ -29,7 +30,7 @@ ColumnLayout {
             border.color: theme.borderSubtle
             clip: true
 
-            // Left color bar by level.
+            // 左侧按级别着色的色条。
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top
@@ -84,7 +85,7 @@ ColumnLayout {
                 }
             }
 
-            // Auto-dismiss with hover pause.
+            // 自动消失计时：悬停暂停，到点经 toastId 通知门面移除本条。
             Timer {
                 id: dismissTimer
                 interval: toast.duration

@@ -1,15 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import AgentWorkbench.App
 import AgentWorkbench
+import AgentWorkbench.App
 
-// The workspace host: one page at a time, loaded by source from the
-// navigation model. Switching destroys the previous page; state that must
-// survive lives in C++. Exceptions: keepAlive pages (the Web page — its
-// WebEngineView cannot move its state into C++, destroying it means a full
-// page reload) are instantiated once by the persistent Repeater below and
-// merely hidden while another page is up.
+// 工作区宿主：同一时刻只显示一个页面，按导航模型给的 source 装载。切换
+// 即销毁旧页——必须跨页存活的状态放在 C++（页面可毁掉重建是默认契约）。
+// 例外是 keepAlive 页（Web 页——WebEngineView 的状态搬不进 C++，销毁即
+// 整页重载）：由下方常驻 Repeater 实例化一次，别的页面在前面时仅隐藏。
 Rectangle {
     id: workspace
 
@@ -63,10 +61,9 @@ Rectangle {
         }
     }
 
-    // Nothing selected yet (startup restores the last page, so this is a
-    // transient state). keepAlive 页常驻后 Loader 不再参与，判空改为
-    // 依据当前页 id：没有任何选中页（含 keepAlive 页不可见的瞬间）都算
-    // 「未就绪」。
+    // 尚未选中任何页面（启动时会恢复上次的页面，所以只是过渡态）。
+    // keepAlive 页常驻后 Loader 不再参与，判空改为依据当前页 id：
+    // 没有任何选中页（含 keepAlive 页不可见的瞬间）都算「未就绪」。
     ColumnLayout {
         anchors.centerIn: parent
         visible: nav.currentPageId.length === 0
