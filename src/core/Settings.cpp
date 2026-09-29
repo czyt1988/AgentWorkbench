@@ -13,8 +13,15 @@ namespace awb::core {
 
 namespace {
 
-// Warn about keys that are not part of the schema (unknown keys are
-// ignored and logged, never fatal).
+/**
+ * @brief 对不属于 schema 的键记一条警告
+ *
+ * 未知键被忽略并记录，从不致命。
+ *
+ * @param obj   待检查的对象
+ * @param known 该对象已知的合法键集合
+ * @param where 键的所属段名（如 "window"）；根级传空串
+ */
 void warnUnknownKeys(const QJsonObject &obj, const QSet<QString> &known,
                      const QString &where)
 {
@@ -28,6 +35,15 @@ void warnUnknownKeys(const QJsonObject &obj, const QSet<QString> &known,
     }
 }
 
+/**
+ * @brief 读一个字符串键
+ *
+ * @param obj      待读对象
+ * @param key      键名
+ * @param fallback 键缺失时返回的默认值
+ * @param where    键的所属段名，用于告警文本
+ * @return 键值；缺失或类型不对（记警告）时返回 fallback
+ */
 QString readString(const QJsonObject &obj, const QString &key,
                    const QString &fallback, const QString &where)
 {
@@ -44,6 +60,15 @@ QString readString(const QJsonObject &obj, const QString &key,
     return v.toString();
 }
 
+/**
+ * @brief 读一个布尔键
+ *
+ * @param obj      待读对象
+ * @param key      键名
+ * @param fallback 键缺失时返回的默认值
+ * @param where    键的所属段名，用于告警文本
+ * @return 键值；缺失或类型不对（记警告）时返回 fallback
+ */
 bool readBool(const QJsonObject &obj, const QString &key, bool fallback,
               const QString &where)
 {
@@ -60,6 +85,17 @@ bool readBool(const QJsonObject &obj, const QString &key, bool fallback,
     return v.toBool();
 }
 
+/**
+ * @brief 读一个带上下限的整数键
+ *
+ * @param obj      待读对象
+ * @param key      键名
+ * @param fallback 键缺失时返回的默认值
+ * @param minValue 合法下界（含）
+ * @param maxValue 合法上界（含）
+ * @param where    键的所属段名，用于告警文本
+ * @return 键值；缺失、非整数或越界（记警告）时返回 fallback
+ */
 int readInt(const QJsonObject &obj, const QString &key, int fallback,
             int minValue, int maxValue, const QString &where)
 {
@@ -77,6 +113,19 @@ int readInt(const QJsonObject &obj, const QString &key, int fallback,
     return v.toInt();
 }
 
+/**
+ * @brief 读一个 64 位整数键
+ *
+ * JSON 数字是双精度，这里校验其在 qint64 可精确表示的范围内
+ * （9.007199254740992e15 即 2^53）。
+ *
+ * @param obj      待读对象
+ * @param key      键名
+ * @param fallback 键缺失时返回的默认值
+ * @param minValue 合法下界（含）
+ * @param where    键的所属段名，用于告警文本
+ * @return 键值；缺失、非数或越界（记警告）时返回 fallback
+ */
 qint64 readInt64(const QJsonObject &obj, const QString &key, qint64 fallback,
                  qint64 minValue, const QString &where)
 {
@@ -94,6 +143,16 @@ qint64 readInt64(const QJsonObject &obj, const QString &key, qint64 fallback,
     return qint64(v.toDouble());
 }
 
+/**
+ * @brief 读一个字符串数组键
+ *
+ * @param obj      待读对象
+ * @param key      键名
+ * @param fallback 键缺失时返回的默认值
+ * @param where    键的所属段名，用于告警文本
+ * @return 键值；缺失或不是数组（记警告）时返回 fallback；
+ *         非字符串元素被跳过并记警告
+ */
 QStringList readStringList(const QJsonObject &obj, const QString &key,
                            const QStringList &fallback, const QString &where)
 {
@@ -120,6 +179,7 @@ QStringList readStringList(const QJsonObject &obj, const QString &key,
     return out;
 }
 
+/// 各段与根级对象的合法键集合，warnUnknownKeys() 的比对基准。
 const QSet<QString> kWindowKeys = {
     QStringLiteral("title"), QStringLiteral("width"), QStringLiteral("height"),
     QStringLiteral("sidebarWidth"), QStringLiteral("sidebarCollapsed"),
@@ -151,37 +211,73 @@ const QSet<QString> kRootKeys = {
 
 } // namespace
 
+/**
+ * @brief 构造并从 settings.json 载入全部配置
+ *
+ * @param parent QObject 父项
+ */
 Settings::Settings(QObject *parent)
     : QObject(parent)
 {
     load();
 }
 
+/**
+ * @brief 取 settings.json 的路径
+ *
+ * @return <dataRoot>/settings.json
+ */
 QString Settings::settingsFilePath()
 {
     return Paths::dataRoot() + QStringLiteral("/settings.json");
 }
 
+/**
+ * @brief 取当前主题 id
+ *
+ * @return appearance.theme
+ */
 QString Settings::themeId() const
 {
     return m_appearance.theme;
 }
 
+/**
+ * @brief 取 UI 全局字体族
+ *
+ * @return appearance.fontFamily
+ */
 QString Settings::fontFamily() const
 {
     return m_appearance.fontFamily;
 }
 
+/**
+ * @brief 取窗口标题
+ *
+ * @return window.title
+ */
 QString Settings::windowTitle() const
 {
     return m_window.title;
 }
 
+/**
+ * @brief 取 skill 扫描根
+ *
+ * @return skills.roots；空数组表示用内置默认根
+ */
 QJsonArray Settings::skillsRoots() const
 {
     return m_skills.roots;
 }
 
+/**
+ * @brief 从 settings.json 读入全部键
+ *
+ * 每段先经 warnUnknownKeys() 过滤未知键，再逐键读取：缺键取结构体的
+ * 默认值，类型不对或越界记警告后同样取默认值——单个坏键不影响其余键。
+ */
 void Settings::load()
 {
     const QJsonObject root = JsonStore::readFile(settingsFilePath());
@@ -306,30 +402,56 @@ void Settings::load()
         QStringLiteral("plugins"));
 }
 
+/**
+ * @brief 写窗口标题
+ *
+ * @param title 新标题；空串表示用应用默认
+ */
 void Settings::setWindowTitle(const QString &title)
 {
     m_window.title = title;
     Q_EMIT valueChanged(QStringLiteral("window.title"));
 }
 
+/**
+ * @brief 写主题 id
+ *
+ * @param id 新主题 id
+ */
 void Settings::setThemeId(const QString &id)
 {
     m_appearance.theme = id;
     Q_EMIT valueChanged(QStringLiteral("appearance.theme"));
 }
 
+/**
+ * @brief 写是否跟随系统深浅色
+ *
+ * @param on true = 跟随系统
+ */
 void Settings::setFollowSystem(bool on)
 {
     m_appearance.followSystem = on;
     Q_EMIT valueChanged(QStringLiteral("appearance.followSystem"));
 }
 
+/**
+ * @brief 写 UI 全局字体族
+ *
+ * @param family 新字体族；空串表示跟随主题/系统默认
+ */
 void Settings::setFontFamily(const QString &family)
 {
     m_appearance.fontFamily = family;
     Q_EMIT valueChanged(QStringLiteral("appearance.fontFamily"));
 }
 
+/**
+ * @brief 写窗口尺寸
+ *
+ * @param width  新宽度（像素）
+ * @param height 新高度（像素）
+ */
 void Settings::setWindowSize(int width, int height)
 {
     m_window.width = width;
@@ -338,48 +460,91 @@ void Settings::setWindowSize(int width, int height)
     Q_EMIT valueChanged(QStringLiteral("window.height"));
 }
 
+/**
+ * @brief 写侧栏折叠状态
+ *
+ * @param collapsed true = 折叠
+ */
 void Settings::setSidebarCollapsed(bool collapsed)
 {
     m_window.sidebarCollapsed = collapsed;
     Q_EMIT valueChanged(QStringLiteral("window.sidebarCollapsed"));
 }
 
+/**
+ * @brief 写上次停留的页面 id
+ *
+ * @param pageId 页面 id
+ */
 void Settings::setLastPageId(const QString &pageId)
 {
     m_window.lastPageId = pageId;
     Q_EMIT valueChanged(QStringLiteral("window.lastPageId"));
 }
 
+/**
+ * @brief 写 Web 展示面（embedded | external）
+ *
+ * @param surface 新的展示面名
+ */
 void Settings::setWebSurface(const QString &surface)
 {
     m_web.surface = surface;
     Q_EMIT valueChanged(QStringLiteral("web.surface"));
 }
 
+/**
+ * @brief 写 Chromium 命令行开关
+ *
+ * @param flags 空格分隔的 Chromium flags
+ */
 void Settings::setWebChromiumFlags(const QString &flags)
 {
     m_web.chromiumFlags = flags;
     Q_EMIT valueChanged(QStringLiteral("web.chromiumFlags"));
 }
 
+/**
+ * @brief 写 skill 扫描根
+ *
+ * @param roots 根路径数组；空数组表示用内置默认根
+ */
 void Settings::setSkillRoots(const QJsonArray &roots)
 {
     m_skills.roots = roots;
     Q_EMIT valueChanged(QStringLiteral("skills.roots"));
 }
 
+/**
+ * @brief 写被禁用插件的 id 列表
+ *
+ * @param ids 插件 id 列表
+ */
 void Settings::setPluginsDisabledIds(const QStringList &ids)
 {
     m_plugins.disabledIds = ids;
     Q_EMIT valueChanged(QStringLiteral("plugins.disabledIds"));
 }
 
+/**
+ * @brief 写插件总开关
+ *
+ * @param enabled true = 允许加载插件
+ */
 void Settings::setPluginsGloballyEnabled(bool enabled)
 {
     m_plugins.enabled = enabled;
     Q_EMIT valueChanged(QStringLiteral("plugins.enabled"));
 }
 
+/**
+ * @brief 把全部设置写回 settings.json
+ *
+ * 原子写入（经 JsonStore::writeFile），写入失败记一条警告并把失败
+ * 结果原样返回给调用方。
+ *
+ * @return 写入结果
+ */
 OpResult Settings::save()
 {
     QJsonObject window;

@@ -39,8 +39,15 @@ constexpr std::size_t kWorkerThreads = 1;
 constexpr std::chrono::seconds kFlushInterval{1};
 const char *const kLoggerName = "agentworkbench";
 
-// 级别名（install() 与 settings.json 的 logging.level 共用同一份取值
-// 清单）→ spdlog 级别；未知名字返回 false，调用方按默认处理。
+/**
+ * @brief 把级别名解析成 spdlog 级别
+ *
+ * install() 与 settings.json 的 logging.level 共用同一份取值清单。
+ *
+ * @param name 级别名（debug/info/warning/critical/off）
+ * @param out 解析结果；未识别时保持不变
+ * @return 识别成功返回 true，未知名字返回 false（调用方按默认处理）
+ */
 bool parseLevelName(const QString &name, spdlog::level::level_enum &out)
 {
     if (name == QStringLiteral("debug")) {
@@ -64,8 +71,15 @@ bool parseLevelName(const QString &name, spdlog::level::level_enum &out)
     return true;
 }
 
-// 文件名类型由 SPDLOG_WCHAR_FILENAMES 决定：Windows 下是 std::wstring
-// （宽字符才打得开非 ASCII 路径），其它平台是 std::string。
+/**
+ * @brief 把 QString 路径转换成 spdlog 的文件名类型
+ *
+ * 文件名类型由 SPDLOG_WCHAR_FILENAMES 决定：Windows 下是 std::wstring
+ * （宽字符才打得开非 ASCII 路径），其它平台是 std::string。
+ *
+ * @param path 绝对路径
+ * @return 可交给 spdlog file_helper 的文件名
+ */
 spdlog::filename_t toFilename(const QString &path)
 {
 #ifdef Q_OS_WIN
@@ -85,10 +99,14 @@ spdlog::filename_t toFilename(const QString &path)
 class RotatingFileSink final : public spdlog::sinks::base_sink<std::mutex>
 {
 public:
-    /// @param path        日志文件绝对路径（父目录已存在）
-    /// @param maxFileSize 单文件字节上限，达到即滚动
-    /// @param maxFiles    文件总数（含当前文件）；1 表示不滚动、到上限截断
-    /// @throws spdlog::spdlog_ex 打不开文件时抛出，由调用方降级处理
+    /**
+     * @brief 构造轮转文件 sink
+     *
+     * @param path        日志文件绝对路径（父目录已存在）
+     * @param maxFileSize 单文件字节上限，达到即滚动
+     * @param maxFiles    文件总数（含当前文件）；1 表示不滚动、到上限截断
+     * @throws spdlog::spdlog_ex 打不开文件时抛出，由调用方降级处理
+     */
     RotatingFileSink(const QString &path, qint64 maxFileSize, int maxFiles)
         : m_path(path)
         , m_maxFileSize(static_cast<std::size_t>(maxFileSize))
@@ -111,13 +129,23 @@ protected:
     void flush_() override { m_file.flush(); }
 
 private:
+    /**
+     * @brief 取第 index 号备份文件的路径
+     *
+     * @param index 备份序号（1 起）
+     * @return 形如 agentworkbench.log.<index> 的路径
+     */
     QString backupPath(int index) const
     {
         return QStringLiteral("%1.%2").arg(m_path).arg(index);
     }
 
-    // 到上限就滚动：关文件 → 丢最旧备份 → 逐级上移（.1 → .2，…）→ 当前
-    // 文件顶成 .1 → 重开。单文件模式没有滚动目标，直接截断。
+    /**
+     * @brief 当前文件到上限时执行一次滚动
+     *
+     * 关文件 → 丢最旧备份 → 逐级上移（.1 → .2，…）→ 当前文件顶成 .1 →
+     * 重开。单文件模式没有滚动目标，直接截断。
+     */
     void rotateIfNeeded()
     {
         if (m_size < m_maxFileSize) {
@@ -159,8 +187,15 @@ std::shared_ptr<RotatingFileSink> s_fileSink;
 std::shared_ptr<spdlog::sinks::stderr_sink_mt> s_stderrSink;
 std::unique_ptr<spdlog::details::periodic_worker> s_flusher;
 
-/// Qt 消息类型到 spdlog 级别的映射。FATAL 归入 critical——它与普通
-/// critical 的区别（FATAL 字样）在行文本里，由 messageHandler 负责。
+/**
+ * @brief Qt 消息类型到 spdlog 级别的映射
+ *
+ * FATAL 归入 critical——它与普通 critical 的区别（FATAL 字样）在行文本里，
+ * 由 messageHandler 负责。
+ *
+ * @param type Qt 消息类型
+ * @return 对应的 spdlog 级别
+ */
 spdlog::level::level_enum toSpdlogLevel(QtMsgType type)
 {
     switch (type) {
@@ -173,10 +208,14 @@ spdlog::level::level_enum toSpdlogLevel(QtMsgType type)
     }
 }
 
-// 拆掉当前后端：先停定期 flush（它在自己的线程上投消息，reset 会 join），
-// 再投一条 flush，最后靠 thread_pool 析构排空队列——析构给每个工作线程投
-// 一条 block 策略的 terminate 并 join，join 返回时队列里的日志与 flush 都
-// 已消费完，所以本函数返回即全部落盘。
+/**
+ * @brief 拆掉当前日志后端
+ *
+ * 先停定期 flush（它在自己的线程上投消息，reset 会 join），再投一条
+ * flush，最后靠 thread_pool 析构排空队列——析构给每个工作线程投一条
+ * block 策略的 terminate 并 join，join 返回时队列里的日志与 flush 都已
+ * 消费完，所以本函数返回即全部落盘。
+ */
 void teardownBackend()
 {
     s_flusher.reset();
@@ -189,11 +228,13 @@ void teardownBackend()
     s_pool.reset();
 }
 
-// 建新后端：轮转文件 sink + stderr 镜像 sink + 异步队列。
-//
-// 任何一步失败都不向上抛（core 不跨边界抛异常），而是降级：文件打不开时
-// 只写 stderr 并记一条警告（与旧实现一致），后端整体起不来时 handler 退回
-// 直写 stderr，消息不吞。
+/**
+ * @brief 建立新日志后端（轮转文件 sink + stderr 镜像 sink + 异步队列）
+ *
+ * 任何一步失败都不向上抛（core 不跨边界抛异常），而是降级：文件打不开时
+ * 只写 stderr 并记一条警告（与旧实现一致），后端整体起不来时 handler 退回
+ * 直写 stderr，消息不吞。
+ */
 void buildBackend()
 {
     std::vector<spdlog::sink_ptr> sinks;
@@ -253,10 +294,14 @@ void buildBackend()
     }
 }
 
-// 绕过队列把一行同步写进所有 sink 并 flush。给 QtFatalMsg 用：fatal 之后
-// 进程可能立刻终止，投进队列来不及消费。
-//
-// @return true = 已写盘；false = 后端不可用或写失败（调用方退回入队路径）
+/**
+ * @brief 绕过队列同步写一条 fatal 日志并 flush
+ *
+ * 给 QtFatalMsg 用：fatal 之后进程可能立刻终止，投进队列来不及消费。
+ *
+ * @param payload 已拼好的整行
+ * @return true = 已写盘；false = 后端不可用或写失败（调用方退回入队路径）
+ */
 bool writeFatalNow(spdlog::string_view_t payload)
 {
     if (!s_fileSink && !s_stderrSink) {
@@ -282,6 +327,21 @@ bool writeFatalNow(spdlog::string_view_t payload)
 
 } // namespace
 
+/**
+ * @brief 建日志目录、装消息处理器、启动后台写盘线程
+ *
+ * 启动期最先调用，之后的任何失败都要落盘。可重复调用（main.cpp 读到非
+ * 默认轮转参数时会二次 install）：先排空旧后端再建新的，保证任一时刻只有
+ * 一个 worker 在写文件。级别解析放在 handler 之后：非法值的告警要进得了
+ * 日志；未知级别按 debug 处理。
+ *
+ * @param directory      日志目录；空串用 Paths::logsDir()
+ * @param maxFileSize    单文件字节上限；非正数取默认值
+ * @param maxFiles       文件总数（含当前文件）；小于 1 按 1 处理
+ * @param level          最低落盘级别（debug/info/warning/critical/off）；
+ *                       非法值告警后按 debug 处理
+ * @param mirrorToStderr 是否同时镜像到 stderr
+ */
 void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles,
                       const QString &level, bool mirrorToStderr)
 {
@@ -324,12 +384,22 @@ void Logging::install(const QString &directory, qint64 maxFileSize, int maxFiles
                              .arg(s_maxFiles);
 }
 
+/**
+ * @brief 排空队列、停掉后台线程、恢复默认消息处理器
+ *
+ * 退出路径必须调用：不调则队列里还没写盘的尾部日志会丢。
+ */
 void Logging::uninstall()
 {
     qInstallMessageHandler(nullptr);
     teardownBackend();
 }
 
+/**
+ * @brief 取当前日志文件的绝对路径
+ *
+ * @return <日志目录>/agentworkbench.log；install() 之前（目录为空）返回空串
+ */
 QString Logging::logFilePath()
 {
     if (s_logPath.isEmpty()) {
@@ -338,29 +408,58 @@ QString Logging::logFilePath()
     return s_logPath + QLatin1Char('/') + QStringLiteral("agentworkbench.log");
 }
 
+/**
+ * @brief 判断级别名是否合法
+ *
+ * Settings 用它校验 logging.level，避免两处各持一份取值清单。
+ *
+ * @param name 级别名
+ * @return 是 debug、info、warning、critical、off 之一时返回 true
+ */
 bool Logging::isValidLevelName(const QString &name)
 {
     spdlog::level::level_enum parsed = spdlog::level::debug;
     return parseLevelName(name, parsed);
 }
 
+/**
+ * @brief 命令行的展示形式（转发到 TextUtils 的规范实现）
+ *
+ * @param program 程序名
+ * @param args    命令行参数
+ * @return 可复制粘贴的命令行
+ */
 QString Logging::formatCommandLine(const QString &program, const QStringList &args)
 {
     return TextUtils::formatCommandLine(program, args);
 }
 
+/**
+ * @brief 输出截断（转发到 TextUtils 的规范实现）
+ *
+ * @param text  原始输出
+ * @param limit 保留字符上限
+ * @return 截断并带提示的文本
+ */
 QString Logging::clampOutput(const QString &text, int limit)
 {
     return TextUtils::clampOutput(text, limit);
 }
 
-// 把一条 Qt 消息拼成整行后交给后台线程。处理器里不做任何文件 IO——
-// 时间戳、分类、位置在调用线程上拼装，写盘、轮转、stderr 镜像全部经队列
-// 由后台线程执行。
-//
-// 行格式是既有契约（tst_agentscripts 按它断言，用户也照它排障），保持
-// 逐字节不变：
-// [yyyy-MM-dd hh:mm:ss.zzz] [LEVEL][category][file:line] msg
+/**
+ * @brief Qt 消息处理器：把一条 Qt 消息拼成整行后交给后台线程
+ *
+ * 处理器里不做任何文件 IO——时间戳、分类、位置在调用线程上拼装，写盘、
+ * 轮转、stderr 镜像全部经队列由后台线程执行。
+ *
+ * 行格式是既有契约（tst_agentscripts 按它断言，用户也照它排障），保持
+ * 逐字节不变：
+ * [yyyy-MM-dd hh:mm:ss.zzz] [LEVEL][category][file:line] msg
+ *
+ * @param type    消息级别
+ * @param context 消息来源（文件、行号、分类）
+ * @param msg     消息文本
+ */
 void Logging::messageHandler(QtMsgType type,
                              const QMessageLogContext &context,
                              const QString &msg)

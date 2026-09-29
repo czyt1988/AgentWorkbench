@@ -62,42 +62,35 @@ public:
     /// 单条命令输出写进日志的逐字上限。
     static constexpr int DEFAULT_MAX_OUTPUT = 16 * 1024;
 
-    /// 建日志目录、装消息处理器、启动后台写盘线程。启动期最先调用，之后的
-    /// 任何失败都要落盘。可重复调用：旧后端先排空拆除，再建新的。
-    ///
-    /// @param directory       日志目录；空串用 Paths::logsDir()
-    /// @param maxFileSize     单文件字节上限；非正数取默认值
-    /// @param maxFiles        文件总数（含当前文件）；小于 1 按 1 处理
-    /// @param level           最低落盘级别（debug/info/warning/critical/off）；
-    ///                        非法值告警后按 debug 处理
-    /// @param mirrorToStderr  是否同时镜像到 stderr
+    // 建日志目录、装消息处理器、启动后台写盘线程。启动期最先调用。
+    // 可重复调用：旧后端先排空拆除，再建新的。
     static void install(const QString &directory = QString(),
                         qint64 maxFileSize = DEFAULT_MAX_FILE_SIZE,
                         int maxFiles = DEFAULT_MAX_FILES,
                         const QString &level = QStringLiteral("debug"),
                         bool mirrorToStderr = true);
 
-    /// 排空队列、停掉后台线程、恢复默认消息处理器。
-    /// 退出路径必须调用：不调则队列里还没写盘的尾部日志会丢。
+    // 排空队列、停后台线程、恢复默认处理器；退出路径必须调用，
+    // 否则队列尾部未写盘的日志会丢
     static void uninstall();
 
-    /// 当前日志文件的绝对路径；install() 之前是空串。
+    // 当前日志文件的绝对路径；install() 之前是空串
     static QString logFilePath();
 
-    /// 级别名是否是 install()/settings.json 接受的取值之一
-    /// （debug、info、warning、critical、off）。Settings 用它校验
-    /// logging.level，避免两处各持一份取值清单。
+    // 级别名是否为 install()/settings.json 接受的取值之一
+    // （debug、info、warning、critical、off）
     static bool isValidLevelName(const QString &name);
 
-    /// 命令行的展示形式，转发到 TextUtils 的规范实现。
+    // 命令行的展示形式，转发到 TextUtils 的规范实现
     static QString formatCommandLine(const QString &program,
                                      const QStringList &args = QStringList());
 
-    /// 输出截断，转发到 TextUtils 的规范实现。
+    // 输出截断，转发到 TextUtils 的规范实现
     static QString clampOutput(const QString &text,
                                int limit = DEFAULT_MAX_OUTPUT);
 
 private:
+    // Qt 消息处理器：拼整行后交给后台线程，见 Logging.cpp
     static void messageHandler(QtMsgType type,
                                const QMessageLogContext &context,
                                const QString &msg);

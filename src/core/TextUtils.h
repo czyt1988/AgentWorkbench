@@ -6,22 +6,19 @@
 
 namespace awb::core {
 
-// Small text helpers shared across modules.
+/// 各模块共用的小型文本工具。
 class TextUtils
 {
 public:
-    // Extract an x.y.z version string (optionally with a pre-release suffix,
-    // e.g. "v1.2.3-beta", "1.2.3.4") from command output. Empty when none.
+    // 从命令输出里提取 x.y.z 版本号（可带预发布后缀，如 "v1.2.3-beta"、"1.2.3.4"）
     static QString extractVersion(const QString &output);
 
-    // Render a program and its arguments as one copy-pasteable command line,
-    // double-quoting arguments that contain whitespace or quotes. Used by
-    // the "[cmd]" log lines so the log shows what was really executed.
+    // 把程序与参数渲染成一条可复制粘贴的命令行，含空白或引号的参数加双引号。
+    // "[cmd]" 日志行用它呈现真正执行了什么。
     static QString formatCommandLine(const QString &program,
                                      const QStringList &args = QStringList());
 
-    // Cap a captured command output at `limit` characters, appending a note
-    // when text was dropped, so one chatty command cannot fill the log.
+    // 把捕获的命令输出截断到 limit 字符并在有删减时追加提示，防止刷屏命令灌满日志
     static QString clampOutput(const QString &text, int limit);
 };
 
