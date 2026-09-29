@@ -37,7 +37,7 @@ cmake --build build
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
-- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_skillcatalog`、`tst_tools`、`tst_workbench` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
+- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟）、`tst_skillcatalog`、`tst_tools`、`tst_workbench` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
 
@@ -117,11 +117,12 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 - **每个 agent 一个持久 profile（`web::WebProfilePaths`，`<dataRoot>/webprofiles/<agentId>`）是硬要求**：Chromium 按 host 索引 cookie 且忽略端口，共享 profile 会让不同端口的本地服务互相串号（实测证据见 `docs/research/webengine-embedding.md`）。profile 必须是 **`QQuickWebEngineProfile`**（`WebEngineView.profile` 的类型，也是 QML 可解析返回类型的唯一注册类），且构造后要显式 `setOffTheRecord(false)`——Qt 6.7 的公开构造函数用空名字建 adapter、适配器构造时即据此定为隐身，`setStorageName` 不会翻转它，漏了这条 profile 会静默全内存、cookie 重启即失。
 - WebEngineView 的 `LifecycleState` 是 **scoped 枚举**：QML 里写 `WebEngineView.LifecycleState.Active`，裸 `WebEngineView.Active` 是 undefined，赋值会静默失效。
+- **随 Qt 大版本改名的 WebEngine 成员一律经 `WebEngineCompat` 桥接，QML 不直接写信号名**：弹窗信号是 Qt 6 `newWindowRequested` / Qt 5 `newViewRequested`，QML 里声明任何一个名字都会让另一个版本的引擎以「Cannot assign to non-existent property」拒绝整个表面组件——内嵌页空白且所有 C++ 测试照样全绿（0.4.0 实际发生过）。全屏请求（`toggleOn` + `accept()` 的 gadget）两版形状一致，QML 直接写即可，但**没有** `accepted`/`fullScreen` 属性（两版都没有）。
 - Skill 扫描根来自 `settings.json` 的 `skills.roots`，空数组 = 内置默认（`~/.agents/skills`、`~/.claude/skills`、`~/.codex/skills`、ZCode 插件缓存的通配路径、项目目录）。根路径**原样存取**（`~`、`%PWD%`、通配符在扫描时展开，展开后的形式不许回写），插件缓存按版本去重。
 
 ### 测试
 
-- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（8 个测试目标 + `check_architecture`）。
+- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（9 个测试目标 + `check_architecture`；WebEngine 关闭时 `tst_webengine` 不参与）。
 - 一个模块一个可执行；多个测试类经 `tests/awbtest.h` 的 `AWB_TEST(Class)` 注册，由 `awbtest_runner.cpp` 依次执行（`tst_shell` 单类且需要 `QApplication`，用 `QTEST_MAIN`）。
 - **用例必须写在 `private Q_SLOTS:` 里**（大写宏，见编程规范；小写 `slots` 已禁用）：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
 - 测试不许依赖网络、本机已安装的 agent 工具或真实数据目录。

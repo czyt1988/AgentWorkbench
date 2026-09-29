@@ -118,26 +118,24 @@ Item {
         }
 
         // --- Popups: loopback -> new in-app tab; anything else -> system
-        // browser. request.accepted is mandatory or the request
-        // fails silently.
-        onNewWindowRequested: function(request) {
-            request.accepted = true
-            const target = String(request.requestedUrl)
-            const hostMatch = /^https?:\/\/([^\/?#:]+)/.exec(target)
-            const host = hostMatch ? hostMatch[1].toLowerCase() : ""
-            const loopback = host === "127.0.0.1" || host === "localhost"
-                             || host === "::1" || host.startsWith("127.")
-            if (loopback) {
-                web.openDetachedTab(tab.agentId, target, host)
-            } else {
-                workbench.openExternalUrl(target)
-            }
-        }
+        // browser. The new-window signal is RENAMED between the Qt majors
+        // (Qt 6 newWindowRequested / Qt 5 newViewRequested) and the request
+        // object answers differently, so QML must not declare the handler
+        // for either name — the other Qt rejects the unknown property and
+        // the WHOLE surface fails to load (the blank-tab bug). The compat
+        // object connects the right signal in C++ and re-emits it as
+        // popupRequested; the routing lives in the Connections at the
+        // surface root, below the view.
+        Component.onCompleted: WebEngineCompat.watchPopups(view)
 
-        // --- Fullscreen: accept and let the page hide its tab bar.
+        // --- Fullscreen: accept and let the page hide its tab bar. The
+        // request is a gadget on BOTH majors with the same shape —
+        // toggleOn (direction) + accept() (answer). The former
+        // request.accepted / request.fullScreen names exist on neither
+        // version and silently broke fullscreen at runtime.
         onFullScreenRequested: function(request) {
-            request.accepted = true
-            surface.fullScreenToggled(request.fullScreen)
+            request.accept()
+            surface.fullScreenToggled(request.toggleOn)
         }
 
         // --- JS alert()/confirm()/prompt(): the engine blocks the page's
@@ -169,12 +167,36 @@ Item {
         }
 
         // --- Permissions: all denied in v1, with a visible notice.
-        // denyFeature 经 WebEngineCompat：Qt 6 是 view.rejectFeature，
-        // Qt 5 是 grantFeaturePermission(origin, feature, false)。
+        // denyFeature 经 WebEngineCompat 收口：两版都是
+        // grantFeaturePermission(origin, feature, false)，无需分支。
         onFeaturePermissionRequested: function(securityOrigin, feature) {
             WebEngineCompat.denyFeature(view, securityOrigin, feature)
             workbench.notify("warning", qsTr("Permission denied"),
                              qsTr("This page requested a browser permission; the current version does not support it."))
+        }
+    }
+
+    // --- Popup routing -------------------------------------------------
+    // The compat side already answered/discarded the engine request; the
+    // URL gets a destination here: loopback -> new in-app tab, anything
+    // else -> system browser. Each tab owns one surface, so only this
+    // surface's view is handled.
+    Connections {
+        target: WebEngineCompat
+
+        function onPopupRequested(sourceView, target) {
+            if (sourceView !== view || !surface.hasTab)
+                return
+            const targetUrl = String(target)
+            const hostMatch = /^https?:\/\/([^\/?#:]+)/.exec(targetUrl)
+            const host = hostMatch ? hostMatch[1].toLowerCase() : ""
+            const loopback = host === "127.0.0.1" || host === "localhost"
+                             || host === "::1" || host.startsWith("127.")
+            if (loopback) {
+                web.openDetachedTab(tab.agentId, targetUrl, host)
+            } else {
+                workbench.openExternalUrl(targetUrl)
+            }
         }
     }
 
@@ -397,8 +419,8 @@ Item {
     }
 
     // --- DevTools in a separate window (Debug builds only) --------
-    // devToolsUrl/devToolsView 两版名字不同，经 WebEngineCompat 取版本中立
-    // 的地址；Qt 5 那边另有 attachDevTools 挂接检查器视图。
+    // 挂接经 WebEngineCompat.attachDevTools：给 devToolsView 设
+    // inspectedView，它随后自行加载检查器前端（两版同构，地址不参与）。
     Window {
         id: devToolsWindow
         width: 900
