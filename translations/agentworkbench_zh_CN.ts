@@ -1598,51 +1598,51 @@ Command: %2
     </message>
     <message>
         <location filename="../src/skillcatalog/qml/SkillCard.qml" line="158"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="247"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="250"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="237"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="255"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="243"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="261"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="273"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="251"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="254"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="263"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="266"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="267"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="276"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="279"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="280"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="289"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="283"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="292"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="285"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="288"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -1650,22 +1650,22 @@ Command: %2
 <context>
     <name>SkillDetailFlyout</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="161"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="170"/>
         <source>SKILL.md</source>
         <translation>SKILL.md</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="183"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="193"/>
         <source>Modified</source>
         <translation>修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="197"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="207"/>
         <source>Size</source>
         <translation>大小</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="254"/>
+        <location filename="../src/skillcatalog/qml/SkillDetailFlyout.qml" line="262"/>
         <source>Click the card to copy the path</source>
         <translation>点击卡片即可复制路径</translation>
     </message>
@@ -2078,130 +2078,130 @@ Command: %2
 <context>
     <name>WebEngineSurface</name>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="127"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="142"/>
         <source>Failed to load %1</source>
         <translation>无法加载 %1</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="161"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="176"/>
         <source>The render process was terminated (code %1)</source>
         <translation>渲染进程已终止（代码 %1）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="542"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="557"/>
         <source>Download started</source>
         <translation>开始下载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="546"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="561"/>
         <source>Download finished</source>
         <translation>下载完成</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="551"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="566"/>
         <source>Download interrupted</source>
         <translation>下载中断</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="221"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="236"/>
         <source>Permission denied</source>
         <translation>权限被拒绝</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="124"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="139"/>
         <source>Failed to load %1 (HTTP %2)</source>
         <translation>无法加载 %1（HTTP %2）</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="222"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="237"/>
         <source>This page requested a browser permission; the current version does not support it.</source>
         <translation>该页面请求了浏览器权限，当前版本不支持该能力。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="275"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="290"/>
         <source>The page stayed blank because its scripts failed to run. The embedded browser engine (Chromium %1) is too old for this page; open it in an external browser.</source>
         <translation>页面脚本未能运行，页面保持空白。内嵌浏览器内核（Chromium %1）对该页面而言过于陈旧，请改用外部浏览器打开。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="381"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="396"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="435"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="494"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="450"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="509"/>
         <source>Sign in</source>
         <translation>登录</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="443"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="458"/>
         <source>The site &quot;%1&quot; requires authentication.</source>
         <translation>站点“%1”要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="445"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="460"/>
         <source>This site requires authentication.</source>
         <translation>此站点要求登录验证。</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="453"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="468"/>
         <source>Username</source>
         <translation>用户名</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="469"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="484"/>
         <source>Password</source>
         <translation>密码</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="509"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="524"/>
         <source>Developer tools</source>
         <translation>开发者工具</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="583"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="598"/>
         <source>Loading %1...</source>
         <translation>正在加载 %1...</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="592"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="607"/>
         <source>This agent is not running</source>
         <translation>该 agent 未运行</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="614"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="629"/>
         <source>The page crashed</source>
         <translation>页面崩溃了</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="624"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="639"/>
         <source>Failed to load the page</source>
         <translation>页面加载失败</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="375"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="489"/>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="648"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="390"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="504"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="663"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="654"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="669"/>
         <source>Restart agent</source>
         <translation>重新启动 agent</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="659"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="674"/>
         <source>Retry</source>
         <translation>重试</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="664"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="679"/>
         <source>Reload</source>
         <translation>重新加载</translation>
     </message>
     <message>
-        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="669"/>
+        <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="684"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
