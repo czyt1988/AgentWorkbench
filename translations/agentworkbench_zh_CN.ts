@@ -675,78 +675,78 @@
 <context>
     <name>AgentGridPage</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="91"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="57"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="92"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="58"/>
         <source>Launch AI coding agents and open their web UI</source>
         <translation>启动 AI 编程代理并打开其 Web 界面</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="96"/>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="170"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="62"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="136"/>
         <source>Add Launcher</source>
         <translation>添加启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="100"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="66"/>
         <source>Restore Defaults</source>
         <translation>恢复默认</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="119"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="85"/>
         <source>Search launchers...</source>
         <translation>搜索启动器…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="127"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="93"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="132"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="98"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="137"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="103"/>
         <source>Not installed</source>
         <translation>未安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="168"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="134"/>
         <source>No launchers configured yet</source>
         <translation>还没有配置启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="169"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="135"/>
         <source>Add your first AI coding agent, or restore the built-in defaults.</source>
         <translation>添加第一个 AI 编码 agent，或恢复内置默认项。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="179"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="145"/>
         <source>No matching launchers</source>
         <translation>没有匹配的启动器</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="180"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="146"/>
         <source>No launcher matches the current search or filter.</source>
         <translation>没有启动器匹配当前的搜索或过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="181"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="147"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="231"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="197"/>
         <source>Launch failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="234"/>
+        <location filename="../src/agentcatalog/qml/AgentGridPage.qml" line="200"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1602,62 +1602,62 @@ Command: %2
 <context>
     <name>SkillCard</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="105"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="221"/>
         <source>Plugin: %1</source>
         <translation>插件：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="116"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="232"/>
         <source>No description.</source>
         <translation>没有描述。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="158"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="250"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="274"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="365"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="240"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="258"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="355"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="373"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="243"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="261"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="273"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="358"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="376"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="387"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="254"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="369"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="266"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="380"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="270"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="384"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="279"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="392"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="283"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="292"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="396"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="405"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="288"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="401"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -1712,77 +1712,77 @@ Command: %2
         <translation type="vanished">自定义</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="37"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="48"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="38"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="49"/>
         <source>Local SKILL.md files discovered in the configured roots</source>
         <translation>在已配置的根目录中发现的本地 SKILL.md 文件</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="41"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="52"/>
         <source>Rescan</source>
         <translation>重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="58"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="69"/>
         <source>Search name or description...</source>
         <translation>搜索名称或描述…</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="67"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="78"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="89"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="100"/>
         <source>Sort: name</source>
         <translation>排序：名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="90"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="101"/>
         <source>Sort: modified</source>
         <translation>排序：修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="91"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="102"/>
         <source>Sort: source</source>
         <translation>排序：来源</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="134"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="145"/>
         <source>Scanning skill directories for the first time...</source>
         <translation>首次扫描 Skill 目录，请稍候...</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="147"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="158"/>
         <source>No skills found</source>
         <translation>没有找到 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="148"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="159"/>
         <source>No SKILL.md files were found in the scanned roots. Add a directory in Settings.</source>
         <translation>已扫描的根目录中没有 SKILL.md 文件。可在设置中添加目录。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="149"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="160"/>
         <source>Open settings</source>
         <translation>打开设置</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="160"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="171"/>
         <source>No matching skills</source>
         <translation>没有匹配的 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="161"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="172"/>
         <source>No skill matches the current search or facet filters.</source>
         <translation>没有 Skill 匹配当前的搜索或分面过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="162"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="173"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
