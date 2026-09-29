@@ -36,6 +36,7 @@ Item {
 
             AButton {
                 text: qsTr("Rescan")
+                busy: skills.scanning
                 onClicked: skills.refresh()
             }
         }
@@ -90,13 +91,15 @@ Item {
             }
         }
 
-        // --- Skeleton while scanning -----------------------------
+        // --- First-scan skeleton (no cached data yet) ------------------
+        // 数据经启动时的缓存恢复先行到位；这里的骨架只服务首次启动
+        // （无缓存）或缓存为空的扫描期——已有数据时后台重扫不打扰网格。
         Flow {
             Layout.fillWidth: true
             Layout.leftMargin: theme.spacingL
             Layout.rightMargin: theme.spacingL
             spacing: theme.spacingL
-            visible: skills.scanning
+            visible: skills.scanning && skills.model.totalCount === 0
 
             Repeater {
                 model: 6
@@ -110,13 +113,24 @@ Item {
 
                     // Subtle shimmer via a slow pulse.
                     SequentialAnimation on opacity {
-                        running: skills.scanning
+                        running: visible && skills.scanning
                         loops: Animation.Infinite
                         NumberAnimation { to: 0.8; duration: 600 }
                         NumberAnimation { to: 0.4; duration: 600 }
                     }
                 }
             }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            Layout.bottomMargin: theme.spacingS
+            visible: skills.scanning && skills.model.totalCount === 0
+            text: qsTr("Scanning skill directories for the first time...")
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeCaption
         }
 
         // --- Empty state ----------------------------------------------------
@@ -149,11 +163,13 @@ Item {
         }
 
         // --- Grid ------------------------------------------------------------
+        // 已有数据（缓存恢复）时扫描中也不隐藏网格：后台重扫静默进行，
+        // 结果落地后模型整体刷新。
         ScrollView {
             id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !skills.scanning && skills.model.count > 0
+            visible: skills.model.count > 0
             clip: true
             contentWidth: availableWidth
             ScrollBar.vertical: AScrollBar {}
@@ -189,11 +205,5 @@ Item {
             font.pixelSize: theme.fontSizeCaption
             elide: Text.ElideRight
         }
-    }
-
-    Component.onCompleted: {
-        // First visit scans (async-shaped API: returns immediately).
-        if (skills.model.totalCount === 0 && !skills.scanning)
-            skills.refresh()
     }
 }

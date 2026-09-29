@@ -1,12 +1,15 @@
 #include "skillcatalog/SkillsFacade.h"
 
+#include "core/Logging.h"
 #include "core/Settings.h"
+#include "skillcatalog/SkillCache.h"
 #include "skillcatalog/SkillModel.h"
 
 #include <QClipboard>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -23,15 +26,19 @@ SkillsFacade::SkillsFacade(core::Settings *settings, QObject *parent)
     , m_model(new SkillModel(this))
     , m_scanner(new SkillScanner(settings, this))
 {
-    connect(m_scanner, &SkillScanner::scanStarted, this, [this]() {
-        m_scanning = true;
-        emit scanningChanged();
-        emit scanStarted();
-    });
+    // 状态转发：scanningChanged 由 scanner 在真实边沿上发射（缓存恢复
+    // 不发——页面不会因无变化的信号重放骨架屏动画）。
+    connect(m_scanner, &SkillScanner::scanningChanged, this,
+            &SkillsFacade::scanningChanged);
+    connect(m_scanner, &SkillScanner::scanStarted, this,
+            &SkillsFacade::scanStarted);
     connect(m_scanner, &SkillScanner::scanFinished, this, [this]() {
+        QElapsedTimer timer;
+        timer.start();
         m_model->setSkills(m_scanner->definitions());
-        m_scanning = false;
-        emit scanningChanged();
+        AWB_PERF << QStringLiteral(
+            "skills: model reset took %1 ms for %2 skill(s)")
+            .arg(timer.elapsed()).arg(m_scanner->definitions().size());
         emit statsChanged();
         emit scanFinished();
     });
@@ -40,6 +47,37 @@ SkillsFacade::SkillsFacade(core::Settings *settings, QObject *parent)
 QAbstractItemModel *SkillsFacade::model() const
 {
     return m_model;
+}
+
+bool SkillsFacade::scanning() const
+{
+    return m_scanner->scanning();
+}
+
+void SkillsFacade::start()
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    // 缓存恢复是毫秒级的小文件读 + 模型重建，同步做在 GUI 线程上：
+    // 这正是「点开 Skills 页立即有内容」的来源，异步化反而会让首屏
+    // 闪一次空态。没有缓存（首次启动）时 snapshot 无效，模型保持空，
+    // 页面显示扫描提示。
+    const SkillCache::Snapshot snapshot = SkillCache::load();
+    if (snapshot.isValid()) {
+        m_scanner->adoptResults(snapshot.definitions, snapshot.stats);
+        AWB_PERF << QStringLiteral(
+            "skills: cache restore took %1 ms for %2 skill(s) (cached at %3)")
+            .arg(timer.elapsed()).arg(snapshot.definitions.size())
+            .arg(snapshot.cachedAt.toString(Qt::ISODate));
+    } else {
+        AWB_PERF << QStringLiteral(
+            "skills: no cache (first start or stale), %1 ms")
+            .arg(timer.elapsed());
+    }
+
+    // 后台真扫描：结果落地后更新界面并固化缓存（worker 里完成写盘）。
+    refresh();
 }
 
 QString SkillsFacade::statsText() const

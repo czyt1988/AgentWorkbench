@@ -21,6 +21,7 @@ ScrollView {
             subtitle: qsTr("Directories scanned for SKILL.md entries")
             AButton {
                 text: qsTr("Rescan")
+                busy: skills.scanning
                 onClicked: skills.refresh()
             }
         }

@@ -23,6 +23,8 @@ class SkillsFacade : public QObject
     Q_OBJECT
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
+    // True while a scan is in flight on the worker thread (drives the page
+    // skeleton and the Rescan button spinner).
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
     // Roots for the settings UI: [{id,label,path,kind,enabled}]. A property
     // (not only the roots() invokable) so the list re-binds after
@@ -39,12 +41,17 @@ public:
     QAbstractItemModel *model() const;
     SkillModel *skillModel() const { return m_model; }
 
-    bool scanning() const { return m_scanning; }
+    bool scanning() const;
     QString statsText() const;
     bool partialFailure() const;
 
-    // Rescan; scanStarted/scanFinished bracket it (sync today, async-ready
-    // interface.
+    // 启动入口（main.cpp 在装配期调用，QML 不调）：先同步恢复 JSON 缓存
+    // ——有缓存页面立刻有数据可渲染——再发起一次后台真扫描，结果落地后
+    // 更新界面并固化缓存。首次启动没有缓存时，模型在扫描完成前保持空，
+    // 页面显示扫描提示。
+    void start();
+
+    // Rescan on the worker thread; scanStarted/scanFinished bracket it.
     Q_INVOKABLE void refresh();
 
     // Roots for the settings UI (Q_PROPERTY READ — see above).
@@ -91,7 +98,6 @@ private:
     core::Settings *m_settings;
     SkillModel *m_model;
     SkillScanner *m_scanner;
-    bool m_scanning = false;
 };
 
 } // namespace awb::skillcatalog

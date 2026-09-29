@@ -148,6 +148,10 @@ int main(int argc, char *argv[])
 
     awb::web::WebTabsFacade webTabs(&settings);
     awb::skillcatalog::SkillsFacade skills(&settings);
+    // 启动即就绪：同步恢复上次扫描的 JSON 缓存（页面一打开就有数据），
+    // 同时派一次后台真扫描，结果落地后刷新界面并固化缓存。点击 Skills
+    // 页不再触发任何扫描。
+    skills.start();
     awb::tools::ToolsFacade tools(awb::core::Paths::dataRoot());
 
     awb::workbench::EnvironmentService environment;
@@ -227,14 +231,6 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Web", &webTabs);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Skills", &skills);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools", &tools);
-    // First visit scans once the page opens (async-shaped refresh()).
-    QObject::connect(&nav, &awb::shell::NavigationModel::pagesChanged,
-                     &skills, [&skills, &nav]() {
-                         if (nav.currentPageId() == QLatin1String("skills")
-                             && skills.model()->rowCount() == 0
-                             && !skills.scanning())
-                             skills.refresh();
-                     });
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",

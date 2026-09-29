@@ -20,6 +20,10 @@ Button {
     property bool dropdown: false
     // 菜单打开期间由使用方置真：箭头区保持高亮，让菜单看起来锚在按钮上。
     property bool menuOpen: false
+    // 忙碌指示：为真时文字左侧显示一个旋转的弧形转圈（颜色随 variant 取
+    // 主题令牌），表示按钮触发的操作正在后台进行。busy 只负责视觉；点击
+    // 是否可用由使用方经 enabled 控制。
+    property bool busy: false
 
     signal dropdownActivated()
 
@@ -65,6 +69,7 @@ Button {
         // 下拉按钮在文字两侧各预留一份（箭头区 + 间距）：文字按整按钮
         // 视觉居中时，右侧也不会与贴右缘的箭头区重叠。
         implicitWidth: label.implicitWidth
+                       + (control.busy ? spinner.width + theme.spacingXs : 0)
                        + (control.dropdown
                           ? 2 * (chevronZone.width + theme.spacingXs)
                           : 0)
@@ -95,9 +100,50 @@ Button {
             width: Math.min(
                 implicitWidth,
                 control.availableWidth
+                - (control.busy ? spinner.width + theme.spacingXs : 0)
                 - (control.dropdown
                    ? 2 * (chevronZone.width + theme.spacingXs)
                    : 0))
+        }
+
+        // 忙碌转圈：弧形描边随角度属性旋转（RotationAnimation 动画属性
+        // 而不是直接动 rotation，旋转原点才是弧的圆心）。
+        Canvas {
+            id: spinner
+            visible: control.busy
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 14
+            height: 14
+            // 弧的起始角度：动画 0..360 循环。
+            property real sweep: 0
+
+            // Canvas 的 paint 不跟随 label.color 的绑定自动触发；主题
+            // 切换时主动请求重绘，转圈颜色才能跟上新主题。
+            Connections {
+                target: label
+                function onColorChanged() { spinner.requestPaint() }
+            }
+
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.reset()
+                ctx.lineWidth = 2
+                ctx.strokeStyle = label.color
+                ctx.beginPath()
+                ctx.arc(width / 2, height / 2, width / 2 - 1,
+                        spinner.sweep * Math.PI / 180,
+                        (spinner.sweep + 270) * Math.PI / 180)
+                ctx.stroke()
+            }
+
+            RotationAnimation on sweep {
+                running: control.busy
+                loops: Animation.Infinite
+                from: 0
+                to: 360
+                duration: 1000
+            }
         }
 
         // 箭头区贴按钮右缘（工具栏按钮惯例：下拉箭头靠最右，而非跟在

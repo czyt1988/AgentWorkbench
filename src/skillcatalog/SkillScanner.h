@@ -3,8 +3,9 @@
 
 #include "skillcatalog/SkillDefinition.h"
 #include "skillcatalog/SkillRoot.h"
+#include "skillcatalog/SkillScanTask.h"
 
-#include <QHash>
+#include <QList>
 #include <QObject>
 
 namespace awb::core {
@@ -13,31 +14,22 @@ class Settings;
 
 namespace awb::skillcatalog {
 
-// Walks the configured roots and finds skills: any directory containing a
-// SKILL.md counts as one skill and is not descended into further
+// 扫描协调者：持有当前根配置与最近一次结果，把纯计算 SkillScanTask 派发
+// 到全局线程池执行。
 //
-// Rules:
-//  - a root that is missing or unreadable is skipped with a warning — one
-//    bad root never fails the scan;
-//  - the plugin cache holds several versions of the same plugin; only the
-//    highest version of the same marketplace+plugin survives;
-//  - refresh() returns immediately; the (still synchronous) result arrives
-//    through scanFinished(Stats) — the async-shaped interface means the
-//    scan can move to a worker thread later without touching callers.
+// 线程契约：本对象永远活在 GUI 线程（QObject + parent）；worker 线程里跑
+// 的只有 SkillScanTask::run() 与 SkillCache::save() 这两个纯静态函数，
+// 它们只碰值类型副本，不回来碰 Settings/本对象。结果经 QFutureWatcher
+// 的 finished 回到 GUI 线程。
+//
+// 扫描进行中再次 refresh() 会被忽略（防抖）：根列表本来就从 settings
+// 实时快照而来，排队第二次扫描没有意义——等结果落地后手动再点即可。
 class SkillScanner : public QObject
 {
     Q_OBJECT
 
 public:
-    struct Stats
-    {
-        int skillCount = 0;
-        int rootsScanned = 0;
-        int rootsSkipped = 0;   // missing/unreadable/filtered out
-        int duplicatesDropped = 0;
-        qint64 elapsedMs = 0;
-        QStringList skippedRoots; // labels, for the page's warning line
-    };
+    using Stats = SkillScanTask::Stats;
 
     explicit SkillScanner(core::Settings *settings,
                           QObject *parent = nullptr);
@@ -47,33 +39,43 @@ public:
     // Persist an enabled/disabled flag for one root (into skills.roots).
     void setRootEnabled(const QString &id, bool enabled);
 
-    // Kick a scan. Returns immediately (currently synchronous inside).
+    // Kick a scan. Returns immediately — the scan runs on the global thread
+    // pool, the result arrives through scanFinished() on the GUI thread,
+    // and the fresh definitions are persisted to the JSON cache by the
+    // worker before it returns.
     Q_INVOKABLE void refresh();
 
-    // The definitions produced by the last scan.
+    // True between refresh() and the matching scanFinished().
+    bool scanning() const { return m_scanning; }
+
+    // The definitions produced by the last scan (empty until the first
+    // refresh() or adoptResults()).
     const QList<SkillDefinition> &definitions() const { return m_definitions; }
 
-    // Stats of the last scan (emptyStats until the first refresh()).
+    // Stats of the last scan (zeros until the first refresh()/adoptResults()).
     Stats lastStats() const { return m_lastStats; }
+
+    // 把现成的结果当作最近一次扫描结果采用（启动时从 JSON 缓存恢复）。
+    // 发射 scanFinished()，订阅方（模型、页面）与真扫描走同一条落地路径。
+    void adoptResults(const QList<SkillDefinition> &definitions,
+                      const Stats &stats);
 
 signals:
     void scanFinished();
     void scanStarted();
+    /// 只在 m_scanning 真实翻转时发射（缓存恢复不发）——订阅方的骨架
+    /// 屏、按钮转圈都挂在它上，重复发射会重放动画。
+    void scanningChanged();
 
 private:
-    SkillRoot effectiveRoot(const SkillRoot &configured) const;
-    QList<SkillRoot> expandWildcards(const SkillRoot &root) const;
-    void scanRoot(const SkillRoot &root, Stats &stats);
-    void scanDirectory(const QString &dirPath, const SkillRoot &root,
-                       int depth, Stats &stats, const QString &base,
-                       int maxDepth);
-    void dedupePluginVersions(Stats &stats);
+    void applyResults(const QList<SkillDefinition> &definitions,
+                      const Stats &stats);
 
     core::Settings *m_settings;
     QList<SkillRoot> m_roots;
     QList<SkillDefinition> m_definitions;
     Stats m_lastStats;
-    int m_nextLocalId = 1;
+    bool m_scanning = false;
 };
 
 } // namespace awb::skillcatalog

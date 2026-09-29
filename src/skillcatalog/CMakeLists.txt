@@ -1,6 +1,8 @@
 # awb_skillcatalog (L2 domain): discovery and presentation of local skills.
 # Depends on awb_core/awb_theme only — never on shell or other domains
 add_library(awb_skillcatalog STATIC
+    SkillCache.cpp
+    SkillCache.h
     SkillDefinition.h
     SkillFrontmatter.cpp
     SkillFrontmatter.h
@@ -8,6 +10,8 @@ add_library(awb_skillcatalog STATIC
     SkillModel.h
     SkillRoot.h
     SkillRoots.cpp
+    SkillScanTask.cpp
+    SkillScanTask.h
     SkillScanner.cpp
     SkillScanner.h
     SkillsFacade.cpp
@@ -22,4 +26,5 @@ target_link_libraries(awb_skillcatalog
         awb_theme
         Qt::Core
         Qt::Gui
+        Qt::Concurrent
 )

@@ -62,6 +62,12 @@ QHash<int, QByteArray> SkillModel::roleNames() const
 
 void SkillModel::setSkills(const QList<SkillDefinition> &skills)
 {
+    // 扫描结果与现状一致（启动后台扫描 vs 缓存恢复的典型情形）时直接
+    // 短路：一次 modelReset 会让 QML 销毁并重建整页卡片（151 个 skill
+    // 实测约 2 s 的 GUI 冻结），而内容没有任何变化。只有真变化才走
+    // refilter + reset 的重建路径。
+    if (m_all == skills)
+        return;
     m_all = skills;
     refilter();
     emit countChanged();

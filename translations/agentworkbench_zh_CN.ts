@@ -1484,22 +1484,22 @@ Command: %2
         <translation>重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="74"/>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="75"/>
         <source>Remove this root</source>
         <translation>移除此根目录</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="88"/>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="89"/>
         <source>Add a skill root directory...</source>
         <translation>添加 skill 根目录...</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="97"/>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="98"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="116"/>
+        <location filename="../src/shell/qml/SettingsSkillsPage.qml" line="117"/>
         <source>Plugin caches keep several versions of the same plugin; only the highest is listed.</source>
         <translation>插件缓存会保留同一插件的多个版本，仅列出最高版本。</translation>
     </message>
@@ -1684,57 +1684,62 @@ Command: %2
         <translation>重新扫描</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="54"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="55"/>
         <source>Search name or description...</source>
         <translation>搜索名称或描述…</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="63"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="64"/>
         <source>All</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="85"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="86"/>
         <source>Sort: name</source>
         <translation>排序：名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="86"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="87"/>
         <source>Sort: modified</source>
         <translation>排序：修改时间</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="87"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="88"/>
         <source>Sort: source</source>
         <translation>排序：来源</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="129"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="131"/>
+        <source>Scanning skill directories for the first time...</source>
+        <translation>首次扫描 Skill 目录，请稍候...</translation>
+    </message>
+    <message>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="143"/>
         <source>No skills found</source>
         <translation>没有找到 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="130"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="144"/>
         <source>No SKILL.md files were found in the scanned roots. Add a directory in Settings.</source>
         <translation>已扫描的根目录中没有 SKILL.md 文件。可在设置中添加目录。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="131"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="145"/>
         <source>Open settings</source>
         <translation>打开设置</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="142"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="156"/>
         <source>No matching skills</source>
         <translation>没有匹配的 Skill</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="143"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="157"/>
         <source>No skill matches the current search or facet filters.</source>
         <translation>没有 Skill 匹配当前的搜索或分面过滤条件。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="144"/>
+        <location filename="../src/skillcatalog/qml/SkillGridPage.qml" line="158"/>
         <source>Clear filters</source>
         <translation>清除过滤</translation>
     </message>
@@ -1742,81 +1747,81 @@ Command: %2
 <context>
     <name>SkillsFacade</name>
     <message numerus="yes">
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="49"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="87"/>
         <source>%n skill(s) found</source>
         <translation>
             <numerusform>找到 %n 个 Skill</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="52"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="90"/>
         <source>%1 ms</source>
         <translation>%1 毫秒</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="56"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="94"/>
         <source>%1 root(s) skipped: %2</source>
         <translation>%1 个根目录被跳过：%2</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="178"/>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="185"/>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="193"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="216"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="223"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="231"/>
         <source>Unknown skill.</source>
         <translation>未知的 Skill。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="169"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="207"/>
         <source>The clipboard is not available.</source>
         <translation>剪贴板不可用。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="202"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="240"/>
         <source>Not a directory: %1</source>
         <translation>不是目录：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="205"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="243"/>
         <source>Could not open the folder: %1</source>
         <translation>无法打开文件夹：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="214"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="252"/>
         <source>The path does not exist: %1</source>
         <translation>路径不存在：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="221"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="259"/>
         <source>Could not open the file manager.</source>
         <translation>无法打开文件管理器。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="233"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="271"/>
         <source>Agents</source>
         <translation>Agents</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="235"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="273"/>
         <source>Claude</source>
         <translation>Claude</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="237"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="275"/>
         <source>Codex</source>
         <translation>Codex</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="239"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="277"/>
         <source>Plugin</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="241"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="279"/>
         <source>Project</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="243"/>
+        <location filename="../src/skillcatalog/SkillsFacade.cpp" line="281"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
@@ -2540,7 +2545,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="265"/>
+        <location filename="../app/main.cpp" line="261"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

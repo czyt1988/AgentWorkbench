@@ -16,11 +16,13 @@ set(CMAKE_AUTORCC ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 if (QT_VERSION_MAJOR EQUAL 6)
     find_package(Qt6 6.5 REQUIRED
-        COMPONENTS Core Gui Qml Quick QuickControls2 Network LinguistTools)
+        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent
+                   LinguistTools)
     qt_standard_project_setup(REQUIRES 6.5)
 else()
     find_package(Qt5 5.15 REQUIRED
-        COMPONENTS Core Gui Qml Quick QuickControls2 Network LinguistTools)
+        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent
+               LinguistTools)
 endif()
 
 # Build options: AWB_ENABLE_WEBENGINE etc. Must come before
