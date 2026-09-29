@@ -16,7 +16,8 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
-                   ATextArea AScrollBar AgentAvatar ASpotlight)
+                   ATextArea AScrollBar AgentAvatar ASpotlight
+                   AWorkspaceGlow AMenu AMenuItem AMenuSeparator)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml ToolsPage MarkdownContextMenu)
@@ -156,6 +157,9 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/terminal.svg
     ${CMAKE_SOURCE_DIR}/icons/file.svg
     ${CMAKE_SOURCE_DIR}/icons/tools.svg
+    ${CMAKE_SOURCE_DIR}/icons/undo.svg
+    ${CMAKE_SOURCE_DIR}/icons/redo.svg
+    ${CMAKE_SOURCE_DIR}/icons/cut.svg
     ${CMAKE_SOURCE_DIR}/icons/web.svg
 )
 foreach(icon IN LISTS AWB_ICON_FILES)

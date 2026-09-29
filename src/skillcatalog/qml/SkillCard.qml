@@ -5,8 +5,11 @@ import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 单张 skill 卡片：340x160，左键复制目录路径，右键弹出复制/打开动作，
-// 悬停 400ms 打开详情 flyout（SkillDetailFlyout）。剪贴板与文件操作经
+// 单张 skill 卡片（玻璃卡）：规格 340x160（网格内宽度随 cell 拉伸）。玻璃
+// 质感配方与 AgentCard 同源（见 designs.md「卡片样式」）：半透明底、accent
+// 极淡纱层、内缘 1px 高光、ASpotlight 悬停聚光，悬停时整卡升举、按压回落。
+// 交互沿旧版：左键复制目录路径，右键弹出复制/打开动作，悬停 400ms 打开
+// 详情 flyout（SkillDetailFlyout，Loader 惰性创建）。剪贴板与文件操作经
 // skills.* 门面，结果用 toast 通知。
 Item {
     id: card
@@ -35,8 +38,26 @@ Item {
     // 判据，鼠标移到复制图标上时卡片悬停态才不会闪断（高亮消失、浮层被收起）。
     readonly property bool hovered: hoverHandler.hovered || copyButton.hovered
 
+    // 网格外独立使用时的兜底尺寸；网格内由 delegate 显式覆盖
+    // （cellWidth - spacingL × cardHeight，见 SkillGridPage）。
     width: theme.cardMinWidth + 80 // 规格宽度 340
     height: 160
+
+    // --- 悬停升举 / 按压回落 -------------------------------------------
+    // 只用视觉变换（transform + z），不动 x/y 本体——GridView 的 cell 定位
+    // 写的就是 delegate 的 x/y，动了会跟视图打架。升举幅度压在 cell 间距
+    // （spacingL）之内，不会盖住相邻卡片；z 让升举中的卡压过右/下侧邻居
+    // （聚光与边框流光会越出卡缘）。按压时落回原位给出「按下去」的手感。
+    z: hovered ? 1 : 0
+    transform: Translate {
+        y: card.hovered && !mouseArea.pressed ? -theme.spacingXs : 0
+        Behavior on y {
+            NumberAnimation {
+                duration: theme.durationFast
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
 
     // 卡片是模型 delegate：搜索/过滤/重扫描会在悬停中销毁它们，而
     // ToolTip 附加属性在每窗口只共享一个可视化 tooltip。悬停宿主死掉时
@@ -45,8 +66,41 @@ Item {
     // 情况也能自愈。
     Component.onDestruction: ToolTip.hide()
 
-    // --- 悬停 flyout（400ms 延时）---------------------------------
-    // 悬停满 400ms 才打开，避免扫过卡片就闪出详情。
+    // 网格回收复用（reuseItems）时 skill 会换人：停掉待开的浮层计时并
+    // 收起已开的浮层，旧卡的悬停状态不跟着搬到新位置。
+    onSkillFilePathChanged: {
+        hoverTimer.stop()
+        card.closeFlyoutNow()
+    }
+
+    // --- 悬停 flyout（400ms 延时，Loader 惰性创建）---------------------
+    // 悬停满 400ms 才打开，避免扫过卡片就闪出详情。浮层经 Loader 按需
+    // 创建：未被悬停过的卡不付出 Popup 全价（整页可达百卡，浮层是建卡
+    // 成本的大头），首次悬停同步创建后常驻复用。
+    Loader {
+        id: flyoutLoader
+        active: false
+        sourceComponent: SkillDetailFlyout {
+            skillFilePath: card.skillFilePath
+            x: card.width + theme.spacingM
+            y: 0
+        }
+    }
+
+    // Loader 代理函数：浮层未创建时安全短路（回收/竞态路径也会走到）。
+    function closeFlyoutNow() {
+        if (flyoutLoader.item)
+            flyoutLoader.item.close()
+    }
+    function closeFlyoutLater() {
+        if (flyoutLoader.item)
+            flyoutLoader.item.tryCloseLater()
+    }
+    function cancelFlyoutClose() {
+        if (flyoutLoader.item)
+            flyoutLoader.item.cancelClose()
+    }
+
     Timer {
         id: hoverTimer
         interval: 400
@@ -60,6 +114,11 @@ Item {
         const pos = card.mapToItem(null, 0, 0)
         const win = card.Window.window
         if (!win)
+            return
+        if (!flyoutLoader.active)
+            flyoutLoader.active = true
+        const flyout = flyoutLoader.item
+        if (!flyout)
             return
         const gap = theme.spacingM
         // height is content-driven now, but keep the 320 fallback in case
@@ -76,10 +135,67 @@ Item {
         id: background
         anchors.fill: parent
         radius: theme.radiusCard
-        color: card.hovered ? theme.surfaceHoverBg : theme.surfaceBg
-        border.color: card.hovered ? theme.accent : theme.borderSubtle
+
+        // 玻璃底：半透明（页面底衬光斑可透）+ hover 整体提亮一档
+        // （theme.hover 在深色主题提亮、浅色主题压暗）。skill 卡没有
+        // per-卡语义色（AgentCard 的 tint 来源），统一中性玻璃。
+        color: theme.alpha(card.hovered ? theme.hover(background.glassBase)
+                                        : background.glassBase,
+                           card.hovered ? 0.78 : 0.62)
+        readonly property color glassBase: theme.surfaceBg
         border.width: 1
+        border.color: card.hovered ? theme.borderStrong : theme.borderSubtle
         Behavior on color { ColorAnimation { duration: theme.durationFast } }
+        Behavior on border.color { ColorAnimation { duration: theme.durationFast } }
+
+        // accent 极淡纱（玻璃厚度感）：复刻 AgentCard 的场景色罩层配方、
+        // 密度减半——整页可达百卡且共用一个 accent，全密度会整面泛色。
+        // 纵向 Gradient 近似参照实现的斜向纱。
+        Rectangle {
+            anchors.fill: parent
+            radius: background.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: theme.alpha(theme.accent, 0.05) }
+                GradientStop { position: 0.55; color: theme.alpha(theme.accent, 0.01) }
+                GradientStop { position: 1.0; color: theme.alpha(theme.accent, 0.03) }
+            }
+        }
+        // 悬停加深一档的纱（opacity 过渡，合成器免费）。
+        Rectangle {
+            anchors.fill: parent
+            radius: background.radius
+            opacity: card.hovered ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: theme.durationNormal } }
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: theme.alpha(theme.accent, 0.10) }
+                GradientStop { position: 0.55; color: theme.alpha(theme.accent, 0.03) }
+                GradientStop { position: 1.0; color: theme.alpha(theme.accent, 0.06) }
+            }
+        }
+
+        // 内缘 1px 高光：玻璃厚度感（参照实现的 inset 0 1px 0，扩成整圈
+        // 内缘）。深色主题取 textOnAccent 的微白；浅色主题下白高光不可
+        // 见、留空即可。
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(0, background.radius - 1)
+            color: "transparent"
+            border.width: 1
+            border.color: theme.variant === "dark" ? theme.alpha(theme.textOnAccent, 0.07)
+                                                   : "transparent"
+        }
+
+        // 悬停聚光：光斑跟随指针 + 描边流光（契约见 ASpotlight 头注释），
+        // 叠在玻璃底/纱层之上、内容子项之下。
+        ASpotlight {
+            anchors.fill: parent
+            radius: background.radius
+            accentColor: theme.accent
+            active: card.hovered
+            spotX: hoverHandler.point.position.x
+            spotY: hoverHandler.point.position.y
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -172,11 +288,11 @@ Item {
     // 关闭计时已在跑，不取消会先关再开闪一下。
     onHoveredChanged: {
         if (hovered) {
-            flyout.cancelClose()
+            cancelFlyoutClose()
             hoverTimer.start()
         } else {
             hoverTimer.stop()
-            flyout.tryCloseLater()
+            closeFlyoutLater()
         }
     }
 
@@ -197,12 +313,11 @@ Item {
                 card.copyPath()
         }
         // 滚轮划过卡片时立即收起 flyout（在别处滚动由上方的 hover-out 路径
-        // 覆盖）。wheel.accepted 置 false 让事件继续传给背后的 ScrollView——
+        // 覆盖）。wheel.accepted 置 false 让事件继续传给背后的 GridView——
         // 不用 WheelHandler.blocking 做这件事：该属性 Qt 6.2 才引入，Qt 5 下
         // 对它赋值会让整个 SkillCard 连同 Skills 页加载失败。
         onWheel: function(wheel) {
-            if (flyout.opened)
-                flyout.close()
+            card.closeFlyoutNow()
             wheel.accepted = false
         }
     }
@@ -215,14 +330,14 @@ Item {
         if (activeFocus)
             card.openFlyout()
         else
-            flyout.tryCloseLater()
+            card.closeFlyoutLater()
     }
     Keys.onReturnPressed: copyPath()
     Keys.onEnterPressed: copyPath()
     Keys.onPressed: function(event) {
         // 任意按键先关掉 flyout；再按一次才生效。
-        if (flyout.opened) {
-            flyout.close()
+        if (flyoutLoader.item && flyoutLoader.item.opened) {
+            card.closeFlyoutNow()
             event.accepted = true
             return
         }
@@ -244,13 +359,13 @@ Item {
     }
 
     // 右键菜单：复制路径/SKILL.md/名称、打开所在文件夹、定位文件。
-    Menu {
+    AMenu {
         id: contextMenu
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy path")
             onTriggered: card.copyPath()
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy SKILL.md path")
             onTriggered: {
                 const result = skills.copySkillFile(card.skillFilePath)
@@ -258,11 +373,10 @@ Item {
                     workbench.notify("success", qsTr("Path copied"),
                                      card.skillFilePath)
                 else
-                    workbench.notify("error", qsTr("Copy failed"),
-                                     result.error)
+                    workbench.notify("error", qsTr("Copy failed"), result.error)
             }
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Copy name")
             onTriggered: {
                 const result = skills.copyName(card.skillFilePath)
@@ -270,12 +384,11 @@ Item {
                     workbench.notify("success", qsTr("Copied"),
                                      card.skillName)
                 else
-                    workbench.notify("error", qsTr("Copy failed"),
-                                     result.error)
+                    workbench.notify("error", qsTr("Copy failed"), result.error)
             }
         }
-        MenuSeparator {}
-        MenuItem {
+        AMenuSeparator {}
+        AMenuItem {
             text: qsTr("Open containing folder")
             onTriggered: {
                 const result = skills.openFolder(card.skillFilePath)
@@ -284,7 +397,7 @@ Item {
                                      result.error)
             }
         }
-        MenuItem {
+        AMenuItem {
             text: qsTr("Reveal SKILL.md")
             onTriggered: {
                 const result = skills.revealSkillFile(card.skillFilePath)
@@ -293,13 +406,5 @@ Item {
                                      result.error)
             }
         }
-    }
-
-    // 详情 flyout：默认落在卡片右下方，出屏时翻转（openFlyout 定位）。
-    SkillDetailFlyout {
-        id: flyout
-        skillFilePath: card.skillFilePath
-        x: card.width + theme.spacingM
-        y: 0
     }
 }

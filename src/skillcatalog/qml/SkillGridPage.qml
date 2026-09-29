@@ -4,11 +4,17 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Skills 主页：搜索、来源 facet 过滤、排序、卡片网格，扫描期的骨架屏
-// 与部分失败的尾部提示。列表状态在 skills.model（C++ 侧），页面本身
-// 可毁掉重建。
+// Skills 主页：搜索、来源 facet 过滤、排序、玻璃卡片网格，扫描期的骨架屏
+// 与部分失败的尾部提示。列表状态在 skills.model（C++ 侧），页面本身可毁
+// 掉重建。网格用 GridView 而非 Flow+Repeater：skill 可达百级，惰性实例化
+// 是切页不卡的前提（见下方网格注释）。
 Item {
     id: page
+
+    // 卡片规格宽（= SkillCard 的兜底宽；网格内实际宽度由 cell 拉伸覆盖）。
+    readonly property real cardMinWidth: theme.cardMinWidth + 80
+    // 卡片规格高（与 SkillCard 的兜底高一致，cellHeight 由此推导）。
+    readonly property real cardHeight: 160
 
     // facet 过滤的全部来源类型（“全部”按钮单独处理，不在此列）。
     readonly property var kinds: ["agents", "claude", "codex", "plugin",
@@ -27,6 +33,11 @@ Item {
         else
             active.push(kind)
         skills.model.activeKinds = active
+    }
+
+    // 页面底衬光斑（玻璃卡透光用），见 AWorkspaceGlow 头注释。
+    AWorkspaceGlow {
+        anchors.fill: parent
     }
 
     ColumnLayout {
@@ -169,8 +180,15 @@ Item {
         // --- 网格 ----------------------------------------------------------------
         // 已有数据（缓存恢复）时扫描中也不隐藏网格：后台重扫静默进行，
         // 结果落地后模型整体刷新。
-        ScrollView {
-            id: scrollView
+        //
+        // GridView 是性能前提，不是风格选择：skill 可达百级，Flow+Repeater
+        // 会在页面创建时同步实例化全部 delegate（每张卡各带一份详情浮层
+        // 与右键菜单），实测 151 个 skill 换页冻结约 2s；GridView 只实例化
+        // 视口内的卡片，cacheBuffer 额外预取约两行，reuseItems 让滚出视口
+        // 的卡片回池复用。列数随视口宽度自适应，cellWidth 取整防浮点误差
+        // 多算一列（GridView 按整数除法算列，溢出会出横向滚动）。
+        GridView {
+            id: grid
             Layout.fillWidth: true
             Layout.fillHeight: true
             // 与工具栏行的左右留白对齐：缺了这两行，首张卡片会贴着
@@ -179,25 +197,43 @@ Item {
             Layout.rightMargin: theme.spacingL
             visible: skills.model.count > 0
             clip: true
-            contentWidth: availableWidth
+            boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: AScrollBar {}
 
-            Flow {
-                width: scrollView.availableWidth
-                spacing: theme.spacingL
+            // 列数 = 视口宽能容纳几列「最小卡宽 + 一列间距」。
+            readonly property int columns: Math.max(1, Math.floor(
+                (width + theme.spacingL) / (page.cardMinWidth + theme.spacingL)))
+            // cell = 卡 + 右侧一列间距；先从视口宽里扣掉每列的间距再整除，
+            // 保证 columns*cellWidth ≤ width（浮点偏高会溢出，出横向滚动）。
+            // 下限 spacingL：视口极窄时 cellWidth 仍 ≥ 一列间距，卡宽
+            // （cellWidth - spacingL）不为负。
+            cellWidth: Math.max(theme.spacingL,
+                                Math.floor((width - columns * theme.spacingL) / columns)
+                                + theme.spacingL)
+            // cell = 卡高 + 底部一行间距；与 SkillCard 的兜底高同步维护。
+            cellHeight: page.cardHeight + theme.spacingL
 
-                Repeater {
-                    model: skills.model
-                    delegate: SkillCard {
-                        skillFilePath: model.skillFilePath
-                        skillName: model.name
-                        description: model.description
-                        dirPath: model.dirPath
-                        kind: model.kind
-                        rootLabel: model.rootLabel
-                        pluginVersion: model.pluginVersion
-                    }
-                }
+            // 视口外上下各预取约两行，快速滚动少出现空白。
+            cacheBuffer: 360
+            // 滚出视口的卡回池复用：滚动不再反复建卡销卡；模型 reset
+            // （过滤/重扫）时仍整批销毁重建。
+            reuseItems: true
+
+            // 首行卡片悬停升举（SkillCard 的 -spacingXs 平移）需要一格
+            // 顶部余量，否则 contentY=0 时被视口裁掉上缘。
+            header: Item { height: theme.spacingXs }
+
+            model: skills.model
+            delegate: SkillCard {
+                width: grid.cellWidth - theme.spacingL
+                height: page.cardHeight
+                skillFilePath: model.skillFilePath
+                skillName: model.name
+                description: model.description
+                dirPath: model.dirPath
+                kind: model.kind
+                rootLabel: model.rootLabel
+                pluginVersion: model.pluginVersion
             }
         }
 

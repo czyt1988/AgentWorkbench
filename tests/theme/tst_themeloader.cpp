@@ -114,7 +114,7 @@ private Q_SLOTS:
         QVERIFY(dark.isValid());
         QCOMPARE(dark.id, QStringLiteral("mocha-dark"));
         QCOMPARE(dark.variant, QStringLiteral("dark"));
-        QCOMPARE(dark.colors.size(), 32);
+        QCOMPARE(dark.colors.size(), 33);
 
         const ThemeFile light =
             ThemeLoader::loadFile(QStringLiteral(":/themes/latte-light.json"),

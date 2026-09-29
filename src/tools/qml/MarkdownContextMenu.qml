@@ -3,45 +3,40 @@ import QtQuick.Controls
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Agent Tools 编辑区的右键菜单：模仿 Office 的异型菜单——顶部一条
-// markdown 格式化工具栏（加粗 / 代码 / 要点），下方是常规的复制 /
-// 粘贴条目。Menu 的 contentItem（ListView）按声明顺序竖排直接子项，
-// 混排普通 Item 与 MenuItem 即得到「工具栏在上、条目在下」的形态；
-// 未显式设宽的子项会被 Menu 拉到菜单宽，工具栏只声明高度。
-Menu {
+// Agent Tools 编辑区的右键菜单：Office 式异型菜单——顶部一条 markdown
+// 格式化工具栏（加粗 / 代码 / 要点，图标左对齐、无独立背景，与条目
+// 融成一个窗口菜单），下方是撤销/重做/剪切/复制/粘贴条目。菜单本体
+// 走 AMenu（玻璃质感、全仓统一形态，见 designs.md）。Menu 的
+// contentItem（ListView）按声明顺序竖排直接子项，混排普通 Item 与
+// AMenuItem 即得到「工具栏在上、条目在下」的形态。
+AMenu {
     id: root
 
     /// 操作的目标编辑器（ToolsPage 的提示词编辑区）。
     property var editor: null
 
-    width: 210
-    padding: theme.spacingS
-
-    // MenuItem 的文字 / 图标 / 悬停高亮全走 palette 角色，不覆盖模板。
-    palette.windowText: theme.textPrimary
-    palette.highlight: theme.surfaceHoverBg
-    palette.highlightedText: theme.textPrimary
-
-    background: Rectangle {
-        radius: theme.radiusOverlay
-        color: theme.surfaceBg
-        border.color: theme.borderSubtle
-        border.width: 1
-    }
+    width: 220
 
     // --- 顶部工具栏：markdown 格式化 -------------------------------------
+    // 与菜单条目融合：无背景色、图标左对齐（不居中），像窗口菜单的
+    // 工具区。下缘一条极淡分隔线与条目区分。
     Item {
-        height: 36
+        height: 34
 
-        // 一整条内衬把工具栏与普通菜单条目区分开。
         Rectangle {
-            anchors.fill: parent
-            radius: theme.radiusControl
-            color: theme.chromeBg
+            anchors.left: parent.left
+            anchors.leftMargin: 8
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.bottom: parent.bottom
+            implicitHeight: 1
+            color: theme.separator
         }
 
         Row {
-            anchors.centerIn: parent
+            anchors.left: parent.left
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
             spacing: theme.spacingXs
 
             AIconButton {
@@ -70,14 +65,34 @@ Menu {
         }
     }
 
-    // 工具栏与菜单条目之间的呼吸。
-    Item {
-        height: theme.spacingXs
+    AMenuItem {
+        icon.source: "qrc:/icons/undo.svg"
+        text: qsTr("Undo")
+        enabled: root.editor && root.editor.canUndo
+        onTriggered: root.run(function() {
+            root.editor.undo()
+        })
+    }
+    AMenuItem {
+        icon.source: "qrc:/icons/redo.svg"
+        text: qsTr("Redo")
+        enabled: root.editor && root.editor.canRedo
+        onTriggered: root.run(function() {
+            root.editor.redo()
+        })
     }
 
-    MenuItem {
-        icon.width: 16
-        icon.height: 16
+    AMenuSeparator {}
+
+    AMenuItem {
+        icon.source: "qrc:/icons/cut.svg"
+        text: qsTr("Cut")
+        enabled: root.editor && root.editor.selectedText.length > 0
+        onTriggered: root.run(function() {
+            root.editor.cut()
+        })
+    }
+    AMenuItem {
         icon.source: "qrc:/icons/copy.svg"
         text: qsTr("Copy")
         enabled: root.editor && root.editor.selectedText.length > 0
@@ -85,10 +100,7 @@ Menu {
             root.editor.copy()
         })
     }
-
-    MenuItem {
-        icon.width: 16
-        icon.height: 16
+    AMenuItem {
         icon.source: "qrc:/icons/paste.svg"
         text: qsTr("Paste")
         enabled: root.editor && root.editor.canPaste

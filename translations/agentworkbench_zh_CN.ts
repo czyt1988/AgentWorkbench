@@ -1044,27 +1044,42 @@ Command: %2
 <context>
     <name>MarkdownContextMenu</name>
     <message>
-        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="49"/>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="44"/>
         <source>Bold</source>
         <translation>加粗</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="57"/>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="52"/>
         <source>Code</source>
         <translation>代码段</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="65"/>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="60"/>
         <source>Bulleted list</source>
         <translation>要点列表</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="82"/>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="70"/>
+        <source>Undo</source>
+        <translation>撤销</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="78"/>
+        <source>Redo</source>
+        <translation>重做</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="89"/>
+        <source>Cut</source>
+        <translation>剪切</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="97"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="93"/>
+        <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="105"/>
         <source>Paste</source>
         <translation>粘贴</translation>
     </message>
@@ -1987,7 +2002,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="130"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="440"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="451"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
@@ -1997,37 +2012,37 @@ Command: %2
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="186"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="187"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="255"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="257"/>
         <source>Files</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="370"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="380"/>
         <source>Copy relative path</source>
         <translation>复制相对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="374"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="385"/>
         <source>Copy absolute path</source>
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="425"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="436"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="438"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="449"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="439"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="450"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>
