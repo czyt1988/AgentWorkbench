@@ -167,11 +167,14 @@ Item {
     }
 
     // 悬停进入 → 400ms 后开浮层；离开 → 收起。判据是卡片自己的 hovered
-    // （已并进卡内独占 hover 的子项），不是 hoverHandler.hovered。
+    // （已并进卡内独占 hover 的子项），不是 hoverHandler.hovered。进入时
+    // 先取消浮层待定的延迟关闭：从浮层挪回卡片的场景里，浮层的 300ms
+    // 关闭计时已在跑，不取消会先关再开闪一下。
     onHoveredChanged: {
-        if (hovered)
+        if (hovered) {
+            flyout.cancelClose()
             hoverTimer.start()
-        else {
+        } else {
             hoverTimer.stop()
             flyout.tryCloseLater()
         }

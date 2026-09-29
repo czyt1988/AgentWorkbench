@@ -34,9 +34,12 @@ Button {
                             : (control.active ? theme.surfaceBg
                              : (control.hovered ? theme.alpha(theme.textMuted, 0.18)
                                                 : "transparent"))
-        // 键盘焦点环。
-        border.color: control.activeFocus ? theme.focusRing : "transparent"
-        border.width: control.activeFocus ? 2 : 0
+        // 键盘焦点环：只在键盘导航（Tab/快捷键）获得焦点时显示。鼠标点击
+        // 同样会让按钮持有 activeFocus（Button 默认 focusPolicy 为
+        // StrongFocus），点击后一圈蓝环会一直挂在那儿——判据用仅键盘为
+        // 真的 visualFocus（Qt 5.15.16 起可用），而不是 activeFocus。
+        border.color: control.visualFocus ? theme.focusRing : "transparent"
+        border.width: control.visualFocus ? 2 : 0
     }
 
     contentItem: Image {
