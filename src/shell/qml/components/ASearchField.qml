@@ -13,6 +13,7 @@ TextField {
     color: theme.textPrimary
     placeholderTextColor: theme.textMuted
     selectionColor: theme.selectionBg
+    selectedTextColor: theme.selectionText
     font.pixelSize: theme.fontSizeBody
     leftPadding: 30
     rightPadding: clearArea.visible ? 28 : theme.spacingM

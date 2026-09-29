@@ -17,6 +17,7 @@ TextArea {
     color: theme.textPrimary
     placeholderTextColor: theme.textMuted
     selectionColor: theme.selectionBg
+    selectedTextColor: theme.selectionText
     font.pixelSize: theme.fontSizeBody
     wrapMode: TextArea.Wrap
     // TextEdit 的 selectByMouse 默认 false（Controls2 各风格也不覆盖）：
