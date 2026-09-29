@@ -34,25 +34,23 @@ public:
     explicit SkillScanner(core::Settings *settings,
                           QObject *parent = nullptr);
 
-    // Roots as configured (settings override or defaults).
+    // 当前配置的根清单（settings 覆盖优先，否则默认清单）
     QList<SkillRoot> roots() const;
-    // Persist an enabled/disabled flag for one root (into skills.roots).
+    // 持久化某个根的启用/禁用开关（写进 skills.roots）
     void setRootEnabled(const QString &id, bool enabled);
 
-    // Kick a scan. Returns immediately — the scan runs on the global thread
-    // pool, the result arrives through scanFinished() on the GUI thread,
-    // and the fresh definitions are persisted to the JSON cache by the
-    // worker before it returns.
+    // 发起一次扫描。立即返回——扫描跑在全局线程池上，结果经
+    // scanFinished() 回到 GUI 线程；新结果由 worker 在返回前顺手固化
+    // 进 JSON 缓存。
     Q_INVOKABLE void refresh();
 
-    // True between refresh() and the matching scanFinished().
+    // refresh() 到对应 scanFinished() 之间为 true
     bool scanning() const { return m_scanning; }
 
-    // The definitions produced by the last scan (empty until the first
-    // refresh() or adoptResults()).
+    // 最近一次扫描产出的定义（首次 refresh()/adoptResults() 之前为空）
     const QList<SkillDefinition> &definitions() const { return m_definitions; }
 
-    // Stats of the last scan (zeros until the first refresh()/adoptResults()).
+    // 最近一次扫描的统计（首次 refresh()/adoptResults() 之前全 0）
     Stats lastStats() const { return m_lastStats; }
 
     // 把现成的结果当作最近一次扫描结果采用（启动时从 JSON 缓存恢复）。
@@ -61,21 +59,33 @@ public:
                       const Stats &stats);
 
 Q_SIGNALS:
+    /**
+     * @brief 一次扫描的结果落地时发射（真扫描与缓存恢复共用）
+     */
     void scanFinished();
+
+    /**
+     * @brief 真扫描开始时发射（缓存恢复不发）
+     */
     void scanStarted();
-    /// 只在 m_scanning 真实翻转时发射（缓存恢复不发）——订阅方的骨架
-    /// 屏、按钮转圈都挂在它上，重复发射会重放动画。
+
+    /**
+     * @brief 只在 m_scanning 真实翻转时发射（缓存恢复不发）
+     *
+     * 订阅方的骨架屏、按钮转圈都挂在它上，重复发射会重放动画。
+     */
     void scanningChanged();
 
 private:
+    // 落地一份结果：更新成员并发射 scanFinished()
     void applyResults(const QList<SkillDefinition> &definitions,
                       const Stats &stats);
 
-    core::Settings *m_settings;
-    QList<SkillRoot> m_roots;
-    QList<SkillDefinition> m_definitions;
-    Stats m_lastStats;
-    bool m_scanning = false;
+    core::Settings *m_settings;             ///< 设置访问（仅 GUI 线程触碰）
+    QList<SkillRoot> m_roots;               ///< 最近一次解析的根清单；空 = 用默认
+    QList<SkillDefinition> m_definitions;   ///< 最近一次扫描的定义
+    Stats m_lastStats;                      ///< 最近一次扫描的统计
+    bool m_scanning = false;                ///< 扫描进行中标志（防抖用）
 };
 
 } // namespace awb::skillcatalog

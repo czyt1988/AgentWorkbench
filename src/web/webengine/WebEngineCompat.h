@@ -42,16 +42,14 @@ public:
     int downloadCancelled() const;
     int downloadInterrupted() const;
 
-    /// 拒绝一次页面权限请求（v1 全拒）。view 或来源无效时静默返回。
+    // 拒绝一次页面权限请求（v1 全拒）；view 或来源无效时静默返回
     Q_INVOKABLE void denyFeature(QQuickWebEngineView *view,
                                  const QUrl &securityOrigin, int feature);
 
-    /// 取 view 的 DevTools 地址。Qt 5 恒为空 URL：那边由 attachDevTools
-    /// 以「检查器视图绑 inspectedView」的方式挂接，地址不参与。
+    // 取 view 的 DevTools 地址；Qt 5 恒为空 URL（那边走 attachDevTools）
     Q_INVOKABLE QUrl devToolsUrl(QQuickWebEngineView *view);
 
-    /// 把 devToolsView 设为 view 的检查器（Qt 5 的 inspectedView 绑定）。
-    /// Qt 6 无操作——devToolsUrl + url 绑定已覆盖。
+    // 把 devToolsView 挂成 view 的检查器（仅 Qt 5 有效，Qt 6 无操作）
     Q_INVOKABLE void attachDevTools(QQuickWebEngineView *view,
                                     QQuickWebEngineView *devToolsView);
 };

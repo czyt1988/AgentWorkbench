@@ -14,8 +14,19 @@ namespace awb::agentcatalog {
 
 namespace {
 
-// Operational log helpers, byte-compatible with 0.3.0 ("[cmd] install
-// \"opencode\": running: cmd /c …", "done, exit=0").
+// 运行日志的辅助函数，与 0.3.0 逐字节兼容（"[cmd] install \"opencode\":
+// running: cmd /c …"、"done, exit=0"）。
+
+/**
+ * @brief 拼运行日志的前缀
+ *
+ * 形如 "[cmd] install \"opencode\": "。
+ *
+ * @param tag       分类标签（"cmd" 或 "app"）
+ * @param operation 操作名（install、update…）
+ * @param id        agent id；空串时省去 id 段
+ * @return 可直接拼接消息的前缀
+ */
 QString logPrefix(const QString &tag, const QString &operation, const QString &id)
 {
     return id.isEmpty()
@@ -23,24 +34,49 @@ QString logPrefix(const QString &tag, const QString &operation, const QString &i
                : QStringLiteral("[%1] %2 \"%3\": ").arg(tag, operation, id);
 }
 
+/**
+ * @brief 记一条 [cmd] 级的运行日志
+ *
+ * @param operation 操作名
+ * @param id        agent id
+ * @param message   消息（英文）
+ */
 void cmdLog(const QString &operation, const QString &id, const QString &message)
 {
     qInfo().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
 }
 
+/**
+ * @brief 记一条 [cmd] 级的告警日志
+ *
+ * @param operation 操作名
+ * @param id        agent id
+ * @param message   消息（英文）
+ */
 void cmdLogError(const QString &operation, const QString &id, const QString &message)
 {
     qWarning().noquote() << logPrefix(QStringLiteral("cmd"), operation, id) + message;
 }
 
-// How long a command took, e.g. "1.2s".
+/**
+ * @brief 距 startMs 经过了多久
+ *
+ * @param startMs 起始时刻（毫秒纪元）
+ * @return 形如 "1.2s" 的耗时文本
+ */
 QString elapsedSince(qint64 startMs)
 {
     return QStringLiteral("%1s")
         .arg((QDateTime::currentMSecsSinceEpoch() - startMs) / 1000.0, 0, 'f', 1);
 }
 
-// Outcome of a finished process, e.g. "done, exit=0, 31.2s".
+/**
+ * @brief 结束进程的结局摘要
+ *
+ * @param exitCode 退出码
+ * @param startMs  起始时刻，用于算耗时
+ * @return 形如 "done, exit=0, 31.2s"（非零退出码时 "FAILED"）
+ */
 QString exitSummary(int exitCode, qint64 startMs)
 {
     return QStringLiteral("%1, exit=%2, %3")
@@ -49,14 +85,28 @@ QString exitSummary(int exitCode, qint64 startMs)
         .arg(elapsedSince(startMs));
 }
 
-// How the launcher runs a raw command string.
+/**
+ * @brief 启动器运行原始命令串的形态
+ *
+ * @param command 原始命令串
+ * @return "cmd /c <command>"
+ */
 QString shellCommandLine(const QString &command)
 {
     return QStringLiteral("cmd /c ") + command;
 }
 
-// Verbatim output of a finished command, capped so one chatty command cannot
-// fill the log. `failure` mirrors the severity of the matching outcome line.
+/**
+ * @brief 把结束命令的输出原样记进日志
+ *
+ * 截断到日志上限，免得一条话痨命令灌满日志；failure 决定记告警还是
+ * 信息级别，与对应结局行的级别一致。
+ *
+ * @param operation 操作名
+ * @param id        agent id
+ * @param output    命令的累计输出
+ * @param failure   失败结局时为 true（记为告警）
+ */
 void logCommandOutput(const QString &operation, const QString &id,
                       const QString &output, bool failure = false)
 {
@@ -75,14 +125,29 @@ void logCommandOutput(const QString &operation, const QString &id,
     }
 }
 
-// One ScriptRunner slot per "<operation>:<agent id>", so concurrent
-// operations on the same agent (a version check during an install) never
-// kill each other.
+/**
+ * @brief 拼脚本运行 key
+ *
+ * 一个操作一个 ScriptRunner 槽位，同一 agent 上的并发操作（安装期间
+ * 查版本）因此互不相杀。
+ *
+ * @param operation 操作名（install/update/setup/version）
+ * @param id        agent id
+ * @return "<operation>:<id>"
+ */
 QString scriptKey(const QString &operation, const QString &id)
 {
     return operation + QLatin1Char(':') + id;
 }
 
+/**
+ * @brief 拆开脚本运行 key
+ *
+ * @param key       运行 key
+ * @param operation 拆出的操作名（出参）
+ * @param id        拆出的 agent id（出参）
+ * @return key 形如 "<operation>:<id>" 时返回 true
+ */
 bool splitScriptKey(const QString &key, QString &operation, QString &id)
 {
     const int sep = key.indexOf(QLatin1Char(':'));
@@ -96,14 +161,21 @@ bool splitScriptKey(const QString &key, QString &operation, QString &id)
 
 } // namespace
 
+/**
+ * @brief 构造一次性命令运行器
+ *
+ * @param model      agent 列表来源，操作状态写回它
+ * @param stateStore setup 完成状态的落盘处
+ * @param parent     QObject 父项
+ */
 AgentScripts::AgentScripts(AgentModel *model, AgentStateStore *stateStore,
                            QObject *parent)
     : QObject(parent)
     , m_model(model)
     , m_stateStore(stateStore)
 {
-    // The runner instance is per-scripts object so keys stay private to
-    // this module; slots in AgentRuntime never touch it.
+    // runner 每个 scripts 对象一个，key 因此保持模块私有；
+    // AgentRuntime 里的槽绝不会碰到它。
     m_runner = new core::ScriptRunner(this);
     connect(m_runner, &core::ScriptRunner::outputChunk, this,
             &AgentScripts::onScriptChunk);
@@ -111,8 +183,17 @@ AgentScripts::AgentScripts(AgentModel *model, AgentStateStore *stateStore,
             &AgentScripts::onScriptFinished);
 }
 
-// --- Install / Update -----------------------------------------------------
+// --- Install / Update ------------------------------------------------------
 
+/**
+ * @brief 运行该 agent 的安装命令
+ *
+ * 前置条件与 0.3.0 一致：agent 运行中或未配置 installCommand 时拒绝
+ * （分别发 launchFailed / installFinished(false)）。命令经 cmd /c 运行、
+ * 不限时、通道合并，输出实时上卡片；结束时 onScriptFinished 收尾。
+ *
+ * @param id agent id
+ */
 void AgentScripts::install(const QString &id)
 {
     const int row = m_model->indexOf(id);
@@ -136,20 +217,27 @@ void AgentScripts::install(const QString &id)
         return;
     }
 
-    // Clear any previous output before flipping the card to "installing" so
-    // the panel never flashes stale text from a prior run when it (re)opens.
+    // 先清上一次的输出再翻到 "installing"：面板（重新）打开时不闪现
+    // 上一轮的旧文本。
     m_model->setConsoleOutput(id, QString());
     m_model->setInstalling(id, true);
 
     const QString key = scriptKey(QStringLiteral("install"), id);
     m_buffers.remove(key);
     m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
-    // No visible console window; output is captured for live display.
+    // 不弹控制台窗口；输出收进来供实时显示。
     cmdLog(QStringLiteral("install"), id,
            QStringLiteral("running: %1").arg(shellCommandLine(a.installCommand)));
     m_runner->runShell(key, a.installCommand, 0, true);
 }
 
+/**
+ * @brief 运行该 agent 的更新命令
+ *
+ * 前置条件与失败上报同 install()；命令经 cmd /c 运行、不限时、通道合并。
+ *
+ * @param id agent id
+ */
 void AgentScripts::update(const QString &id)
 {
     const int row = m_model->indexOf(id);
@@ -179,14 +267,23 @@ void AgentScripts::update(const QString &id)
     const QString key = scriptKey(QStringLiteral("update"), id);
     m_buffers.remove(key);
     m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
-    // No visible console window; output is captured for live display.
+    // 不弹控制台窗口；输出收进来供实时显示。
     cmdLog(QStringLiteral("update"), id,
            QStringLiteral("running: %1").arg(shellCommandLine(a.updateCommand)));
     m_runner->runShell(key, a.updateCommand, 0, true);
 }
 
-// --- Setup (first-run prerequisite) ----------------------------------------
+// --- Setup（首跑前置） ------------------------------------------------------
 
+/**
+ * @brief 运行该 agent 的一次性 setup 命令
+ *
+ * 未配置 setupCommand 时静默返回（setup 是可选的）。命令写进临时
+ * .cmd 文件再执行（绕开 cmd.exe 的引号问题），30 s 安全超时杀掉挂死
+ * 的 setup；输出实时上卡片，结束时 onScriptFinished 收尾。
+ *
+ * @param id agent id
+ */
 void AgentScripts::runSetup(const QString &id)
 {
     const int row = m_model->indexOf(id);
@@ -198,8 +295,8 @@ void AgentScripts::runSetup(const QString &id)
         return;
     }
 
-    // Clear any previous output before flipping the card to "setting up" so
-    // the panel never flashes stale text from a prior run when it (re)opens.
+    // 先清上一次的输出再翻到 "setting up"：面板（重新）打开时不闪现
+    // 上一轮的旧文本。
     m_model->setConsoleOutput(id, QString());
     m_model->setSetupping(id, true);
 
@@ -213,13 +310,19 @@ void AgentScripts::runSetup(const QString &id)
     m_buffers.remove(key);
     m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
     m_setupCommands.insert(key, cmd);
-    // The batch file sidesteps cmd.exe quoting (see ScriptRunner::runBatch);
-    // 30s safety timeout kills a hung setup.
+    // 批处理文件绕开 cmd.exe 的引号问题（见 ScriptRunner::runBatch）；
+    // 30 s 安全超时杀掉挂死的 setup。
     m_runner->runBatch(key, cmd, 30000);
 }
 
-// --- Version detection -------------------------------------------------------
+// --- 版本探测 ---------------------------------------------------------------
 
+/**
+ * @brief 逐个运行所有 agent 的 versionCommand
+ *
+ * 启动时的版本检查走这里；每个 agent 各自走 checkVersion() 的前置
+ * 检查（未配置命令的静默跳过）。
+ */
 void AgentScripts::checkVersions()
 {
     for (const AgentDefinition &a : m_model->definitions()) {
@@ -227,6 +330,14 @@ void AgentScripts::checkVersions()
     }
 }
 
+/**
+ * @brief 运行单个 agent 的 versionCommand
+ *
+ * 命令经 cmd /c 运行、10 s 安全超时、通道分开（有些工具把版本打到
+ * stderr）。结束后 onScriptFinished 解析版本并决定 installed 状态。
+ *
+ * @param id agent id；未配置 versionCommand 时静默返回
+ */
 void AgentScripts::checkVersion(const QString &id)
 {
     const int row = m_model->indexOf(id);
@@ -245,15 +356,23 @@ void AgentScripts::checkVersion(const QString &id)
     m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
     cmdLog(QStringLiteral("version"), id,
            QStringLiteral("running: %1").arg(shellCommandLine(cmd)));
-    // Separate channels: some tools print the version to stderr. 10s safety
-    // timeout kills a hung check; a stale run for this key is invalidated by
-    // ScriptRunner, and the delayed spinner clear in onScriptFinished is
-    // guarded by m_versionEpoch.
+    // 通道分开：有些工具把版本打到 stderr。10 s 安全超时杀掉挂死的
+    // 检查；该 key 的陈旧运行由 ScriptRunner 作废，onScriptFinished 里
+    // 延迟的 spinner 清除由 m_versionEpoch 守卫。
     m_runner->runShell(key, cmd, 10000, false);
 }
 
-// --- ScriptRunner dispatch ---------------------------------------------------
+// --- ScriptRunner 分派 -------------------------------------------------------
 
+/**
+ * @brief 处理一段实时到达的脚本输出
+ *
+ * 只处理 install/update/setup（version 的输出只在完成时读）；把增量
+ * 追加进该 key 的缓冲并整体上卡片。
+ *
+ * @param key  运行 key（"<operation>:<id>"）
+ * @param text 本次到达的文本
+ */
 void AgentScripts::onScriptChunk(const QString &key, const QString &text)
 {
     QString operation, id;
@@ -263,7 +382,7 @@ void AgentScripts::onScriptChunk(const QString &key, const QString &text)
     if (operation != QStringLiteral("install")
         && operation != QStringLiteral("update")
         && operation != QStringLiteral("setup")) {
-        return; // version output is only read at completion
+        return; // version 的输出只在完成时读
     }
 
     QString &buffer = m_buffers[key];
@@ -271,6 +390,22 @@ void AgentScripts::onScriptChunk(const QString &key, const QString &text)
     m_model->setConsoleOutput(id, buffer);
 }
 
+/**
+ * @brief 处理一次脚本运行的结束
+ *
+ * 按 key 里的操作分派：install/update 清 "installing"、写权威输出、
+ * 发 installFinished 并顺手复查版本；setup 落盘 AgentStateStore、发
+ * setupFinished（失败经 launchFailed 报带命令原文的消息）；version
+ * 解析版本串、写 installed/version 并发 versionResolved，spinner 至少
+ * 显示 500 ms 且只清本次检查的。
+ *
+ * @param key      运行 key（"<operation>:<id>"）
+ * @param ok       命令干净退出为 true
+ * @param exitCode 退出码；没能启动时为 -1
+ * @param stdOut   stdout 累计文本
+ * @param stdErr   stderr 累计文本
+ * @param error    启动失败或超时的原因；干净运行为空串
+ */
 void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                                     const QString &stdOut, const QString &stdErr,
                                     const QString &error)
@@ -281,19 +416,19 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
     }
 
     const qint64 startMs = m_startMs.take(key);
-    // Merged-channel runs report everything on stdout; separated runs put
-    // stderr after stdout, matching 0.3.0's stdOutput + errOutput.
+    // 合并通道的运行全部记在 stdout；分开通道的运行把 stderr 接在
+    // stdout 后面，对应 0.3.0 的 stdOutput + errOutput。
     const QString output = stdOut + stdErr;
 
     if (operation == QStringLiteral("install")
         || operation == QStringLiteral("update")) {
         m_model->setInstalling(id, false);
         m_buffers.remove(key);
-        // Authoritative full text (the chunks above only streamed deltas).
+        // 权威的完整文本（上面的 chunk 只流过增量）。
         m_model->setConsoleOutput(id, output);
 
         if (!error.isEmpty()) {
-            // The command never started (install/update have no timeout).
+            // 命令从未启动（install/update 不设超时）。
             cmdLogError(operation, id, error);
             Q_EMIT installFinished(id, false,
                 operation == QStringLiteral("install")
@@ -317,7 +452,7 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                     : tr("Update failed (exit code %1):\n%2")
                           .arg(exitCode).arg(detail));
         }
-        // Re-check version to refresh the card.
+        // 复查一次版本，刷新卡片。
         checkVersion(id);
         return;
     }
@@ -348,7 +483,7 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
             Q_EMIT setupFinished(id, true);
             return;
         }
-        // Non-zero exit, or a timeout (ScriptRunner says so in `error`).
+        // 非零退出码，或超时（ScriptRunner 会写进 error 说明）。
         cmdLogError(operation, id,
                     error.isEmpty() ? exitSummary(exitCode, startMs) : error);
         logCommandOutput(operation, id, output, true);
@@ -366,26 +501,26 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
     }
 
     if (operation == QStringLiteral("version")) {
-        // Captured now: the delayed spinner clear below must only fire if
-        // no newer check started in the meantime.
+        // 现在就取：下面延迟的 spinner 清除只在没有更新的检查开始时
+        // 才允许触发。
         const int epoch = m_versionEpoch.value(id);
 
         if (!error.isEmpty()) {
-            // Never started, or killed by the 10s safety timeout.
+            // 从未启动，或被 10 s 安全超时杀掉。
             cmdLogError(operation, id, error);
             m_model->setInstalled(id, false);
             m_model->setVersion(id, QString());
         } else {
-            // Try to extract a version from stdout, then stderr — some
-            // tools print version info to stderr.
+            // 先从 stdout 再从 stderr 里提取版本——有些工具把版本
+            // 信息打到 stderr。
             QString version = core::TextUtils::extractVersion(stdOut);
             if (version.isEmpty()) {
                 version = core::TextUtils::extractVersion(stdErr);
             }
 
             if (exitCode == 0 || !version.isEmpty()) {
-                // Exit code 0, or we found a version string despite a
-                // non-zero exit. Some tools exit non-zero for --version.
+                // 退出码 0，或非零退出但仍解析出了版本串——有些工具
+                // 的 --version 就是非零退出。
                 m_model->setInstalled(id, true);
                 m_model->setVersion(id, version);
                 Q_EMIT versionResolved(id, version);
@@ -407,8 +542,8 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
             }
         }
 
-        // Keep the spinner visible for at least 500 ms so it does not
-        // flicker; guarded so a stale timer cannot clear a newer check.
+        // spinner 至少亮 500 ms 免得闪烁；有守卫，陈旧的定时器清不掉
+        // 更新一次的检查。
         const qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs;
         QTimer::singleShot(static_cast<int>(qMax(0LL, 500 - elapsed)), this,
                 [this, id, epoch]() {

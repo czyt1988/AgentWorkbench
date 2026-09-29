@@ -9,10 +9,10 @@
 
 namespace awb::theme {
 
-// Available themes: built-ins from :/themes/*.json plus user themes from
-// <dataRoot>/themes/*.json, where a user file with the same id overrides
-// the built-in. Watches the user directory and
-// its files so a saved theme file reloads live.
+/// 可用主题的注册表：内置主题（:/themes/*.json）+ 用户主题
+/// （<dataRoot>/themes/*.json），同 id 的用户文件覆盖内置版本。
+///
+/// 监视用户目录与其中的主题文件，保存主题文件即刻热重载。
 class ThemeRegistry : public QObject
 {
     Q_OBJECT
@@ -20,35 +20,39 @@ class ThemeRegistry : public QObject
 public:
     explicit ThemeRegistry(QObject *parent = nullptr);
 
-    // All themes in a stable order: built-ins first, then user themes.
+    // 全部主题，顺序稳定：内置在前，用户主题按 id 排序在后
     QList<ThemeFile> themes() const;
 
-    // The theme with this id (user override applied); invalid when unknown.
+    // 按 id 取生效主题（用户覆盖已应用）；未知 id 返回无效 ThemeFile
     ThemeFile theme(const QString &id) const;
 
-    // The built-in baseline theme of a variant ("dark" -> mocha-dark,
-    // "light" -> latte-light). Invalid for an unknown variant.
+    // 某 variant 的内置基线主题（"dark" -> mocha-dark，
+    // "light" -> latte-light）；未知 variant 返回无效 ThemeFile
     ThemeFile baseline(const QString &variant) const;
 
-    // Rescan built-ins + the user directory (also re-arms the watchers).
+    // 重扫内置与用户目录（并重挂文件监视）
     void refresh();
 
 Q_SIGNALS:
-    // A theme file changed on disk (or was added/removed).
+    /**
+     * @brief 主题文件在磁盘上变动（修改、新增、删除）后发射
+     *
+     * refresh() 重扫完成后发出；Theme 据此热重载当前主题。
+     */
     void changed();
 
 private:
+    // 重扫全部主题来源，重建 m_themes / m_sources（不动监视器）
     void scan();
+
+    // 重挂文件监视（先全部摘掉再加回，覆盖新增与消失的文件）
     void armWatchers();
 
-    // Built-in themes by id (the completeness schema for user themes).
-    QHash<QString, ThemeFile> m_builtins;
-    // Effective themes: builtins overridden/extended by user files.
-    QHash<QString, ThemeFile> m_themes;
-    // Where each effective theme came from (file path), for watching.
-    QHash<QString, QString> m_sources;
+    QHash<QString, ThemeFile> m_builtins;  ///< 内置主题（id -> 文件），用户主题的完整性基线
+    QHash<QString, ThemeFile> m_themes;   ///< 生效主题：内置被同 id 用户文件覆盖或扩展
+    QHash<QString, QString> m_sources;    ///< 每个生效主题的来源文件路径，挂监视用
 
-    QFileSystemWatcher m_watcher;
+    QFileSystemWatcher m_watcher;         ///< 用户主题目录与文件的监视器
 };
 
 } // namespace awb::theme

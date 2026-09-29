@@ -12,13 +12,24 @@ namespace awb::skillcatalog {
 
 namespace {
 
-// 缓存格式版本：load() 只认这个值。改结构（增删字段、改语义）时递增并
-// 让旧文件按「过期」处理——旧缓存当没有用即可，启动扫描会立刻重建，
-// 所以不做任何跨版本迁移（与 settings 的无迁移原则一致）。
+/**
+ * @brief 缓存格式版本
+ *
+ * load() 只认这个值。改结构（增删字段、改语义）时递增并让旧文件按
+ * 「过期」处理——旧缓存当没有用即可，启动扫描会立刻重建，所以不做
+ * 任何跨版本迁移（与 settings 的无迁移原则一致）。
+ */
 constexpr int kFormatVersion = 1;
 
-/// SkillDefinition → JSON 对象。字段与 SkillDefinition 一一对应；
-/// lastModified 用 ISO 字符串保住时区信息（msecs 数字会丢本地时区）。
+/**
+ * @brief 把 SkillDefinition 序列化成 JSON 对象
+ *
+ * 字段与 SkillDefinition 一一对应；lastModified 用 ISO 字符串保住时区
+ * 信息（msecs 数字会丢本地时区）。
+ *
+ * @param skill 待序列化的 skill 定义
+ * @return 可放入 definitions 数组的 JSON 对象
+ */
 QJsonObject toJson(const SkillDefinition &skill)
 {
     QJsonObject o;
@@ -42,8 +53,15 @@ QJsonObject toJson(const SkillDefinition &skill)
     return o;
 }
 
-/// JSON 对象 → SkillDefinition。缺字段按默认值；extras 只收字符串值
-/// （扫描产物本来全是字符串，非字符串值意味着文件被手工改过，丢弃）。
+/**
+ * @brief 把 JSON 对象还原成 SkillDefinition
+ *
+ * 缺字段按默认值；extras 只收字符串值（扫描产物本来全是字符串，
+ * 非字符串值意味着文件被手工改过，丢弃）。
+ *
+ * @param o 缓存 definitions 数组里的单个对象
+ * @return 还原后的 skill 定义
+ */
 SkillDefinition fromJson(const QJsonObject &o)
 {
     SkillDefinition skill;
@@ -74,6 +92,14 @@ SkillDefinition fromJson(const QJsonObject &o)
     return skill;
 }
 
+/**
+ * @brief 把 JSON 对象还原成扫描统计
+ *
+ * 缺字段按类型的默认值（int 为 0）；skippedRoots 数组逐项收进字符串列表。
+ *
+ * @param o 缓存根对象里的 stats 节点
+ * @return 还原后的统计
+ */
 SkillScanTask::Stats statsFromJson(const QJsonObject &o)
 {
     SkillScanTask::Stats stats;
@@ -91,6 +117,14 @@ SkillScanTask::Stats statsFromJson(const QJsonObject &o)
     return stats;
 }
 
+/**
+ * @brief 把扫描统计序列化成 JSON 对象
+ *
+ * skippedRoots 为空时不写该字段，保持缓存文件精简。
+ *
+ * @param stats 待序列化的扫描统计
+ * @return 可写进缓存根对象的 JSON 对象
+ */
 QJsonObject toJson(const SkillScanTask::Stats &stats)
 {
     QJsonObject o;
@@ -111,11 +145,25 @@ QJsonObject toJson(const SkillScanTask::Stats &stats)
 
 } // namespace
 
+/**
+ * @brief 取缓存文件路径
+ *
+ * @return core::Paths 给出的 <dataRoot>/skills_cache.json
+ */
 QString SkillCache::filePath()
 {
     return core::Paths::skillCacheFile();
 }
 
+/**
+ * @brief 读回缓存快照
+ *
+ * 文件缺失、损坏（JsonStore::readFile 返回空对象）或格式版本不认识都
+ * 返回 invalid Snapshot，不发警告——「首次启动」与「缓存过期」都是正常
+ * 路径，扫描随后自愈。小文件毫秒级，允许在 GUI 线程同步调用。
+ *
+ * @return 缓存内容；isValid() 为 false 表示没有可用缓存
+ */
 SkillCache::Snapshot SkillCache::load()
 {
     const QJsonObject root = core::JsonStore::readFile(filePath());
@@ -148,6 +196,16 @@ SkillCache::Snapshot SkillCache::load()
     return snapshot;
 }
 
+/**
+ * @brief 原子写缓存（经 JsonStore 的 QSaveFile 落盘）
+ *
+ * 静态纯函数、线程安全：扫描 worker 在自己的线程里调用，GUI 线程
+ * 不为此付出任何 IO 时间。
+ *
+ * @param definitions 本次扫描出的全部 skill 定义
+ * @param stats 同一次扫描的统计
+ * @return 写文件结果；失败时 error 带原因
+ */
 core::OpResult SkillCache::save(const QList<SkillDefinition> &definitions,
                                 const SkillScanTask::Stats &stats)
 {

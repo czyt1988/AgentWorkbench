@@ -11,22 +11,38 @@
 
 namespace awb::skillcatalog {
 
+/**
+ * @brief 构造扫描协调者
+ *
+ * @param settings 设置访问层（存活期须覆盖本对象）
+ * @param parent QObject 父项
+ */
 SkillScanner::SkillScanner(core::Settings *settings, QObject *parent)
     : QObject(parent)
     , m_settings(settings)
 {
 }
 
+/**
+ * @brief 取当前生效的根清单
+ *
+ * @return settings 覆盖过的清单；未配置过（m_roots 为空）时返回默认清单
+ */
 QList<SkillRoot> SkillScanner::roots() const
 {
     return m_roots.isEmpty() ? SkillRoots::defaults() : m_roots;
 }
 
+/**
+ * @brief 切换一个根的启用状态并持久化
+ *
+ * @param id 根的稳定标识
+ * @param enabled 新的启用状态
+ */
 void SkillScanner::setRootEnabled(const QString &id, bool enabled)
 {
-    // Persist the full effective list so toggles survive a restart even
-    // when the user never customized the roots (a non-empty
-    // skills.roots completely replaces the defaults).
+    // 持久化的是完整的生效清单：即使用户从未自定义过根，开关状态也能
+    // 活过重启（skills.roots 一旦非空就完全取代默认清单）。
     const QList<SkillRoot> current =
         m_roots.isEmpty() ? SkillRoots::defaults() : m_roots;
     QJsonArray array;
@@ -47,6 +63,14 @@ void SkillScanner::setRootEnabled(const QString &id, bool enabled)
     m_roots = SkillRoots::fromJson(array);
 }
 
+/**
+ * @brief 发起一次异步扫描
+ *
+ * 扫描进行中再次调用直接忽略（防抖）。流程：把 Settings 读成值类型
+ * 快照 SkillScanParams -> QtConcurrent 派发到全局线程池 ->
+ * worker 里跑 SkillScanTask::run() 并顺手固化 JSON 缓存 ->
+ * QFutureWatcher 的 finished 回到 GUI 线程落地结果并复位状态。
+ */
 void SkillScanner::refresh()
 {
     if (m_scanning) {
@@ -111,12 +135,26 @@ void SkillScanner::refresh()
                                          }));
 }
 
+/**
+ * @brief 把现成结果当作最近一次扫描结果采用
+ *
+ * 启动时从 JSON 缓存恢复走这里，与真扫描共用落地路径（applyResults）。
+ *
+ * @param definitions 缓存恢复的定义列表
+ * @param stats 同一份缓存里的统计
+ */
 void SkillScanner::adoptResults(const QList<SkillDefinition> &definitions,
                                 const Stats &stats)
 {
     applyResults(definitions, stats);
 }
 
+/**
+ * @brief 落地一份扫描结果
+ *
+ * @param definitions 新的定义列表
+ * @param stats 新的统计
+ */
 void SkillScanner::applyResults(const QList<SkillDefinition> &definitions,
                                 const Stats &stats)
 {

@@ -29,17 +29,17 @@ public:
         bool isValid() const { return cachedAt.isValid(); }
     };
 
-    /// 读缓存。文件缺失、损坏或格式版本不认识都返回 invalid Snapshot，
-    /// 不发警告——「首次启动」与「缓存过期」都是正常路径，扫描随后自愈。
-    /// 小文件毫秒级，允许在 GUI 线程同步调用。
+    // 读缓存。文件缺失、损坏或格式版本不认识都返回 invalid Snapshot，
+    // 不发警告——「首次启动」与「缓存过期」都是正常路径，扫描随后自愈。
+    // 小文件毫秒级，允许在 GUI 线程同步调用。
     static Snapshot load();
 
-    /// 原子写缓存（QSaveFile）。静态纯函数、线程安全：扫描 worker 在
-    /// 自己的线程里调用，GUI 线程不为此付出任何 IO 时间。
+    // 原子写缓存（QSaveFile）。静态纯函数、线程安全：扫描 worker 在
+    // 自己的线程里调用，GUI 线程不为此付出任何 IO 时间。
     static core::OpResult save(const QList<SkillDefinition> &definitions,
                                const SkillScanTask::Stats &stats);
 
-    /// 缓存文件路径。
+    // 缓存文件路径。
     static QString filePath();
 };
 

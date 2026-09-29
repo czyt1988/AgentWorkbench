@@ -5,21 +5,21 @@
 
 namespace awb::agentcatalog {
 
-// The runtime-only fields of an agent — they exist only in memory and are
-// never written to agents.json.
+/// agent 的运行期状态：与 AgentDefinition（持久化在 agents.json 的定义）相对。
+///
+/// 除 setupDone（记录在 agent_state.json）外，这些字段只存在于内存。
 struct AgentState
 {
-    bool running = false;
-    bool launching = false;       // transient UI state, never persisted
-    bool installed = false;       // runtime, detected via versionCommand
-    QString version;              // runtime, parsed from versionCommand output
-    bool installing = false;      // transient UI state, never persisted
-    bool setupDone = false;       // recorded in agent_state.json
-    bool setupping = false;       // transient UI state, never persisted
-    bool checkingVersion = false; // version check in progress
-    QString consoleOutput;        // live stdout/stderr of install/update/setup,
-                                  // shown on the card so the user can see
-                                  // progress
+    bool running = false;         ///< 健康检查判定为运行中
+    bool launching = false;       ///< 瞬态 UI 状态，不持久化
+    bool installed = false;       ///< 运行期判定，经 versionCommand 检测
+    QString version;              ///< 运行期数据，从 versionCommand 输出解析
+    bool installing = false;      ///< 瞬态 UI 状态，不持久化
+    bool setupDone = false;       ///< setup 已成功执行过，记录在 agent_state.json
+    bool setupping = false;       ///< 瞬态 UI 状态，不持久化
+    bool checkingVersion = false; ///< 版本查询进行中
+    QString consoleOutput;        ///< install/update/setup 的实时 stdout/stderr，
+                                  ///< 上卡片显示让用户看到进度
 };
 
 } // namespace awb::agentcatalog

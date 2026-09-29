@@ -43,11 +43,11 @@ public:
     /// 一次扫描的输出：定义列表 + 统计。
     struct Result
     {
-        QList<SkillDefinition> definitions;
-        Stats stats;
+        QList<SkillDefinition> definitions;  ///< 扫描出的全部 skill（已去重）
+        Stats stats;                         ///< 同一次扫描的统计
     };
 
-    /// 同步执行整次扫描。线程安全：只读 params、只写局部状态与返回值。
+    // 同步执行整次扫描。线程安全：只读 params、只写局部状态与返回值。
     static Result run(const SkillScanParams &params);
 };
 
