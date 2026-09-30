@@ -81,7 +81,7 @@
 2. **玻璃底**：`theme.alpha(surfaceBg, 0.62)`，hover 提到 `theme.alpha(hover(surfaceBg), 0.78)`——半透明让底衬光斑透出，`theme.hover` 保证深浅主题各自往可读方向提亮。agent 卡有 per-卡语义色时改用 `cardColor`/agent 色 tint（见 AgentCard）。
 3. **色纱**：一层极淡的纵向渐变罩（accent 或语义色，密度见基准实现；skill 卡因整页百卡共用一个 accent 而减半），外加一层 hover 才淡入的加深纱。近似斜向纱用纵向 `Gradient` 即可，不为 155deg 引入效果模块。
 4. **内缘高光**：整圈内缩 1px 的 `theme.alpha(textOnAccent, 0.07)` 描边，只画深色主题（浅色下白高光不可见，留空）。
-5. **悬停聚光**：`ASpotlight`——光斑跟随指针 + 描边流光，`active` 绑宿主**合并后的**悬停判据（hover 独占投递，见各卡头注释），`spotX/spotY` 绑 HoverHandler 的指针位置。
+5. **悬停聚光**：`ASpotlight`——光斑跟随指针 + 描边流光，`active` 绑宿主**合并后的**悬停判据（hover 独占投递，写法见各卡头注释；通高面板见 §2.4），`spotX/spotY` 绑 HoverHandler 的指针位置。
 6. **边框**：`borderSubtle` → hover `borderStrong`，`ColorAnimation durationFast`。运行态/错误态另有语义色边框（见 AgentCard）。
 7. **悬停升举**：`transform: Translate`（y 上移 `spacingXs`）+ `z: 1`，按压时落回——只做视觉变换，**绝不改 x/y 本体**（网格/布局引擎写的正是它们）。升举幅度压在卡片间距之内。
 8. **批量渲染**：百级卡片的网格必须用 `GridView`（惰性实例化 + `reuseItems` + `cacheBuffer`），**禁止 Flow+Repeater 全量建卡**（每卡自带浮层/菜单，全量实例化实测换页冻结 2s+）。卡内重量级 Popup（详情浮层）经 `Loader` 惰性创建。cell 尺寸 = 卡 + 间距，列数随视口宽度自适应、`cellWidth` 取整防溢出（见 SkillGridPage）。
@@ -90,12 +90,15 @@
 
 ### 2.4 侧栏玻璃面板
 
-侧栏是一整块**毛玻璃近似**面板（2026-09 起），与卡片的玻璃语言同源但不完全相同——它是外壳面、不是卡片，没有 hover 态与聚光。配方（`Sidebar.qml`）：
+侧栏是一整块**毛玻璃近似**面板（2026-09 起），与卡片的玻璃语言同源；它是外壳面、不是卡片，所以没有升举与实色 hover 态，但有**指针聚光**（2026-09 起）。配方（`Sidebar.qml`）：
 
 1. **底衬光斑**：`AWorkspaceGlow` 直接铺在侧栏根上（两团低透明度径向光斑，随主题/尺寸重绘）——玻璃「透」的光源；
 2. **半透明玻璃底**：`theme.alpha(sidebarBg, 0.72)`（深色）/ `0.88`（浅色）叠在光斑上——深色透得多一点光斑才可见，浅色下文字需要更实的衬底；
 3. **顶部反光纱**：上半区 `textOnAccent` 极淡纵向渐变（同 AMenu）；
-4. **右缘分界线**：`borderSubtle` 竖线 + 深色主题内侧 1px 微高光（浅色留空）——玻璃半透明后与工作区的纯色差变弱，靠显式线条分隔。
+4. **悬停聚光**：`ASpotlight`，叠在玻璃底与反光纱之上、内容之下（与卡片同层次）。**半径必须覆写**：`spotRadius`/`ringRadius` 的默认值按 `max(w,h)` 缩放，那是给近似方形的卡片定的；通高面板取到高度半径后光会淡出指针两侧的整个侧栏宽度，看不出跟随——侧栏一律按**宽度**取（光斑 1.5×、描边流光 1.15×）。
+5. **深浅主题的聚光分色**：深色下 accent 光晕落在暗底上就是「光」（整体 `opacity` 压到 0.9 保持淡淡）；浅色底本就接近白，accent 大面积铺上去是发紫的污渍而非光影，所以光斑改用与反光纱同源的近白 `textOnAccent`，accent 只留给 2px 的描边流光（`ringColor`）——浅底上那是一条干净的边缘亮线。实测口径：光斑峰值要落在指针所在行、边缘列在指针靠近时亮起、指针离开后与基线均值一致（不许有残留 glow）。
+6. **聚光的悬停判据要合并**：hover 在本仓库是独占投递（见 §2.3 第 5 条），根部只能放**被动**的 `HoverHandler`（它不吃事件，滚动与点击照旧），覆盖到的只有空白区；导航行的 `MouseArea`、页脚与折叠的 `AIconButton`、`AScrollBar`、拖拽手柄都各自吞掉 hover，必须回报自己：判据用 `hoverHold()`/`hoverRelease()` **计数**而非布尔（行与行之间 entered/exited 的先后顺序不保证，布尔会被后到的 exited 抹掉），坐标由子项经 `setPointerFrom()` 汇报（最后写者生效），取不到指针位置的 control（滚动条）用其几何中心当光源。悬停中被销毁的 delegate 与 control 在 `Component.onDestruction` 里补释放——漏一条就是计数永不归零、光斑永久亮着。
+7. **右缘分界线**：`borderSubtle` 竖线 + 深色主题内侧 1px 微高光（浅色留空）——玻璃半透明后与工作区的纯色差变弱，靠显式线条分隔。
 
 不做真 backdrop blur（结论同 §3.1：跨 Qt 大版本不可移植），也不做「透视软件后面的内容」——Qt Quick 只能透射窗口内部的图层，桌面级 acrylic 需要平台原生合成、且会拖累 Qt 5 兜底路线，明确不做。
 
@@ -116,7 +119,7 @@
 | `AColorPicker` | 颜色选择器 | Office/WPS 式弹层：主题色 10 列×深浅阶、固定标准色、自定义色（原生对话框 + 最近 10 个记忆，进程内）；经 `openBelow(锚点)` 弹出 |
 | `AColorSwatch` | 色块 | 选择器网格的一格 / 迷你色卡（空值 = 中性底 + 斜线；checked 环 + 勾标记当前色） |
 | `ACard` | 卡片容器 | 卡片外框（surface/圆角/边框/hover） |
-| `ASpotlight` | 指针聚光覆盖层 | 玻璃卡的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover |
+| `ASpotlight` | 指针聚光覆盖层 | 玻璃宿主（卡片、侧栏这类面板）的悬停强调（光斑跟随指针 + 渐变描边流光）；宿主提供 `active`（**合并后的**悬停判据，见 hover 独占投递约定）与 `spotX/spotY`，组件自身不接收输入、不探测 hover。`spotRadius`/`ringRadius` 默认随 `max(w,h)` 缩放，只适用于近似方形的卡片——高宽比悬殊的面板必须按宽度覆写（§2.4）；`ringColor` 用于让描边流光与光斑分色（浅色主题） |
 | `AWorkspaceGlow` | 页面底衬光斑 | 玻璃卡片网格页的最底层底衬（两团低透明度径向光斑，让半透明卡有可透的光）；声明在页面根、先于内容，纯展示无输入 |
 | `AListRow` | 列表行 | 设置页/列表的单行（圆角矩形 + 注入式内容 RowLayout；默认高 48） |
 | `APill` | 徽标胶囊 | 计数、来源标签 |
@@ -199,6 +202,7 @@ ColumnLayout {
 - [ ] 没有新增字面颜色 / `Qt.rgba(<数字>)`；深浅主题都检查过。
 - [ ] 字号只用 §2.1 的四档令牌，没有固定像素值；图标显示尺寸与 `sourceSize` 一致（§2.2）。
 - [ ] 新卡片复刻 §2.3 玻璃卡配方；百级集合的网格用 `GridView` 惰性加载，没有 Flow+Repeater 全量建卡。
+- [ ] 会吞 hover 的子项已并入宿主的聚光判据（面板用计数而非布尔，悬停中被销毁的要补释放）；通高面板的 `ASpotlight` 半径按宽度覆写（§2.4）。
 - [ ] 通用件先查 §3 的表；没有旁路 `AButton`/`ADialog` 写裸件。
 - [ ] 状态不只靠颜色表达；tooltip 文案是英文源串 + `qsTr()`。
 - [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用；布局内子项尺寸经 `implicitWidth`/`implicitHeight` 提供（0x0 创建后的重排会踩掉直接 `width`/`height` 绑定）。

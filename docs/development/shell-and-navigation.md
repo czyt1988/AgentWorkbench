@@ -94,12 +94,32 @@ Renders the navigation model grouped by section. The root is an `Item` because
 the sidebar is a frosted-glass panel whose visual body is a stack of declared
 layers, bottom to top: an `AWorkspaceGlow` backdrop (the light the glass lets
 through), a translucent base `theme.alpha(theme.sidebarBg, 0.72)` dark /
-`0.88` light, a top reflection veil, the content column, and on the right edge
-a `borderSubtle` divider line plus a dark-theme-only 1 px inner highlight. Real
-backdrop blur is deliberately out (the same conclusion as `AMenu`: not
-portable across Qt major versions; desktop-level acrylic would need native
-composition and is not attempted either). See `designs.md` section 2.4 for the
-full recipe.
+`0.88` light, a top reflection veil, an `ASpotlight` overlay, the content
+column, and on the right edge a `borderSubtle` divider line plus a dark-theme-
+only 1 px inner highlight. The spotlight follows the pointer over the panel and
+paints a 2 px sheen along its border. Because the panel is full height, its
+gradient radii are overridden from the sidebar width rather than the component
+default (which scales from `max(width, height)` and is meant for a roughly
+square card), and the two themes are treated differently: the dark theme lights
+with `theme.accent` at 0.9 opacity, while the light theme uses the near-white
+`theme.textOnAccent` for the spot and keeps `theme.accent` only for the border
+sheen via `ringColor` — a large accent wash on a near-white panel reads as a
+stain, not as light. Real backdrop blur is deliberately out (the same conclusion
+as `AMenu`: not portable across Qt major versions; desktop-level acrylic would
+need native composition and is not attempted either). See `designs.md` section
+2.4 for the full recipe.
+
+- **Pointer state.** `HoverHandler` at the root only covers the blank area,
+  because hover is delivered exclusively: the row `MouseArea`s, the footer
+  `AIconButton`s, the `AScrollBar` and the resize handle each swallow it. The
+  panel therefore merges the criterion itself — a root `HoverHandler` OR a
+  non-zero hold counter — and takes its coordinates from whichever child
+  reported last (`setPointerFrom()`, mapped into the sidebar's coordinate
+  system). The counter is a count rather than a boolean because the relative
+  order of `entered` and `exited` between two rows is not guaranteed; a boolean
+  would be cleared by the later `exited`. A delegate or control destroyed while
+  hovered releases its hold in `Component.onDestruction`, otherwise the counter
+  never returns to zero and the spotlight stays lit.
 
 - **Scrollable region.** A `Flickable` over a `ColumnLayout` with a `Repeater`
   bound to `nav`; each `NavRow` is visible only when `model.enabled` and
@@ -292,7 +312,7 @@ visual recipes are owned by `designs.md`, which is authoritative over this list.
 | `AColorPicker` | Office-style colour picker (theme colours, standards, custom, recent) |
 | `AColorSwatch` | Colour cell/swatch with a "no colour" state |
 | `ACard` | Card container (surface, radius, border, hover) |
-| `ASpotlight` | Pointer spotlight + border shimmer overlay for glass cards |
+| `ASpotlight` | Pointer spotlight + border shimmer overlay for glass cards and panels |
 | `AWorkspaceGlow` | Page backdrop of two faint radial glows under glass cards |
 | `AListRow` | List/settings row with an injected content `RowLayout` |
 | `APill` | Badge pill for counts and source labels |

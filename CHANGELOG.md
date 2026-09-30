@@ -96,6 +96,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   divider) no longer render at the top of the sidebar, which now starts
   directly with the workflow navigation — the window title bar already
   carries the application identity.
+- **Sidebar pointer spotlight**: moving the pointer over the sidebar now
+  drags a faint light across the panel and lights a 2 px sheen along its
+  border, the same effect the launcher cards use (`ASpotlight`, which
+  gained `spotRadius` / `ringRadius` overrides for panels that are not
+  roughly square, plus a `ringColor` to separate the border sheen from the
+  light spot). Dark and light themes are treated differently on purpose:
+  the dark theme glows with the accent colour, while the light theme keeps
+  a near-white spot and puts the accent only on the border, because a wide
+  accent wash over a near-white panel reads as a stain.
 
 ### Fixed
 
