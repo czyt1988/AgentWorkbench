@@ -10,7 +10,9 @@ import AgentWorkbench.App
 // 带 hover 探测——本仓库的 hover 是独占投递，卡内 hoverEnabled 的
 // MouseArea 与 Control 会吞掉根部的 HoverHandler，判据必须由宿主统一合并
 // （卡片写法见 SkillCard，面板写法见 Sidebar 的光源状态），组件内探测只会
-// 得到闪断的假信号。
+// 得到闪断的假信号。本组件画在宿主内容之下，所以内容层若有实心背景（导航行
+// 的当前项/悬停胶囊就是），会把光正好挡在指针所在处——叠在它之上的子背景必须
+// 保持半透明。
 //
 // 实现选 Canvas 2D 径向渐变：Qt 5.15 与 Qt 6 内建且 API 同形，避免引入
 // QtGraphicalEffects / Qt5Compat 这类两版异名的模块。淡入淡出走 opacity
@@ -25,6 +27,12 @@ Item {
     // 描边流光的颜色：默认跟光斑同源。宿主想让两者分开时才覆写——例如浅
     // 色主题下光斑用近白（accent 落在浅底上会成污渍），描边仍用 accent。
     property color ringColor: accentColor
+    // 光斑与描边流光的峰值不透明度：默认就是卡片那套（参照实现的 24% /
+    // 75%）。宿主按自己底面的亮度调：底色越接近光色，同样的百分比越看不
+    // 见（浅主题的近白面板上 24% 白光只有 +4/255 亮度），半径越小则越需要
+    // 更高的峰值才成得出一个光斑。
+    property real spotAlpha: 0.22
+    property real ringAlpha: 0.75
     // 点亮状态：由宿主绑定到合并后的悬停判据
     property bool active: false
     // 指针位置（宿主坐标系）。悬停丢失期间保持上一次的值，因此指针移到
@@ -58,6 +66,8 @@ Item {
     onHeightChanged: canvas.requestPaint()
     onAccentColorChanged: canvas.requestPaint()
     onRingColorChanged: canvas.requestPaint()
+    onSpotAlphaChanged: canvas.requestPaint()
+    onRingAlphaChanged: canvas.requestPaint()
     onRadiusChanged: canvas.requestPaint()
     onSpotRadiusChanged: canvas.requestPaint()
     onRingRadiusChanged: canvas.requestPaint()
@@ -95,7 +105,7 @@ Item {
             roundedRect(ctx, 0, root.radius);
             var spot = ctx.createRadialGradient(root.spotX, root.spotY, 0,
                                                 root.spotX, root.spotY, root.spotRadiusEff);
-            spot.addColorStop(0, theme.alpha(root.accentColor, 0.22));
+            spot.addColorStop(0, theme.alpha(root.accentColor, root.spotAlpha));
             spot.addColorStop(0.65, theme.alpha(root.accentColor, 0));
             ctx.fillStyle = spot;
             ctx.fill();
@@ -105,7 +115,7 @@ Item {
             roundedRect(ctx, 1, root.radius);
             var ring = ctx.createRadialGradient(root.spotX, root.spotY, 0,
                                                 root.spotX, root.spotY, root.ringRadiusEff);
-            ring.addColorStop(0, theme.alpha(root.ringColor, 0.75));
+            ring.addColorStop(0, theme.alpha(root.ringColor, root.ringAlpha));
             ring.addColorStop(0.62, theme.alpha(root.ringColor, 0));
             ctx.strokeStyle = ring;
             ctx.lineWidth = 2;

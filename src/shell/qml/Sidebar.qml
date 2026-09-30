@@ -111,24 +111,27 @@ Item {
 
         // 悬停聚光：光斑跟随指针 + 沿面板边缘的描边流光（契约见 ASpotlight
         // 头注释），叠在玻璃底与反光纱之上、内容之下——同 AgentCard 的层次。
-        // 半径必须覆写：默认按 max(w,h) 缩放是给近似方形的卡片定的，侧栏是
-        // 通高面板，按高度取半径会让整栏一起泛白、看不出跟随。
-        // 深浅主题分开处理（实测截图定稿）：深色下 accent 光晕在暗底上就是
-        // 「光」，压到 0.9 保持淡淡；浅色底本就接近白，accent 大面积落上去是
-        // 发紫的污渍而不是光影，所以光斑改用反光纱同源的近白 textOnAccent，
-        // 把 accent 只留给 2px 的描边流光——浅底上那是一条干净的边缘亮线。
+        // 半径与峰值不透明度都必须覆写：默认那套是给近似方形的卡片配的（半径
+        // 按 max(w,h) 缩放），照抄到通高面板上光会淡出整个栏宽、看不出跟随。
+        // 深浅主题各调一档，方向相反：深色底离黑很远，accent 落上去就是「光」，
+        // 卡片浓度反而偏亮，光斑与描边各收一档——描边只有 2px，同样的浓度在那
+        // 里是一条亮线，所以收得更狠。浅色底本就接近白，可涨的亮度只剩几十级，
+        // 摊在大半径上的低浓度白光等于没变化，所以光斑换成小半径高浓度的光池；
+        // accent 整个让给描边——浅底上那条饱和的边缘亮线才是这套主题里读得出来
+        // 的边框特效。
         ASpotlight {
             anchors.fill: parent
             radius: 0
             accentColor: theme.variant === "dark" ? theme.accent
                                                   : theme.textOnAccent
             ringColor: theme.accent
+            spotAlpha: theme.variant === "dark" ? 0.15 : 0.85
+            ringAlpha: theme.variant === "dark" ? 0.42 : 1.0
             active: sidebar.pointerInside
             spotX: sidebar.lightX
             spotY: sidebar.lightY
-            spotRadius: sidebar.width * 1.5
+            spotRadius: sidebar.width * (theme.variant === "dark" ? 1.5 : 0.62)
             ringRadius: sidebar.width * 1.15
-            opacity: theme.variant === "dark" ? 0.9 : 1.0
         }
     }
 
@@ -202,10 +205,15 @@ Item {
                                                    : theme.spacingS
             height: 36
             radius: theme.radiusControl
-            color: nav.currentPageId === model.pageId ? theme.surfaceBg
-                                                      : (rowMouse.containsMouse
-                                                         ? theme.surfaceHoverBg
-                                                         : "transparent")
+            // 半透明而非实心：聚光画在内容之下（见文件顶部的 ASpotlight），
+            // 不透底的行背景会把指针正下方那圈光整个盖掉——浅色主题实测行上
+            // 只剩 +5/255，空白处却有 +18。这里让光透过来，同时保留足够的
+            // 底差让「当前项 / 悬停」依旧读得出来（与卡片的表面底色同源）。
+            color: nav.currentPageId === model.pageId
+                       ? theme.alpha(theme.surfaceBg, 0.78)
+                       : (rowMouse.containsMouse
+                          ? theme.alpha(theme.surfaceHoverBg, 0.62)
+                          : "transparent")
             Behavior on color { ColorAnimation { duration: theme.durationFast } }
         }
         Item {
