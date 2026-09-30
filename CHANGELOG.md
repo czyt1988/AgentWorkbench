@@ -100,16 +100,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   drags a faint light across the panel and lights a 2 px sheen along its
   border, the same effect the launcher cards use (`ASpotlight`, which
   gained `spotRadius` / `ringRadius` overrides for panels that are not
-  roughly square, a `ringColor` to separate the border sheen from the
-  light spot, and `spotAlpha` / `ringAlpha` for the two peaks). Dark and
-  light themes are tuned in opposite directions on purpose: on a dark base
-  the accent already reads as light, so both peaks sit below the card
-  density, while a near-white base has almost no brightness headroom left,
-  so the light theme uses a smaller, denser near-white spot and puts the
-  accent only on the border — a wide accent wash over a near-white panel
-  reads as a stain. The nav rows' current/hover chips became translucent
-  for the same reason: painted solid above the overlay, they hid the light
-  exactly where the pointer rested.
+  roughly square, and `spotAlpha` / `ringAlpha` for the two peaks). Both
+  themes light from the accent but tune it differently: on a dark base the
+  accent already reads as light, so both peaks sit below the card density,
+  while a near-white base has no brightness left to add — there the accent
+  is worth the hue shift it brings, so the spot is a very faint accent pool
+  kept inside the panel width (a denser one reads as a blue stain). The nav
+  rows' current/hover chips became translucent because the overlay is
+  painted under the content: solid, they hid the light exactly where the
+  pointer rested.
 
 ### Fixed
 

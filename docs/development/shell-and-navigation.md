@@ -104,13 +104,16 @@ square card), and the two themes are tuned in opposite directions. On the dark
 base `theme.accent` already reads as light, so the card intensities are too
 bright for a panel and both peaks come down (`spotAlpha` 0.15, `ringAlpha`
 0.42 — the sheen more, because 2 px of it is what the eye picks out). A
-near-white light base has only a few dozen levels of headroom left, so a large
-low-alpha wash there is indistinguishable from no change: the light theme
-switches the spot to the near-white `theme.textOnAccent` at a small radius and
-a high peak (0.62 × width, `spotAlpha` 0.85) and leaves `theme.accent` to the
-border sheen alone (`ringColor`, `ringAlpha` 1.0) — a big accent wash on a
-near-white panel reads as a stain, not as light, whereas that saturated edge
-line is the border effect this theme can actually show. Real backdrop blur is
+near-white light base has no brightness left to add, so a white spot there is
+indistinguishable from no change: the only thing the eye can follow is the hue
+shift, so the spot uses `theme.accent` too, just faint (`spotAlpha` 0.22) — any
+denser and it is a blue smudge on a pale panel, any lighter and the follow
+disappears. Its radius stays under the panel width (0.95 × width) so the pool
+clusters around the pointer instead of washing over the whole sidebar, and the
+2 px sheen keeps the full peak (`ringAlpha` 1.0). Note the measurement differs
+by theme: the dark spot raises luminance, the light one *lowers* it while
+raising blue, so judging the light theme by a luminance delta reads as a
+regression. Real backdrop blur is
 deliberately out (the same conclusion as `AMenu`: not portable across Qt major
 versions; desktop-level acrylic would need native composition and is not
 attempted either). See `designs.md` section 2.4 for the full recipe.
