@@ -158,14 +158,16 @@ private Q_SLOTS:
         QVERIFY(model.state(quick.id).installed);
         QCOMPARE(model.state(quick.id).version, QStringLiteral("9.9.9"));
 
-        // 换成约 30 s 才结束的命令：必超时；重试一轮后预算用尽。
+        // 换成挂死的命令：`sort` 无输入时阻塞在 stdin 管道上（QProcess 持有
+        // 写端不给 EOF），必超时；被杀后管道关闭、孤儿 sort 拿到 EOF 自行退出。
+        // 不用 ping：机器繁忙时回环也可能秒退，把「超时」变成「权威失败」。
         AgentDefinition hang = quick;
-        hang.versionCommand = QStringLiteral("ping -n 30 127.0.0.1");
+        hang.versionCommand = QStringLiteral("sort");
         QVERIFY(model.replaceDefinition(hang));
         scripts.checkVersion(quick.id);
         // 首轮 300 + 重试间隔 120 + 重试 300 + spinner 收尾 500 余量；
-        // 2 s 有近一倍余量，避开对瞬时调度的敏感。
-        QTest::qWait(2000);
+        // 2.5 s 有近一倍余量，避开对瞬时调度的敏感。
+        QTest::qWait(2500);
 
         QVERIFY2(model.state(quick.id).installed,
                  "timeout must not clear the previous verdict");
@@ -185,11 +187,12 @@ private Q_SLOTS:
         AgentModel model;
         AgentStateStore stateStore(dataRoot.path());
         AgentScripts scripts(&model, &stateStore);
-        // 首轮 300 ms 必超时；重试留 800 ms 窗口，期间换掉命令。
+        // 首轮 300 ms 必超时（sort 阻塞在 stdin 上，见上面那个用例的注
+        // 释）；重试留 800 ms 窗口，期间换掉命令。
         scripts.setVersionProbeTimingForTesting(300, 800, 0);
 
         AgentDefinition hang = probeDefinition(
-            QStringLiteral("recover"), QStringLiteral("ping -n 30 127.0.0.1"));
+            QStringLiteral("recover"), QStringLiteral("sort"));
         model.setDefinitions({hang});
         scripts.checkVersion(hang.id);
         QTest::qWait(450);
