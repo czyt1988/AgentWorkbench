@@ -8,6 +8,12 @@ import AgentWorkbench.App
 // 亮色下 surfaceAlt 偏灰显脏，深色下 surface 比 surfaceAlt 更沉，像一块
 // 「输入槽」。单行输入仍用 ATextField；带图标与清除键的搜索框仍用
 // ASearchField。
+//
+// 本组件自身不滚动（TextArea 的文本滚不动，内容超出高度就看不到了）。
+// 需要滚动时把它附到 Flickable 上：`Flickable { ScrollBar.vertical:
+// AScrollBar {}; TextArea.flickable: ATextArea { … } }`——附加属性会接管
+// 文本增高、光标可见，并把这里的背景/焦点环移到 Flickable 上固定住
+// （视口内的外框不能跟着内容滚）。见 ToolsPage 的编辑区。
 TextArea {
     id: control
 

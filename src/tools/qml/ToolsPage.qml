@@ -185,59 +185,81 @@ Item {
                 }
             }
 
-            ATextArea {
-                id: promptEditor
-                objectName: "promptEditor"
+            // 编辑区：Flickable 承载 ATextArea。TextArea 本身不会滚动（不是
+            // Flickable，文本超出控件高度就看不到也翻不到），`TextArea.flickable`
+            // 这个附加属性正是为此存在，且由 Qt 接管三件事：文本随内容增高、
+            // 光标始终滚进视野、以及把 ATextArea 自绘的外框（焦点环在此）移到
+            // Flickable 上——外框必须固定在视口上，跟着内容走会随文本一起滚走，
+            // 滚到中间时只剩左右两条边线。
+            Flickable {
+                id: promptScroll
+                objectName: "promptScroll"
 
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 260
-                placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
-                // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
-                Component.onCompleted: {
-                    text = tools.draft
-                    // markdown 语法高亮在此时挂到 textDocument 上；主题切换
-                    // 由 MarkdownEdit 自己跟随。
-                    MarkdownEdit.attach(promptEditor)
-                }
-                onTextChanged: tools.draft = text
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                // 折行显示，宽度即视口宽度，横向永不溢出。
+                flickableDirection: Flickable.VerticalFlick
 
-                // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
-                DropArea {
-                    anchors.fill: parent
-
-                    onEntered: function(drag) {
-                        drag.accept(Qt.CopyAction)
-                    }
-                    onDropped: function(drop) {
-                        // 只接受文件树来的行：编辑区自身的选区拖动
-                        // （source 为空）不在此列。
-                        if (!drop.source || !drop.source.isFileReferenceDrag)
-                            return
-                        // TextArea 不是 Flickable，没有 contentX/contentY（读出来
-                        // 是 undefined，一加就变 NaN，positionAt 于是永远返回 0 =
-                        // 文首）。它自己就吃控件坐标，内边距与滚动都由它内部折算。
-                        promptEditor.insert(promptEditor.positionAt(drop.x, drop.y),
-                                            drop.text)
-                        drop.acceptProposedAction()
-                    }
+                // objectName 是 tst_toolsui 的定位锚点（同 fileTree）。
+                ScrollBar.vertical: AScrollBar {
+                    objectName: "promptScrollBar"
                 }
 
-                // 右键弹 markdown 异型菜单（顶部格式化工具栏 + 复制/粘贴）。
-                // TextEdit 只吃左/中键，右键不触碰编辑器选区；MouseArea 只
-                // 接受右键，左键的选中/点击不受影响，鼠标处给 I-beam 光标。
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.RightButton
-                    cursorShape: Qt.IBeamCursor
-                    onClicked: function(mouse) {
-                        editorMenu.editor = promptEditor
-                        editorMenu.popup(mouse.x, mouse.y)
-                    }
-                }
+                TextArea.flickable: ATextArea {
+                    id: promptEditor
+                    objectName: "promptEditor"
 
-                MarkdownContextMenu {
-                    id: editorMenu
-                    objectName: "editorMenu"
+                    placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
+                    // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
+                    Component.onCompleted: {
+                        text = tools.draft
+                        // markdown 语法高亮在此时挂到 textDocument 上；主题切换
+                        // 由 MarkdownEdit 自己跟随。
+                        MarkdownEdit.attach(promptEditor)
+                    }
+                    onTextChanged: tools.draft = text
+
+                    // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
+                    DropArea {
+                        anchors.fill: parent
+
+                        onEntered: function(drag) {
+                            drag.accept(Qt.CopyAction)
+                        }
+                        onDropped: function(drop) {
+                            // 只接受文件树来的行：编辑区自身的选区拖动
+                            // （source 为空）不在此列。
+                            if (!drop.source || !drop.source.isFileReferenceDrag)
+                                return
+                            // 落点坐标即文档坐标：滚动是 Flickable 整体平移
+                            // 编辑器（TextArea 自己不吃滚动、也没有 contentY
+                            // 可折算），positionAt 直接用本地坐标即可。
+                            promptEditor.insert(
+                                        promptEditor.positionAt(drop.x, drop.y),
+                                        drop.text)
+                            drop.acceptProposedAction()
+                        }
+                    }
+
+                    // 右键弹 markdown 异型菜单（顶部格式化工具栏 + 复制/粘贴）。
+                    // TextEdit 只吃左/中键，右键不触碰编辑器选区；MouseArea 只
+                    // 接受右键，左键的选中/点击不受影响，鼠标处给 I-beam 光标。
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.RightButton
+                        cursorShape: Qt.IBeamCursor
+                        onClicked: function(mouse) {
+                            editorMenu.editor = promptEditor
+                            editorMenu.popup(mouse.x, mouse.y)
+                        }
+                    }
+
+                    MarkdownContextMenu {
+                        id: editorMenu
+                        objectName: "editorMenu"
+                    }
                 }
             }
 

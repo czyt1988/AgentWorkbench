@@ -97,6 +97,15 @@
   ComboBox 的 delegateModel 就绪前求值成 -1 且永不重算。改为遍历带
   NOTIFY 的 `theme.availableThemes` 计算 index；下拉显示 Dark/Light 短
   标签（完整名称进 tooltip）。
+- **Agent Tools 的提示词编辑区无法滚动。**编辑区原来是一个裸 `ATextArea`，
+  而 `TextArea` 自己的文本滚不动：提示词一超出可视区，剩下的内容就再也够
+  不着——没有滚动条，滚轮和拖拽也都无效。现在编辑区是纵向 `Flickable`
+  （`clip`、`StopAtBounds`），内容体经 `TextArea.flickable` 附加属性挂上
+  `ATextArea`，并配 `ScrollBar.vertical: AScrollBar`。附加属性补齐了滚动需要
+  的三件事：文本随内容高度增长、每次 `cursorRectangleChanged` 把光标滚回
+  视野、以及把文本组件自身的背景（外框、焦点环）改挂到 `Flickable` 上并按
+  它定尺寸——外框因此钉在视口上，不会跟着文本一起滚走。新增一条
+  `tst_toolsui` 用例锁住滚动范围、滚动条的出现与实际位移。
 
 ### 移除
 

@@ -178,6 +178,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   but a `TextArea` is not a `Flickable` and has neither — the sum was `NaN`,
   `positionAt()` answered 0, and every drop inserted at the very start of the
   prompt.
+- **The Agent Tools prompt editor could not scroll.** The editor was a bare
+  `ATextArea`, and a `TextArea` never scrolls its own text: once a prompt
+  outgrew the visible area, the rest could not be reached — there was no
+  scroll bar, and neither the wheel nor dragging moved anything. The editor is
+  now a vertical `Flickable` (`StopAtBounds`, clipped) whose content is the
+  `ATextArea` attached through the `TextArea.flickable` attached property,
+  with `ScrollBar.vertical: AScrollBar`. That attached property supplies the
+  three parts scrolling needs: the text area grows to its content height, the
+  caret is scrolled back into view after every `cursorRectangleChanged`, and
+  the text area's own background is reparented to the `Flickable` and sized to
+  it, so the frame and focus ring stay pinned to the viewport instead of
+  scrolling away with the text. A new `tst_toolsui` case locks in the scroll
+  extent, the appearing scroll bar and the actual movement.
 
 ### Removed
 

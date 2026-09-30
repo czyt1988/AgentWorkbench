@@ -21,13 +21,15 @@
 // 这类缺陷；本套件补上交互层（tst_webengine 加载真实 QML 的同款做法：
 // 页面与组件以与 app 相同的模块 URL/别名嵌进本二进制）。
 //
-// 三个回归锚点：
+// 四个回归锚点：
 // 1. 打字 + Ctrl+Z / Ctrl+Y：编辑器 undo/redo（TextControl 标准键链路）；
 // 2. 单击目录行展开文件树：Qt 5.15 里 delegate 声明 required property 后
 //    裸 index 抛 ReferenceError、toggleExpanded 从未执行——树无法展开
 //    （Qt 6 无此坑，只有真实点击能在任一版本拦住回归）；
 // 3. 右键弹菜单：统一菜单组件（AMenu/AMenuItem）经 ToolsPage 的
-//    MarkdownContextMenu 真实弹出。
+//    MarkdownContextMenu 真实弹出；
+// 4. 长文可滚动：编辑区若是裸 TextArea，内容撑出高度后既看不到也翻不到
+//    （没有滚动条、滚轮与拖拽皆无效）。
 //
 // ToolsFacade 用 QTemporaryDir 数据根，不碰真实数据目录；窗口尺寸给足
 // 让 SplitView 两栏都有非零宽度。
@@ -205,6 +207,59 @@ private Q_SLOTS:
 
         // 草稿同步不受撤销/重做干扰（undo 走 text 变化，draft 跟随）。
         QCOMPARE(m_tools->draft(), QStringLiteral("hello"));
+    }
+
+    // 长文必须能滚动。回归锚点：编辑区曾是裸 ATextArea——TextArea 的文本
+    // 滚不动，内容一超过控件高度就看不见、也翻不到。现在编辑区是
+    // Flickable + `TextArea.flickable`，断言链路三段：内容撑出滚动范围、
+    // 滚动条随之现身、滚动真的移动了文本。
+    void testEditorScrollsLongText()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        QQuickItem *page = nullptr;
+        ToolsFacade *tools = nullptr;
+        Q_UNUSED(tools);
+        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
+
+        QQuickItem *const editor = page->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        QQuickItem *const scroll = page->findChild<QQuickItem *>(
+            QStringLiteral("promptScroll"));
+        QVERIFY2(scroll, "promptScroll not found by objectName");
+        QObject *const bar = page->findChild<QObject *>(
+            QStringLiteral("promptScrollBar"));
+        QVERIFY2(bar, "promptScrollBar not found by objectName");
+
+        // 空编辑器：布局先给出视口尺寸，内容没撑出视口、滚动范围等于内容。
+        QTRY_VERIFY2(scroll->height() > 10,
+                     "the editor viewport never got a size from the layout");
+        QVERIFY2(scroll->property("contentHeight").toDouble() < scroll->height(),
+                 "an empty editor should not have a scrollable area");
+        QVERIFY2(!bar->property("visible").toBool(),
+                 "the scroll bar is visible although nothing overflows");
+
+        // 造一段远超视口高度的文本（80 行）。
+        QString longText;
+        for (int i = 0; i < 80; ++i)
+            longText += QStringLiteral("line %1\n").arg(i);
+        editor->setProperty("text", longText);
+
+        QTRY_VERIFY2(scroll->property("contentHeight").toDouble()
+                         > scroll->height(),
+                     "long text did not grow the scrollable area");
+        QTRY_VERIFY2(bar->property("size").toDouble() < 1.0,
+                     "the scroll bar did not appear for overflowing content");
+        QVERIFY2(bar->property("visible").toBool(),
+                 "the scroll bar stayed hidden although the text overflows");
+
+        // 滚到底：文本整体上移（滚动作用在编辑器上，不是只改了数字）。
+        const qreal before = editor->mapToScene(QPointF(0, 0)).y();
+        scroll->setProperty("contentY",
+                            scroll->property("contentHeight").toDouble());
+        QTRY_VERIFY2(editor->mapToScene(QPointF(0, 0)).y() < before - 10,
+                     "scrolling the viewport did not move the editor");
     }
 
     // 单击目录行展开、再单击收起。回归锚点：Qt 5.15 的 delegate 声明
