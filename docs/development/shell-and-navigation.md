@@ -60,6 +60,12 @@ without them:
 
 The window assembles the frame:
 
+- **Layout.** A `RowLayout` holds the `Sidebar` and a `ColumnLayout` of
+  `Workspace` plus `StatusBar`: the sidebar runs the full window height, and
+  the status bar occupies only the workspace column, starting at the sidebar's
+  right edge. The pinned system-page icons and the collapse handle therefore
+  sit flush against the window bottom instead of one status-bar height above
+  it.
 - **Size clamping.** `width`/`height` come from `shell.windowWidth`/`windowHeight`
   clamped by `Screen.desktopAvailableWidth`/`Height`, with a 1024×540 minimum.
   The title is `shell.windowTitle` or the untranslated brand name.
@@ -84,7 +90,16 @@ The window assembles the frame:
 
 ### `Sidebar.qml`
 
-Renders the navigation model grouped by section.
+Renders the navigation model grouped by section. The root is an `Item` because
+the sidebar is a frosted-glass panel whose visual body is a stack of declared
+layers, bottom to top: an `AWorkspaceGlow` backdrop (the light the glass lets
+through), a translucent base `theme.alpha(theme.sidebarBg, 0.72)` dark /
+`0.88` light, a top reflection veil, the content column, and on the right edge
+a `borderSubtle` divider line plus a dark-theme-only 1 px inner highlight. Real
+backdrop blur is deliberately out (the same conclusion as `AMenu`: not
+portable across Qt major versions; desktop-level acrylic would need native
+composition and is not attempted either). See `designs.md` section 2.4 for the
+full recipe.
 
 - **Scrollable region.** A `Flickable` over a `ColumnLayout` with a `Repeater`
   bound to `nav`; each `NavRow` is visible only when `model.enabled` and
@@ -131,17 +146,21 @@ Shows exactly one page at a time.
 
 ### `StatusBar.qml`
 
-A `RowLayout` inside a `Rectangle` whose height comes from `implicitHeight:
-theme.statusBarHeight` (a direct `height` binding would trigger Qt 5's recursive
-re-arrange). It shows `Running: %1` from `nav.badges["agents"]` and the
-Python/Node badges bound to `environment.*` (a red `×` when missing, with a
-tooltip explaining the consequence). The application version is not here any
-more; it moved to the pinned footer of `SettingsPage`. The web-tab count is
-**deliberately absent**: the sidebar already shows it as the `web` page badge
-(`BuiltinPages::wireBadges()`), and an earlier `Tabs: %1` label here never
-rendered because its condition (`nav.countInSection("web")`) counts page
-sections, of which none is `web` — it was removed rather than wired to a second
-source of the same number.
+Lives at the bottom of the workspace column, starting at the sidebar's right
+edge (the sidebar runs the full window height, so the bar no longer spans the
+full width). A `RowLayout` inside a `Rectangle` whose height comes from
+`implicitHeight: theme.statusBarHeight` (a direct `height` binding would
+trigger Qt 5's recursive re-arrange); a 1 px `theme.separator` line on the top
+edge separates it from the workspace — the colour difference alone became too
+weak once the sidebar went translucent. It shows `Running: %1` from
+`nav.badges["agents"]` and the Python/Node badges bound to `environment.*` (a
+red `×` when missing, with a tooltip explaining the consequence). The
+application version is not here any more; it moved to the pinned footer of
+`SettingsPage`. The web-tab count is **deliberately absent**: the sidebar
+already shows it as the `web` page badge (`BuiltinPages::wireBadges()`), and an
+earlier `Tabs: %1` label here never rendered because its condition
+(`nav.countInSection("web")`) counts page sections, of which none is `web` — it
+was removed rather than wired to a second source of the same number.
 
 ### `PageHeader.qml`
 

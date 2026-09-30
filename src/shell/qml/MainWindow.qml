@@ -87,29 +87,31 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+9"; onActivated: window.goToPageNumber(8) }
 
     // --- 布局 --------------------------------------------------------------
-    ColumnLayout {
+    // 侧栏整条通到窗口底部（钉底的系统页/折叠手柄贴住窗口底边）；状态栏
+    // 只占工作区列、从侧栏右缘开始，不再横跨全宽。
+    RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        RowLayout {
+        Sidebar {
+            Layout.fillWidth: false
+            Layout.fillHeight: true
+            collapsed: shell.sidebarCollapsed
+        }
+
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-
-            Sidebar {
-                Layout.fillWidth: false
-                Layout.fillHeight: true
-                collapsed: shell.sidebarCollapsed
-            }
 
             Workspace {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
             }
-        }
 
-        StatusBar {
-            Layout.fillWidth: true
+            StatusBar {
+                Layout.fillWidth: true
+            }
         }
     }
 

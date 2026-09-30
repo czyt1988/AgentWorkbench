@@ -57,7 +57,7 @@ The consequence of this boundary is that a page can be destroyed and rebuilt at 
 
 ## The window skeleton is not negotiable
 
-The application is a left sidebar, a right workspace and a bottom status bar, assembled in `src/shell/qml/MainWindow.qml` from `Sidebar.qml`, `Workspace.qml` and `StatusBar.qml`. The full anatomy is in `designs.md` section 1; the parts that a page author must not fight are:
+The application is a left sidebar, a right workspace and a bottom status bar, assembled in `src/shell/qml/MainWindow.qml` from `Sidebar.qml`, `Workspace.qml` and `StatusBar.qml`. The sidebar runs the full window height as a translucent glass panel; the status bar occupies only the workspace column, starting at the sidebar's right edge. The full anatomy is in `designs.md` section 1 (the glass recipe in its section 2.4); the parts that a page author must not fight are:
 
 - **The sidebar answers "where do I go" and nothing else.** It renders `NavigationModel`, not business data. A page never adds a business action to the sidebar.
 - **A page's position is decided by its `section`, not by layout code.** When a page is registered with `PageDescriptor::section` set to `main`, `extensions` or `system`, its place is fixed. `system` pages are pinned to the bottom of the sidebar and rendered as icon-only buttons with the title carried by a tooltip and the current destination filled through `AIconButton.active`. Adding a pinned page (an About page or a log viewer) means registering it as `system`, not writing new layout QML.

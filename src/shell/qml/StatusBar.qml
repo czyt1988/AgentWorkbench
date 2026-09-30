@@ -4,7 +4,8 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 底部状态栏：中部活动计数（运行中的 agent 数），最右是运行环境徽标
+// 底部状态栏：只占工作区列（侧栏整条通到窗口底部，状态栏从侧栏右缘
+// 开始）。中部活动计数（运行中的 agent 数），最右是运行环境徽标
 // （Python/Node.js）。应用版本号不在状态栏展示——移到了设置页侧栏的
 // 钉底（见 SettingsPage）。高度取 theme.statusBarHeight。
 // Web 标签数只在侧栏徽标里显示（BuiltinPages 写 nav 徽标），状态栏
@@ -17,6 +18,16 @@ Rectangle {
     // height 会与布局的重分配互相触发，Qt 5 的 Layouts 引擎因此报
     // "recursive rearrange"（Qt 6 容忍了这种写法）。
     implicitHeight: theme.statusBarHeight
+
+    // 与工作区的分界线：侧栏玻璃化后外壳各面的色差整体变弱，顶边补
+    // 一条细线让「工作区 → 状态栏」的换行干净。
+    Rectangle {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 1
+        color: theme.separator
+    }
 
     RowLayout {
         anchors.fill: parent

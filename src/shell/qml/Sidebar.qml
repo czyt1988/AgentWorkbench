@@ -11,7 +11,11 @@ import AgentWorkbench.App
 // 区，不再放应用图标 + 名称的 header——那是窗口标题栏的职责）；系统页
 // （system 区，如 Settings）以纯图标按钮**钉在侧栏最底部**，与折叠手柄
 // 同排——无论列表多长都留在底部。
-Rectangle {
+//
+// 根是 Item 而非 Rectangle：侧栏是一块毛玻璃面板，视觉本体分层声明在
+// 子项里（光斑底衬 → 半透明玻璃底 → 反光纱 → 内容），内容与拖拽手柄
+// 层叠其上。
+Item {
     id: sidebar
 
     // 折叠态：由 MainWindow 与 ShellController 保持同步。
@@ -22,7 +26,6 @@ Rectangle {
     property bool resizing: false
     property int pendingWidth: 0
 
-    color: theme.sidebarBg
     // 展开宽度：取设置里的 window.sidebarWidth（ShellController 持有），
     // 键被显式清空（0）时回退主题令牌，两者默认都是 240；拖拽期间用
     // pendingWidth 即时贴住指针。
@@ -40,6 +43,57 @@ Rectangle {
         // 手感发"皮"。
         enabled: !sidebar.resizing
         NumberAnimation { duration: theme.durationNormal }
+    }
+
+    // --- 玻璃面板（毛玻璃近似，配方同 designs.md §2.3 / §3.1） -----------
+    // Qt Quick 没有 backdrop blur、DWM 亚克力是全窗口效果，真模糊不可
+    // 移植；「半透明 + 底衬光斑 + 反光纱」是既定的折衷近似（AMenu 同款
+    // 结论）。层次自下而上：光斑（玻璃「透」的光源）→ 半透明玻璃底
+    // （光斑经它隐约透出）→ 顶部反光纱 → 内容。透明度深色低浅色高：
+    // 深色下光斑透得多一点才可见，浅色下文字底需要更实的衬底。
+    AWorkspaceGlow {
+        anchors.fill: parent
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: theme.alpha(theme.sidebarBg,
+                           theme.variant === "dark" ? 0.72 : 0.88)
+
+        // 顶部反光纱：上半区一层极淡的纵向渐变，玻璃的反光感。
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop {
+                    position: 0.0
+                    color: theme.alpha(theme.textOnAccent, 0.05)
+                }
+                GradientStop {
+                    position: 0.35
+                    color: theme.alpha(theme.textOnAccent, 0.0)
+                }
+            }
+        }
+    }
+
+    // 右缘分界线：玻璃底半透明后，侧栏与工作区的纯色差变弱，显式画一条
+    // 竖线分隔；深色主题在它内侧再叠 1px 微高光做玻璃厚度感（浅色主题
+    // 白高光不可见，留空——AgentCard/AMenu 同款规则）。
+    Rectangle {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 1
+        color: theme.borderSubtle
+    }
+    Rectangle {
+        visible: theme.variant === "dark"
+        anchors.right: parent.right
+        anchors.rightMargin: 1
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 1
+        color: theme.alpha(theme.textOnAccent, 0.06)
     }
 
     // 可滚动工作流列表里的一行导航（main/extensions 区）。新区段的
