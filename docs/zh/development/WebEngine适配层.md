@@ -79,7 +79,7 @@ QML 无法对「运行它的引擎里不存在的类型或信号」做静态条�
 | 下载条目类型 | `WebEngineDownloadRequest` | `WebEngineDownloadItem` | 下载状态以 `int` 常量暴露（`downloadCompleted`、`downloadCancelled`、`downloadInterrupted`） |
 | 权限拒绝 | `grantFeaturePermission(origin, feature, false)` | 同名 | `denyFeature()`；无版本分支 |
 | DevTools 挂接 | `inspectedView` | 同名 | `attachDevTools()` 给检查器视图设 `inspectedView`；`devToolsUrl()` 恒返回空 URL |
-| polyfill 注入 | profile 级 `scripts()` | view 级 `userScripts` | Qt 6 走 profile 级，Qt 5 走 view 级；`installCompatScript()` 在 Qt 6 上是空操作 |
+| polyfill 注入 | profile 级 `scripts()`（Qt 6.8+）或 view 级 `userScripts`（Qt 6.2–6.7） | view 级 `userScripts` | Qt 6.8+ 走 profile 级，其余走 view 级；`installCompatScript()` 只在 Qt 6.8+ 上是空操作 |
 
 弹窗信号为什么必须在 C++ 连接：`onNewWindowRequested` 是 Qt 6 名字。声明了它的 QML 文件会被 Qt 5
 引擎以 "Cannot assign to non-existent property" 整体拒绝，结果是内嵌页**空白**，而所有 C++ 测试
@@ -135,11 +135,15 @@ Qt 5.15 内嵌的是 **Chromium 87**（可在 Qt 源码树的 `chrome/VERSION` �
 本文件自身必须保持在 Chromium 87 可解析的语法内：ES6 可用，但 ES2021+ 的写法（class 静态块、
 `#` 私有字段……）禁用。
 
-注入有两处，因为两个大版本暴露的挂点不同：
+注入有两处，因为两个大版本——以及 Qt 6 的小版本之间——暴露的挂点不同：
 
-- **Qt 6** —— `WebEngineProfileStore::createProfile()` 把脚本以 `MainWorld` + `DocumentCreation`
+- **Qt 6.8+** —— `WebEngineProfileStore::createProfile()` 把脚本以 `MainWorld` + `DocumentCreation`
   与 `runsOnSubFrames(true)` 插进 profile 的 `scripts()` 集合，一次插入覆盖该 profile 的全部视图。
-- **Qt 5** —— Quick profile 只是 `QObject` 包装、没有 `scripts()`。脚本在 view 级经
+  6.8 起 `QQuickWebEngineProfile` 继承 `QWebEngineProfile`，core 级集合在 profile 创建时即可用。
+- **Qt 6.2–6.7** —— Quick profile 尚未继承 core 类，其 `QQuickWebEngineScriptCollection`
+  要等 QML engine 关联后才可用；在 profile 创建时插入会命中集合的 `Q_ASSERT(engine)`
+  （6.7.3 上实测）。因此脚本改在 view 级经 `WebEngineCompat::installCompatScript(view)` 插入。
+- **Qt 5** —— Quick profile 只是 `QObject` 包装、没有任何脚本集合。脚本同样在 view 级经
   `WebEngineCompat::installCompatScript(view)` 追加进视图的 `userScripts` 列表。它必须在
   `Component.onCompleted` 调，因为 Qt 5 的适配器初始化经 `singleShot(0)` 排在完成阶段之后；
   此时追加仍能赶上首次加载。
@@ -234,7 +238,8 @@ flowchart TD
 |---|---|---|
 | WebEngine 链接目标 | `Qt::WebEngineQuick`（`AWB_WEBENGINE_TARGET`） | `Qt::WebEngine` |
 | 私有包含目录 | `Qt6WebEngineQuick_PRIVATE_INCLUDE_DIRS` | `Qt5WebEngine_PRIVATE_INCLUDE_DIRS` |
-| polyfill 注入点 | profile 的 `scripts()` | view 的 `userScripts` |
+| polyfill 注入点 | profile 的 `scripts()`（6.8+）、view 的 `userScripts`（6.2–6.7） | view 的 `userScripts` |
+| 下载状态枚举来源 | core 的 `QWebEngineDownloadRequest`（公共头） | Quick 私有头 `QQuickWebEngineDownloadItem` |
 
 `AWB_WEBENGINE_TARGET` 变量在 `cmake/AwbQtCompat.cmake` 里定义一次，消费方只引用它——从不写具体的
 组件名。该文件同样覆盖 Qt 5 的 QML 差异：`import QtWebEngine` 被改写为

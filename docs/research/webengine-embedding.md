@@ -352,9 +352,11 @@ Remediation shipped in `fix/web-js-compat`:
 - `src/web/webengine/compat-polyfills.js` — feature-guarded polyfills for the runtime gaps above
   (plus `findLast(Index)`, `toReversed/toSpliced/with`, `Object.hasOwn`, `Object/Map.groupBy`,
   `structuredClone`, `AbortSignal.timeout/any`, `crypto.randomUUID`, `URL.canParse`, `Response.json`).
-  Injected MainWorld + DocumentCreation: Qt 6 per-profile via `QWebEngineProfile::scripts()`; Qt 5
-  per-view via `QQuickWebEngineScript` (its Quick profile does not inherit the core class and has no
-  `scripts()`), appended from `Component.onCompleted` — early enough because Qt 5 defers adapter
+  Injected MainWorld + DocumentCreation: Qt 6.8+ per-profile via the inherited
+  `QWebEngineProfile::scripts()`; Qt 6.2–6.7 and Qt 5 per-view (the Quick profile's
+  `QQuickWebEngineScriptCollection` only becomes usable after a QML engine is attached — inserting at
+  profile creation hits its `Q_ASSERT(engine)`, observed on 6.7.3; the Qt 5 Quick profile has no
+  collection at all), appended from `Component.onCompleted` — early enough because Qt 5 defers adapter
   initialization with `singleShot(0)` and binds user scripts in `initializationFinished()`.
 - Blank-page fallback in `WebEngineSurface.qml` — when a load ends with uncaught JS exceptions *and*
   the body is still blank (no text, no canvas/svg/img/video/iframe), the tab drops to the `error`

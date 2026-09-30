@@ -89,7 +89,7 @@ uses version-neutral names.
 | Download item type | `WebEngineDownloadRequest` | `WebEngineDownloadItem` | The download state is exposed as `int` constants (`downloadCompleted`, `downloadCancelled`, `downloadInterrupted`) |
 | Permission denial | `grantFeaturePermission(origin, feature, false)` | same | `denyFeature()`; no version branch |
 | DevTools attachment | `inspectedView` | same | `attachDevTools()` sets `inspectedView` on the inspector view; `devToolsUrl()` always returns an empty URL |
-| Polyfill injection | profile-level `scripts()` | view-level `userScripts` | Profile-level on Qt 6, view-level on Qt 5; `installCompatScript()` is a no-op on Qt 6 |
+| Polyfill injection | profile-level `scripts()` (Qt 6.8+) or view-level `userScripts` (Qt 6.2–6.7) | view-level `userScripts` | Profile-level on Qt 6.8+, view-level everywhere else; `installCompatScript()` is a no-op only on Qt 6.8+ |
 
 Why the popup signal must be connected in C++ specifically: `onNewWindowRequested` is a Qt 6 name. A
 `QML` file that declares it is rejected wholesale by the Qt 5 engine with "Cannot assign to
@@ -152,16 +152,22 @@ The covered APIs, with the Chrome version that introduced each:
 The file itself must stay parseable by Chromium 87: ES6 is fine, but ES2021+ syntax (class static
 blocks, `#private` fields, …) is banned.
 
-Injection happens in two places, because the two majors expose different hook points:
+Injection happens in two places, because the majors — and the Qt 6 minors — expose different hook
+points:
 
-- **Qt 6** — `WebEngineProfileStore::createProfile()` inserts the script into the profile's
+- **Qt 6.8+** — `WebEngineProfileStore::createProfile()` inserts the script into the profile's
   `scripts()` collection with `MainWorld` + `DocumentCreation` and `runsOnSubFrames(true)`, so one
-  insertion covers every view of that profile.
-- **Qt 5** — the Quick profile is only a `QObject` wrapper and has no `scripts()`. The script is added
-  at the view level through `WebEngineCompat::installCompatScript(view)`, which appends to the view's
-  `userScripts` list. It must be called from `Component.onCompleted`, because the Qt 5 adapter
-  initializes itself through a `singleShot(0)` that runs after the completion stage; appending there
-  still catches the first load.
+  insertion covers every view of that profile. From 6.8 on, `QQuickWebEngineProfile` inherits
+  `QWebEngineProfile`, so the core-level collection is available right at profile creation.
+- **Qt 6.2–6.7** — the Quick profile does not inherit the core class yet, and its
+  `QQuickWebEngineScriptCollection` only becomes usable once a QML engine is attached; inserting at
+  profile-creation time hits the collection's `Q_ASSERT(engine)` (observed on 6.7.3). The script is
+  therefore inserted at the view level through `WebEngineCompat::installCompatScript(view)`.
+- **Qt 5** — the Quick profile is only a `QObject` wrapper and has no script collection at all. The
+  script is likewise added at the view level through `WebEngineCompat::installCompatScript(view)`,
+  which appends to the view's `userScripts` list. It must be called from
+  `Component.onCompleted`, because the Qt 5 adapter initializes itself through a `singleShot(0)`
+  that runs after the completion stage; appending there still catches the first load.
 
 The source is read once from `:/web/compat-polyfills.js` and cached. If the resource is missing the
 adapter warns and skips injection, degrading to "old engine without polyfills" rather than failing
@@ -265,7 +271,8 @@ fails silently.
 |---|---|---|
 | WebEngine link target | `Qt::WebEngineQuick` (`AWB_WEBENGINE_TARGET`) | `Qt::WebEngine` |
 | Private include dirs | `Qt6WebEngineQuick_PRIVATE_INCLUDE_DIRS` | `Qt5WebEngine_PRIVATE_INCLUDE_DIRS` |
-| Polyfill injection point | profile `scripts()` | view `userScripts` |
+| Polyfill injection point | profile `scripts()` (6.8+), view `userScripts` (6.2–6.7) | view `userScripts` |
+| Download-state enum source | core `QWebEngineDownloadRequest` (public header) | Quick private `QQuickWebEngineDownloadItem` |
 
 The `AWB_WEBENGINE_TARGET` variable is defined once in `cmake/AwbQtCompat.cmake`, and consumers only
 reference it — never a concrete component name. That file also covers the Qt 5 QML differences:

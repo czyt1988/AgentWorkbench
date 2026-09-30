@@ -4,13 +4,20 @@
 #include <QFile>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-#include <QQuickWebEngineDownloadRequest>
-// QQuickWebEngineView 在 Qt 6 里同样是私有 API（公共包含目录只提供
-// Profile/Script/DownloadRequest），与 Qt 5 一样经 webengine 目标的
-// *_PRIVATE_INCLUDE_DIRS 引入；newWindowRequested 信号与请求类型的声明
-// 就在这些私有头里。
+// 下载状态枚举取自 core 的 QWebEngineDownloadRequest（公共头，全 Qt 6
+// 稳定）：Quick 侧的 QQuickWebEngineDownloadRequest 继承它，但 6.7 的
+// 公共包含目录里没有后者的头（只在私有目录）。QQuickWebEngineView 在
+// 两版里同样是私有 API，经 webengine 目标的 *_PRIVATE_INCLUDE_DIRS
+// 引入；newWindowRequested 信号与请求类型的声明就在这些私有头里。
+#include <QWebEngineDownloadRequest>
 #include <QtWebEngineQuick/private/qquickwebenginenewwindowrequest_p.h>
 #include <QtWebEngineQuick/private/qquickwebengineview_p.h>
+#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
+// 6.2–6.7 的 view 级注入需要 core 脚本对象与 collection 的完整定义
+// （私有头，调 insert 前必须见到类型全貌）。
+#include <QWebEngineScript>
+#include <QtWebEngineQuick/private/qquickwebenginescriptcollection_p.h>
+#endif
 #else
 // Qt 5：QQuickWebEngineView 与 QQuickWebEngineDownloadItem 都是私有 API
 // （公共包含目录里只有 Profile/Script），经 webengine 目标的
@@ -28,8 +35,9 @@ namespace {
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 // 下载条目的版本中立别名：类名两版不同，QML 无法条件引用类型，
-// 下载状态因此经下面的取值函数暴露。
-using DownloadItem = QQuickWebEngineDownloadRequest;
+// 下载状态因此经下面的取值函数暴露。Qt 6 用 core 基类取枚举（Quick
+// 子类同值，头文件却随小版本在公共/私有目录间漂移，core 公共头不动）。
+using DownloadItem = QWebEngineDownloadRequest;
 #else
 using DownloadItem = QQuickWebEngineDownloadItem;
 #endif
@@ -190,7 +198,7 @@ void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
 }
 
 /**
- * @brief 给 view 挂旧引擎兼容 polyfill 脚本（Qt 5 的注入路径）
+ * @brief 给 view 挂旧引擎兼容 polyfill 脚本（view 级注入路径）
  *
  * Qt 5.15 内嵌的 Chromium 是 87（本机 Src 树 chrome/VERSION 可查证），
  * 现代 agent WebUI 启动即调用 .at / toSorted / Promise.withResolvers 等
@@ -198,14 +206,15 @@ void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
  * :/web/compat-polyfills.js（全部带特性检测，新引擎上空转），必须以
  * MainWorld + DocumentCreation 注入——早于页面任何脚本、且页面脚本可见。
  *
- * 两版注入位置不同：Qt 6 的 QQuickWebEngineProfile 继承 core 的
- * QWebEngineProfile、有 scripts() 集合，profile 级注入一次全视图生效
- * （在 WebEngineProfileStore::createProfile 完成，本函数为空操作）；
- * Qt 5 的 Quick profile 只是 QObject 包装、没有 scripts()，只能走
- * view 级 userScripts。调用时机须在 view 的 Component.onCompleted——
- * Qt 5 的适配器初始化（lazyInitialize）经 singleShot(0) 排在完成阶段
- * 之后，此时追加的脚本仍能赶上首次加载（initializationFinished 统一
- * bind，qquickwebengineview.cpp 可查证）。
+ * 注入位置按版本分派：Qt 6.8+ 一律 profile 级（WebEngineProfileStore::
+ * createProfile 经继承来的 scripts() 集合一次注入全视图生效，本函数为
+ * 空操作）；Qt 5 与 Qt 6.2–6.7 走本函数的 view 级注入——前者是 Quick
+ * profile 根本没有脚本集合，后者是集合要等 profile 关联上 QML engine
+ * 才可用（profile 创建时插入命中 Q_ASSERT(engine)，6.7.3 上实测），而
+ * view 由 QML 创建，调用时机在 Component.onCompleted，engine 已就位。
+ * 该时机对 Qt 5 还有另一层必要：适配器初始化（lazyInitialize）经
+ * singleShot(0) 排在完成阶段之后，此时追加的脚本仍能赶上首次加载
+ * （initializationFinished 统一 bind，qquickwebengineview.cpp 可查证）。
  *
  * 幂等：动态属性标记，与 watchPopups 同一套路。
  *
@@ -213,7 +222,7 @@ void WebEngineCompat::attachDevTools(QQuickWebEngineView *view,
  */
 void WebEngineCompat::installCompatScript(QQuickWebEngineView *view)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     Q_UNUSED(view);
 #else
     if (!view || view->property("_awbCompatScriptInstalled").toBool()) {
@@ -225,13 +234,26 @@ void WebEngineCompat::installCompatScript(QQuickWebEngineView *view)
     if (source.isEmpty()) {
         return;
     }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // 6.2–6.7：core 的脚本对象直接插进 view 自己的 userScripts() 集合，
+    // 属性含义与 profile 级注入一致（见 WebEngineProfileStore）。
+    QWebEngineScript script;
+    script.setName(QStringLiteral("awb-compat-polyfills"));
+    script.setSourceCode(source);
+    script.setInjectionPoint(QWebEngineScript::DocumentCreation);
+    script.setWorldId(QWebEngineScript::MainWorld);
+    script.setRunsOnSubFrames(true);
+    if (auto *scripts = view->userScripts()) {
+        scripts->insert(script);
+    }
+#else
     auto *script = new QQuickWebEngineScript(view);
     script->setName(QStringLiteral("awb-compat-polyfills"));
     script->setSourceCode(source);
     script->setInjectionPoint(QQuickWebEngineScript::DocumentCreation);
     script->setWorldId(QQuickWebEngineScript::MainWorld);
     // Qt 5 的 Quick 脚本类方法是 setRunOnSubframes（小写 f）；Qt 6 core 的
-    // QWebEngineScript 才是 setRunsOnSubFrames——见 WebEngineProfileStore。
+    // QWebEngineScript 才是 setRunsOnSubFrames。
     script->setRunOnSubframes(true);
 
     // userScripts 是 QQmlListProperty（私有头里的 REVISION 1 属性）：
@@ -243,7 +265,8 @@ void WebEngineCompat::installCompatScript(QQuickWebEngineView *view)
     if (scripts.append) {
         scripts.append(&scripts, script);
     }
-#endif
+#endif // QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#endif // QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
 }
 
 /**

@@ -65,6 +65,21 @@ bool intersects(const QVector<Span> &spans, int start, int end)
 }
 
 /**
+ * @brief 把正则匹配的捕获区间收窄成 Span
+ *
+ * Qt 6 的 capturedStart/capturedEnd 返回 qsizetype，Span 以 int 存储区间；
+ * 单个文本块的长度受 int 上限约束，显式收窄是安全的。
+ *
+ * @param match 正则匹配
+ * @return 对应的 [start, end) 区间
+ */
+Span spanOf(const QRegularExpressionMatch &match)
+{
+    return Span{static_cast<int>(match.capturedStart()),
+                static_cast<int>(match.capturedEnd())};
+}
+
+/**
  * @brief 判断一行是否为 ``` 围栏行
  *
  * @param text 当前块文本
@@ -195,7 +210,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         const QRegularExpressionMatch match = it.next();
         setFormat(match.capturedStart(), match.capturedLength(),
                   colorFormat(m_colors.code));
-        consumed.append({match.capturedStart(), match.capturedEnd()});
+        consumed.append(spanOf(match));
     }
 
     // 粗体：整段加粗，标记对（** 或 __）再上强调色。setFormat 是覆盖
@@ -213,7 +228,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         marker.setFontWeight(QFont::Bold);
         setFormat(match.capturedStart(), 2, marker);
         setFormat(match.capturedEnd() - 2, 2, marker);
-        consumed.append({match.capturedStart(), match.capturedEnd()});
+        consumed.append(spanOf(match));
     }
 
     // 删除线：整段划线，~~ 标记对上强调色（同样自带属性）。
@@ -230,7 +245,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         marker.setFontStrikeOut(true);
         setFormat(match.capturedStart(), 2, marker);
         setFormat(match.capturedEnd() - 2, 2, marker);
-        consumed.append({match.capturedStart(), match.capturedEnd()});
+        consumed.append(spanOf(match));
     }
 
     // 链接：整个 [text](url) 上链接色加下划线。
@@ -243,7 +258,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         fmt.setForeground(m_colors.link);
         fmt.setFontUnderline(true);
         setFormat(match.capturedStart(), match.capturedLength(), fmt);
-        consumed.append({match.capturedStart(), match.capturedEnd()});
+        consumed.append(spanOf(match));
     }
 
     // 斜体：最后套，跳过一切已占用区间；标记自带斜体属性。
@@ -260,7 +275,7 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         marker.setFontItalic(true);
         setFormat(match.capturedStart(), 1, marker);
         setFormat(match.capturedEnd() - 1, 1, marker);
-        consumed.append({match.capturedStart(), match.capturedEnd()});
+        consumed.append(spanOf(match));
     }
 }
 
