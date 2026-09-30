@@ -179,9 +179,11 @@ int main(int argc, char *argv[])
     awb::tools::MarkdownEdit markdownEdit(&theme);
 
     // 构造只恢复上次的探测结果（首屏立刻有版本可显示），start() 才派
-    // 后台那一轮真探测——探测要等子进程，不占装配期。
+    // 后台那一轮真探测——探测要等子进程，不占装配期。首轮延迟 4 s：
+    // agent 版本探测正在错峰起子进程，全会话没有比启动瞬间更堵的窗口，
+    // 探测空闲时只要零点几秒，晚走几秒换来的是两边都别撞车。
     awb::workbench::EnvironmentService environment;
-    environment.start();
+    environment.start(4000);
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
                                                &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice

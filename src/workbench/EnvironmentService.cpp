@@ -69,10 +69,20 @@ EnvironmentService::EnvironmentService(QObject *parent)
 
 /**
  * @brief 派发首次后台探测
+ *
+ * @param initialDelayMs 首轮出发前等待的毫秒数。启动瞬间 agent 版本探测
+ *        正以每个 agent 一个子进程的密度排队（错峰后头几个也在前几秒），
+ *        杀软/DLP 对新进程做串行扫描的机器上那正是全会话最慢的窗口；
+ *        探测本身空闲时只要零点几秒，晚几秒出发只是避开拥堵，结论有
+ *        缓存兜着、首屏不受影响。默认 0（立即）。
  */
-void EnvironmentService::start()
+void EnvironmentService::start(int initialDelayMs)
 {
-    beginProbe();
+    if (initialDelayMs <= 0) {
+        beginProbe();
+        return;
+    }
+    QTimer::singleShot(initialDelayMs, this, [this]() { beginProbe(); });
 }
 
 /**

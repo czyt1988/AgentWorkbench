@@ -66,8 +66,9 @@ public:
     bool detecting() const { return m_detecting; }
 
     // 派发首次后台探测（main.cpp 装配时调用一次；构造里不做，装配期
-    // 起子进程没有必要）
-    void start();
+    // 起子进程没有必要）。initialDelayMs 是首轮出发前的等待：启动瞬间
+    // agent 版本探测正在成批起子进程，错开那几秒
+    void start(int initialDelayMs = 0);
 
     // 立即重测两个运行时（设置页的 Re-detect）；探测在途时忽略
     Q_INVOKABLE void refresh();
