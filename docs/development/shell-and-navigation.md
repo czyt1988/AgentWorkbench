@@ -119,7 +119,13 @@ full recipe.
   which clamps to `[180, 480]` and persists. Pointer positions are mapped to
   `sidebar.parent` before differencing — the parent `RowLayout`'s geometry does
   not change while the sidebar resizes, so raw `mouse.x` (which moves with the
-  edge) would cancel itself out.
+  edge) would cancel itself out. The release order matters: `setSidebarWidth()`
+  runs **before** `resizing = false`, so when the `implicitWidth` binding
+  switches back to the `shell.sidebarWidth` branch the two values are already
+  equal and no write happens. The other order snaps the width back to the
+  previous persisted value for one write (the `Behavior.enabled` binding
+  re-evaluates *after* the `implicitWidth` binding, so the intermediate write
+  lands directly) and then animates from there to the released width.
 - **Pinned footer.** The `system`-section pages render as plain `AIconButton`s
   (`active` when current, title in the tooltip) in a fixed footer, together with
   the collapse handle; expanded puts icons left and the handle right, collapsed

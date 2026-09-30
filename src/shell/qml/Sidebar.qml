@@ -386,12 +386,19 @@ Item {
                                  Math.min(shell.sidebarMaxWidth, target)))
             }
             onReleased: {
-                // QML 侧已按同一对边界钳过，这里提交不会再有视觉跳变。
+                // 顺序是本修复的关键：必须先提交再关 resizing。反过来的话，
+                // resizing 一关 implicitWidth 绑定立即切回 shell.sidebarWidth
+                // 分支（还是旧值），中间产生一次"跳回旧宽度"的写入，随后
+                // 提交的新值再被 Behavior（enabled 已恢复）动画过去——
+                // 松手时就会先弹回原宽、再平滑滑到松手位置。先提交则切换
+                // 分支时两值相等，绑定求值结果不变、不产生写入。
+                const finalWidth = sidebar.pendingWidth
+                shell.setSidebarWidth(finalWidth)
                 sidebar.resizing = false
-                shell.setSidebarWidth(sidebar.pendingWidth)
                 sidebar.pendingWidth = 0
             }
-            // 抓取被抢走（窗口失活等）：恢复原宽，不提交半截值。
+            // 抓取被抢走（窗口失活等）：恢复原宽（shell.sidebarWidth
+            // 仍为拖拽前的值），不提交半截值。
             onCanceled: {
                 sidebar.resizing = false
                 sidebar.pendingWidth = 0
