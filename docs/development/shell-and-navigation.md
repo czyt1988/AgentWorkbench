@@ -100,14 +100,20 @@ only 1 px inner highlight. The spotlight follows the pointer over the panel and
 paints a 2 px sheen along its border. Because the panel is full height, its
 gradient radii are overridden from the sidebar width rather than the component
 default (which scales from `max(width, height)` and is meant for a roughly
-square card), and the two themes are treated differently: the dark theme lights
-with `theme.accent` at 0.9 opacity, while the light theme uses the near-white
-`theme.textOnAccent` for the spot and keeps `theme.accent` only for the border
-sheen via `ringColor` — a large accent wash on a near-white panel reads as a
-stain, not as light. Real backdrop blur is deliberately out (the same conclusion
-as `AMenu`: not portable across Qt major versions; desktop-level acrylic would
-need native composition and is not attempted either). See `designs.md` section
-2.4 for the full recipe.
+square card), and the two themes are tuned in opposite directions. On the dark
+base `theme.accent` already reads as light, so the card intensities are too
+bright for a panel and both peaks come down (`spotAlpha` 0.15, `ringAlpha`
+0.42 — the sheen more, because 2 px of it is what the eye picks out). A
+near-white light base has only a few dozen levels of headroom left, so a large
+low-alpha wash there is indistinguishable from no change: the light theme
+switches the spot to the near-white `theme.textOnAccent` at a small radius and
+a high peak (0.62 × width, `spotAlpha` 0.85) and leaves `theme.accent` to the
+border sheen alone (`ringColor`, `ringAlpha` 1.0) — a big accent wash on a
+near-white panel reads as a stain, not as light, whereas that saturated edge
+line is the border effect this theme can actually show. Real backdrop blur is
+deliberately out (the same conclusion as `AMenu`: not portable across Qt major
+versions; desktop-level acrylic would need native composition and is not
+attempted either). See `designs.md` section 2.4 for the full recipe.
 
 - **Pointer state.** `HoverHandler` at the root only covers the blank area,
   because hover is delivered exclusively: the row `MouseArea`s, the footer
@@ -125,8 +131,12 @@ need native composition and is not attempted either). See `designs.md` section
   bound to `nav`; each `NavRow` is visible only when `model.enabled` and
   `model.section !== "system"`. Section dividers are drawn by the first row of
   every non-`main` section (`index === nav.rowOfFirstInSection(model.section)`).
-- **Current row.** `nav.currentPageId === model.pageId` drives a `surfaceBg`
-  background and a 3 px accent bar.
+- **Current row.** `nav.currentPageId === model.pageId` drives a
+  `theme.alpha(theme.surfaceBg, 0.78)` background and a 3 px accent bar; hover
+  uses `theme.alpha(theme.surfaceHoverBg, 0.62)`. Both are translucent rather
+  than solid because the spotlight sits under the content column: an opaque row
+  chip hides the light exactly where the pointer is, which is all the light
+  theme has to show.
 - **Width.** `implicitWidth` is `theme.sidebarCollapsedWidth` when collapsed,
   otherwise `shell.sidebarWidth` (falling back to `theme.sidebarWidth` when the
   setting is 0). Using `implicitWidth` matters because the parent `RowLayout`
