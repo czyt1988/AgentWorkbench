@@ -1055,37 +1055,37 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="124"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="126"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="132"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="134"/>
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="144"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="146"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="154"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="156"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="163"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="165"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="175"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="177"/>
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="177"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="179"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1217,37 +1217,57 @@ Command: %2
 <context>
     <name>SettingsEnvironmentPage</name>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="19"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="24"/>
         <source>Environment</source>
         <translation>环境</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="20"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="25"/>
         <source>Runtimes used by the agents&apos; setup commands</source>
         <translation>Agent 初始化命令使用的运行时</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="32"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="53"/>
         <source>Python %1</source>
         <translation>Python %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="33"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="55"/>
         <source>Python not found</source>
         <translation>未找到 Python</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="41"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="56"/>
+        <source>Python: checking...</source>
+        <translation>Python：检测中...</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="57"/>
+        <source>Python: detection failed</source>
+        <translation>Python：检测失败</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="113"/>
         <source>Node.js %1</source>
         <translation>Node.js %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="42"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="115"/>
         <source>Node.js not found</source>
         <translation>未找到 Node.js</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="48"/>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="116"/>
+        <source>Node.js: checking...</source>
+        <translation>Node.js：检测中...</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="117"/>
+        <source>Node.js: detection failed</source>
+        <translation>Node.js：检测失败</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsEnvironmentPage.qml" line="28"/>
         <source>Re-detect</source>
         <translation>重新检测</translation>
     </message>
@@ -1668,12 +1688,12 @@ Command: %2
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="263"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="317"/>
         <source>Expand sidebar</source>
         <translation>展开侧边栏</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="264"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="318"/>
         <source>Collapse sidebar</source>
         <translation>折叠侧边栏</translation>
     </message>
@@ -1950,32 +1970,52 @@ Command: %2
 <context>
     <name>StatusBar</name>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="84"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="102"/>
         <source>Python %1</source>
         <translation>Python %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="85"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="105"/>
+        <source>Python: checking...</source>
+        <translation>Python：检测中...</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/StatusBar.qml" line="106"/>
+        <source>Python: detection failed</source>
+        <translation>Python：检测失败</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/StatusBar.qml" line="107"/>
         <source>Python is not installed or not in PATH. Agents requiring Python may not work.</source>
         <translation>未安装 Python 或 Python 不在环境变量中，这可能影响依赖 Python 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="126"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="156"/>
         <source>Node.js %1</source>
         <translation>Node.js %1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="127"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="159"/>
+        <source>Node.js: checking...</source>
+        <translation>Node.js：检测中...</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/StatusBar.qml" line="160"/>
+        <source>Node.js: detection failed</source>
+        <translation>Node.js：检测失败</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/StatusBar.qml" line="161"/>
         <source>Node.js is not installed or not in PATH. Agents requiring Node.js may not work.</source>
         <translation>未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="36"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="47"/>
         <source>Running: %1</source>
         <translation>运行中：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/StatusBar.qml" line="37"/>
+        <location filename="../src/shell/qml/StatusBar.qml" line="48"/>
         <source>Running: 0</source>
         <translation>运行中：0</translation>
     </message>
@@ -2675,7 +2715,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="285"/>
+        <location filename="../app/main.cpp" line="288"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
