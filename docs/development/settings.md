@@ -31,7 +31,7 @@ Boundaries:
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
 | `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
 | `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
-| `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | Python/Node status and a Re-detect button | `environment.*` |
+| `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | One row per runtime (version + install path) and a Re-detect action | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
 | `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
 | `src/shell/qml/SettingsPluginsPage.qml` | `SettingsPluginsPage` | Plugin master switch, per-plugin switches, trust notice | `workbench.pluginsEnabled()`, `workbench.setPluginsEnabled()`, `workbench.pluginList()`, `workbench.setPluginEnabled()`, `workbench.pluginTrustNotice()` |
@@ -95,10 +95,18 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   `onConfirmed` calls `agents.removeAgent()`. A failed write opens an
   `AAlertDialog` showing `agents.configFilePath()`. This section edits
   `agents.json`, not `settings.json`.
-- **`SettingsEnvironmentPage`.** Two labels from `environment.pythonInstalled`/
-  `pythonVersion` and `nodeInstalled`/`nodeVersion` (red when missing) plus a
-  Re-detect button calling `environment.refresh()`. There are no settings keys
-  here; the detection result is process state.
+- **`SettingsEnvironmentPage`.** One `AListRow` per runtime showing the version
+  and, underneath it, the executable path the runtime reported (the path label
+  hides itself while there is none); Re-detect moved into the `PageHeader` as an
+  action with `busy: environment.detecting`, calling `environment.refresh()`.
+  The row text has three states driven by `environment.pythonStatus` /
+  `environment.nodeStatus`: `found` (version, `theme.textPrimary`), `missing`
+  (`Python not found`, `theme.danger`) and `unknown` (`Python: checking...`
+  while `environment.detecting`, else `Python: detection failed`, in
+  `theme.textMuted`, with `pythonProbeDetail` / `nodeProbeDetail` in the row's
+  tooltip). There are no settings keys here; the detection result is process
+  state plus a cache, documented in
+  [Workbench and pages](workbench-and-pages.md).
 - **`SettingsSkillsPage`.** A `PageHeader` with a `Rescan` action
   (`busy: skills.scanning`), a `Repeater` over the `skills.roots` property with a
   `Switch` (→ `skills.setRootEnabled()`) and a remove `AIconButton`

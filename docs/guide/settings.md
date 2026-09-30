@@ -45,17 +45,28 @@ Details and the important limitation on editing built-in agents are in
 
 ## Environment
 
-Shows the Python and Node.js runtimes found on your computer. Several agents use
-these to install or run, so a missing runtime is worth knowing about.
+Shows the Python and Node.js runtimes found on your computer, one per row.
+Several agents use these to install or run, so a missing runtime is worth
+knowing about.
 
-- **Python ...** or **Python not found**.
-- **Node.js ...** or **Node.js not found**.
-- **Re-detect** - checks again. Click it after installing or updating a runtime,
-  or after changing your system's command path.
+- Each row shows the version first and the folder the runtime is installed in
+  underneath it (**Python 3.11.4**, then the full path of the program that
+  answered). A row without a path is one whose location could not be read.
+- **Python not found** / **Node.js not found** means nothing usable is on your
+  command path. **Python: checking...** means the check is still running, and
+  **Python: detection failed** means the check could not produce an answer
+  (usually a very slow program start on that machine) - AgentWorkbench keeps the
+  last known version, retries on its own, and shows what the check tried in the
+  row's tooltip.
+- **Re-detect** - checks both runtimes again. Click it after installing or
+  updating a runtime, or after changing your system's command path.
 
-The badges in the bottom status bar show the same information. A red cross means
-the runtime was not found. If you just installed one, restart AgentWorkbench so
-it sees the updated system path.
+Results are remembered between starts: this page fills in immediately from the
+last check and re-checks in the background, updating only if something changed -
+so a runtime you uninstall or upgrade is noticed on the next start. The badges in
+the bottom status bar show the same information; a red cross means the runtime
+was not found, and an ellipsis means there is no answer yet. If you just
+installed one, restart AgentWorkbench so it sees the updated system path.
 
 ## Skills
 

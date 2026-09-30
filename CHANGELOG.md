@@ -48,7 +48,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   default. Configurable from Settings -> Appearance ("Theme default" +
   every installed family). Rationale: Win10's default fallback rendered
   the whole UI in SimSun.
+- **Runtime install paths in Settings → Environment**: Python and Node.js now
+  get one row each instead of sharing a line — the version on top, the full path
+  of the executable that answered underneath (the runtime's own
+  `sys.executable` / `process.execPath`, falling back to what `PATH` resolves
+  to), and Re-detect moved into the page header with a busy indicator.
 ### Changed
+
+- **Python/Node detection rewritten** (it used to report a red cross for a
+  probe that merely timed out): detection now runs on the thread pool instead of
+  the GUI thread, tries `python`/`python3`/`py` and `node`/`nodejs` in order (so
+  Windows' Microsoft Store placeholder loses to the real interpreter), runs the
+  resolved executable directly instead of through `cmd /c`, and asks the runtime
+  where it lives. A timeout or a start failure is no longer "not installed": the
+  last known verdict stays and the probe retries after 3 s / 15 s / 60 s, with
+  the per-round detail in the log and in the Settings row tooltip. Verdicts are
+  cached in `<dataRoot>/environment_cache.json`, so the status bar and the
+  Settings page fill in immediately at startup and change only when a re-check
+  actually finds something different; the badges show an ellipsis, not a red
+  cross, while no verdict exists yet.
 
 - **Settings redesigned as sectioned pages**: a fixed navigation column
   (Appearance / Launchers / Environment / Skills / Web / Plugins /

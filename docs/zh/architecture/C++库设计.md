@@ -100,7 +100,7 @@ GUI 线程拥有一切 QML 触碰的东西。后台工作严格只有一种模�
 3. worker 只操作自己那份值类型副本，绝不碰协调者、`Settings` 或任何 GUI 对象；
 4. `QFutureWatcher` 把结果交回 GUI 线程，协调者在那里更新成员并发信号。
 
-`skillcatalog::SkillScanner` 与 `skillcatalog::SkillScanTask` 是基准实现。`SkillScanner` 活在 GUI 线程，持有根清单与最近一次结果；`SkillScanTask::run()` 是无状态静态函数，输入是 `SkillScanParams`——一个完全不含 `QObject` 指针的值快照。之所以必须快照，是因为 `core::Settings` 是 `QObject`、不能在工作线程里用，所以根清单在派发前被复制进值类型的 params。扫描经 `QtConcurrent::run` 投到全局线程池，`QFutureWatcher` 的 `finished` 信号回到 GUI 线程。
+`skillcatalog::SkillScanner` 与 `skillcatalog::SkillScanTask` 是基准实现。`SkillScanner` 活在 GUI 线程，持有根清单与最近一次结果；`SkillScanTask::run()` 是无状态静态函数，输入是 `SkillScanParams`——一个完全不含 `QObject` 指针的值快照。之所以必须快照，是因为 `core::Settings` 是 `QObject`、不能在工作线程里用，所以根清单在派发前被复制进值类型的 params。扫描经 `QtConcurrent::run` 投到全局线程池，`QFutureWatcher` 的 `finished` 信号回到 GUI 线程。`workbench::EnvironmentService`（协调者）与 `workbench::EnvironmentProbe`（worker）是同一形状的第二处实例：worker 的输入是 `PATH`、输出是 `EnvironmentSnapshot` 值类型——「等一个 `python --version` 子进程」因此拖不住 GUI 线程，而这正是该模式存在的理由。
 
 `core::Logging` 是同一原则在另一方向的应用。它装一个 Qt 消息处理器拼行并入队，由 spdlog 的后台线程完成写盘、轮转与 stderr 镜像。调用线程——通常是 GUI 线程——从不做 IO，因此日志量无法拖住它。一个后果是 `qInfo()` 返回时日志行不保证已落盘；退出路径上的 `Logging::uninstall()` 正是为此排空队列。
 

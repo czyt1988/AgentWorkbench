@@ -39,6 +39,7 @@ make the "untouched root" check fail forever.
 | `settings.json` | Settings page | all application settings | `core::Settings` — the only entry point |
 | `tools.json` | Agent Tools page | workspace MRU list (max 20), current workspace, prompt draft | `ToolsStore` via `ToolsFacade` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
+| `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
 | `file_icons.json` | you | icon-table overrides / additions | `FileIcons` (via `FileTreeModel`) |
 | `themes/*.json` | you | themes (same `id` overrides a built-in) | `ThemeRegistry` / `ThemeLoader` |
 | `plugins/<id>/` | you | plugin manifest and library | `core::PluginHost` |
@@ -160,7 +161,7 @@ sequenceDiagram
     main->>wb: set QTWEBENGINE_CHROMIUM_FLAGS, then initialize()
     main->>main: QGuiApplication, translator, font
     main->>main: LegacyImport::runOnce()
-    main->>dom: construct and start agents, web, skills, tools
+    main->>dom: construct and start agents, web, skills, tools, environment
     main->>plug: discover() then loadEnabled()
     note over main,plug: plugin pages register before the last page is restored
     main->>qml: qmlRegisterSingletonInstance on AgentWorkbench.App

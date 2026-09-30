@@ -214,7 +214,7 @@ This section is the part of front-end design that has produced the most silent d
 | `skills` | `SkillsFacade` | The skill model, scan state and root configuration |
 | `tools` | `ToolsFacade` | Workspace memory, the prompt draft and the file tree |
 | `workbench` | `WorkbenchContext` | Cross-domain intents and general actions |
-| `environment` | `EnvironmentService` | Python and Node.js detection for the status bar |
+| `environment` | `EnvironmentService` | Python and Node.js detection for the status bar badges and the Settings → Environment rows (cached between starts, re-checked in the background) |
 
 `MarkdownEdit` is registered on the same URI but has no lowercase alias; the editor's context menu uses the capitalised name directly. `WebProfiles` and `WebEngineCompat` are likewise registered for use inside the embedded surface only.
 

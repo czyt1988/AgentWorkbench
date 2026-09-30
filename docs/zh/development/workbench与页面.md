@@ -15,7 +15,9 @@
 |---|---|---|---|
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
-| `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏的 Python 与 Node.js 检测 | `ScriptRunner`、`ProcessRunner`、`TextUtils` |
+| `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏与设置页的 Python / Node.js 检测：把探测派发到线程池、把结论并入已知状态、按变化落缓存、对没结论的一轮安排重试 | `EnvironmentProbe`、`EnvironmentCache` |
+| `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe`（含 `RuntimeState`、`RuntimeProbe`、`EnvironmentSnapshot`） | 线程安全的 worker：逐个试候选程序、问运行时自己装在哪、把结论并入已知状态 | `ProcessRunner`、`TextUtils` |
+| `src/workbench/EnvironmentCache.h` / `.cpp` | `awb::workbench::EnvironmentCache`（含 `Snapshot`） | 首屏缓存：读写 `<dataRoot>/environment_cache.json` | `core::Paths`、`core::JsonStore` |
 | `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | `plugin::Services` 的宿主侧实现；插件 ABI 与 shell/theme/web 之间的桥 | `NavigationModel`、`UiServices`、`Notifications`、`Theme`、`WebTabsFacade`、`Settings`；细节见[插件宿主](插件宿主.md) |
 | `src/workbench/CMakeLists.txt` | 构建目标 `awb_workbench` | 链接每个 L1/L2 模块加 core | `app` |
 | `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | 一次页面注册的载体（`id`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`、`keepAlive`） | `NavigationModel`、`BuiltinPages`、`PluginServices` |
@@ -86,6 +88,8 @@ flowchart TD
         BP["BuiltinPages"]
         WC["WorkbenchContext"]
         ES["EnvironmentService"]
+        EP["EnvironmentProbe"]
+        EC["EnvironmentCache"]
         PS["PluginServices"]
     end
     Nav["NavigationModel（shell）"]
@@ -98,6 +102,7 @@ flowchart TD
     Tools["ToolsFacade（tools）"]
     Theme["Theme（theme）"]
     Settings["Settings（core）"]
+    PR["ProcessRunner（core）"]
     Workspace["Workspace.qml"]
 
     BP -->|registerPage / setBadge| Nav
@@ -113,7 +118,9 @@ flowchart TD
     WC -->|launch、openConfigDir、sessionUrl| Agents
     WC -->|notify| Notif
     WC -->|plugins.enabled、disabledIds| Settings
-    ES -->|runShell --version| Settings
+    ES -->|派发到线程池、合并结论| EP
+    EP -->|问版本与路径| PR
+    ES -->|启动读一次、有变化才写| EC
     PS -->|registerPage| Nav
     PS -->|registerSurface| Web
     PS -->|颜色令牌| Theme
@@ -122,13 +129,37 @@ flowchart TD
 
 ## EnvironmentService
 
-`EnvironmentService` 以 `environment` 别名暴露，驱动状态栏的 Python/Node 徽标。
+`EnvironmentService` 以 `environment` 别名暴露，同时驱动状态栏的 Python/Node 徽标与设置页「环境」分区的两行；它是唯一知道「运行时怎么被检测出来」的地方。工作拆成两半：`EnvironmentProbe` 是纯 worker（进值类型、出值类型，不碰 `QObject`），`EnvironmentService` 是 GUI 侧协调者，负责把它派发到线程池、把结果落回 GUI 线程。
 
-每个运行时的探测流程：先试 `ProcessRunner::findExecutable(program)`；可执行文件不在 `PATH` 上就把该运行时直接置为未安装（不跑进程）。否则经 `ScriptRunner::runShell()` 跑 `<program> --version`，超时 10 秒，且**通道分开**——老版本 Python 把版本打到 stderr。在 `finished` 处理里，版本先从 stdout 提取、再从 stderr 提取；`installed` 为真的条件是「没有启动错误」且「退出码为 0 或提取到了版本串」。
+探测**不走 `cmd /c`**，并且每个运行时都要按顺序试若干候选程序名。worker 里每个运行时的流程（`EnvironmentProbe::run()`）：
 
-在途探测记在**带 key 的集合**里（`environment:Python`、`environment:Node`），不是计数器。探测在途时再来一次 `refresh()` 会让 `ScriptRunner` 在同一 key 下顶掉旧运行并丢弃它陈旧的 `finished`；用计数器的话那个陈旧回调永远不会减一、`detecting` 会永远卡在 true——集合是幂等的，因为顶掉者结束时删的是同一个 key。
+- 候选按顺序试：Python 是 `python`、`python3`、`py`，Node 是 `node`、`nodejs`。Windows 上 `python` 常常是 Microsoft Store 的占位程序——它起得来，只打印一句「去商店装」然后退出、不报版本，于是这个候选落选、继续试下一个；机器上只装了 `py` 启动器时同理。
+- 解析出的可执行文件**直接**运行（`ProcessRunner::run()`，两条通道都收，版本先看 stdout——老版本 Python 打到 stderr）。绕开 `cmd.exe` 就少一层进程、少一条命令行走安全软件的命令行解析，没有任何损失——因此它只留给 npm 风格的 `.cmd`/`.bat` 垫片，那种文件 `CreateProcess` 根本起不起来（与 `AgentRuntime` 的启动路径同一条规则）。
+- 再跑一条命令问运行时自己装在哪：Python 看 `sys.executable`，Node 看 `process.execPath`。问不出来就回退到 `findExecutable()` 解析到的路径——安装路径属于展示信息，不该有能力把整次探测判失败。
+- 三种结论刻意分开，这是最关键的一点。`Found` 是拿到了版本。`Missing` 是「PATH 上没有可用的」——要么候选一个都解析不到，要么解析到的候选全都跑完却没报版本（Store 占位程序正是这种）。`Unknown` 是超时或起不来：**没有结论**，绝不能报成「没装」。优先级是 `Found` > `Unknown` > `Missing`，因此一个慢候选不会把已装的运行时判成没装。
+- 单条命令超时 4 秒，单个运行时预算 9 秒，每个候选最多两轮尝试（第二轮只重试瞬时失败的候选）。预算给「占住一个线程池线程多久」设了上界，也就给应用退出的等待时间设了上界。
 
-全部属性（`pythonVersion`、`pythonInstalled`、`nodeVersion`、`nodeInstalled`、`detecting`）共用唯一一个 `changed()` 信号，状态栏因此可以统一绑定。`refresh()` 是刷新入口背后的 `Q_INVOKABLE`。
+GUI 侧再做四件事：
+
+- 构造只读缓存；首次探测由 `start()`（`main.cpp` 调用）派发。把探测留在构造之外，才使得这个服务能在不起子进程的前提下被测试。
+- `EnvironmentProbe::merge()` 把结论并入已知状态，`Unknown` 保留原值：一次瞬时失败会让最后已知的版本继续留在界面上，而不是把徽标打成红叉。
+- 出现 `Unknown` 的一轮会按 3 秒、15 秒、60 秒安排重试；拿到权威结论的一轮重置该计数，`refresh()` 重新开始计数。三次重试之后停手并保留最后已知的值，同时把原因写进日志——设置页该行的 tooltip 会显示这一轮的排查记录（`RuntimeProbe::detail`），所以「为什么检测失败」在界面上和日志里都能答。
+- `EnvironmentCache`（`<dataRoot>/environment_cache.json`）保存两个运行时的最后结论，且**只在结论变化时写**，因此一次「什么都没变」的启动不碰磁盘。缓存自己不做任何决定：每次启动、每次重测都真跑一轮探测——安装了、升级了、卸载了都是这样被发现的。
+
+```mermaid
+flowchart TD
+    A["线程池里的 EnvironmentProbe::run()"] --> B["按顺序试每个候选"]
+    B --> C{"有候选报出版本了吗？"}
+    C -->|有| F["Found：版本与安装路径"]
+    C -->|没有| D{"有候选超时或起不来吗？"}
+    D -->|有| U["Unknown：保留上次结论，稍后重试"]
+    D -->|没有| M["Missing：PATH 上没有可用的"]
+    F --> G["EnvironmentService 并入结论，有变化才写缓存"]
+    U --> G
+    M --> G
+```
+
+全部属性（`pythonStatus`、`pythonVersion`、`pythonPath`、`pythonInstalled`、`pythonProbeDetail` 以及对应的 `node` 五个，加 `detecting`）共用唯一一个 `changed()` 信号，状态栏因此可以统一绑定。`pythonStatus` / `nodeStatus` 是 QML 需要的三值契约（`found` / `missing` / `unknown`）：徽标只在 `missing` 时画 `×`，没有结论时画中性的 `…`；设置页也只把 `missing` 标红。`refresh()` 是 Re-detect 按钮背后的 `Q_INVOKABLE`，已有一轮在途时会被防抖忽略。
 
 ## PluginServices
 
@@ -144,7 +175,7 @@ flowchart TD
 4. 按区域（或 `locale.override` 的值）从 `:/i18n` 安装翻译器；见[国际化](国际化.md)。
 5. 引擎创建之前把 `appearance.fontFamily` 应用到应用字体上。
 6. **`LegacyImport::runOnce()` 在写默认 `settings.json` 之前跑**，因为导入是否行动取决于数据根是否仍未动过。此后，若 `settings.json` 不存在才写一份默认的。
-7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `EnvironmentService` → `WorkbenchContext`。
+7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `EnvironmentService`（+ `start()`）→ `WorkbenchContext`。
 8. **插件在页面注册与恢复之前发现并加载。** manifest 总是要读（设置页即使插件被禁用也要列出它们）；库只在总开关打开时装载，每个 manifest 的启用标志再对照 `plugins.disabledIds` 解析。发现结果被灌进 `WorkbenchContext`。因为 `BuiltinPages` 在这之后才构造，插件页面 id 才能活过一次重启。
 9. 构造 `BuiltinPages`，它注册内置页面并恢复上次的页面。
 10. WebEngine 打开时，创建表面 provider、profile store 与 compat 对象，并把 `WebProfiles` / `WebEngineCompat` 注册为单例。

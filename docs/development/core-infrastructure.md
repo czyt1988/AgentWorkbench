@@ -14,18 +14,18 @@ The boundary is enforced, not merely conventional:
 
 | File | Class / struct | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | The single source of the data directory and every path derived from it (`themesDir()`, `pluginsDir()`, `logsDir()`, `webProfilesDir()`, `skillCacheFile()`, `downloadsDir()`); test injection | every module that touches disk |
+| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | The single source of the data directory and every path derived from it (`themesDir()`, `pluginsDir()`, `logsDir()`, `webProfilesDir()`, `skillCacheFile()`, `environmentCacheFile()`, `downloadsDir()`); test injection | every module that touches disk |
 | `src/core/JsonStore.h` / `.cpp` | `awb::core::JsonStore` | Atomic JSON read/write: `readFile()`, `writeFile()`, `writeBytes()` | `Settings`, `agentcatalog`, `tools`, test fixtures |
 | `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings` | The typed accessor for `settings.json`; nothing else may read that file | `Paths`, `JsonStore`, `Logging::isValidLevelName` |
 | `src/core/Logging.h` / `.cpp` | `awb::core::Logging`, `RotatingFileSink` (internal), macros `AWB_DEBUG`/`AWB_INFO`/`AWB_WARNING`/`AWB_CRITICAL`/`AWB_PERF` | Asynchronous rotating file log plus stderr mirror; installs the Qt message handler | `Paths`, `TextUtils`, spdlog |
-| `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`, `awb::core::ProcessResult` | External-command mechanics: PATH/PATHEXT resolution, detached start with optional output capture, synchronous run with timeout, process-tree kill, command-line splitting, output decoding | `agentcatalog` (launch, version checks), `workbench::EnvironmentService` |
-| `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner` (+ private `Slot`) | Keyed one-shot command executor with streaming output and the epoch rule | `agentcatalog` (install/update/version/setup), `workbench::EnvironmentService` |
+| `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`, `awb::core::ProcessResult` | External-command mechanics: PATH/PATHEXT resolution, detached start with optional output capture, synchronous run with timeout, process-tree kill, command-line splitting, output decoding | `agentcatalog` (launch, version checks), `workbench::EnvironmentProbe` |
+| `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner` (+ private `Slot`) | Keyed one-shot command executor with streaming output and the epoch rule | `agentcatalog` (install/update/version/setup) |
 | `src/core/HttpProbe.h` / `.cpp` | `awb::core::HttpProbe` | Asynchronous reachability probe with fixed semantics, plus `portFromUrl()` | `agentcatalog::AgentHealthMonitor` |
 | `src/core/PluginHost.h` / `.cpp` | `awb::core::PluginHost` (+ `PluginHost::Manifest`) | Discover plugin manifests and load the enabled libraries via the exported C entry points | `plugin_api`, `workbench::PluginServices`; details in [Plugin host](plugin-host.md) |
 | `src/core/LegacyImport.h` / `.cpp` | `awb::core::LegacyImport` | One-time copy of the pre-0.4 `~/.AgentLauncher` data directory into the new data root | `Paths`, `main.cpp` |
 | `src/core/IconResolver.h` / `.cpp` | `awb::core::IconResolver` | Resolve a configured icon string to a displayable URL, with a caller-supplied fallback | `EnvExpander`; `agentcatalog`, `tools` |
 | `src/core/EnvExpander.h` / `.cpp` | `awb::core::EnvExpander` | Expand `%VAR%` and a leading `~/` in paths | `IconResolver`, `skillcatalog`, `agentcatalog` |
-| `src/core/TextUtils.h` / `.cpp` | `awb::core::TextUtils` | `extractVersion()`, `formatCommandLine()`, `clampOutput()` | `Logging`, `EnvironmentService`, `agentcatalog` |
+| `src/core/TextUtils.h` / `.cpp` | `awb::core::TextUtils` | `extractVersion()`, `formatCommandLine()`, `clampOutput()` | `Logging`, `EnvironmentProbe`, `agentcatalog` |
 | `src/core/OpResult.h` / `.cpp` | `awb::core::OpResult` (`Q_GADGET`) | Fallible synchronous result `{ ok, error }` that no module throws across | every module boundary, especially towards QML |
 | `src/plugin_api/PluginApi.h` | `awb::plugin::ApiVersion`, `PageDescriptor`, `Services`, `AWB_PLUGIN_EXPORT` | The header-only plugin ABI | external plugin repositories; see [Plugin host](plugin-host.md) |
 | `src/core/CMakeLists.txt` | target `awb_core` | Declares `AWB_PERF_ENABLED` for Debug only and links spdlog privately | all |

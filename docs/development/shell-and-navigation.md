@@ -50,7 +50,7 @@ without them:
 | File | Class | Role |
 |---|---|---|
 | `src/workbench/BuiltinPages.h` / `.cpp` | `BuiltinPages` | Registers the five built-in pages, wires sidebar badges, persists the last page, wires the cross-domain Web rules |
-| `src/workbench/EnvironmentService.h` / `.cpp` | `EnvironmentService` | Python/Node detection behind the status-bar badges |
+| `src/workbench/EnvironmentService.h` / `.cpp` | `EnvironmentService` | Python/Node detection behind the status-bar badges and the Settings rows |
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | The `workbench` singleton: `showPage()`, `notify()`, `copyText()`, plugin switches and `legacyImportNotice` |
 | `app/main.cpp` | `main()` | Assembly order and singleton registration on the `AgentWorkbench.App` URI |
 
@@ -258,17 +258,21 @@ timing and hover-pause live in `AToastStack.qml`, not in C++. `maxVisible()` is
 
 ### `EnvironmentService`
 
-Detects Python and Node for the status bar. `detect(program, runtimeName)` first
-calls `core::ProcessRunner::findExecutable()`; when nothing is found it marks the
-runtime missing and emits `changed()` without spawning a process. Otherwise it
-runs `<program> --version` through `core::ScriptRunner` with a 10 s timeout,
-reading the version from stdout first and stderr as a fallback (old Python prints
-to stderr). Installed is `error.isEmpty() && (exitCode == 0 || version found)`.
-In-flight detections are tracked in a keyed `QSet` (`environment:Python`,
-`environment:Node`) rather than a counter: a `refresh()` while one is in flight
-supersedes the old run (ScriptRunner discards the stale `finished`), and a
-counter would never return to zero, leaving `detecting` stuck true; the set is
-idempotent because the superseding run removes the same key.
+Backs the Python/Node badges in the status bar and the two rows of the Settings
+page; `statusBar` binds `pythonInstalled` / `pythonVersion` (and the `node`
+twins, plus `pythonStatus` / `nodeStatus` to tell "not installed" from "no
+verdict yet") through one `changed()` signal. The detection itself does not run
+here: `EnvironmentProbe::run()` is a pure worker that `EnvironmentService`
+dispatches to the thread pool, and the result comes back through a
+`QFutureWatcher` finished handler on the GUI thread. `detecting` is true while
+such a round is in flight, and `refresh()` (the Re-detect action) dispatches a
+new one unless a round is already running.
+
+The behaviour, the three-way verdict rule and the caching are documented in
+[Workbench and pages](../development/workbench-and-pages.md); the key point for a
+reader of this page is that the status bar shows an ellipsis while no verdict
+exists, because "the check has no answer yet" is not the same message as "not
+installed".
 
 ## Component shelf
 

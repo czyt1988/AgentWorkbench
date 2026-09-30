@@ -15,7 +15,9 @@ The boundary is vertical, not horizontal: `workbench` may depend on every L2 mod
 |---|---|---|---|
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, …), general actions (copy, notify, open URL/folder/config dir, quit) and the plugin toggle API | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | Registers the five built-in pages and wires badges, current-page persistence and the cross-domain Web rules | `NavigationModel`, `ShellController`, `AgentsFacade`, `WebTabsFacade`, `SkillsFacade`, `ToolsFacade`, `Notifications` |
-| `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | Python and Node.js detection for the status bar | `ScriptRunner`, `ProcessRunner`, `TextUtils` |
+| `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | Python/Node.js detection for the status bar and the Settings page: dispatches the probe to the thread pool, merges verdicts into the known state, persists the cache and retries inconclusive rounds | `EnvironmentProbe`, `EnvironmentCache` |
+| `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe` (with `RuntimeState`, `RuntimeProbe`, `EnvironmentSnapshot`) | The thread-safe worker: probes the candidate programs, asks the runtime where it lives, folds a verdict into the known state | `ProcessRunner`, `TextUtils` |
+| `src/workbench/EnvironmentCache.h` / `.cpp` | `awb::workbench::EnvironmentCache` (with `Snapshot`) | First-paint cache: read/write `<dataRoot>/environment_cache.json` | `core::Paths`, `core::JsonStore` |
 | `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | The host-side implementation of `plugin::Services`; the bridge between the plugin ABI and shell/theme/web | `NavigationModel`, `UiServices`, `Notifications`, `Theme`, `WebTabsFacade`, `Settings`; details in [Plugin host](plugin-host.md) |
 | `src/workbench/CMakeLists.txt` | target `awb_workbench` | Links every L1/L2 module plus core | `app` |
 | `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | The descriptor a page registration consists of (`id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`) | `NavigationModel`, `BuiltinPages`, `PluginServices` |
@@ -86,6 +88,8 @@ flowchart TD
         BP["BuiltinPages"]
         WC["WorkbenchContext"]
         ES["EnvironmentService"]
+        EP["EnvironmentProbe"]
+        EC["EnvironmentCache"]
         PS["PluginServices"]
     end
     Nav["NavigationModel (shell)"]
@@ -98,6 +102,7 @@ flowchart TD
     Tools["ToolsFacade (tools)"]
     Theme["Theme (theme)"]
     Settings["Settings (core)"]
+    PR["ProcessRunner (core)"]
     Workspace["Workspace.qml"]
 
     BP -->|registerPage / setBadge| Nav
@@ -113,7 +118,9 @@ flowchart TD
     WC -->|launch, openConfigDir, sessionUrl| Agents
     WC -->|notify| Notif
     WC -->|plugins.enabled, disabledIds| Settings
-    ES -->|runShell --version| Settings
+    ES -->|dispatch to the thread pool, merge| EP
+    EP -->|version and path queries| PR
+    ES -->|load once, save on change| EC
     PS -->|registerPage| Nav
     PS -->|registerSurface| Web
     PS -->|color token| Theme
@@ -122,13 +129,37 @@ flowchart TD
 
 ## EnvironmentService
 
-`EnvironmentService` is exposed as the `environment` alias and drives the Python/Node badges in the status bar.
+`EnvironmentService` is exposed as the `environment` alias. It drives the Python/Node badges in the status bar and the two rows of the Settings → Environment page, and it is the only thing that knows how a runtime is detected. The work is split in two: `EnvironmentProbe` is a pure worker (value types in, value types out, no `QObject`) and `EnvironmentService` is the GUI-side coordinator that dispatches it to the thread pool and lands the result on the GUI thread.
 
-Detection per runtime: `ProcessRunner::findExecutable(program)` is tried first; if the executable is not on `PATH` the runtime is immediately marked not installed (no process is started). Otherwise it runs `<program> --version` through `ScriptRunner::runShell()` with a 10-second timeout and **separate channels**, because older Python versions print the version to stderr. In the `finished` handler the version is extracted from stdout first and from stderr second, and `installed` is true when there was no start error and either the exit code is 0 or a version string was found.
+Detection is deliberately *not* done through `cmd /c`, and each runtime is probed by trying candidate program names in order. That is what the probe does per runtime (`EnvironmentProbe::run()`):
 
-In-flight probes are tracked in a **key set** (`environment:Python`, `environment:Node`), not a counter. A second `refresh()` while a probe is still running makes `ScriptRunner` supersede the old run under the same key and discard its stale `finished`; with a counter that stale callback would never decrement and `detecting` would stay true forever — the set is idempotent because the superseding callback removes the same key.
+- Candidates are tried in order — `python`, `python3`, `py`, and `node`, `nodejs`. On Windows `python` is frequently the Microsoft Store placeholder, which starts, prints "install it from the Store" and exits without a version; that candidate therefore loses and the next one is tried. The same happens on machines where only the `py` launcher is on `PATH`.
+- The resolved executable is run directly (`ProcessRunner::run()`, both channels captured, stdout first for the version because old Pythons print it to stderr). Going through `cmd.exe` would add a second process and a second command line for endpoint-security products to inspect, for no benefit — so it is only used for the npm-style `.cmd`/`.bat` shims, which `CreateProcess` cannot execute at all (the same rule as `AgentRuntime`'s launch path).
+- A second command asks the runtime where it lives: `sys.executable` for Python, `process.execPath` for Node. If that query fails, the value falls back to the path `findExecutable()` resolved — the install path is display information and must not be able to fail the whole probe.
+- The three verdicts are deliberately distinct, and this is the part that matters. `Found` means a version came back. `Missing` means *nothing usable on PATH* — either no candidate resolved, or every candidate that resolved ran to completion without printing a version (the Store placeholder is exactly this case). `Unknown` means a timeout or a start failure: **no verdict**, which must never be reported as "not installed". Precedence is `Found` > `Unknown` > `Missing`, so one slow candidate cannot turn an installed runtime into a missing one.
+- Per-command timeout is 4 s, the per-runtime budget is 9 s, and there are two attempts per candidate — the second round only re-runs candidates that failed transiently. The budget bounds how long a pool thread is held, and therefore how long the application can wait at exit.
 
-All properties (`pythonVersion`, `pythonInstalled`, `nodeVersion`, `nodeInstalled`, `detecting`) share one `changed()` signal, so the status bar binds them uniformly. `refresh()` is the `Q_INVOKABLE` behind the refresh affordance.
+The GUI side then does four things:
+
+- The constructor reads the cache only; `start()` (called from `main.cpp`) dispatches the first probe. Keeping the probe out of the constructor is what makes the service testable without spawning processes.
+- `EnvironmentProbe::merge()` folds a verdict into the known state, and `Unknown` keeps the previous value, so a transient failure leaves the last known version on screen instead of turning the badge into a red cross.
+- A round that produced `Unknown` schedules a retry after 3 s, 15 s and 60 s; a conclusive round resets that counter, and `refresh()` restarts it. After the third retry the service stops retrying and keeps the last known values, logging why — the Settings row tooltip shows the per-round detail (`RuntimeProbe::detail`), so "why did detection fail" is answerable from the UI and from the log.
+- `EnvironmentCache` (`<dataRoot>/environment_cache.json`) stores the last verdict for both runtimes and is **written only when a verdict changed**, so a startup that finds nothing new does not touch the disk. The cache never decides anything on its own: every start and every re-detect runs a real probe, which is how installing, upgrading or uninstalling a runtime is picked up.
+
+```mermaid
+flowchart TD
+    A["EnvironmentProbe::run() on the thread pool"] --> B["try each candidate in order"]
+    B --> C{"did a candidate report a version?"}
+    C -->|yes| F["Found: version, install path"]
+    C -->|no| D{"did a candidate time out or fail to start?"}
+    D -->|yes| U["Unknown: keep the previous verdict, retry later"]
+    D -->|no| M["Missing: nothing usable on PATH"]
+    F --> G["EnvironmentService merges the verdict and caches a change"]
+    U --> G
+    M --> G
+```
+
+All properties (`pythonStatus`, `pythonVersion`, `pythonPath`, `pythonInstalled`, `pythonProbeDetail` and the `node` twins, plus `detecting`) share one `changed()` signal, so the status bar binds them uniformly. `pythonStatus` / `nodeStatus` are the three-value contract the QML needs (`found` / `missing` / `unknown`): the badges show `×` only for `missing` and a neutral `…` while no verdict exists, and the Settings page colours only `missing` red. `refresh()` is the `Q_INVOKABLE` behind the Re-detect button; a round already in flight debounces it away.
 
 ## PluginServices
 
@@ -144,7 +175,7 @@ All properties (`pythonVersion`, `pythonInstalled`, `nodeVersion`, `nodeInstalle
 4. The translator is installed from `:/i18n` for the locale (or the `locale.override` value); see [Internationalisation](i18n.md).
 5. The global UI font from `appearance.fontFamily` is applied to the application before the engine exists.
 6. **`LegacyImport::runOnce()` runs before the default `settings.json` is written**, because the import decides whether to act by checking whether the data root is still untouched. Only then is a default `settings.json` saved if the file does not exist.
-7. **The graph is assembled bottom-up**: `ThemeRegistry` → `Theme` → shell (`NavigationModel`, `ShellController`, `UiServices`, `Notifications`) → `AgentsFacade` (+ `start()`) → `WebTabsFacade` → `SkillsFacade` (+ `start()`) → `ToolsFacade` → `MarkdownEdit` → `EnvironmentService` → `WorkbenchContext`.
+7. **The graph is assembled bottom-up**: `ThemeRegistry` → `Theme` → shell (`NavigationModel`, `ShellController`, `UiServices`, `Notifications`) → `AgentsFacade` (+ `start()`) → `WebTabsFacade` → `SkillsFacade` (+ `start()`) → `ToolsFacade` → `MarkdownEdit` → `EnvironmentService` (+ `start()`) → `WorkbenchContext`.
 8. **Plugins are discovered and loaded before pages are registered and restored.** Manifests are always read (the Settings page lists them even while disabled); libraries are loaded only when the global switch is on, and each manifest's enable flag is resolved against `plugins.disabledIds`. The discovered list is pushed into `WorkbenchContext`. Because `BuiltinPages` is constructed *after* this, a plugin page id can survive a restart.
 9. `BuiltinPages` is constructed, which registers the built-in pages and restores the last page.
 10. When WebEngine is enabled, the surface provider, profile store and compat object are created, and `WebProfiles` / `WebEngineCompat` are registered as singletons.

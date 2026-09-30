@@ -14,18 +14,18 @@
 
 | 文件 | 类 / 结构 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | 数据目录及其全部派生路径的唯一来源（`themesDir()`、`pluginsDir()`、`logsDir()`、`webProfilesDir()`、`skillCacheFile()`、`downloadsDir()`）；测试注入 | 所有碰磁盘的模块 |
+| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | 数据目录及其全部派生路径的唯一来源（`themesDir()`、`pluginsDir()`、`logsDir()`、`webProfilesDir()`、`skillCacheFile()`、`environmentCacheFile()`、`downloadsDir()`）；测试注入 | 所有碰磁盘的模块 |
 | `src/core/JsonStore.h` / `.cpp` | `awb::core::JsonStore` | 原子 JSON 读写：`readFile()`、`writeFile()`、`writeBytes()` | `Settings`、`agentcatalog`、`tools`、测试夹具 |
 | `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`、`AppearanceSettings`、`LocaleSettings`、`LauncherSettings`、`WebSettings`、`SkillsSettings`、`LoggingSettings`、`PluginsSettings` | `settings.json` 的类型化访问层；其它任何地方不许读这个文件 | `Paths`、`JsonStore`、`Logging::isValidLevelName` |
 | `src/core/Logging.h` / `.cpp` | `awb::core::Logging`、内部类 `RotatingFileSink`、宏 `AWB_DEBUG`/`AWB_INFO`/`AWB_WARNING`/`AWB_CRITICAL`/`AWB_PERF` | 异步轮转文件日志加 stderr 镜像；装 Qt 消息处理器 | `Paths`、`TextUtils`、spdlog |
-| `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`、`awb::core::ProcessResult` | 外部命令的机制层：PATH/PATHEXT 解析、可捕获输出的分离启动、带超时的同步运行、杀进程树、命令行拆分、输出解码 | `agentcatalog`（启动、版本检查）、`workbench::EnvironmentService` |
-| `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner`（+ 私有 `Slot`） | 按 key 的一次性命令执行器，带流式输出与 epoch 规则 | `agentcatalog`（install/update/version/setup）、`workbench::EnvironmentService` |
+| `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`、`awb::core::ProcessResult` | 外部命令的机制层：PATH/PATHEXT 解析、可捕获输出的分离启动、带超时的同步运行、杀进程树、命令行拆分、输出解码 | `agentcatalog`（启动、版本检查）、`workbench::EnvironmentProbe` |
+| `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner`（+ 私有 `Slot`） | 按 key 的一次性命令执行器，带流式输出与 epoch 规则 | `agentcatalog`（install/update/version/setup） |
 | `src/core/HttpProbe.h` / `.cpp` | `awb::core::HttpProbe` | 语义固定的异步可达性探测，另有 `portFromUrl()` | `agentcatalog::AgentHealthMonitor` |
 | `src/core/PluginHost.h` / `.cpp` | `awb::core::PluginHost`（+ `PluginHost::Manifest`） | 发现插件 manifest，并经导出的 C 入口装载已启用的库 | `plugin_api`、`workbench::PluginServices`；细节见[插件宿主](插件宿主.md) |
 | `src/core/LegacyImport.h` / `.cpp` | `awb::core::LegacyImport` | 把 0.4 之前的 `~/.AgentLauncher` 数据目录一次性复制进新数据根 | `Paths`、`main.cpp` |
 | `src/core/IconResolver.h` / `.cpp` | `awb::core::IconResolver` | 把配置里的图标串解析成可显示 URL，回退值由调用方给出 | `EnvExpander`；`agentcatalog`、`tools` |
 | `src/core/EnvExpander.h` / `.cpp` | `awb::core::EnvExpander` | 展开路径里的 `%VAR%` 与前导 `~/` | `IconResolver`、`skillcatalog`、`agentcatalog` |
-| `src/core/TextUtils.h` / `.cpp` | `awb::core::TextUtils` | `extractVersion()`、`formatCommandLine()`、`clampOutput()` | `Logging`、`EnvironmentService`、`agentcatalog` |
+| `src/core/TextUtils.h` / `.cpp` | `awb::core::TextUtils` | `extractVersion()`、`formatCommandLine()`、`clampOutput()` | `Logging`、`EnvironmentProbe`、`agentcatalog` |
 | `src/core/OpResult.h` / `.cpp` | `awb::core::OpResult`（`Q_GADGET`） | 可失败同步结果 `{ ok, error }`，跨模块边界不抛异常 | 每个模块边界，尤其是朝 QML 的一侧 |
 | `src/plugin_api/PluginApi.h` | `awb::plugin::ApiVersion`、`PageDescriptor`、`Services`、`AWB_PLUGIN_EXPORT` | 仅头文件的插件 ABI | 外部插件仓库；见[插件宿主](插件宿主.md) |
 | `src/core/CMakeLists.txt` | 构建目标 `awb_core` | 只为 Debug 定义 `AWB_PERF_ENABLED`，并私有链接 spdlog | 所有 |
