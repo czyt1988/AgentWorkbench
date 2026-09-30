@@ -25,6 +25,8 @@ public:
     static QString webProfilesDir();
     // <dataRoot>/skills_cache.json —— skillcatalog 的扫描结果缓存。
     static QString skillCacheFile();
+    // <dataRoot>/environment_cache.json —— workbench 的运行时探测缓存。
+    static QString environmentCacheFile();
 
     // ~/Downloads（将来允许用户改）
     static QString downloadsDir();

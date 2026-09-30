@@ -178,7 +178,10 @@ int main(int argc, char *argv[])
     // 配色跟 Theme 走（切换主题即时重扫）。
     awb::tools::MarkdownEdit markdownEdit(&theme);
 
+    // 构造只恢复上次的探测结果（首屏立刻有版本可显示），start() 才派
+    // 后台那一轮真探测——探测要等子进程，不占装配期。
     awb::workbench::EnvironmentService environment;
+    environment.start();
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
                                                &agents, &webTabs, &settings);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice

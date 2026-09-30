@@ -112,6 +112,16 @@ QString Paths::skillCacheFile()
 }
 
 /**
+ * @brief 取运行时探测缓存文件
+ *
+ * @return <dataRoot>/environment_cache.json
+ */
+QString Paths::environmentCacheFile()
+{
+    return dataRoot() + QStringLiteral("/environment_cache.json");
+}
+
+/**
  * @brief 取下载目录
  *
  * @return 系统下载目录（~/Downloads），尚未提供用户覆盖入口

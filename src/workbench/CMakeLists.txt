@@ -3,6 +3,10 @@
 add_library(awb_workbench STATIC
     BuiltinPages.cpp
     BuiltinPages.h
+    EnvironmentCache.cpp
+    EnvironmentCache.h
+    EnvironmentProbe.cpp
+    EnvironmentProbe.h
     EnvironmentService.cpp
     EnvironmentService.h
     PluginServices.cpp
@@ -24,4 +28,5 @@ target_link_libraries(awb_workbench
         awb_web
         Qt::Core
         Qt::Gui
+        Qt::Concurrent
 )
