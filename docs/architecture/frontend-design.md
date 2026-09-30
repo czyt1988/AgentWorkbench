@@ -99,7 +99,7 @@ Before writing any new UI element, look through the shelf. The components under 
 | `AButton` | Text button | Every text button. Variants are `primary`, `secondary`, `ghost` and `danger`; `primary` accepts an `accentColor` for runtime colouring (an agent's own colour). |
 | `AIconButton` | Icon button | Every icon button. The tooltip is mandatory. In navigation contexts use `active` to fill the current destination. |
 | `ATextField` | Single-line input | Every text input, including the `invalid` red border and the 2px focus ring. Its height (32) aligns with `AButton`. |
-| `ATextArea` | Multi-line editor | Every multi-line text input. It deliberately uses the surface-alt background, different from `ATextField`, because a long editing area needs a whiter base in the light theme. |
+| `ATextArea` | Multi-line editor | Every multi-line text input. It uses the `surface` background — deliberately different from `ATextField`'s `surfaceAlt`, because a long editing area needs a whiter base in the light theme. A `TextArea` never scrolls its own text, so an input that must scroll (a long prompt) attaches it to a `Flickable` through the `TextArea.flickable` attached property; that keeps the frame and the focus ring pinned to the viewport and scrolls the caret into view (see Agent Tools). |
 | `AFormLabel` | Form label row | Field labels, with a required asterisk and an info tooltip. |
 | `ASearchField` | Search box | List filtering input, with icon and clear key. |
 | `AComboBox` | Dropdown select | Every dropdown. The `Default`/`Basic` style's palette is hardcoded light and unreadable in the dark theme, so the themed one is required. Override `contentItem` or `delegate` at the use site to customise the popup. |

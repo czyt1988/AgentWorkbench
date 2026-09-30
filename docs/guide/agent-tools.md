@@ -21,7 +21,8 @@ button to hit by accident.
 ## The two panes
 
 - **Left: the editor.** This is where you write. It highlights Markdown
-  formatting as you type.
+  formatting as you type. A long prompt scrolls — use the scroll bar on its
+  right edge or the mouse wheel — and the caret is kept in view while you type.
 - **Right: the file tree.** It shows the files in the workspace folder you
   selected. A draggable divider separates the two - drag it to give either side
   more room.

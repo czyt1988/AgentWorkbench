@@ -55,15 +55,23 @@ Agent Tools 页是一个提示词编写台，为两个具体痛点而存在：
   `ItemDelegate` 的背景是硬编码浅色系、深色主题下不可读，所以 delegate 自带
   `background`（悬停/高亮 → `theme.surfaceHoverBg`）与含路径和逐项删除
   `AIconButton` 的 `contentItem`。
-- **编辑器 `ATextArea`（`objectName: "promptEditor"`）。** `SplitView.fillWidth`、
-  `minimumWidth: 260`。文本只在 `Component.onCompleted` 初始化一次
-  （`text = tools.draft`），不做双向绑定：常驻绑定会与用户输入打架。
-  `onTextChanged: tools.draft = text` 是写路径。`MarkdownEdit.attach(promptEditor)`
-  在同一个处理器里执行。
+- **编辑器（`objectName: "promptEditor"`）。** 一个纵向 `Flickable`
+  （`objectName: "promptScroll"`、`clip`、`StopAtBounds`）挂
+  `ScrollBar.vertical: AScrollBar {}`，内容体是经 `TextArea.flickable` 附加属性
+  附上去的 `ATextArea`；`SplitView.fillWidth` 与 `minimumWidth: 260` 落在
+  `Flickable` 上。`TextArea` 自己的文本滚不动——裸用会把超出可视区的内容画到
+  够不着的地方——附加属性补齐了滚动需要的那三件事：文本随内容高度增长、每次
+  `cursorRectangleChanged` 把光标滚回视野、以及把文本组件自身的背景（外框、
+  焦点环）改挂到 `Flickable` 上并按它定尺寸，于是外框钉在视口上、文本在它下面
+  移动。文本只在 `Component.onCompleted` 初始化一次（`text = tools.draft`），
+  不做双向绑定：常驻绑定会与用户输入打架。`onTextChanged: tools.draft = text`
+  是写路径。`MarkdownEdit.attach(promptEditor)` 在同一个处理器里执行。页面里的
+  `promptEditor` 仍是 `ATextArea` 本身——拖放目标、右键菜单与交互级冒烟都按这个
+  对象寻址。
 - **拖放目标。** 铺满编辑器的 `DropArea` 只接受来自文件树的拖拽
   （`drop.source.isFileReferenceDrag`），用 `promptEditor.positionAt(drop.x, drop.y)`
-  求插入偏移并把 `drop.text` 插进去。`TextArea` 不是 `Flickable`，所以直接用控件
-  坐标。
+  求插入偏移并把 `drop.text` 插进去。落点坐标本身就是文档坐标：滚动是整体平移
+  编辑器，而 `TextArea` 自己没有 `contentY` 可折算。
 - **右键。** 只接受 `Qt.RightButton`、`cursorShape: Qt.IBeamCursor` 的 `MouseArea`
   设 `editorMenu.editor = promptEditor` 再 `popup(mouse.x, mouse.y)`。
 - **`SplitView` 手柄。** 视觉线只有 `spacingXs` 宽，但 `containmentMask` 的 `Item`

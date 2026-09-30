@@ -61,15 +61,29 @@ A `ColumnLayout`: `PageHeader` (title `Agent Tools`) → toolbar row → `SplitV
   palette that is unreadable in dark themes, so the delegate supplies its own
   `background` (hover/highlight → `theme.surfaceHoverBg`) and a `contentItem`
   row with the path and a per-item remove `AIconButton`.
-- **Editor `ATextArea` (`objectName: "promptEditor"`).** `SplitView.fillWidth`,
-  `minimumWidth: 260`. Its text is initialised once in `Component.onCompleted`
-  (`text = tools.draft`) rather than two-way bound: a permanent binding would
-  fight the user's typing. `onTextChanged: tools.draft = text` is the write
-  path. `MarkdownEdit.attach(promptEditor)` runs in the same handler.
+- **Editor (`objectName: "promptEditor"`).** A vertical `Flickable`
+  (`objectName: "promptScroll"`, `clip`, `StopAtBounds`), with
+  `ScrollBar.vertical: AScrollBar {}`, carrying an `ATextArea` through the
+  `TextArea.flickable` attached property; `SplitView.fillWidth` and
+  `minimumWidth: 260` sit on the `Flickable`. A `TextArea` never scrolls its
+  own text — a bare one draws everything past the visible area where it cannot
+  be reached — and the attached property supplies the three parts that make it
+  scroll: the text area grows to its content height, the caret is scrolled back
+  into view on every `cursorRectangleChanged`, and the text area's background
+  (frame, focus ring) is reparented to the `Flickable` and sized to it, so the
+  frame stays pinned to the viewport while the text moves under it. The text is
+  initialised once in `Component.onCompleted` (`text = tools.draft`) rather
+  than two-way bound: a permanent binding would fight the user's typing.
+  `onTextChanged: tools.draft = text` is the write path.
+  `MarkdownEdit.attach(promptEditor)` runs in the same handler. The page's
+  `promptEditor` id stays the `ATextArea` itself, because the drop target, the
+  context menu and the interactive smoke all address that object.
 - **Drop target.** A `DropArea` filling the editor accepts only drags from the
   file tree (`drop.source.isFileReferenceDrag`), computes an insertion offset
-  with `promptEditor.positionAt(drop.x, drop.y)` and inserts `drop.text`. A
-  `TextArea` is not a `Flickable`, so control coordinates are used directly.
+  with `promptEditor.positionAt(drop.x, drop.y)` and inserts `drop.text`. The
+  local drop coordinates are already document coordinates: scrolling translates
+  the editor as a whole, and a `TextArea` has no `contentY` of its own to fold
+  in.
 - **Right-click.** A `MouseArea` accepting only `Qt.RightButton` with
   `cursorShape: Qt.IBeamCursor` sets `editorMenu.editor = promptEditor` and
   `popup(mouse.x, mouse.y)`.

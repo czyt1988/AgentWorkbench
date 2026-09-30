@@ -108,7 +108,7 @@
 | `AButton` | 文字按钮 | 一切文字按钮（variant: primary/secondary/ghost/danger；primary 可经 `accentColor` 注入运行期颜色，如 agent 着色） |
 | `AIconButton` | 图标按钮 | 一切图标按钮（tooltip 必填；导航场景用 `active` 填充当前目的地） |
 | `ATextField` | 单行输入框 | 一切文本输入（含 `invalid` 红边与 2px 焦点环；高度 32 与 AButton 对齐） |
-| `ATextArea` | 多行编辑器 | 一切多行文本输入（surface 背景/焦点环/invalid；与 ATextField 的 surface-alt 有意区分——亮色下长文编辑区需要更白的底） |
+| `ATextArea` | 多行编辑器 | 一切多行文本输入（surface 背景/焦点环/invalid；与 ATextField 的 surface-alt 有意区分——亮色下长文编辑区需要更白的底）。**要滚动就附到 Flickable 上**：`Flickable { ScrollBar.vertical: AScrollBar {}; TextArea.flickable: ATextArea { … } }`——`TextArea` 自己的文本滚不动，附加属性会接管文本增高与光标可见，并把外框留在视口上（跟着内容滚会只剩两条边线） |
 | `AFormLabel` | 表单标签行 | 表单字段标签（labelText + 必填星号 + 信息 tooltip） |
 | `ASearchField` | 搜索框 | 列表过滤输入（带图标与清除键） |
 | `AComboBox` | 下拉选择框 | 一切下拉选择（主题化背景/内容/弹层——Default 样式的调色板是硬编码浅色系，深色主题下不可读）；要定制省略方向或行内控件就在使用点覆写 contentItem/delegate |
