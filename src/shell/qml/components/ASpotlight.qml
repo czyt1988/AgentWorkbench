@@ -24,9 +24,6 @@ Item {
     property real radius: theme.radiusCard
     // 光的颜色：通常注入 agent 的语义色
     property color accentColor: theme.accent
-    // 描边流光的颜色：默认跟光斑同源。宿主想让两者分开时才覆写——例如浅
-    // 色主题下光斑用近白（accent 落在浅底上会成污渍），描边仍用 accent。
-    property color ringColor: accentColor
     // 光斑与描边流光的峰值不透明度：默认就是卡片那套（参照实现的 24% /
     // 75%）。宿主按自己底面的亮度调：底色越接近光色，同样的百分比越看不
     // 见（浅主题的近白面板上 24% 白光只有 +4/255 亮度），半径越小则越需要
@@ -65,7 +62,6 @@ Item {
     onWidthChanged: canvas.requestPaint()
     onHeightChanged: canvas.requestPaint()
     onAccentColorChanged: canvas.requestPaint()
-    onRingColorChanged: canvas.requestPaint()
     onSpotAlphaChanged: canvas.requestPaint()
     onRingAlphaChanged: canvas.requestPaint()
     onRadiusChanged: canvas.requestPaint()
@@ -115,8 +111,8 @@ Item {
             roundedRect(ctx, 1, root.radius);
             var ring = ctx.createRadialGradient(root.spotX, root.spotY, 0,
                                                 root.spotX, root.spotY, root.ringRadiusEff);
-            ring.addColorStop(0, theme.alpha(root.ringColor, root.ringAlpha));
-            ring.addColorStop(0.62, theme.alpha(root.ringColor, 0));
+            ring.addColorStop(0, theme.alpha(root.accentColor, root.ringAlpha));
+            ring.addColorStop(0.62, theme.alpha(root.accentColor, 0));
             ctx.strokeStyle = ring;
             ctx.lineWidth = 2;
             ctx.stroke();

@@ -113,24 +113,23 @@ Item {
         // 头注释），叠在玻璃底与反光纱之上、内容之下——同 AgentCard 的层次。
         // 半径与峰值不透明度都必须覆写：默认那套是给近似方形的卡片配的（半径
         // 按 max(w,h) 缩放），照抄到通高面板上光会淡出整个栏宽、看不出跟随。
-        // 深浅主题各调一档，方向相反：深色底离黑很远，accent 落上去就是「光」，
-        // 卡片浓度反而偏亮，光斑与描边各收一档——描边只有 2px，同样的浓度在那
-        // 里是一条亮线，所以收得更狠。浅色底本就接近白，可涨的亮度只剩几十级，
-        // 摊在大半径上的低浓度白光等于没变化，所以光斑换成小半径高浓度的光池；
-        // accent 整个让给描边——浅底上那条饱和的边缘亮线才是这套主题里读得出来
-        // 的边框特效。
+        // 两个主题都用 accent 当光源，只是浓度与半径各调一档：深色底离黑很远，
+        // accent 落上去就是「光」，卡片浓度反而偏亮，所以收档（描边只有 2px，
+        // 同样浓度在那里是一条亮线，收得比光斑更狠）。浅色底本就接近白，没有
+        // 亮度可涨，再加一束白光等于没变化——能读出来的只有往 accent 的色相偏，
+        // 所以光斑直接换成低浓度的 accent：浓度一高就成了糊在浅底上的蓝污渍，
+        // 太低又看不出跟随，取的是「淡淡一层」。半径也留在小于栏宽，让这一层
+        // 集中在指针附近而不是铺满整栏。
         ASpotlight {
             anchors.fill: parent
             radius: 0
-            accentColor: theme.variant === "dark" ? theme.accent
-                                                  : theme.textOnAccent
-            ringColor: theme.accent
-            spotAlpha: theme.variant === "dark" ? 0.15 : 0.85
+            accentColor: theme.accent
+            spotAlpha: theme.variant === "dark" ? 0.15 : 0.22
             ringAlpha: theme.variant === "dark" ? 0.42 : 1.0
             active: sidebar.pointerInside
             spotX: sidebar.lightX
             spotY: sidebar.lightY
-            spotRadius: sidebar.width * (theme.variant === "dark" ? 1.5 : 0.62)
+            spotRadius: sidebar.width * (theme.variant === "dark" ? 1.5 : 0.95)
             ringRadius: sidebar.width * 1.15
         }
     }
