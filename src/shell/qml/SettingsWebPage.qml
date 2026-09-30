@@ -68,7 +68,7 @@ ScrollView {
                 text: web.homeUrl
                 placeholderText: qsTr("e.g. http://127.0.0.1:8080 (empty = agent list)")
                 font.family: theme.monoFamily
-                font.pixelSize: theme.fontSizeSmall
+                font.pixelSize: theme.fontSizeCaption
                 onEditingFinished: web.setHomeUrl(text.trim())
             }
         }
@@ -78,7 +78,7 @@ ScrollView {
             Layout.rightMargin: theme.spacingL
             text: qsTr("The Home button in the web view opens this URL; leave empty to go back to the agent list instead.")
             color: theme.textMuted
-            font.pixelSize: theme.fontSizeSmall
+            font.pixelSize: theme.fontSizeCaption
             wrapMode: Text.WordWrap
         }
 
