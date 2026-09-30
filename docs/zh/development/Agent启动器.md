@@ -32,7 +32,7 @@ launcher 是**一个目录，加一个针对自己没写过的工具的运行器
 | 文件 | 类 / 组件 | 职责 | 与谁协作 |
 |---|---|---|---|
 | `src/agentcatalog/AgentDefinition.h` | `AgentDefinition` | 仅头文件的结构体，存一个 agent 的持久化字段（`id`、`name`、`command`、`webUrl`、`configDir`、`icon`、`color`、`cardColor`、`installCommand`、`updateCommand`、`versionCommand`、`setupCommand`、`tokenFile`） | `AgentRepository`、`AgentModel`、`AgentRuntime` |
-| `src/agentcatalog/AgentState.h` | `AgentState` | 仅头文件的结构体，存一个 agent 的运行期状态（`running`、`launching`、`installed`、`version`、`installing`、`setupDone`、`setupping`、`checkingVersion`、`consoleOutput`） | `AgentModel`、`AgentScripts`、`AgentHealthMonitor` |
+| `src/agentcatalog/AgentState.h` | `AgentState` | 仅头文件的结构体，存一个 agent 的运行期状态（`running`、`launching`、`installed`、`version`、`versionKnown`、`installing`、`setupDone`、`setupping`、`checkingVersion`、`consoleOutput`） | `AgentModel`、`AgentScripts`、`AgentHealthMonitor` |
 | `src/agentcatalog/AgentStateStore.{h,cpp}` | `AgentStateStore` | 读写 `agent_state.json`，它只记录哪些 agent 完成过一次性 setup | `AgentScripts`、`AgentsFacade` |
 | `src/agentcatalog/AgentRepository.{h,cpp}` | `AgentRepository` | 读写 `agents.json`、每次启动重新套用随包默认、维护 `removed` 列表、分配色板颜色、名称转 slug、解析图标 | `AgentsFacade`、`AgentUrls`（图标） |
 | `src/agentcatalog/AgentModel.{h,cpp}` | `AgentModel` | `QAbstractListModel`，把持久化定义与按 id 存的运行期状态合并；持有全部运行期 setter 与面向 QML 的 role 契约 | `AgentRuntime`、`AgentScripts`、`AgentHealthMonitor`、`AgentGridPage.qml` |
@@ -78,14 +78,16 @@ header 下面是过滤行：一个 `ASearchField`（"Search launchers..."）加�
 - **主按钮行**：主 `AButton` 在运行时文案是 **Open**，否则 **Start**。运行时它变成下拉按钮，
   箭头区弹出只有一个条目的菜单 **Open in browser**；启动中或初始化中时禁用并显示转圈。第二个
   按钮是 **Configure**，它发出 `configureRequested(id)` 让页面打开编辑弹窗（卡片不持有弹窗）。
-- **版本指示区**（左上）：`checkingVersion` 或 `installing` 时是转圈；未安装时是下载图标（点击
-  安装，运行中则就地闪红拒绝）；已安装时是版本标签加一个小 **↻** 更新按钮。
+- **版本指示区**（左上）：`checkingVersion` 或 `installing` 时是转圈；探测得出「已安装」时是
+  版本标签加一个小 **↻** 更新按钮；探测得出「未安装」时是下载图标（点击安装，运行中则就地闪红
+  拒绝）；**没有结论时留空**——探测还没跑，或超时了（三态语义见下文）。
 - **控制台输出面板**：状态行与按钮行之间可滚动的等宽文本视图。install/update/setup 运行期间出现，
   失败后保留 5 秒，成功立即隐藏。角上的 × 收起它；右键菜单的 **Show output** 重新调出。
 - **停止**：右上角一个刻意低调的 ×，仅在运行时可见。它调 `agents.stop(id)`，并在 `running`
   翻假之前显示转圈。
 - **右键菜单**（在卡片上右键）：**Close**/**Start**、**Force Stop**（打开
-  `AConfirmDialog`）、**Open in browser**、**Update**/**Install**、**Show output**、
+  `AConfirmDialog`）、**Open in browser**、**Update**/**Install**、**Re-detect version**
+  （重跑版本命令；检查在途时禁用）、**Show output**、
   **Configure**、**Open config folder**、**Re-initialize**（仅在配了 `setupCommand` 时可用）。
 - **就地错误反馈**：一个挂在 `agents.launchFailed` 上的 `Connections` 对匹配 id 设
   `flashMessage` 与 `flashing`，边框转红、状态标签改显（省略后的）原因，并重启 4 秒计时器。
@@ -145,6 +147,7 @@ header 下面是过滤行：一个 `ASearchField`（"Search launchers..."）加�
 | `SetupCommandRole` | `setupCommand` | 定义 |
 | `InstalledRole` | `installed` | 状态 |
 | `VersionRole` | `version` | 状态 |
+| `VersionKnownRole` | `versionKnown` | 状态（追加在 0.3.0 集合之后） |
 | `InstallingRole` | `installing` | 状态 |
 | `SetupDoneRole` | `setupDone` | 状态 |
 | `SetuppingRole` | `setupping` | 状态 |
@@ -219,6 +222,7 @@ setter 都是只改一个字段并用对应 role 发 `dataChanged` 的槽；未�
 | `forceStop(id)` | invokable | 杀掉占用该 agent 端口的进程 |
 | `openConfigDir(id)` | invokable | 在文件管理器里打开 `configDir` |
 | `install(id)`、`updateTool(id)` | invokable | 一次性命令 |
+| `checkVersion(id)` | invokable | 重跑该 agent 的版本命令（右键菜单入口）；重置它的重试预算，且不看启动开关——它就是「结论停在不知道」时的出路 |
 | `resetSetup(id)` | invokable | 清掉 setup 记录，让它重跑 |
 | `hasLaunchedAgents()` | invokable | 本次会话是否启动过东西（退出确认） |
 | `stopAll()` | invokable | 结束本次会话启动的全部进程 |
@@ -324,7 +328,7 @@ sequenceDiagram
 | install | `runShell` | 无 | 合并 | agent 运行中拒绝；未配置命令时拒绝 |
 | update | `runShell` | 无 | 合并 | 前置条件同 install |
 | setup | `runBatch` | 30 秒 | 合并 | 先把命令写进临时 `.cmd` 文件 |
-| version | `runShell` | 10 秒 | 分开 | 有些工具把版本打到 stderr |
+| version | `runShell` | 20 秒 | 分开 | 有些工具把版本打到 stderr；超时的那轮会重试一次（见下文） |
 
 `runSetup()` 用批处理文件，是因为 `QProcess` 把内嵌引号转义成 `\"`，而 `cmd.exe` 读错；运行文件
 绕开引号问题。成功时它调 `AgentStateStore::markSetupDone()`；只有这时模型才翻 `setupDone`，
@@ -333,6 +337,26 @@ sequenceDiagram
 版本探测先对 stdout 调 `core::TextUtils::extractVersion()`，再对 stderr 调。退出码为 0 **或**
 解析出非空版本串都算已安装——有些工具 `--version` 就是非零退出。转圈保证至少亮 500 ms，由按 id
 的代数守卫，迟到的定时器清不掉更新的检查。
+
+结论是三态的，由 `versionKnown` role 承载：
+
+- **命令跑完了**（无论退出码，拿到了输出）：**权威**结论。写入 `installed` 与 `version`、
+  `versionKnown` 翻真——卡片显示版本标签或下载图标。
+- **超时或没能启动**：「不知道」，**不是**「未安装」。上次的 `installed` 与 `version` 原样保留，
+  `versionKnown` 翻假，卡片两个都不显示。在杀软对新进程做串行扫描的机器上，拉起版本命令本身
+  就可能超过超时（实测冷启动 5~12 秒）；把它报成「未安装」曾让整页卡片错白一整个会话——
+  三态设计修的就是它。
+- **从未探测**（启动开关关着，或没配命令）：同样是「不知道」，显示相同。
+
+瞬时失败会安排**一次** 3 秒后的自动重试（`kVersionRetryLimit`），同样受代数守卫：更新的显式
+检查会作废在途的重试。预算用尽后结论停在「不知道」并记一条告警；下一次显式 `checkVersion()`
+——右键菜单条目，或 install/update 之后的自动复查——会重置预算。
+
+启动时各 agent 的检查**错峰**出发（间隔 1.5 秒，第一个立即）：N 个并发的 `cmd /c` 会在同一
+个进程创建瓶颈后面排队、集体超时——上面的故障模式正是在那里观察到的。转圈由
+`AgentsFacade::start()` 在任何 QML 帧之前预先点亮，错峰只推迟真实起进程的时机，界面上没有
+空档。错峰、超时与重试间隔是实例成员，测试可注入毫秒级数值
+（`setVersionProbeTimingForTesting()`）。
 
 install/update 运行期间把输出流式写进模型，结束时写入权威的完整文本（中途的 chunk 只带增量）。
 install/update 结束后会重跑一次版本检查以刷新卡片。

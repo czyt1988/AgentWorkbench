@@ -38,7 +38,7 @@ map; the sections below expand the interesting ones.
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
 | `src/agentcatalog/AgentDefinition.h` | `AgentDefinition` | Header-only struct holding the persisted fields of one agent (`id`, `name`, `command`, `webUrl`, `configDir`, `icon`, `color`, `cardColor`, `installCommand`, `updateCommand`, `versionCommand`, `setupCommand`, `tokenFile`) | `AgentRepository`, `AgentModel`, `AgentRuntime` |
-| `src/agentcatalog/AgentState.h` | `AgentState` | Header-only struct holding the runtime state of one agent (`running`, `launching`, `installed`, `version`, `installing`, `setupDone`, `setupping`, `checkingVersion`, `consoleOutput`) | `AgentModel`, `AgentScripts`, `AgentHealthMonitor` |
+| `src/agentcatalog/AgentState.h` | `AgentState` | Header-only struct holding the runtime state of one agent (`running`, `launching`, `installed`, `version`, `versionKnown`, `installing`, `setupDone`, `setupping`, `checkingVersion`, `consoleOutput`) | `AgentModel`, `AgentScripts`, `AgentHealthMonitor` |
 | `src/agentcatalog/AgentStateStore.{h,cpp}` | `AgentStateStore` | Reads/writes `agent_state.json`, which records only which agents finished their one-shot setup | `AgentScripts`, `AgentsFacade` |
 | `src/agentcatalog/AgentRepository.{h,cpp}` | `AgentRepository` | Loads and saves `agents.json`, re-applies bundled defaults on every start, keeps the `removed` list, assigns palette colors, turns a name into a slug, resolves the icon | `AgentsFacade`, `AgentUrls` (icon) |
 | `src/agentcatalog/AgentModel.{h,cpp}` | `AgentModel` | `QAbstractListModel` merging the persistent definitions with per-id runtime state; owns every runtime setter and the role contract for QML | `AgentRuntime`, `AgentScripts`, `AgentHealthMonitor`, `AgentGridPage.qml` |
@@ -90,9 +90,11 @@ The card is the interaction surface for one agent. Its root is an `Item`, not a 
   **Open in browser**; while launching or setting up it is disabled and shows a spinner. The
   second button is **Configure**, which emits `configureRequested(id)` so the page opens the edit
   dialog (the card does not own the dialog).
-- **Version indicator** (top-left): a spinner while `checkingVersion` or `installing`; a download
-  icon when not installed (clicking installs, and refuses with an in-place flash while running); a
-  version label plus a small **↻** update button when installed.
+- **Version indicator** (top-left): a spinner while `checkingVersion` or `installing`; a version
+  label plus a small **↻** update button when a probe concluded "installed"; a download icon when
+  a probe concluded "not installed" (clicking installs, and refuses with an in-place flash while
+  running); **blank while there is no verdict** — no probe ran yet, or the probe timed out (see
+  the version-probe semantics below).
 - **Console output panel**: a scrollable monospace view between the status line and the buttons.
   It appears while an install/update/setup run is in flight, stays for 5 s after a failure, and is
   hidden immediately on success. A × in its corner collapses it; the context menu entry
@@ -100,8 +102,10 @@ The card is the interaction surface for one agent. Its root is an `Item`, not a 
 - **Stop**: a deliberately low-key × in the top-right corner, visible only while running. It calls
   `agents.stop(id)` and shows a spinner until `running` flips false.
 - **Context menu** (right click on the card) contains **Close**/**Start**, **Force Stop** (opens
-  the `AConfirmDialog`), **Open in browser**, **Update**/**Install**, **Show output**, **Configure**,
-  **Open config folder**, and **Re-initialize** (only enabled when a `setupCommand` exists).
+  the `AConfirmDialog`), **Open in browser**, **Update**/**Install**, **Re-detect version**
+  (re-runs the version command; disabled while a check is in flight), **Show output**,
+  **Configure**, **Open config folder**, and **Re-initialize** (only enabled when a
+  `setupCommand` exists).
 - **In-place error feedback**: a `Connections` block on `agents.launchFailed` sets `flashMessage`
   and `flashing` for the matching id, which turns the border red, repurposes the status label to
   show the truncated reason, and restarts a 4 s timer. The full message is shown at the same time
@@ -162,6 +166,7 @@ the names come from `roleNames()` and must stay stable because the cards consume
 | `SetupCommandRole` | `setupCommand` | definition |
 | `InstalledRole` | `installed` | state |
 | `VersionRole` | `version` | state |
+| `VersionKnownRole` | `versionKnown` | state (appended after the 0.3.0 set) |
 | `InstallingRole` | `installing` | state |
 | `SetupDoneRole` | `setupDone` | state |
 | `SetuppingRole` | `setupping` | state |
@@ -243,6 +248,7 @@ The QML-facing surface is:
 | `forceStop(id)` | invokable | kill whatever listens on the agent's port |
 | `openConfigDir(id)` | invokable | open `configDir` in the file manager |
 | `install(id)`, `updateTool(id)` | invokable | one-shot commands |
+| `checkVersion(id)` | invokable | re-run the version command for one agent (context menu); resets its retry budget and ignores the start-up switch — it is the user's escape hatch from an "unknown" verdict |
 | `resetSetup(id)` | invokable | clear the setup record so it runs again |
 | `hasLaunchedAgents()` | invokable | whether this session started anything (quit confirmation) |
 | `stopAll()` | invokable | stop everything this session started |
@@ -358,7 +364,7 @@ kill each other. The runner's per-key epoch additionally makes stale callbacks h
 | install | `runShell` | none | merged | refuses while the agent is running; refuses when no command is configured |
 | update | `runShell` | none | merged | same preconditions as install |
 | setup | `runBatch` | 30 s | merged | writes the command into a temporary `.cmd` file first |
-| version | `runShell` | 10 s | split | some tools print the version to stderr |
+| version | `runShell` | 20 s | split | some tools print the version to stderr; a timed-out run is retried once (see below) |
 
 `runSetup()` uses a batch file because `QProcess` escapes embedded quotes as `\"`, which `cmd.exe`
 reads incorrectly; running the file sidesteps the quoting problem. On success it calls
@@ -370,6 +376,33 @@ Version detection tries `core::TextUtils::extractVersion()` on stdout first, the
 exit code of 0 **or** a non-empty version string counts as installed — some tools exit non-zero for
 `--version`. The spinner is guaranteed to stay visible for at least 500 ms, guarded by a per-id
 epoch so a delayed timer cannot clear a newer check.
+
+The verdict has three states, carried by the `versionKnown` role:
+
+- **Command ran** (any exit code, output captured): a **definitive** verdict. `installed` and
+  `version` are written and `versionKnown` becomes true — the card shows the version label or the
+  download icon.
+- **Timed out or failed to start**: "unknown", **not** "not installed". The previous `installed`
+  and `version` are kept untouched, `versionKnown` flips false, and the card shows neither label
+  nor icon. On machines where endpoint security serially scans new processes, spawning the
+  version command can take longer than the timeout (measured: cold starts of 5–12 s); reporting
+  that as "not installed" left every card wrongly blank for the whole session — the bug this
+  three-state design fixes.
+- **Never probed** (start-up check disabled, or the command is not configured): also "unknown",
+  same display.
+
+A transient failure schedules **one automatic retry** after 3 s (`kVersionRetryLimit`), guarded by
+the same epoch: a newer explicit check cancels the pending retry. When the budget is exhausted the
+verdict stays "unknown" and one warning is logged; the next explicit `checkVersion()` — the
+context-menu entry, or the automatic re-check after an install/update — resets the budget.
+
+At start-up the per-agent checks are **staggered** (1.5 s apart, first one immediate) instead of
+all launching at once: N concurrent `cmd /c` spawns queue up behind the same process-creation
+bottleneck and collectively blow the timeout — the failure mode above was observed exactly there.
+The spinner is pre-lit by `AgentsFacade::start()` before any QML frame, so the stagger only
+delays when the child process actually starts, with no visible gap. Stagger, timeout and retry
+delay are instance members so tests can inject millisecond-scale values
+(`setVersionProbeTimingForTesting()`).
 
 Install/update stream output into the model while running, then write the authoritative full text
 at the end (the chunks only carried increments). After install/update finishes, the version check

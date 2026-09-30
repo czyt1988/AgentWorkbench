@@ -30,10 +30,11 @@ Each card shows:
 - **A colored dot** beside the icon. It is filled while the agent is running.
 - **A version label** in the top-left corner once the app has detected the
   installed version (for example `1.2.3`, or **Installed** if the version could
-  not be read). If the agent does not seem to be installed, a download icon
-  appears there instead - click it to run the install command. This label and
-  icon need the start-up version check; turn it off in
-  **Settings → Launchers** and cards show neither.
+  not be read). If the app has determined the agent is not installed, a download
+  icon appears there instead - click it to run the install command. While the
+  check has not produced an answer yet (it just started, or the machine was too
+  busy to answer in time), the corner stays empty; use **Re-detect version** in
+  the right-click menu to ask again.
 - **The main button** at the bottom: **Start** when stopped, **Open** when
   running. Clicking the card anywhere does the same thing.
 - **A Configure button** beside it, which opens the edit form for that agent.
@@ -77,6 +78,7 @@ Right-click any card:
 | **Force Stop** | Terminates whatever is serving the agent's web address. Asks for confirmation. Only available while the agent is running. |
 | **Open in browser** | Opens the agent's web address in your normal browser instead of a tab. Only available while running. |
 | **Install** / **Update** | Runs the agent's install or update command. Only one of the two is shown, depending on whether the agent is installed. Disabled while the agent is running. |
+| **Re-detect version** | Asks for the agent's version again. Use it when the corner stays empty - the last check did not get an answer (a busy machine can be too slow to reply), and this asks directly. Only available if the agent has a version command. |
 | **Show output** | Reopens the console panel with the last captured output. |
 | **Configure** | Opens the edit form for this agent. |
 | **Open config folder** | Opens the agent's own configuration folder in your file manager. |
@@ -246,5 +248,12 @@ warning above. Add your own agent instead.
 **Install or update seems to do nothing.** Open the card's console panel: the
 command's output is shown there. A common cause is a command that needs a tool
 such as Node.js which is not installed - check the badges in the status bar.
+
+**The version corner stays empty although the agent is installed.** The version
+check did not finish. On a busy machine - antivirus software scanning every new
+program is the usual suspect - the check can be slower than the app is willing
+to wait, and an unanswered check is deliberately not shown as "not installed".
+Right-click the card and choose **Re-detect version**; once the machine has
+calmed down the answer usually comes back within a second or two.
 
 Curious how it works inside? See [Agent launcher](../development/agent-launcher.md).
