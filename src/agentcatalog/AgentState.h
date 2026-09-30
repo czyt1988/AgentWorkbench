@@ -14,6 +14,9 @@ struct AgentState
     bool launching = false;       ///< 瞬态 UI 状态，不持久化
     bool installed = false;       ///< 运行期判定，经 versionCommand 检测
     QString version;              ///< 运行期数据，从 versionCommand 输出解析
+    bool versionKnown = false;    ///< installed/version 是否已有探测结论——
+                                  ///< 超时或未探测时为 false，界面据此把
+                                  ///< 「不知道」与「确认未安装」区分开
     bool installing = false;      ///< 瞬态 UI 状态，不持久化
     bool setupDone = false;       ///< setup 已成功执行过，记录在 agent_state.json
     bool setupping = false;       ///< 瞬态 UI 状态，不持久化

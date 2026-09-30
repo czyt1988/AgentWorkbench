@@ -70,7 +70,8 @@ private Q_SLOTS:
         QVERIFY(!model.state("x1").running);
     }
 
-    // role 名必须与 0.3.0 保持字节级一致，卡片 QML 才能原样继续工作。
+    // role 名必须与 0.3.0 保持字节级一致，卡片 QML 才能原样继续工作；
+    // versionKnown 是追加在末尾的第 22 个 role（既有 21 个的编号不动）。
     void testRoleNamesUnchanged()
     {
         AgentModel model;
@@ -80,7 +81,37 @@ private Q_SLOTS:
         QCOMPARE(roles.value(AgentModel::RunningRole), QByteArray("running"));
         QCOMPARE(roles.value(AgentModel::ConsoleOutputRole),
                  QByteArray("consoleOutput"));
-        QCOMPARE(roles.size(), 21);
+        QCOMPARE(roles.value(AgentModel::VersionKnownRole),
+                 QByteArray("versionKnown"));
+        QCOMPARE(roles.size(), 22);
+    }
+
+    // versionKnown 独立于 installed：超时清空 known 的同时 installed 可以
+    // 原样保留（上一轮的结论），两条 dataChanged 各自发各自的 role。
+    void testVersionKnownIsIndependentFromInstalled()
+    {
+        AgentModel model;
+        AgentDefinition a;
+        a.id = "x1";
+        a.name = "X";
+        model.setDefinitions({a});
+
+        QVERIFY(!model.index(0, 0).data(AgentModel::VersionKnownRole).toBool());
+        model.setInstalled("x1", true);
+        model.setVersion("x1", QStringLiteral("1.2.3"));
+        model.setVersionKnown("x1", true);
+        QVERIFY(model.index(0, 0).data(AgentModel::InstalledRole).toBool());
+        QVERIFY(model.index(0, 0).data(AgentModel::VersionKnownRole).toBool());
+
+        // 模拟超时：known 翻假，installed/version 不动。
+        model.setVersionKnown("x1", false);
+        QVERIFY(model.index(0, 0).data(AgentModel::InstalledRole).toBool());
+        QCOMPARE(model.index(0, 0).data(AgentModel::VersionRole).toString(),
+                 QStringLiteral("1.2.3"));
+        QVERIFY(!model.index(0, 0).data(AgentModel::VersionKnownRole).toBool());
+        // 表单输入里也能读到它。
+        QCOMPARE(model.agent("x1").value(QStringLiteral("versionKnown")),
+                 QVariant(false));
     }
 };
 

@@ -12,13 +12,15 @@ namespace awb::agentcatalog {
 
 /// agent 的列表模型：持久化定义 + 按 id 索引的运行期状态。
 ///
-/// role 名与顺序和 0.3.0 逐字节兼容，卡片 QML 因此无需改动。
+/// role 名与顺序和 0.3.0 逐字节兼容；`versionKnown` 是 0.3.0 之后追加在
+/// 末尾的新 role，既有 role 的名字与位置不动。
 class AgentModel : public QAbstractListModel
 {
     Q_OBJECT
 
 public:
     /// 列表模型的 role。名字与顺序是对 QML 的契约，改动前先确认所有页面。
+    /// 新 role 只许追加在末尾——前面的编号是既有页面的稳定契约。
     enum Roles {
         IdRole = Qt::UserRole + 1,  ///< agent 的 id（agents.json 中的键）
         NameRole,                   ///< 显示名
@@ -40,7 +42,8 @@ public:
         SetupDoneRole,              ///< setup 已完成
         SetuppingRole,              ///< setup 进行中
         CheckingVersionRole,        ///< 版本查询进行中
-        ConsoleOutputRole           ///< install/update/setup 的实时输出
+        ConsoleOutputRole,          ///< install/update/setup 的实时输出
+        VersionKnownRole            ///< 版本判定已有结论（区别于「没测」）
     };
     Q_ENUM(Roles)
 
@@ -80,6 +83,8 @@ public Q_SLOTS:
     void setLaunching(const QString &id, bool launching);
     void setInstalled(const QString &id, bool installed);
     void setVersion(const QString &id, const QString &version);
+    // 版本判定是否有结论（超时/未探测时为 false）；与 installed 分开维护
+    void setVersionKnown(const QString &id, bool known);
     void setInstalling(const QString &id, bool installing);
     void setSetupDone(const QString &id, bool done);
     void setSetupping(const QString &id, bool setupping);

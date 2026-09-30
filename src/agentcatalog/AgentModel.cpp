@@ -73,6 +73,7 @@ QVariant AgentModel::data(const QModelIndex &index, int role) const
     case SetuppingRole:  return s.setupping;
     case CheckingVersionRole: return s.checkingVersion;
     case ConsoleOutputRole:   return s.consoleOutput;
+    case VersionKnownRole:    return s.versionKnown;
     }
     return {};
 }
@@ -84,7 +85,7 @@ QVariant AgentModel::data(const QModelIndex &index, int role) const
  */
 QHash<int, QByteArray> AgentModel::roleNames() const
 {
-    // 与 0.3.0 逐字节兼容：名字与顺序都不能动。
+    // 0.3.0 的名字与顺序都不能动；versionKnown 是追加在末尾的新 role。
     return {
         { IdRole,        "agentId" },
         { NameRole,      "name" },
@@ -106,7 +107,8 @@ QHash<int, QByteArray> AgentModel::roleNames() const
         { SetupDoneRole,   "setupDone" },
         { SetuppingRole,   "setupping" },
         { CheckingVersionRole, "checkingVersion" },
-        { ConsoleOutputRole, "consoleOutput" }
+        { ConsoleOutputRole, "consoleOutput" },
+        { VersionKnownRole, "versionKnown" }
     };
 }
 
@@ -248,6 +250,7 @@ QVariantMap AgentModel::agent(const QString &id) const
     m[QStringLiteral("tokenFile")] = d.tokenFile;
     m[QStringLiteral("installed")] = s.installed;
     m[QStringLiteral("version")] = s.version;
+    m[QStringLiteral("versionKnown")] = s.versionKnown;
     m[QStringLiteral("installing")] = s.installing;
     m[QStringLiteral("setupDone")] = s.setupDone;
     m[QStringLiteral("setupping")] = s.setupping;
@@ -304,6 +307,14 @@ void AgentModel::setInstalled(const QString &id, bool installed)
 void AgentModel::setVersion(const QString &id, const QString &version)
 {
     AWB_STATE_SETTER(version, version, VersionRole);
+}
+
+/**
+ * @brief 记录 id 的版本判定是否有结论，发 VersionKnownRole 的 dataChanged
+ */
+void AgentModel::setVersionKnown(const QString &id, bool known)
+{
+    AWB_STATE_SETTER(versionKnown, known, VersionKnownRole);
 }
 
 /**
