@@ -263,6 +263,21 @@ to_win_backslash_path() {
     printf '%s\n' "${p//\//\\}"
 }
 
+# Convert a Windows path (D:/foo or D:\foo) to the Git-Bash/MSYS form (/d/foo).
+# Required for PATH prepends: a drive-letter path inside the POSIX PATH list
+# gets split at the colon in "D:" when MSYS converts the list for a native
+# process, leaving garbage entries (D, <git-root>/Qt/...) that resolve nothing.
+to_msys_path() {
+    local p="$1" drive rest
+    if [[ "$p" =~ ^([a-zA-Z]):[/\\](.*)$ ]]; then
+        drive="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+        rest="${BASH_REMATCH[2]//\\//}"
+        printf '/%s/%s\n' "$drive" "$rest"
+    else
+        printf '%s\n' "$p"
+    fi
+}
+
 # Resolve $1 (relative, MSYS-absolute or Windows-absolute) against the current
 # directory and print it as a Windows path with forward slashes.
 absolute_win_path() {
@@ -898,7 +913,8 @@ if [[ $RUN_TESTS -eq 1 ]]; then
         echo "Warning: ctest not found; skipping tests." >&2
     else
         # Qt's bin directory holds the runtime DLLs the test executable needs.
-        if ! ( cd "$BUILD_DIR" && PATH="$QT_PREFIX/bin:$PATH" ctest -C "$CONFIG" --output-on-failure ); then
+        # It must be prepended in MSYS form — see to_msys_path().
+        if ! ( cd "$BUILD_DIR" && PATH="$(to_msys_path "$QT_PREFIX")/bin:$PATH" ctest -C "$CONFIG" --output-on-failure ); then
             echo "" >&2
             echo "Tests FAILED." >&2
             exit 1
@@ -911,7 +927,10 @@ fi
 if [[ $RUN_APP -eq 1 ]]; then
     step "Launch"
     # `start` detaches, so the script returns while the app keeps running.
-    cmd //c start "" "$(to_win_backslash_path "$EXE")"
+    # Qt's bin is prepended (MSYS form) so the app finds its runtime DLLs even
+    # when the Qt used for the build is not on the system PATH.
+    PATH="$(to_msys_path "$QT_PREFIX")/bin:$PATH" \
+        cmd //c start "" "$(to_win_backslash_path "$EXE")"
     echo "Launched $EXE"
 fi
 
