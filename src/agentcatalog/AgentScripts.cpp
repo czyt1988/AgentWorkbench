@@ -126,6 +126,15 @@ void logCommandOutput(const QString &operation, const QString &id,
 }
 
 /**
+ * @brief 版本探测的自动重试预算
+ *
+ * 一轮：环境探测那边有 3/15/60 s 的阶梯，这里不学它——版本探测失败几乎
+ * 全部发生在启动拥堵的几秒里，错开一轮足够；真挂死的命令重试多少次都
+ * 一样。预算用尽后结论停在「不知道」，等显式 checkVersion 再来。
+ */
+constexpr int kVersionRetryLimit = 1;
+
+/**
  * @brief 拼脚本运行 key
  *
  * 一个操作一个 ScriptRunner 槽位，同一 agent 上的并发操作（安装期间
@@ -320,25 +329,64 @@ void AgentScripts::runSetup(const QString &id)
 /**
  * @brief 逐个运行所有 agent 的 versionCommand
  *
- * 启动时的版本检查走这里；每个 agent 各自走 checkVersion() 的前置
- * 检查（未配置命令的静默跳过）。
+ * 启动时的版本检查走这里。各 agent 错开 m_staggerMs 出发（第一个立即）：
+ * N 个探测同时起进程会在进程创建处排队——杀软/DLP 对每个新进程做串行
+ * 扫描的机器上实测把同时出发的检查全部拖过超时（0.4.x 五张卡片全灭）。
+ * spinner 由 AgentsFacade::start() 预先点亮，错峰只推迟真实起进程的时机，
+ * 界面上看不出空档。未配置命令的 agent 静默跳过；期间被手动检查接管的
+ * agent（epoch 已变）不再重复出发。
  */
 void AgentScripts::checkVersions()
 {
+    int launched = 0;
     for (const AgentDefinition &a : m_model->definitions()) {
-        checkVersion(a.id);
+        if (a.versionCommand.isEmpty()) {
+            continue;
+        }
+        m_versionRetries.insert(a.id, 0);
+        const int delay = launched * m_staggerMs;
+        ++launched;
+        if (delay == 0) {
+            checkVersion(a.id);
+            continue;
+        }
+        const QString id = a.id;
+        const int epoch = m_versionEpoch.value(id);
+        QTimer::singleShot(delay, this, [this, id, epoch]() {
+            // 错峰等待期间已有更新的检查出发（手动复查、装完复查）就
+            // 让位，别作废在跑的那轮。
+            if (m_versionEpoch.value(id) != epoch) {
+                return;
+            }
+            checkVersion(id);
+        });
     }
 }
 
 /**
- * @brief 运行单个 agent 的 versionCommand
+ * @brief 运行单个 agent 的 versionCommand（显式入口）
  *
- * 命令经 cmd /c 运行、10 s 安全超时、通道分开（有些工具把版本打到
- * stderr）。结束后 onScriptFinished 解析版本并决定 installed 状态。
+ * 与内部路径的差别只有一处：重置该 id 的重试预算——自动重试每轮探测
+ * 只有一次，用户手动触发（装完复查、卡片菜单）时应该重新拿到它。
  *
  * @param id agent id；未配置 versionCommand 时静默返回
  */
 void AgentScripts::checkVersion(const QString &id)
+{
+    m_versionRetries.insert(id, 0);
+    launchVersionCheck(id);
+}
+
+/**
+ * @brief 真正发起一轮版本探测
+ *
+ * 命令经 cmd /c 运行、m_versionTimeoutMs 安全超时、通道分开（有些工具把
+ * 版本打到 stderr）。结束后 onScriptFinished 解析版本并决定 installed
+ * 状态；瞬时失败（超时/没能启动）由 scheduleVersionRetry() 安排重试。
+ *
+ * @param id agent id；未配置 versionCommand 时清掉 spinner 静默返回
+ */
+void AgentScripts::launchVersionCheck(const QString &id)
 {
     const int row = m_model->indexOf(id);
     if (row < 0) {
@@ -346,6 +394,9 @@ void AgentScripts::checkVersion(const QString &id)
     }
     const QString cmd = m_model->definitions().at(row).versionCommand;
     if (cmd.isEmpty()) {
+        // 门面在 start() 里预点亮了 spinner；错峰等待期间定义被改空时
+        // 在这里灭掉，别让转圈挂满整个会话。
+        m_model->setCheckingVersion(id, false);
         return;
     }
 
@@ -356,10 +407,57 @@ void AgentScripts::checkVersion(const QString &id)
     m_startMs.insert(key, QDateTime::currentMSecsSinceEpoch());
     cmdLog(QStringLiteral("version"), id,
            QStringLiteral("running: %1").arg(shellCommandLine(cmd)));
-    // 通道分开：有些工具把版本打到 stderr。10 s 安全超时杀掉挂死的
-    // 检查；该 key 的陈旧运行由 ScriptRunner 作废，onScriptFinished 里
-    // 延迟的 spinner 清除由 m_versionEpoch 守卫。
-    m_runner->runShell(key, cmd, 10000, false);
+    // 通道分开：有些工具把版本打到 stderr。安全超时杀掉挂死的检查；该
+    // key 的陈旧运行由 ScriptRunner 作废，onScriptFinished 里延迟的
+    // spinner 清除由 m_versionEpoch 守卫。
+    m_runner->runShell(key, cmd, m_versionTimeoutMs, false);
+}
+
+/**
+ * @brief 瞬时失败后安排一次自动重试
+ *
+ * 重试预算 kVersionRetryLimit 轮；等待期间出现更新的检查（epoch 已变）
+ * 则作废本次重试，由新检查接管。预算用尽只记日志：结论停留在「不知道」，
+ * 等下一次显式 checkVersion（卡片菜单或重启）。
+ *
+ * @param id agent id
+ */
+void AgentScripts::scheduleVersionRetry(const QString &id)
+{
+    if (m_versionRetries.value(id, 0) >= kVersionRetryLimit) {
+        cmdLogError(QStringLiteral("version"), id,
+                    QStringLiteral("no more retries; keeping the last verdict "
+                                   "until the next re-check"));
+        return;
+    }
+    ++m_versionRetries[id];
+    const int epoch = m_versionEpoch.value(id);
+    QTimer::singleShot(m_versionRetryDelayMs, this, [this, id, epoch]() {
+        if (m_versionEpoch.value(id) != epoch) {
+            return;
+        }
+        launchVersionCheck(id);
+    });
+}
+
+/**
+ * @brief 注入版本探测的时序参数（单元测试专用）
+ *
+ * 默认时序（20 s 超时 / 3 s 重试间隔 / 1.5 s 错峰）让「超时后重试」在
+ * 测试里要等半分钟；测试注入毫秒级短值即可在百毫秒内走完超时→重试→
+ * 放弃的全链路。产品代码不调用。
+ *
+ * @param timeoutMs    单次版本探测的超时（毫秒）
+ * @param retryDelayMs 瞬时失败后的重试间隔（毫秒）
+ * @param staggerMs    启动时各 agent 之间的错峰间隔（毫秒）
+ */
+void AgentScripts::setVersionProbeTimingForTesting(int timeoutMs,
+                                                   int retryDelayMs,
+                                                   int staggerMs)
+{
+    m_versionTimeoutMs = timeoutMs;
+    m_versionRetryDelayMs = retryDelayMs;
+    m_staggerMs = staggerMs;
 }
 
 // --- ScriptRunner 分派 -------------------------------------------------------
@@ -395,9 +493,10 @@ void AgentScripts::onScriptChunk(const QString &key, const QString &text)
  *
  * 按 key 里的操作分派：install/update 清 "installing"、写权威输出、
  * 发 installFinished 并顺手复查版本；setup 落盘 AgentStateStore、发
- * setupFinished（失败经 launchFailed 报带命令原文的消息）；version
- * 解析版本串、写 installed/version 并发 versionResolved，spinner 至少
- * 显示 500 ms 且只清本次检查的。
+ * setupFinished（失败经 launchFailed 报带命令原文的消息）；version 解析
+ * 版本串、写 installed/version/versionKnown 并发 versionResolved——命令
+ * 跑完才算权威结论，超时/没能启动是「不知道」（保留上次状态、安排重试），
+ * spinner 至少显示 500 ms 且只清本次检查的。
  *
  * @param key      运行 key（"<operation>:<id>"）
  * @param ok       命令干净退出为 true
@@ -506,10 +605,17 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
         const int epoch = m_versionEpoch.value(id);
 
         if (!error.isEmpty()) {
-            // 从未启动，或被 10 s 安全超时杀掉。
+            // 从未启动，或被安全超时杀掉：结论是「不知道」而不是「未安装」。
+            // 一台进程创建被杀软/DLP 拖慢的机器上（冷启动实测 5~12 s），
+            // 超时只说明探测没跑完；把 installed 翻成 false 会让整页卡片
+            // 显示「未安装」且整个会话不再复查（0.4.x 实际发生过）。保留
+            // 上次的结论，versionKnown=false 让界面隐藏版本徽标，重试/手动
+            // 复查（checkVersion）再补齐。
             cmdLogError(operation, id, error);
-            m_model->setInstalled(id, false);
-            m_model->setVersion(id, QString());
+            m_model->setVersionKnown(id, false);
+            // 瞬时失败安排一次重试：多数超时来自启动瞬间的进程拥堵，
+            // 错开高峰后第二轮通常就能跑完。
+            scheduleVersionRetry(id);
         } else {
             // 先从 stdout 再从 stderr 里提取版本——有些工具把版本
             // 信息打到 stderr。
@@ -523,6 +629,7 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                 // 的 --version 就是非零退出。
                 m_model->setInstalled(id, true);
                 m_model->setVersion(id, version);
+                m_model->setVersionKnown(id, true);
                 Q_EMIT versionResolved(id, version);
                 if (version.isEmpty()) {
                     cmdLog(operation, id,
@@ -535,10 +642,12 @@ void AgentScripts::onScriptFinished(const QString &key, bool ok, int exitCode,
                                .arg(exitSummary(exitCode, startMs), version));
                 }
             } else {
+                // 命令跑完、退出非零且输出里没有版本：权威的「未安装」。
                 cmdLogError(operation, id, exitSummary(exitCode, startMs));
                 logCommandOutput(operation, id, output, true);
                 m_model->setInstalled(id, false);
                 m_model->setVersion(id, QString());
+                m_model->setVersionKnown(id, true);
             }
         }
 

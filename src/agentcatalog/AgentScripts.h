@@ -33,9 +33,15 @@ public:
     void update(const QString &id);
     void runSetup(const QString &id);
 
-    // 跑各 agent 的 versionCommand（先转 spinner，再探测）
+    // 跑各 agent 的 versionCommand（先转 spinner，再探测）。checkVersions
+    // 启动时错峰出发；checkVersion 是显式入口，会重置该 id 的自动重试预算
     void checkVersions();
     void checkVersion(const QString &id);
+
+    // 注入版本探测的时序（超时/重试间隔/错峰间隔，毫秒）——单元测试用
+    // 短值快速走完超时→重试链路；产品代码不调用
+    void setVersionProbeTimingForTesting(int timeoutMs, int retryDelayMs,
+                                         int staggerMs);
 
 Q_SIGNALS:
     /**
@@ -85,6 +91,11 @@ private Q_SLOTS:
     void onScriptChunk(const QString &key, const QString &text);
 
 private:
+    // 真正发起一轮版本探测（checkVersion/checkVersions/重试的共同出口）
+    void launchVersionCheck(const QString &id);
+    // 瞬时失败（超时/没能启动）后按预算安排一次自动重试
+    void scheduleVersionRetry(const QString &id);
+
     AgentModel *m_model;            ///< 状态写回的目标模型
     AgentStateStore *m_stateStore;  ///< setup 完成状态的落盘处
     // 每个 scripts 对象独享一个 runner：操作 key 保持模块私有
@@ -98,6 +109,17 @@ private:
     QHash<QString, QString> m_setupCommands;
     // id -> 版本检查代数，用来让延迟的 spinner 清除失效
     QHash<QString, int> m_versionEpoch;
+    // id -> 已用掉的自动重试次数（显式 checkVersion 重置）
+    QHash<QString, int> m_versionRetries;
+
+    // 单次版本探测的安全超时。默认 20 s：进程创建被杀软/DLP 拖慢的机器
+    // 冷启动实测 5~12 s，10 s 是贴着悬崖的值（同时出发的 5 个检查全体
+    // 超时过）；20 s 留足余量，挂死的命令仍会被杀掉。
+    int m_versionTimeoutMs = 20000;
+    // 瞬时失败后的重试间隔：错开启动拥堵的高峰
+    int m_versionRetryDelayMs = 3000;
+    // 启动时各 agent 版本探测的错峰间隔
+    int m_staggerMs = 1500;
 };
 
 } // namespace awb::agentcatalog
