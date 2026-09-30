@@ -28,9 +28,11 @@ Item {
     property bool launching_p: launching
     property bool installed_p: installed
     property string version_p: version
+    property bool versionKnown_p: versionKnown
     property bool installing_p: installing
     property string installCommand_p: installCommand
     property string setupCommand_p: setupCommand
+    property string versionCommand_p: versionCommand
     property bool setupping_p: setupping
     property bool setupDone_p: setupDone
     property bool checkingVersion_p: checkingVersion
@@ -231,6 +233,13 @@ Item {
                 }
             }
             AMenuItem {
+                // 版本探测超时停在「不知道」时，这是用户侧的出路：手动
+                // 重测一轮（不受设置里启动开关的限制）。
+                text: qsTr("Re-detect version")
+                enabled: root.versionCommand_p.length > 0 && !root.checkingVersion_p
+                onTriggered: agents.checkVersion(root.agentId_p)
+            }
+            AMenuItem {
                 text: qsTr("Show output")
                 // 只在有已捕获的输出可显示时才有意义。
                 enabled: root.consoleOutput_p.length > 0
@@ -254,8 +263,9 @@ Item {
             }
         }
 
-        // 左上角指示区：版本检查中（转圈）、已安装（版本标签）、未安装
-        // （下载图标）或安装中（转圈），与右上角 × 停止按钮的位置对称。
+        // 左上角指示区：版本检查中（转圈）、已安装（版本标签）、确认未安装
+        // （下载图标）、安装中（转圈），或探测没有结论时的空档，与右上角
+        // × 停止按钮的位置对称。
         Item {
             id: versionIndicator
             anchors.top: parent.top
@@ -283,13 +293,13 @@ Item {
                 anchors.centerIn: parent
             }
 
-            // 未安装：下载图标（可点击 → 安装）。版本探测没跑
-            // （launcher.startupVersionCheck 关掉）时隐藏——installed
-            // 只是没探测到，显示「未安装」会是误导。
+            // 确认未安装：下载图标（可点击 → 安装）。必须等探测拿到权威
+            // 结论（versionKnown）才显示——没跑过或超时停在「不知道」时，
+            // installed 的默认值不代表未安装，显示下载图标会是误导；那
+            // 个状态留白，右键菜单可以手动「Re-detect version」。
             Item {
-                visible: !root.installed_p && !root.installing_p
-                         && !root.checkingVersion_p
-                         && agents.versionCheckEnabled
+                visible: !root.installed_p && root.versionKnown_p
+                         && !root.installing_p && !root.checkingVersion_p
                 anchors.fill: parent
 
                 Rectangle {
@@ -330,9 +340,11 @@ Item {
                 }
             }
 
-            // 已安装：版本标签 + 更新按钮。
+            // 已安装：版本标签 + 更新按钮。同样要 versionKnown——探测
+            // 超时后旧版本串还留着，但那已是上一轮的结论，先不亮出来。
             Item {
-                visible: root.installed_p && !root.installing_p && !root.checkingVersion_p
+                visible: root.installed_p && root.versionKnown_p
+                         && !root.installing_p && !root.checkingVersion_p
                 anchors.fill: parent
 
                 Label {

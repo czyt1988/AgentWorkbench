@@ -38,8 +38,9 @@ class AgentsFacade : public QObject
 
     Q_PROPERTY(QAbstractItemModel *model READ model CONSTANT)
     // 本会话的 start() 是否跑（将跑）版本探测：launcher.startupVersionCheck
-    // 的会话快照。卡片据此决定要不要显示「未安装」图标——没探测过就
-    // 显示它会是误导
+    // 的会话快照。卡片不再直接消费它——模型 role versionKnown 已经把
+    // 「没探测」「探测超时」「探测有结论」表达得更精确；属性保留是门面
+    // API 面的兼容（测试也读它）
     Q_PROPERTY(bool versionCheckEnabled READ versionCheckEnabled NOTIFY
                    versionCheckEnabledChanged)
     // launcher.startupVersionCheck 的当前持久化值（设置页开关的回显；
@@ -69,6 +70,9 @@ public:
     // 一次性命令的转发（行为与失败上报见 AgentScripts）
     Q_INVOKABLE void install(const QString &id);
     Q_INVOKABLE void updateTool(const QString &id);
+    // 重新探测该 agent 的版本（卡片右键菜单）。不受启动开关限制——手动
+    // 触发的检查就是给「超时后停在不知道」的卡片准备的出路
+    Q_INVOKABLE void checkVersion(const QString &id);
     // 重置一次性 setup：从 agent_state.json 清掉记录，下次启动前重跑
     Q_INVOKABLE void resetSetup(const QString &id);
 

@@ -339,6 +339,21 @@ bool AgentsFacade::hasLaunchedAgents() const
 }
 
 /**
+ * @brief 重新探测该 agent 的版本（卡片右键菜单的入口）
+ *
+ * 直接转发 AgentScripts::checkVersion：显式触发会重置自动重试预算。不
+ * 受 launcher.startupVersionCheck 的会话快照限制——那个开关管的是「启动
+ * 时要不要自动探测」，用户在卡片上手动点的检查总是执行；未配置
+ * versionCommand 的 agent 静默返回，与 AgentScripts 的前置检查一致。
+ *
+ * @param id agent id
+ */
+void AgentsFacade::checkVersion(const QString &id)
+{
+    m_scripts->checkVersion(id);
+}
+
+/**
  * @brief 结束本次会话启动的全部进程（转发 AgentRuntime::stopAll）
  *
  * @return 成功杀掉的进程树数量

@@ -74,90 +74,95 @@
 <context>
     <name>AgentCard</name>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="205"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="649"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="207"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="661"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="205"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="573"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="207"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="585"/>
         <source>Start</source>
         <translation>开启</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="214"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="671"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="674"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="216"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="683"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="686"/>
         <source>Force Stop</source>
         <translation>强制停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="219"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="596"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="221"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="608"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="224"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="376"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="226"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="388"/>
         <source>Update</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="224"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="317"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="226"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="327"/>
         <source>Install</source>
         <translation>安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="234"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="238"/>
+        <source>Re-detect version</source>
+        <translation>重新检测版本</translation>
+    </message>
+    <message>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="243"/>
         <source>Show output</source>
         <translation>显示输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="243"/>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="603"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="252"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="615"/>
         <source>Configure</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="247"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="256"/>
         <source>Open config folder</source>
         <translation>打开配置文件夹</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="251"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="260"/>
         <source>Re-initialize</source>
         <translation>重新初始化</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="323"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="333"/>
         <source>Please close before installing</source>
         <translation>请先关闭后再安装</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="382"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="394"/>
         <source>Please close before updating</source>
         <translation>请先关闭后再更新</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="440"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="452"/>
         <source>Setting up...</source>
         <translation>正在设置…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="441"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="453"/>
         <source>Installing...</source>
         <translation>正在安装…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="442"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="454"/>
         <source>Starting...</source>
         <translation>正在启动…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="443"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="455"/>
         <source>Stopping...</source>
         <translation>正在停止…</translation>
     </message>
@@ -166,17 +171,17 @@
         <translation type="vanished">更多打开方式</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="672"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="684"/>
         <source>Force stop %1? This will terminate the process serving %2.</source>
         <translation>强制停止 %1？这将终止服务 %2 的进程。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="675"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="687"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="340"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="352"/>
         <source>Installed</source>
         <translation>已安装</translation>
     </message>
@@ -197,22 +202,22 @@
         <translation type="vanished">正在停止…</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="444"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="456"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="444"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="456"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="540"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="552"/>
         <source>Hide output</source>
         <translation>隐藏输出</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="573"/>
+        <location filename="../src/agentcatalog/qml/AgentCard.qml" line="585"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
@@ -947,58 +952,58 @@ Command: %2
 <context>
     <name>AgentScripts</name>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="208"/>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="252"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="217"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="261"/>
         <source>Please close %1 before installing/updating.</source>
         <translation>请先关闭 %1 后再进行安装/更新。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="216"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="225"/>
         <source>No install command configured for %1.</source>
         <translation>%1 未配置安装命令。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="260"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="269"/>
         <source>No update command configured for %1.</source>
         <translation>%1 未配置更新命令。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="435"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="534"/>
         <source>Failed to start install command.</source>
         <translation>启动安装命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="436"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="535"/>
         <source>Failed to start update command.</source>
         <translation>启动更新命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="446"/>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="492"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="545"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="591"/>
         <source>(no output)</source>
         <translation>（无输出）</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="450"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="549"/>
         <source>Install failed (exit code %1):
 %2</source>
         <translation>安装失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="452"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="551"/>
         <source>Update failed (exit code %1):
 %2</source>
         <translation>更新失败（退出码 %1）：
 %2</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="469"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="568"/>
         <source>Failed to start setup command.</source>
         <translation>启动设置命令失败。</translation>
     </message>
     <message>
-        <location filename="../src/agentcatalog/AgentScripts.cpp" line="495"/>
+        <location filename="../src/agentcatalog/AgentScripts.cpp" line="594"/>
         <source>Setup command failed (exit code %1).
 
 Command: %2
@@ -2119,7 +2124,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="137"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="462"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="484"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
@@ -2129,37 +2134,37 @@ Command: %2
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="194"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="214"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="264"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="286"/>
         <source>Files</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="387"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="409"/>
         <source>Copy relative path</source>
         <translation>复制相对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="392"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="414"/>
         <source>Copy absolute path</source>
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="447"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="469"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="460"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="482"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="461"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="483"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>
@@ -2715,7 +2720,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="288"/>
+        <location filename="../app/main.cpp" line="290"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.
