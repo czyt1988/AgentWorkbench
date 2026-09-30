@@ -21,6 +21,40 @@ Item {
     // 折叠态：由 MainWindow 与 ShellController 保持同步。
     property bool collapsed: false
 
+    // --- 指针聚光的光源状态 ------------------------------------------------
+    // hover 在本仓库是独占投递：导航行的 MouseArea、页脚图标按钮与拖拽手柄
+    // 都吞掉祖先的 hover，所以根部 HoverHandler 只覆盖它们之外的空白区（它
+    // 是被动的，不吃任何事件，滚动与点击照旧）。判据与坐标都是两条来源合
+    // 并：「指针在本栏内」= 根部 Handler 命中 或 有子项正持有（计数而非布尔
+    // ——行与行之间 entered/exited 的先后顺序不保证，布尔会被后到的 exited
+    // 抹掉）；坐标在空白区取 Handler 的点，否则取子项回报的位置。
+    HoverHandler {
+        id: rootHover
+    }
+    property real reportedX: width / 2
+    property real reportedY: height / 2
+    property int hoverHolds: 0
+    readonly property bool pointerInside: rootHover.hovered || hoverHolds > 0
+    readonly property real lightX: rootHover.hovered
+                                   ? rootHover.point.position.x : reportedX
+    readonly property real lightY: rootHover.hovered
+                                   ? rootHover.point.position.y : reportedY
+
+    // 吞 hover 的子项回报自己的局部坐标，映射到侧栏坐标系当光源。
+    function setPointerFrom(item, lx, ly) {
+        const p = item.mapToItem(sidebar, lx, ly)
+        sidebar.reportedX = p.x
+        sidebar.reportedY = p.y
+    }
+    function hoverHold() {
+        sidebar.hoverHolds += 1
+    }
+    function hoverRelease() {
+        // 钳一道：delegate 在悬停中被销毁时 release 已经在 onDestruction 里
+        // 补过，这里只兜住任何漏网的重复释放，不让判据永久点亮。
+        sidebar.hoverHolds = Math.max(0, sidebar.hoverHolds - 1)
+    }
+
     // 拖拽手柄的进行时状态：resizing 期间宽度用 pendingWidth（本地值，
     // 不落盘），抬起时经 shell.setSidebarWidth 一次性提交并持久化。
     property bool resizing: false
@@ -74,6 +108,28 @@ Item {
                 }
             }
         }
+
+        // 悬停聚光：光斑跟随指针 + 沿面板边缘的描边流光（契约见 ASpotlight
+        // 头注释），叠在玻璃底与反光纱之上、内容之下——同 AgentCard 的层次。
+        // 半径必须覆写：默认按 max(w,h) 缩放是给近似方形的卡片定的，侧栏是
+        // 通高面板，按高度取半径会让整栏一起泛白、看不出跟随。
+        // 深浅主题分开处理（实测截图定稿）：深色下 accent 光晕在暗底上就是
+        // 「光」，压到 0.9 保持淡淡；浅色底本就接近白，accent 大面积落上去是
+        // 发紫的污渍而不是光影，所以光斑改用反光纱同源的近白 textOnAccent，
+        // 把 accent 只留给 2px 的描边流光——浅底上那是一条干净的边缘亮线。
+        ASpotlight {
+            anchors.fill: parent
+            radius: 0
+            accentColor: theme.variant === "dark" ? theme.accent
+                                                  : theme.textOnAccent
+            ringColor: theme.accent
+            active: sidebar.pointerInside
+            spotX: sidebar.lightX
+            spotY: sidebar.lightY
+            spotRadius: sidebar.width * 1.5
+            ringRadius: sidebar.width * 1.15
+            opacity: theme.variant === "dark" ? 0.9 : 1.0
+        }
     }
 
     // 右缘分界线：玻璃底半透明后，侧栏与工作区的纯色差变弱，显式画一条
@@ -113,8 +169,14 @@ Item {
         Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
         visible: model.enabled && model.section !== "system"
         // 行是 delegate（页面插件会来去）——悬停中的行被销毁时不能让
-        // 共享 tooltip 冻在屏幕上。
-        Component.onDestruction: ToolTip.hide()
+        // 共享 tooltip 冻在屏幕上；聚光的 hold 也要补释放，否则计数
+        // 永久不归零、光斑一直亮着。
+        Component.onDestruction: {
+            ToolTip.hide()
+            if (rowMouse.containsMouse) {
+                sidebar.hoverRelease()
+            }
+        }
 
         Rectangle {
             visible: row.needsDivider
@@ -209,6 +271,14 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: nav.setCurrentPageId(model.pageId)
+
+            // 向侧栏的聚光判据回报（行吞掉 hover，合并规则见文件顶部的
+            // 光源状态注释）。
+            onEntered: sidebar.hoverHold()
+            onExited: sidebar.hoverRelease()
+            onPositionChanged: function(mouse) {
+                sidebar.setPointerFrom(rowMouse, mouse.x, mouse.y)
+            }
         }
 
         // 折叠态：tooltip 显示页面标题（文字被收起时补足说明）。
@@ -239,7 +309,27 @@ Item {
             contentHeight: rowsColumn.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: AScrollBar {}
+            ScrollBar.vertical: AScrollBar {
+                id: navScrollBar
+
+                // 滚动条吞 hover，但指针坐标在它身上取不到（再挂一个
+                // HoverHandler 会抢掉 control.hovered、把手的增亮态就没了），
+                // 退一步用把手中心当光源——指针到了这里光斑跟着过去。
+                onHoveredChanged: {
+                    if (hovered) {
+                        sidebar.hoverHold()
+                        const cy = (position + positionOffset / 2) * height
+                        sidebar.setPointerFrom(navScrollBar, width / 2, cy)
+                    } else {
+                        sidebar.hoverRelease()
+                    }
+                }
+                Component.onDestruction: {
+                    if (hovered) {
+                        sidebar.hoverRelease()
+                    }
+                }
+            }
 
             ColumnLayout {
                 id: rowsColumn
@@ -286,6 +376,8 @@ Item {
             Repeater {
                 model: nav
                 AIconButton {
+                    id: systemButton
+
                     // 在 system 页里的堆叠序号（模型按 section 排序，
                     // system 在最后）。
                     readonly property int systemIndex:
@@ -297,8 +389,25 @@ Item {
                     active: nav.currentPageId === model.pageId
                     onClicked: nav.setCurrentPageId(model.pageId)
                     // delegate 随模型生灭（页面会来去）——悬停中的按钮被
-                    // 销毁时不能让共享 tooltip 冻在屏幕上。
-                    Component.onDestruction: ToolTip.hide()
+                    // 销毁时不能让共享 tooltip 冻在屏幕上；聚光的 hold 同样
+                    // 要补释放。
+                    Component.onDestruction: {
+                        ToolTip.hide()
+                        if (hovered) {
+                            sidebar.hoverRelease()
+                        }
+                    }
+
+                    // Control 吞 hover：悬停时把聚光光源定到按钮中心。
+                    onHoveredChanged: {
+                        if (hovered) {
+                            sidebar.hoverHold()
+                            sidebar.setPointerFrom(systemButton,
+                                                   width / 2, height / 2)
+                        } else {
+                            sidebar.hoverRelease()
+                        }
+                    }
 
                     x: sidebar.collapsed
                        ? (footer.width - width) / 2
@@ -312,11 +421,23 @@ Item {
             }
 
             AIconButton {
+                id: collapseButton
+
                 iconSource: sidebar.collapsed ? "qrc:/icons/chevron-right.svg"
                                               : "qrc:/icons/chevron-left.svg"
                 tooltip: sidebar.collapsed ? qsTr("Expand sidebar")
                                            : qsTr("Collapse sidebar")
                 onClicked: shell.sidebarCollapsed = !shell.sidebarCollapsed
+
+                onHoveredChanged: {
+                    if (hovered) {
+                        sidebar.hoverHold()
+                        sidebar.setPointerFrom(collapseButton,
+                                               width / 2, height / 2)
+                    } else {
+                        sidebar.hoverRelease()
+                    }
+                }
 
                 x: sidebar.collapsed
                    ? (footer.width - width) / 2
@@ -362,6 +483,10 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.SplitHCursor
 
+            // 手柄吞 hover：手柄悬停时光斑跟着指针在分界线上走。
+            onEntered: sidebar.hoverHold()
+            onExited: sidebar.hoverRelease()
+
             // 按下瞬间的侧栏宽度与指针 x。指针位置映射到 sidebar.parent
             // （MainWindow 的 RowLayout）再取差值：父布局的几何不随侧栏
             // 宽度变化，映射结果在拖拽全程稳定——直接用 mouse.x 的话，
@@ -376,6 +501,9 @@ Item {
                 sidebar.resizing = true
             }
             onPositionChanged: function(mouse) {
+                // 指针在手柄上时也要把光源带到分界线上（拖拽中照旧汇报，
+                // 光斑跟着走正是想要的流光）。
+                sidebar.setPointerFrom(handleArea, mouse.x, mouse.y)
                 if (!sidebar.resizing) {
                     return
                 }

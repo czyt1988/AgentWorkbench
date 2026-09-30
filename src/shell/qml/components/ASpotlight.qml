@@ -5,11 +5,12 @@ import AgentWorkbench.App
 // (spotX, spotY) 为圆心的径向光斑被圆角卡片路径裁剪，同一圆心的径向渐变
 // 再沿卡片边缘描出一圈流光，两者随 active 一起淡入淡出。
 //
-// 契约：宿主提供悬停判据（active）与指针坐标（spotX/spotY，宿主坐标系）。
-// 本组件纯展示、不接收任何输入事件、也不自带 hover 探测——本仓库的 hover
-// 是独占投递，卡内 hoverEnabled 的 MouseArea 与 Control 会吞掉根部的
-// HoverHandler，判据必须由宿主统一合并（写法见 SkillCard），组件内探测
-// 只会得到闪断的假信号。
+// 契约：宿主（卡片或侧栏这类玻璃面板）提供悬停判据（active）与指针坐标
+// （spotX/spotY，宿主坐标系）。本组件纯展示、不接收任何输入事件、也不自
+// 带 hover 探测——本仓库的 hover 是独占投递，卡内 hoverEnabled 的
+// MouseArea 与 Control 会吞掉根部的 HoverHandler，判据必须由宿主统一合并
+// （卡片写法见 SkillCard，面板写法见 Sidebar 的光源状态），组件内探测只会
+// 得到闪断的假信号。
 //
 // 实现选 Canvas 2D 径向渐变：Qt 5.15 与 Qt 6 内建且 API 同形，避免引入
 // QtGraphicalEffects / Qt5Compat 这类两版异名的模块。淡入淡出走 opacity
@@ -21,6 +22,9 @@ Item {
     property real radius: theme.radiusCard
     // 光的颜色：通常注入 agent 的语义色
     property color accentColor: theme.accent
+    // 描边流光的颜色：默认跟光斑同源。宿主想让两者分开时才覆写——例如浅
+    // 色主题下光斑用近白（accent 落在浅底上会成污渍），描边仍用 accent。
+    property color ringColor: accentColor
     // 点亮状态：由宿主绑定到合并后的悬停判据
     property bool active: false
     // 指针位置（宿主坐标系）。悬停丢失期间保持上一次的值，因此指针移到
@@ -34,10 +38,16 @@ Item {
         NumberAnimation { duration: theme.durationNormal }
     }
 
-    // 光斑/流光的渐变半径随卡片尺寸缩放（参照实现：232px 宽的卡配 300px
-    // 光斑与 260px 描边渐变）
-    readonly property real spotRadius: Math.max(width, height) * 1.3
-    readonly property real ringRadius: Math.max(width, height) * 1.12
+    // 光斑/流光的渐变半径：非负值时直接用作半径（覆写），负值（默认）随
+    // 卡片尺寸自动缩放（参照实现：232px 宽的卡配 300px 光斑与 260px 描边
+    // 渐变）。侧栏这类高宽比悬殊的面板必须覆写——自动半径取 max(w,h)，
+    // 光会淡出指针两侧整个侧栏宽度，看不出跟随。
+    property real spotRadius: -1
+    property real ringRadius: -1
+    readonly property real spotRadiusEff: spotRadius >= 0 ? spotRadius
+                                                          : Math.max(width, height) * 1.3
+    readonly property real ringRadiusEff: ringRadius >= 0 ? ringRadius
+                                                          : Math.max(width, height) * 1.12
 
     visible: intensity > 0.01
 
@@ -47,7 +57,10 @@ Item {
     onWidthChanged: canvas.requestPaint()
     onHeightChanged: canvas.requestPaint()
     onAccentColorChanged: canvas.requestPaint()
+    onRingColorChanged: canvas.requestPaint()
     onRadiusChanged: canvas.requestPaint()
+    onSpotRadiusChanged: canvas.requestPaint()
+    onRingRadiusChanged: canvas.requestPaint()
 
     Canvas {
         id: canvas
@@ -81,7 +94,7 @@ Item {
             // 颜色值并保留 alpha 通道
             roundedRect(ctx, 0, root.radius);
             var spot = ctx.createRadialGradient(root.spotX, root.spotY, 0,
-                                                root.spotX, root.spotY, root.spotRadius);
+                                                root.spotX, root.spotY, root.spotRadiusEff);
             spot.addColorStop(0, theme.alpha(root.accentColor, 0.22));
             spot.addColorStop(0.65, theme.alpha(root.accentColor, 0));
             ctx.fillStyle = spot;
@@ -91,9 +104,9 @@ Item {
             // 边框环）；这里直接沿内缩 1px 的圆角路径描 2px，等价于取环
             roundedRect(ctx, 1, root.radius);
             var ring = ctx.createRadialGradient(root.spotX, root.spotY, 0,
-                                                root.spotX, root.spotY, root.ringRadius);
-            ring.addColorStop(0, theme.alpha(root.accentColor, 0.75));
-            ring.addColorStop(0.62, theme.alpha(root.accentColor, 0));
+                                                root.spotX, root.spotY, root.ringRadiusEff);
+            ring.addColorStop(0, theme.alpha(root.ringColor, 0.75));
+            ring.addColorStop(0.62, theme.alpha(root.ringColor, 0));
             ctx.strokeStyle = ring;
             ctx.lineWidth = 2;
             ctx.stroke();
