@@ -1019,32 +1019,37 @@ Command: %2
 <context>
     <name>BuiltinPages</name>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="59"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="74"/>
         <source>Agent Launcher</source>
         <translation>Agent 启动器</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="69"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="84"/>
         <source>Agent Web UI</source>
         <translation>Agent Web UI</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="82"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="97"/>
         <source>Skills</source>
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="94"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="112"/>
         <source>Agent Tools</source>
         <translation>Agent 工具</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="104"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="121"/>
+        <source>Agent Tools - Prompt</source>
+        <translation>Agent 工具 · 提示词</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="132"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="178"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="207"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
@@ -1693,12 +1698,12 @@ Command: %2
 <context>
     <name>Sidebar</name>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="317"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="466"/>
         <source>Expand sidebar</source>
         <translation>展开侧边栏</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/Sidebar.qml" line="318"/>
+        <location filename="../src/shell/qml/Sidebar.qml" line="467"/>
         <source>Collapse sidebar</source>
         <translation>折叠侧边栏</translation>
     </message>
@@ -2093,9 +2098,8 @@ Command: %2
         <translation>选择工作区文件夹</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="51"/>
         <source>Agent Tools</source>
-        <translation>Agent 工具</translation>
+        <translation type="vanished">Agent 工具</translation>
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="52"/>
@@ -2111,6 +2115,11 @@ Command: %2
         <location filename="../src/tools/qml/ToolsPage.qml" line="64"/>
         <source>Workspace</source>
         <translation>工作区</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="51"/>
+        <source>Agent Tools - Prompt</source>
+        <translation>Agent 工具 · 提示词</translation>
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="122"/>

@@ -48,7 +48,7 @@ Item {
         spacing: 0
 
         PageHeader {
-            title: qsTr("Agent Tools")
+            title: qsTr("Agent Tools - Prompt")
             subtitle: qsTr("Compose prompts without accidentally sending them")
         }
 

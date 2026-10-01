@@ -1,5 +1,7 @@
 #include "workbench/BuiltinPages.h"
 
+#include <QCoreApplication>
+
 #include "agentcatalog/AgentModel.h"
 #include "agentcatalog/AgentsFacade.h"
 #include "shell/NavigationModel.h"
@@ -10,6 +12,18 @@
 #include "web/WebTabsFacade.h"
 
 namespace awb::workbench {
+
+// 本类的可翻译字符串一律显式给翻译上下文，不用 tr()。
+//
+// 原因：Qt 6 的 moc 把命名空间整个写进 meta-object，本类 tr() 的运行时上下文
+// 因此是 "awb::workbench::BuiltinPages"；而 lupdate 往 .ts 里写的上下文是裸
+// 类名 "BuiltinPages"。两边对不上，本类所有 tr() 字符串在运行时都查不到译文
+// ——侧栏标题一直显示英文就是这么来的。Q_OBJECT 已经声明了 tr()，
+// Q_DECLARE_TR_FUNCTIONS 无法与它共存，所以只能显式调 translate()。
+// 写成字面量而不是宏/常量，是为了让 lupdate 仍然抽得到这些串。
+//
+// 其余带命名空间的类（UiServices、Theme、WorkbenchContext 等）有同一缺陷，
+// 尚未处理。
 
 /**
  * @brief 构造并完成全部注册与布线
@@ -46,9 +60,10 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
 }
 
 /**
- * @brief 注册五个内置页面
+ * @brief 注册五个内置页面与侧栏的分组标签
  *
- * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径。
+ * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径；分组标签
+ * （NavKind::Header）同样经它注册——它在侧栏占一行，但不是一页。
  */
 void BuiltinPages::registerPages()
 {
@@ -56,7 +71,7 @@ void BuiltinPages::registerPages()
     // `skills` pages join in S5/S6 through this same registration path.
     shell::PageDescriptor launcher;
     launcher.id = QStringLiteral("agents");
-    launcher.title = tr("Agent Launcher");
+    launcher.title = QCoreApplication::translate("BuiltinPages", "Agent Launcher");
     launcher.iconSource = QStringLiteral("qrc:/icons/terminal.svg");
     launcher.source =
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml");
@@ -66,7 +81,7 @@ void BuiltinPages::registerPages()
 
     shell::PageDescriptor webPage;
     webPage.id = QStringLiteral("web");
-    webPage.title = tr("Agent Web UI");
+    webPage.title = QCoreApplication::translate("BuiltinPages", "Agent Web UI");
     webPage.iconSource = QStringLiteral("qrc:/icons/web.svg");
     webPage.source =
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml");
@@ -79,7 +94,7 @@ void BuiltinPages::registerPages()
 
     shell::PageDescriptor skillsPage;
     skillsPage.id = QStringLiteral("skills");
-    skillsPage.title = tr("Skills");
+    skillsPage.title = QCoreApplication::translate("BuiltinPages", "Skills");
     skillsPage.iconSource = QStringLiteral("qrc:/icons/skills.svg");
     skillsPage.source =
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml");
@@ -87,21 +102,34 @@ void BuiltinPages::registerPages()
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
 
-    // Agent Tools joins after Skills: the prompt workbench is part of the
-    // daily workflow, not a system page.
+    // Agent Tools is a sidebar group rather than a single destination: the
+    // prompt workbench is its first member and more tools will join under it.
+    // The label is a NavKind::Header row - not clickable, not selectable,
+    // and absent from the Ctrl+1..9 sequence. Its order stays adjacent to the
+    // pages it heads, because adjacency is decided by order alone.
+    shell::PageDescriptor toolsGroup;
+    toolsGroup.id = QStringLiteral("tools-group");
+    toolsGroup.title = QCoreApplication::translate("BuiltinPages", "Agent Tools");
+    toolsGroup.section = QStringLiteral("main");
+    toolsGroup.order = 40;
+    toolsGroup.kind = shell::NavKind::Header;
+    m_nav->registerPage(toolsGroup);
+
     shell::PageDescriptor toolsPage;
     toolsPage.id = QStringLiteral("tools");
-    toolsPage.title = tr("Agent Tools");
+    toolsPage.title =
+        QCoreApplication::translate("BuiltinPages", "Agent Tools - Prompt");
     toolsPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
     toolsPage.source = QStringLiteral(
             "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml");
     toolsPage.section = QStringLiteral("main");
-    toolsPage.order = 40;
+    toolsPage.order = 41;
+    toolsPage.level = 1;
     m_nav->registerPage(toolsPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");
-    settings.title = tr("Settings");
+    settings.title = QCoreApplication::translate("BuiltinPages", "Settings");
     settings.iconSource = QStringLiteral("qrc:/icons/gear.svg");
     settings.source =
         QStringLiteral("qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml");
@@ -175,7 +203,9 @@ void BuiltinPages::wireWebRules()
     connect(m_web, &web::WebTabsFacade::externalOpened, this,
             [this](const QString &url) {
                 m_notifications->notify(
-                    QStringLiteral("info"), tr("Opening in the browser"),
+                    QStringLiteral("info"),
+                    QCoreApplication::translate("BuiltinPages",
+                                                "Opening in the browser"),
                     url);
             });
 
