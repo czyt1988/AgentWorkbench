@@ -37,7 +37,7 @@ Skills 页把本机上已经存在的 `SKILL.md` 编目出来：扫描一组可�
 | `src/skillcatalog/SkillsFacade.h` | `SkillsFacade` | QML 门面：模型、根属性、统计、扫描信号、复制/打开 invokable | `SkillGridPage.qml`、`SkillCard.qml`、`SkillDetailFlyout.qml`、`SettingsSkillsPage.qml`、`MainWindow.qml` 的 `skills` 别名 |
 | `src/skillcatalog/SkillsFacade.cpp` | `SkillsFacade` | 装配、`start()`、根的增删启停、剪贴板与文件管理器动作 | `core::Settings`、`core::OpResult`、`SkillScanner` |
 | `src/skillcatalog/qml/SkillGridPage.qml` | `SkillGridPage` | 主页：带 Rescan 的头部、搜索框、kind 分面、排序框、骨架屏、两个空状态、`GridView`、统计尾行 | `skills.*`、`SkillCard`、`PageHeader`、`ASearchField`、`AComboBox`、`AEmptyState`、`AWorkspaceGlow` |
-| `src/skillcatalog/qml/SkillCard.qml` | `SkillCard` | 玻璃卡 delegate：悬停升举、400 ms 延迟开 `SkillDetailFlyout`、右键菜单、复制/打开动作 | `skills.*`、`SkillDetailFlyout`、`AMenu`、`AIconButton`、`APill`、`ASpotlight` |
+| `src/skillcatalog/qml/SkillCard.qml` | `SkillCard` | 玻璃卡 delegate：原地提亮的悬停态、400 ms 延迟开 `SkillDetailFlyout`、右键菜单、复制/打开动作 | `skills.*`、`SkillDetailFlyout`、`AMenu`、`AIconButton`、`APill`、`ASpotlight` |
 | `src/skillcatalog/qml/SkillDetailFlyout.qml` | `SkillDetailFlyout` | 非模态悬停浮层：元数据表与 `extras` 展开、边缘翻转、延迟关闭 | `skills.skill()`、`APill` |
 | `src/skillcatalog/CMakeLists.txt` | 构建目标 `awb_skillcatalog` | 静态库，链接 `awb_core`/`awb_theme`/`Qt::Gui`/`Qt::Concurrent` | — |
 
@@ -70,8 +70,8 @@ workbench 门面（`workbench.showPage()`、`workbench.notify()`）。
 - **`GridView`。** 列数走整数除法
   （`Math.max(1, Math.floor((width + theme.spacingL) / (page.cardMinWidth + theme.spacingL)))`），
   `cellWidth` 取整保证 `columns * cellWidth <= width`；`cellHeight` 是卡高加一列间距。
-  `cacheBuffer: 360`、`reuseItems: true`、一个 `spacingXs` 高的 `header` 项（给悬停
-  升举留余量）以及 `AScrollBar.vertical`。delegate 是 `SkillCard`，数据来自模型 role。
+  `cacheBuffer: 360`、`reuseItems: true` 以及 `AScrollBar.vertical`。delegate 是
+  `SkillCard`，数据来自模型 role。
 - **统计尾行。** 一个 `Label` 绑 `skills.statsText`，`skills.partialFailure` 为真时
   染 `theme.warning`。
 
@@ -79,8 +79,8 @@ workbench 门面（`workbench.showPage()`、`workbench.notify()`）。
 
 每张卡是复刻 `AgentCard` 配方的玻璃卡：半透明 `surfaceBg`（0.62，悬停提亮到
 0.78）、accent 极淡纱层、悬停加深纱层、1 px 内缘高光（仅深色主题）以及
-`ASpotlight` 指针聚光。悬停升举用 `Translate` 变换加 `z`，绝不改卡的 `x`/`y`
-（那是网格写的）。
+`ASpotlight` 指针聚光。悬停时卡片只抬 `z`（让越出卡缘的聚光压过邻居），位置不动：
+没有 `Translate` 变换，也绝不改卡的 `x`/`y`（那是网格写的）。
 
 - **悬停判据。** `hovered: hoverHandler.hovered`。Qt 的 hover 是独占投递，卡内因此
   不放带 hoverEnabled 的 `Control`（路径 tooltip 用被动的 `HoverHandler`）；任何

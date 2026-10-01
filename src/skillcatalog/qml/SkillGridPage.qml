@@ -219,10 +219,6 @@ Item {
             // （过滤/重扫）时仍整批销毁重建。
             reuseItems: true
 
-            // 首行卡片悬停升举（SkillCard 的 -spacingXs 平移）需要一格
-            // 顶部余量，否则 contentY=0 时被视口裁掉上缘。
-            header: Item { height: theme.spacingXs }
-
             model: skills.model
             delegate: SkillCard {
                 width: grid.cellWidth - theme.spacingL
