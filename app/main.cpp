@@ -14,6 +14,9 @@
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
 #include "tools/MarkdownEdit.h"
+// Vendored 单实例守卫（third_party/SingleApplication，v3.5.6）：
+// QAPPLICATION_CLASS 配成 QApplication，与托盘一致。
+#include "SingleApplication.h"
 #include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
@@ -38,7 +41,6 @@
 #include <QFile>
 #include <QFont>
 #include <QGuiApplication>
-#include <QApplication>
 #include <QIcon>
 #include <QLocale>
 #include <QQmlApplicationEngine>
@@ -111,12 +113,23 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-    // QApplication（而非 QGuiApplication）：托盘菜单 QMenu 与 vendored
-    // SingleApplication 都需要 Widgets；QSystemTrayIcon 本身在 Gui 里，
-    // 但菜单走 Widgets。
-    QApplication app(argc, argv);
-    app.setApplicationVersion(QStringLiteral("0.4.0"));
+    // SingleApplication（QApplication 基类：托盘菜单 QMenu 与它都需要
+    // Widgets）。构造前先设 applicationVersion——它参与实例块的 key，
+    // 不同版本互不算同一实例。launcher.singleInstance 关掉时
+    // allowSecondary 放行，老行为（多开）原样保留。
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.4.0"));
+    const bool singleInstance = settings.launcherOptions().singleInstance;
+    SingleApplication app(argc, argv, !singleInstance,
+                          SingleApplication::Mode::User);
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
+
+    // 第二实例：唤醒首实例的窗口后立刻退出。日志队列先排空，否则尾部
+    // 消息会随进程消失。
+    if (app.isSecondary()) {
+        app.sendMessage(QStringLiteral("raise").toUtf8());
+        awb::core::Logging::uninstall();
+        return 0;
+    }
     // 扁平的兜底样式：Qt 6 把 "Default" 改名成了 "Basic"。
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QQuickStyle::setStyle(QStringLiteral("Basic"));
@@ -325,6 +338,12 @@ int main(int argc, char *argv[])
                          app.setQuitOnLastWindowClosed(!tray.available());
                      });
     app.setQuitOnLastWindowClosed(!tray.available());
+
+    // 单实例的另一半：第二实例 sendMessage 后从这里把窗口唤回前台——
+    // 窗口正收在托盘里时也一并解除隐藏。
+    QObject::connect(
+        &app, &SingleApplication::receivedMessage, &tray,
+        [&tray](quint32, const QByteArray &) { tray.showWindow(); });
 
     const int exitCode = app.exec();
     // 同上：不先 uninstall，队列里没写盘的尾部日志会随进程消失。

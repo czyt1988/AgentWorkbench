@@ -78,6 +78,7 @@ target_include_directories(AgentWorkbench
     PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(AgentWorkbench PRIVATE
+    SingleApplication::SingleApplication
     awb_agentcatalog
     awb_core
     awb_shell
