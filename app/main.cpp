@@ -115,17 +115,24 @@ int main(int argc, char *argv[])
 
     // SingleApplication（QApplication 基类：托盘菜单 QMenu 与它都需要
     // Widgets）。构造前先设 applicationVersion——它参与实例块的 key，
-    // 不同版本互不算同一实例。launcher.singleInstance 关掉时
-    // allowSecondary 放行，老行为（多开）原样保留。
+    // 不同版本互不算同一实例。allowSecondary 恒为 true 且带
+    // SecondaryNotification：库在 allowSecondary=false 时的「第二实例」路径
+    // 是在构造函数里直接 ::exit(EXIT_SUCCESS)，既轮不到这里的代码做任何
+    // 事（sendMessage 根本没机会发，isSecondary 分支是死代码），也绕过了
+    // Logging::uninstall 的落盘。放行第二实例、在这里自己决定去留，两条
+    // 路径才都干净。launcher.singleInstance 关掉时不做这个早退，老行为
+    // （多开）原样保留。
     QGuiApplication::setApplicationVersion(QStringLiteral("0.4.0"));
     const bool singleInstance = settings.launcherOptions().singleInstance;
-    SingleApplication app(argc, argv, !singleInstance,
-                          SingleApplication::Mode::User);
+    SingleApplication app(argc, argv, true,
+                          SingleApplication::Mode::User
+                              | SingleApplication::Mode::SecondaryNotification);
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
 
     // 第二实例：唤醒首实例的窗口后立刻退出。日志队列先排空，否则尾部
-    // 消息会随进程消失。
-    if (app.isSecondary()) {
+    // 消息会随进程消失。SecondaryNotification 保证构造期已连上首实例，
+    // sendMessage 是同步确认写，返回 false 只意味着首实例没能收到。
+    if (singleInstance && app.isSecondary()) {
         app.sendMessage(QStringLiteral("raise").toUtf8());
         awb::core::Logging::uninstall();
         return 0;
