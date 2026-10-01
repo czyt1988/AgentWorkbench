@@ -177,6 +177,7 @@ private:
 ### 4.6 用户可见字符串与日志
 
 - 用户可见字符串用 `tr()` 包裹，源串必须是英文（`check_architecture` 规则 3）；翻译放 `translations/`，用 `%1` 占位符配 `.arg()`。
+- **唯一的例外是位于命名空间里的类**：Qt 6 的 `moc` 把完整限定名（如 `awb::workbench::BuiltinPages`）写进 meta-object，而 `lupdate` 往 `.ts` 里记的上下文是裸类名，两边对不上，这类里的 `tr()` 会静默查不到译文。确实需要翻译时，改用显式上下文的 `QCoreApplication::translate("BuiltinPages", …)`，且源串一律写成字面量，`lupdate` 才抽得到。机理与仍受影响的类清单见[国际化](../development/国际化.md)。
 - 内部字面量用 `QStringLiteral`，不要用 `tr()` 包不该翻译的内容（命令行、JSON 键、URL 片段）。
 - 日志用 `qInfo()` / `qWarning()`，英文，带 `[app]` / `[cmd]` 前缀与操作名、对象 id（见 `AgentsFacade.cpp` 的 `logPrefix`）。提交前不要留下 `qDebug()`。
 - 应用级事件日志用 `core/Logging.h` 的 `AWB_DEBUG` / `AWB_INFO` / `AWB_WARNING` / `AWB_CRITICAL` 宏：级别取宏名，分类固定 `awb.event`（写进行前缀，将来的 UI 日志视图按它过滤）；模块内部的一般日志维持 `qInfo()` / `qWarning()` 加 `[module]` 前缀。写盘是异步的（后台线程消费队列），不要假设一行日志在 `qInfo()` 返回时已经落盘。

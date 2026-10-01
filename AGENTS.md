@@ -154,6 +154,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 - **源语言是英文。** 绝不要在 `tr()` 或 `qsTr()` 里写中文（或任何其它非英文语言）——源字符串必须是英文，`check_architecture` 规则3 会拒绝非 ASCII 源串。中文及其它语言的翻译放在 `translations/` 下的 `.ts` 文件里。
 - **C++**：每个面向用户的字符串都用 `tr()` 包裹。
+- **例外：带命名空间的 QObject 类里，`tr()` 的运行时上下文与 `lupdate` 写进 `.ts` 的上下文不一致**（Qt 6 的 `moc` 把完整限定名如 `awb::workbench::BuiltinPages` 写进 meta-object，`lupdate` 只记裸类名 `BuiltinPages`），结果是这些类的字符串**静默不翻译**——不报错、不挂测试。需要真正被翻译时改用显式上下文 `QCoreApplication::translate("BuiltinPages", "…")`，串必须写字面量（宏或常量会让 `lupdate` 抽不到）。`BuiltinPages` 已按此写法处理；其余受影响的类清单与原理见 `docs/zh/development/国际化.md`。新写的类若不在命名空间里，仍按上一条用 `tr()`。
 - **QML**：每个面向用户的字符串都用 `qsTr()` 包裹。
 - 翻译文件位于 `translations/`。**构建只跑 `lrelease`**（编译 `.qm`，以 Qt 资源形式嵌入 `:/i18n/`）——`lupdate`（从源码同步 `.ts`）会按源码行号重写 `<location>`，挂进构建会让工作区永远带着 `agentworkbench_zh_CN.ts` 的假改动，所以它是显式步骤：**改了 `tr()`/`qsTr()` 源串（或新增可翻译文件）后、提交前，跑一次 `bash scripts/update-ts.sh`**（等价于 `cmake --build build --target update_ts`），把 `.ts` 与代码同一次提交。新增可翻译文件时同时把它加进 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。忘跑的后果只是新串在已翻译语言里回退英文，不会构建失败。
 - `app/main.cpp` 安装 `QTranslator`，根据系统区域设置自动加载（前缀 `agentworkbench`）。
