@@ -13,15 +13,17 @@ set(CMAKE_AUTORCC ON)
 # second find_package; QT_VERSION_MAJOR drives every version branch, see
 # cmake/AwbQtCompat.cmake. Pass -DCMAKE_PREFIX_PATH=C:/Qt/6.7.3/msvc2019_64
 # if not auto-detected.
+# Widgets 只服务系统托盘（shell::TrayController 用的 QSystemTrayIcon 是这个
+# 模块的类），它同时是 SingleApplication 的 QAPPLICATION_CLASS。
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 if (QT_VERSION_MAJOR EQUAL 6)
     find_package(Qt6 6.5 REQUIRED
-        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent
+        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent Widgets
                    LinguistTools)
     qt_standard_project_setup(REQUIRES 6.5)
 else()
     find_package(Qt5 5.15 REQUIRED
-        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent
+        COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent Widgets
                LinguistTools)
 endif()
 
@@ -54,6 +56,26 @@ add_compile_definitions(QT_MESSAGELOGCONTEXT)
 # /utf-8, which must not reach the Qt-less third-party target above, and
 # must precede every project target below.
 include(cmake/AwbQtCompat.cmake)
+
+# Third-party: SingleApplication, the single-instance guard used by
+# app/main.cpp. Vendored (checked-in copy at tag v3.5.6), NOT a submodule:
+# GitHub is unreachable over git on the networks this project builds on, and a
+# copy keeps a fresh clone and every .worktree/ build offline. Provenance and
+# license terms: third_party/SingleApplication/UPSTREAM.md.
+#
+# Its own CMakeLists branches on QT_DEFAULT_MAJOR_VERSION and needs the Qt
+# package already found, hence it sits after the find_package calls above and
+# after AwbQtCompat (the Qt 5 /utf-8 option is harmless here - the vendored
+# sources are pure ASCII, but the target does link Qt).
+# QAPPLICATION_CLASS picks the base class: QApplication, because the tray icon
+# (Qt Widgets) needs it and the app now runs on it.
+set(QT_DEFAULT_MAJOR_VERSION ${QT_VERSION_MAJOR}
+    CACHE STRING "Qt major for SingleApplication's own find_package")
+set(QAPPLICATION_CLASS QApplication CACHE STRING
+    "Base class of SingleApplication - QApplication for the tray icon")
+set(SINGLEAPPLICATION_INSTALL OFF)
+set(SINGLEAPPLICATION_DOCUMENTATION OFF)
+add_subdirectory(third_party/SingleApplication EXCLUDE_FROM_ALL)
 
 # Layered modules, bottom-up:
 #   core -> theme -> {shell, agentcatalog, skillcatalog, web, tools} -> workbench -> app
