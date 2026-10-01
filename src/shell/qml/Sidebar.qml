@@ -154,22 +154,40 @@ Item {
         color: theme.alpha(theme.textOnAccent, 0.06)
     }
 
-    // 可滚动工作流列表里的一行导航（main/extensions 区）。新区段的
+    // 可滚动工作流列表里的一行导航（main/extensions 区）。model.kind 是
+    // "header" 时这一行是静态分组标签：不可点击、不可高亮、不吃 hover，
+    // 只给紧随其后的条目起个名字，条目按 model.level 缩进。新区段的
     // 分割线由每个非 main 区的首行画在自己上方；system 页不在这里，
     // 渲染在下方的 footer 里。
     component NavRow: Item {
         id: row
 
+        // 静态分组标签行（只读文字，不是一个目的地）。
+        readonly property bool isHeader: model.kind === "header"
         // 是否为本区段的第一行（用于判断是否需要画分割线）。
         readonly property bool firstInSection:
             index === nav.rowOfFirstInSection(model.section)
         // 需要分割线：非 main 区段的首行上方留出空隙并画线。
         readonly property bool needsDivider:
             firstInSection && model.section !== "main"
+        // 分组标签与上一组之间的空隙，让「一组」读得出来；区段首行不加，
+        // 那里已经有分割线自带的留白。
+        readonly property int headerGap:
+            isHeader && !firstInSection ? theme.spacingS : 0
+        // 行上方的总空隙（分割线留白 + 分组标签留白）。
+        readonly property int topGap: (needsDivider ? 9 : 0) + headerGap
+        // 行高：分组标签是一行小字，比可点的行矮一档。
+        readonly property int rowHeight: isHeader ? 22 : 36
+        // 缩进：level 大于 0 的条目整块（背景、指示条、图标与文字）一起
+        // 往里挪。折叠态没有文字可缩，一律不缩。
+        readonly property int indent:
+            (isHeader || sidebar.collapsed) ? 0 : model.level * theme.spacingM
 
         Layout.fillWidth: true
-        Layout.preferredHeight: visible ? (36 + (needsDivider ? 9 : 0)) : 0
+        Layout.preferredHeight: visible ? (rowHeight + topGap) : 0
+        // 折叠态把分组标签整行收起：窄栏里它既没有图标也没有文字可展示。
         visible: model.enabled && model.section !== "system"
+                 && (!isHeader || !sidebar.collapsed)
         // 行是 delegate（页面插件会来去）——悬停中的行被销毁时不能让
         // 共享 tooltip 冻在屏幕上；聚光的 hold 也要补释放，否则计数
         // 永久不归零、光斑一直亮着。
@@ -191,19 +209,20 @@ Item {
             color: theme.separator
         }
 
-        // 当前项背景 + 3px accent 指示条。
+        // 当前项背景 + 3px accent 指示条。分组标签两者都不画。
         Rectangle {
-            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.top: topSpace.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             // 折叠态：更紧的边距让高亮在窄侧栏里包住居中图标，
             // 保持近似方块的胶囊形。
-            anchors.leftMargin: sidebar.collapsed ? theme.spacingXs
-                                                  : theme.spacingS
+            anchors.leftMargin: (sidebar.collapsed ? theme.spacingXs
+                                                   : theme.spacingS) + row.indent
             anchors.rightMargin: sidebar.collapsed ? theme.spacingXs
                                                    : theme.spacingS
-            height: 36
+            height: row.rowHeight
             radius: theme.radiusControl
+            visible: !row.isHeader
             // 半透明而非实心：聚光画在内容之下（见文件顶部的 ASpotlight），
             // 不透底的行背景会把指针正下方那圈光整个盖掉——浅色主题实测行上
             // 只剩 +5/255，空白处却有 +18。这里让光透过来，同时保留足够的
@@ -216,35 +235,37 @@ Item {
             Behavior on color { ColorAnimation { duration: theme.durationFast } }
         }
         Item {
-            id: dividerSpace
+            id: topSpace
             visible: false
             anchors.top: parent.top
-            height: row.needsDivider ? 9 : 0
+            height: row.topGap
         }
         Rectangle {
-            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.top: topSpace.bottom
             anchors.left: parent.left
+            anchors.leftMargin: row.indent
             width: 3
-            height: 36
+            height: row.rowHeight
             radius: 1
-            visible: nav.currentPageId === model.pageId
+            visible: !row.isHeader && nav.currentPageId === model.pageId
             color: theme.accent
         }
 
         RowLayout {
-            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.top: topSpace.bottom
             anchors.left: parent.left
             // 折叠态：24px 图标槽（宽度在下方槽位上定死）在
             // 图标宽度的侧栏里水平居中。
             anchors.leftMargin: sidebar.collapsed
                 ? (theme.sidebarCollapsedWidth - 24) / 2
-                : theme.spacingM
+                : theme.spacingM + row.indent
             anchors.right: parent.right
             anchors.rightMargin: theme.spacingS
-            height: 36
+            height: row.rowHeight
             spacing: theme.spacingS
 
             Item {
+                visible: !row.isHeader
                 Layout.alignment: Qt.AlignVCenter
                 width: 24
                 height: 24
@@ -259,8 +280,13 @@ Item {
                 visible: !sidebar.collapsed
                 Layout.fillWidth: true
                 text: model.title
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
+                // 分组标签走 caption 档 + 弱化色 + 加粗，靠字号与颜色（而
+                // 不是可点击的高亮态）与条目区分开；条目仍是正文档。
+                color: row.isHeader ? theme.textMuted : theme.textPrimary
+                font.pixelSize: row.isHeader ? theme.fontSizeCaption
+                                             : theme.fontSizeBody
+                font.bold: row.isHeader
+                font.letterSpacing: row.isHeader ? 1 : 0
                 elide: Text.ElideRight
             }
             APill {
@@ -271,12 +297,15 @@ Item {
 
         MouseArea {
             id: rowMouse
-            anchors.top: row.needsDivider ? dividerSpace.bottom : parent.top
+            anchors.top: topSpace.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 36
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
+            height: row.rowHeight
+            // 分组标签不可点，也不吞 hover：让根部 HoverHandler 覆盖到它，
+            // 指针聚光照常跟随。
+            enabled: !row.isHeader
+            hoverEnabled: !row.isHeader
+            cursorShape: row.isHeader ? Qt.ArrowCursor : Qt.PointingHandCursor
             onClicked: nav.setCurrentPageId(model.pageId)
 
             // 向侧栏的聚光判据回报（行吞掉 hover，合并规则见文件顶部的
@@ -288,8 +317,10 @@ Item {
             }
         }
 
-        // 折叠态：tooltip 显示页面标题（文字被收起时补足说明）。
-        ToolTip.visible: sidebar.collapsed && rowMouse.containsMouse
+        // 折叠态：tooltip 显示页面标题（文字被收起时补足说明）。分组标签在
+        // 折叠态整行隐藏，轮不到 tooltip。
+        ToolTip.visible: !row.isHeader && sidebar.collapsed
+                         && rowMouse.containsMouse
         ToolTip.delay: 300
         ToolTip.timeout: 10000
         ToolTip.text: model.title
@@ -390,7 +421,7 @@ Item {
                     readonly property int systemIndex:
                         index - nav.rowOfFirstInSection("system")
 
-                    visible: model.section === "system"
+                    visible: model.section === "system" && model.kind !== "header"
                     iconSource: model.iconSource
                     tooltip: model.title
                     active: nav.currentPageId === model.pageId

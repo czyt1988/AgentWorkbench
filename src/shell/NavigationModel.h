@@ -10,7 +10,14 @@
 
 namespace awb::shell {
 
-/// 页面注册表 + 侧栏与工作区宿主背后的列表模型。
+/// 侧栏行的注册表 + 侧栏与工作区宿主背后的列表模型。
+///
+/// 一行既是一个可打开的页面，也可以是一个静态分组标签
+/// （PageDescriptor::kind == NavKind::Header）：标签只占一行、给紧随其后的
+/// 条目起名字，不是一页——pageIdsInOrder()、badges()、setBadge() 与
+/// setCurrentPageId() 都只认页面行，分组标签进不了当前页，也占不了
+/// Ctrl+1…9 的号。countInSection() 与 rowOfFirstInSection() 则按模型行计
+/// （分割线要落在真实的第一行上，分组标签也算一行）。
 ///
 /// 重复 id 一律记警告后拒绝——shell 绝不猜测调用方指的是哪个页面。
 class NavigationModel : public QAbstractListModel
@@ -42,7 +49,9 @@ public:
         SectionRole,                   ///< 侧栏分节（main/extensions/system）
         OrderRole,                     ///< 节内排序键
         BadgeRole,                     ///< 侧栏徽标文本（空串 = 无徽标）
-        EnabledRole                    ///< false 时侧栏不显示该页
+        EnabledRole,                   ///< false 时侧栏不显示该页
+        KindRole,                      ///< 行种类："page" | "header"（静态分组标签）
+        LevelRole                      ///< 侧栏缩进层级（0 = 顶层）
     };
     Q_ENUM(Roles)
 
@@ -76,11 +85,12 @@ public:
     // Ctrl+N 切页曾因此静默失效。属性赋值（nav.currentPageId = x）仍可用
     Q_INVOKABLE void setCurrentPageId(const QString &id);
 
-    // 按显示顺序（分节 + order 字段）返回页 id，供侧栏 Ctrl+1…9 快捷键
-    // 与 Repeater 使用
+    // 按显示顺序（分节 + order 字段）返回页 id，跳过分组标签行，
+    // 供侧栏 Ctrl+1…9 快捷键与 Repeater 使用
     Q_INVOKABLE QStringList pageIdsInOrder() const;
 
-    // 一节含多少页 / 该节首行在模型中的行号——侧栏按它们画分节分隔条
+    // 一节含多少行 / 该节首行在模型中的行号——侧栏按它们画分节分隔条。
+    // 两者都按模型行计，分组标签行也算一行。
     Q_INVOKABLE int countInSection(const QString &section) const;
     Q_INVOKABLE int rowOfFirstInSection(const QString &section) const;
 

@@ -34,6 +34,18 @@ int sectionRank(const QString &section)
     }
     return 2; // system
 }
+
+/**
+ * @brief 行种类在 QML 侧的写法
+ *
+ * @param kind 描述符里的种类
+ * @return "page" 或 "header"（KindRole 的值，侧栏按它选行形态）
+ */
+QString kindName(NavKind kind)
+{
+    return kind == NavKind::Header ? QStringLiteral("header")
+                                   : QStringLiteral("page");
+}
 } // namespace
 
 /**
@@ -82,6 +94,8 @@ QVariant NavigationModel::data(const QModelIndex &index, int role) const
     case OrderRole:  return p.order;
     case BadgeRole:  return p.badgeText;
     case EnabledRole: return p.enabled;
+    case KindRole:   return kindName(p.kind);
+    case LevelRole:  return p.level;
     }
     return {};
 }
@@ -104,6 +118,8 @@ QHash<int, QByteArray> NavigationModel::roleNames() const
         { OrderRole, "order" },
         { BadgeRole, "badgeText" },
         { EnabledRole, "enabled" },
+        { KindRole, "kind" },
+        { LevelRole, "level" },
     };
 }
 
@@ -226,6 +242,8 @@ QVariantMap NavigationModel::page(const QString &id) const
     map[QStringLiteral("badgeText")] = p.badgeText;
     map[QStringLiteral("enabled")] = p.enabled;
     map[QStringLiteral("keepAlive")] = p.keepAlive;
+    map[QStringLiteral("kind")] = kindName(p.kind);
+    map[QStringLiteral("level")] = p.level;
     return map;
 }
 
@@ -243,12 +261,16 @@ QVariantMap NavigationModel::currentPage() const
 /**
  * @brief 取徽标快照
  *
- * @return {pageId: badgeText}；badgeText 为空串表示该页无徽标
+ * @return {pageId: badgeText}；badgeText 为空串表示该页无徽标。分组标签
+ *         行不在表里——这个 map 的键约定就是 pageId。
  */
 QVariantMap NavigationModel::badges() const
 {
     QVariantMap map;
     for (const PageDescriptor &p : m_pages) {
+        if (p.kind != NavKind::Page) {
+            continue;
+        }
         map.insert(p.id, p.badgeText);
     }
     return map;
@@ -279,7 +301,7 @@ QVariantList NavigationModel::keepAlivePages() const
  * @brief 写一个页面的徽标文本
  *
  * 同值不重复广播；变化时更新 BadgeRole 并驱动 badges 属性重新求值。
- * 未知 id 静默忽略。
+ * 未知 id 与分组标签行静默忽略。
  *
  * @param id   页面 id
  * @param text 新徽标文本；空串表示无徽标
@@ -287,7 +309,8 @@ QVariantList NavigationModel::keepAlivePages() const
 void NavigationModel::setBadge(const QString &id, const QString &text)
 {
     const int row = indexOfId(id);
-    if (row < 0) {
+    if (row < 0 || m_pages.at(row).kind != NavKind::Page) {
+        // 未知 id 与分组标签行都不接受徽标
         return;
     }
     if (m_pages[row].badgeText == text) {
@@ -304,6 +327,7 @@ void NavigationModel::setBadge(const QString &id, const QString &text)
  * @brief 切换当前页
  *
  * 同值直接返回；未知 id 记警告后忽略——绝不落到一个不存在的页面。
+ * 分组标签行（NavKind::Header）同样记警告后忽略：它不是一个目的地。
  * 空串表示清空选择。
  *
  * @param id 页面 id；空串清空当前页
@@ -313,9 +337,16 @@ void NavigationModel::setCurrentPageId(const QString &id)
     if (id == m_currentId) {
         return;
     }
-    if (!id.isEmpty() && indexOfId(id) < 0) {
+    const int row = id.isEmpty() ? -1 : indexOfId(id);
+    if (!id.isEmpty() && row < 0) {
         qWarning().noquote() << QStringLiteral(
             "NavigationModel: unknown page id \"%1\"; ignoring it").arg(id);
+        return;
+    }
+    if (row >= 0 && m_pages.at(row).kind != NavKind::Page) {
+        qWarning().noquote() << QStringLiteral(
+            "NavigationModel: \"%1\" is a sidebar group label, not a page; "
+            "ignoring it").arg(id);
         return;
     }
     m_currentId = id;
@@ -325,13 +356,15 @@ void NavigationModel::setCurrentPageId(const QString &id)
 /**
  * @brief 按显示顺序返回启用的页 id
  *
- * @return 页 id 列表（跳过 disabled 页）；顺序与 m_pages 一致
+ * 分组标签行不算页，不进 Ctrl+1…9 的序号。
+ *
+ * @return 页 id 列表（跳过 disabled 页与分组标签行）；顺序与 m_pages 一致
  */
 QStringList NavigationModel::pageIdsInOrder() const
 {
     QStringList ids;
     for (const PageDescriptor &p : m_pages) {
-        if (p.enabled) {
+        if (p.enabled && p.kind == NavKind::Page) {
             ids.append(p.id);
         }
     }
@@ -339,10 +372,11 @@ QStringList NavigationModel::pageIdsInOrder() const
 }
 
 /**
- * @brief 数一节含多少页
+ * @brief 数一节含多少行
  *
  * @param section 分节名（main / extensions / system）
- * @return 该节的页数（含 disabled 页——分隔条按模型行画，不能跳行）
+ * @return 该节的行数（含 disabled 页与分组标签行——分隔条按模型行画，
+ *         不能跳行）
  */
 int NavigationModel::countInSection(const QString &section) const
 {

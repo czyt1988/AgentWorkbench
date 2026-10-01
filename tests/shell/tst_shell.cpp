@@ -15,6 +15,7 @@
 
 using awb::core::Settings;
 using awb::shell::NavigationModel;
+using awb::shell::NavKind;
 using awb::shell::Notifications;
 using awb::shell::PageDescriptor;
 using awb::shell::ShellController;
@@ -41,11 +42,29 @@ PageDescriptor makePage(const QString &id, int order = 10)
     return page;
 }
 
+/**
+ * @brief 构造一个侧栏分组标签行
+ *
+ * @param id 标签行的 id（它不是目的地，不能当当前页）
+ * @param order 排序权重
+ * @return kind 为 NavKind::Header 的 PageDescriptor
+ */
+PageDescriptor makeHeader(const QString &id, int order)
+{
+    PageDescriptor header;
+    header.id = id;
+    header.title = id;
+    header.order = order;
+    header.kind = NavKind::Header;
+    return header;
+}
+
 } // namespace
 
 /// 测 shell 模块的导航与壳层服务：NavigationModel 的页面注册/徽标/当前页/
-/// keepAlive 快照、QML 调用方法的可调用性回归、ShellController 的状态持久化、
-/// UiServices 的剪贴板 OpResult，以及 Notifications 的队列与按 id 撤销。
+/// 分组标签行/keepAlive 快照、QML 调用方法的可调用性回归、ShellController
+/// 的状态持久化、UiServices 的剪贴板 OpResult，以及 Notifications 的队列与
+/// 按 id 撤销。
 class TestShell : public QObject
 {
     Q_OBJECT
@@ -110,6 +129,51 @@ private Q_SLOTS:
         nav.setCurrentPageId(QStringLiteral("nope"));
         QCOMPARE(nav.currentPageId(), QStringLiteral("settings"));
         QCOMPARE(spy.count(), 1);
+    }
+
+    // 侧栏的静态分组标签（NavKind::Header）占一行、给紧随其后的条目起名字，
+    // 但它不是一页：不能成为当前页、不占 Ctrl+1…9 的号、不进徽标表。
+    // level 是它的条目用来缩进的键，而标签本身仍然算模型里的一行——
+    // 分区的分割线按行画，跳行就画错位置。
+    void testSidebarGroupLabel()
+    {
+        NavigationModel nav;
+        QVERIFY(nav.registerPage(makePage(QStringLiteral("skills"), 30)));
+        QVERIFY(nav.registerPage(makeHeader(QStringLiteral("tools-group"), 40)));
+        PageDescriptor prompt = makePage(QStringLiteral("tools"), 41);
+        prompt.level = 1;
+        QVERIFY(nav.registerPage(prompt));
+
+        // 行的形态走 role：标签行是 header，条目是 page 并带着缩进层级。
+        QCOMPARE(nav.index(1, 0).data(NavigationModel::KindRole).toString(),
+                 QStringLiteral("header"));
+        QCOMPARE(nav.index(2, 0).data(NavigationModel::KindRole).toString(),
+                 QStringLiteral("page"));
+        QCOMPARE(nav.index(1, 0).data(NavigationModel::LevelRole).toInt(), 0);
+        QCOMPARE(nav.index(2, 0).data(NavigationModel::LevelRole).toInt(), 1);
+
+        nav.setCurrentPageId(QStringLiteral("tools"));
+        QSignalSpy spy(&nav, &NavigationModel::currentPageChanged);
+        nav.setCurrentPageId(QStringLiteral("tools-group"));
+        QCOMPARE(spy.count(), 0);
+        QCOMPARE(nav.currentPageId(), QStringLiteral("tools"));
+
+        // 快捷键序列只数页面行：标签不占号，Ctrl+2 仍落在 tools。
+        const QStringList expectedIds{QStringLiteral("skills"),
+                                      QStringLiteral("tools")};
+        QCOMPARE(nav.pageIdsInOrder(), expectedIds);
+
+        // 徽标表的键是 pageId：标签进不了表，写它的徽标无声无息。
+        nav.setBadge(QStringLiteral("tools-group"), QStringLiteral("2"));
+        QVERIFY(!nav.badges().contains(QStringLiteral("tools-group")));
+        nav.setBadge(QStringLiteral("tools"), QStringLiteral("2"));
+        QCOMPARE(nav.badges().value(QStringLiteral("tools")).toString(),
+                 QStringLiteral("2"));
+
+        // 标签算 main 区的一行。
+        QCOMPARE(nav.countInSection(QStringLiteral("main")), 3);
+        QVERIFY(nav.unregisterPage(QStringLiteral("tools-group")));
+        QCOMPARE(nav.countInSection(QStringLiteral("main")), 2);
     }
 
     // keepAlive 页面进 keepAlivePages 快照并经 page() 暴露标志；工作区让
