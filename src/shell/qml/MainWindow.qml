@@ -92,7 +92,12 @@ ApplicationWindow {
         if (agents.hasLaunchedAgents()) {
             close.accepted = false
             exitConfirmPopup.open()
+            return
         }
+        // 无需确认的普通关闭也必须显式退出：托盘在场时
+        // quitOnLastWindowClosed 已被 main.cpp 关掉，放行 close 只会收掉
+        // 窗口而留下事件循环（仅托盘可达）。托盘不可用时再调 quit() 无害。
+        workbench.quit()
     }
 
     // --- 全局快捷键 -----------------------------------------
