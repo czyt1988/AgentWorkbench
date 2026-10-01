@@ -41,7 +41,7 @@ Guide. This document describes how the feature is implemented.
 | `src/skillcatalog/SkillsFacade.h` | `SkillsFacade` | The QML facade: model, roots property, stats, scan signals, copy/open invokables | `SkillGridPage.qml`, `SkillCard.qml`, `SkillDetailFlyout.qml`, `SettingsSkillsPage.qml`, `MainWindow.qml` alias `skills` |
 | `src/skillcatalog/SkillsFacade.cpp` | `SkillsFacade` | Wiring, `start()`, root add/remove/enable, clipboard and file-manager actions | `core::Settings`, `core::OpResult`, `SkillScanner` |
 | `src/skillcatalog/qml/SkillGridPage.qml` | `SkillGridPage` | The page: header with Rescan, search field, kind facets, sort combo, skeleton, two empty states, `GridView`, stats footer | `skills.*`, `SkillCard`, `PageHeader`, `ASearchField`, `AComboBox`, `AEmptyState`, `AWorkspaceGlow` |
-| `src/skillcatalog/qml/SkillCard.qml` | `SkillCard` | Glass-card delegate: hover lift, 400 ms delayed `SkillDetailFlyout`, context menu, copy/open actions | `skills.*`, `SkillDetailFlyout`, `AMenu`, `AIconButton`, `APill`, `ASpotlight` |
+| `src/skillcatalog/qml/SkillCard.qml` | `SkillCard` | Glass-card delegate: in-place hover highlight, 400 ms delayed `SkillDetailFlyout`, context menu, copy/open actions | `skills.*`, `SkillDetailFlyout`, `AMenu`, `AIconButton`, `APill`, `ASpotlight` |
 | `src/skillcatalog/qml/SkillDetailFlyout.qml` | `SkillDetailFlyout` | Non-modal hover popup: metadata table plus `extras` expansion, edge flip, delayed close | `skills.skill()`, `APill` |
 | `src/skillcatalog/CMakeLists.txt` | build target `awb_skillcatalog` | Static library linking `awb_core`/`awb_theme`/`Qt::Gui`/`Qt::Concurrent` | — |
 
@@ -79,9 +79,8 @@ states/grid → stats footer.
 - **`GridView`.** The grid uses integer column math
   (`Math.max(1, Math.floor((width + theme.spacingL) / (page.cardMinWidth + theme.spacingL)))`)
   and a rounded `cellWidth` so `columns * cellWidth <= width`; `cellHeight` is
-  the card height plus one gap. `cacheBuffer: 360`, `reuseItems: true`, a
-  one-`spacingXs` `header` item for the hover lift, and `AScrollBar.vertical`.
-  Its delegate is `SkillCard`, fed from the model's roles.
+  the card height plus one gap. `cacheBuffer: 360`, `reuseItems: true` and
+  `AScrollBar.vertical`. Its delegate is `SkillCard`, fed from the model's roles.
 - **Stats footer.** A `Label` bound to `skills.statsText`, colored
   `theme.warning` when `skills.partialFailure` is true.
 
@@ -90,8 +89,9 @@ states/grid → stats footer.
 Each card is a glass card replicating the `AgentCard` recipe: semi-transparent
 `surfaceBg` (0.62, raised to 0.78 on hover), a faint accent veil, a hover-deepened
 veil, a 1 px inner highlight (dark variant only), and `ASpotlight` for the
-pointer spotlight. The hover lift is a `Translate` transform plus `z`, never a
-change to the card's `x`/`y` (the grid writes those).
+pointer spotlight. A hovered card raises `z` so the spotlight can spill over its
+neighbours, but it never moves: there is no `Translate` transform and the card's
+`x`/`y` stay untouched (the grid writes those).
 
 - **Hover criterion.** `hovered: hoverHandler.hovered`. Qt's hover delivery is
   exclusive, so the card carries no hover-enabled `Control` of its own (the path

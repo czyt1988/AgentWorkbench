@@ -65,6 +65,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Skill cards no longer lift on hover**: the hover highlight (brighter glass,
+  stronger border, pointer spotlight) now stays in place instead of nudging the
+  whole card up by one spacing unit, which read as a jump as the pointer crossed
+  a card edge.
+
 - **Python/Node detection rewritten** (it used to report a red cross for a
   probe that merely timed out): detection now runs on the thread pool instead of
   the GUI thread, tries `python`/`python3`/`py` and `node`/`nodejs` in order (so

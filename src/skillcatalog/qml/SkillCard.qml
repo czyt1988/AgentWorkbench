@@ -7,7 +7,8 @@ import AgentWorkbench.App
 
 // 单张 skill 卡片（玻璃卡）：规格 340x160（网格内宽度随 cell 拉伸）。玻璃
 // 质感配方与 AgentCard 同源（见 designs.md「卡片样式」）：半透明底、accent
-// 极淡纱层、内缘 1px 高光、ASpotlight 悬停聚光，悬停时整卡升举、按压回落。
+// 极淡纱层、内缘 1px 高光、ASpotlight 悬停聚光；悬停只变视觉状态，卡片不
+// 平移。
 // 交互沿旧版：左键复制目录路径，右键弹出复制/打开动作，悬停 400ms 打开
 // 详情 flyout（SkillDetailFlyout，Loader 惰性创建）。剪贴板与文件操作经
 // skills.* 门面，结果用 toast 通知。
@@ -43,21 +44,11 @@ Item {
     width: theme.cardMinWidth + 80 // 规格宽度 340
     height: 160
 
-    // --- 悬停升举 / 按压回落 -------------------------------------------
-    // 只用视觉变换（transform + z），不动 x/y 本体——GridView 的 cell 定位
-    // 写的就是 delegate 的 x/y，动了会跟视图打架。升举幅度压在 cell 间距
-    // （spacingL）之内，不会盖住相邻卡片；z 让升举中的卡压过右/下侧邻居
-    // （聚光与边框流光会越出卡缘）。按压时落回原位给出「按下去」的手感。
+    // --- 悬停层级 -------------------------------------------------------
+    // 悬停时卡片位置不动：整卡平移会让它随指针进出上下跳一下，而玻璃底提
+    // 亮、描边变强与聚光已经足够表达悬停。z 仍要抬高——聚光与边框流光会
+    // 越出卡缘，不抬高就会被右/下侧邻居盖住。
     z: hovered ? 1 : 0
-    transform: Translate {
-        y: card.hovered && !mouseArea.pressed ? -theme.spacingXs : 0
-        Behavior on y {
-            NumberAnimation {
-                duration: theme.durationFast
-                easing.type: Easing.OutCubic
-            }
-        }
-    }
 
     // 卡片是模型 delegate：搜索/过滤/重扫描会在悬停中销毁它们，而
     // ToolTip 附加属性在每窗口只共享一个可视化 tooltip。悬停宿主死掉时
