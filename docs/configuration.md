@@ -49,7 +49,9 @@ Missing keys take their defaults in place — there is no migration code:
                "lastPageId": "agents" },
   "appearance": { "theme": "mocha-dark", "followSystem": false },
   "locale":  { "override": "" },
-  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
+  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true,
+               "trayEnabled": true, "closeToTray": false,
+               "singleInstance": true },
   "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
@@ -76,6 +78,14 @@ Missing keys take their defaults in place — there is no migration code:
 - `launcher.startupVersionCheck` (default `true`) controls the start-up version
   probes. When `false`, no `versionCommand` processes run and the cards show
   neither a version label nor an install/download icon. Applies from the next
+  start.
+- `launcher.trayEnabled` (default `true`) shows the app icon in the system
+  tray; the tray menu offers show/hide and quit. `launcher.closeToTray`
+  (default `false`) makes closing the window hide it into the tray instead of
+  exiting — quitting then happens via the tray menu. The first hide shows a
+  one-time balloon pointing at the tray. Both apply immediately.
+- `launcher.singleInstance` (default `true`) makes a second launch activate
+  the existing window instead of opening a new instance. Applies from the next
   start.
 - `web.homeUrl` (default empty) is the page the web view's **Home** button
   opens; empty keeps the "back to the running-agent list" behaviour.

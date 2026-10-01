@@ -26,13 +26,14 @@ Boundaries:
 | `src/shell/PageDescriptor.h` | `PageDescriptor`, `NavKind` | The shell's view of one sidebar row — a page or a static group label: `id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`, `kind`, `level` | `NavigationModel`, `BuiltinPages` |
 | `src/shell/NavigationModel.h` | `NavigationModel` | Sidebar-row registry plus the sidebar/workspace list model; properties `currentPageId`, `currentPage`, `badges`, `keepAlivePages`; `Roles` | `Sidebar.qml`, `Workspace.qml`, `StatusBar.qml`, `MainWindow.qml`, `BuiltinPages` |
 | `src/shell/NavigationModel.cpp` | `NavigationModel` | Registration validation, section sort, badge updates, ordered page ids, rejecting group labels as destinations | `BuiltinPages` |
-| `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `core::Settings` |
+| `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags, tray/single-instance switches | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `SettingsLaunchersPage.qml`, `core::Settings` |
 | `src/shell/ShellController.cpp` | `ShellController` | Getters/setters, `saveWindowSize()`, `valueChanged` re-broadcast | `core::Settings` |
+| `src/shell/TrayController.h` / `.cpp` | `TrayController` | System-tray icon (`QSystemTrayIcon` + `QMenu`) with a minimal Show/Hide + Quit menu; hide-to-tray, raise-from-tray, `quitRequested` | `MainWindow.qml` (onClosing, quit flow), `core::Settings` |
 | `src/shell/UiServices.h` | `UiServices` | Clipboard, external URL/file-manager, native folder/colour dialogs, recent-colour memory; colour-picker support data | `ToolsPage.qml`, `AgentEditDialog.qml`, `AColorPicker.qml`, `WorkbenchContext` |
 | `src/shell/UiServices.cpp` | `UiServices` | Native Win32 `IFileDialog` / `ChooseColor` implementations, `OpResult` errors | `core::OpResult` |
 | `src/shell/Notifications.h` | `Notifications` | Non-blocking toast queue model: `IdRole`/`LevelRole`/`TitleRole`/`TextRole`, `notify()`, `dismiss()`, `durationFor()`, `maxVisible()` | `AToastStack.qml`, `Toasts.qml`, `WorkbenchContext`, `BuiltinPages` |
 | `src/shell/Notifications.cpp` | `Notifications` | Append/remove only; all timing lives in QML | `AToastStack.qml` |
-| `src/shell/qml/MainWindow.qml` | `MainWindow` | Window assembly: size clamping, lowercase alias bridge, global shortcuts, exit confirmation, legacy-import notice, font binding | all singletons, `Sidebar`, `Workspace`, `StatusBar`, `Toasts` |
+| `src/shell/qml/MainWindow.qml` | `MainWindow` | Window assembly: size clamping, lowercase alias bridge, global shortcuts, exit confirmation (tray-aware), legacy-import notice, font binding | all singletons, `Sidebar`, `Workspace`, `StatusBar`, `Toasts` |
 | `src/shell/qml/Sidebar.qml` | `Sidebar` | Sectioned navigation: scrollable `main`/`extensions` with group labels and indented rows, pinned `system` footer with the collapse handle, badges | `nav`, `shell`, `AIconButton`, `APill` |
 | `src/shell/qml/Workspace.qml` | `Workspace` | Loads exactly one page; `keepAlive` pages via a resident `Repeater`, ordinary pages via a destroying `Loader` | `nav`, `PageHeader` consumers, `workbench` |
 | `src/shell/qml/StatusBar.qml` | `StatusBar` | Running-agent and tab counters from `nav.badges`, Python/Node badges from `environment` | `nav`, `environment`, `core::Settings` via `ShellController` |
@@ -52,7 +53,7 @@ without them:
 | `src/workbench/BuiltinPages.h` / `.cpp` | `BuiltinPages` | Registers the five built-in pages plus the sidebar group label, wires sidebar badges, persists the last page, wires the cross-domain Web rules |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `EnvironmentService` | Python/Node detection behind the status-bar badges and the Settings rows |
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | The `workbench` singleton: `showPage()`, `notify()`, `copyText()`, plugin switches and `legacyImportNotice` |
-| `app/main.cpp` | `main()` | Assembly order and singleton registration on the `AgentWorkbench.App` URI |
+| `app/main.cpp` | `main()` | Assembly order, the single-instance guard (`SingleApplication`) and singleton registration on the `AgentWorkbench.App` URI |
 
 ## Frontend design
 
@@ -305,6 +306,37 @@ properties (180/480, `CONSTANT`) and also exposes them to QML; the read side sta
 tolerant so a hand-edited `window.sidebarWidth` of 0..1024 keeps its existing
 "0 = theme fallback" meaning.
 
+### `TrayController`
+
+A `QObject` wrapping a `QSystemTrayIcon` plus its `QMenu`; it exists because
+the shell module links `Qt::Widgets` solely for the tray (the app itself is a
+`SingleApplication`, i.e. a `QApplication`). It owns no state beyond the menu,
+a one-time notice flag and the optional `QWindow *` set by `main.cpp` after the
+engine loads.
+
+- **Lifecycle.** Constructed early in `main.cpp` so the icon is up as soon as
+  the settings allow it; `setWindow()` attaches the root window so
+  `showWindow()` can un-minimize, `raise()` and `requestActivate()` it.
+  The menu (Show / Hide / Quit) is a plain `QMenu` deleted in an explicit
+  destructor so it dies before the base `QObject` teardown.
+- **Settings.** `launcher.trayEnabled` gates the icon; a `valueChanged`
+  connection re-syncs the icon when the settings page toggles it at runtime.
+  `launcher.closeToTray` is only consulted by `MainWindow.qml`'s `onClosing`.
+  `available` mirrors `QSystemTrayIcon::isSystemTrayAvailable()` (with
+  `availableChanged`), and `hidden` tracks hide-to-tray state.
+- **The tray never quits on its own.** Quit emits `quitRequested`; the window
+  decides. This keeps the exit confirmation (running agents) as the single
+  exit path — the connection in `MainWindow.qml` first un-hides the window so
+  the dialog is actually visible, then runs the same confirm flow as the
+  window's close button.
+- **Quit-on-last-window interplay.** While the tray is available `main.cpp`
+  turns `quitOnLastWindowClosed` off (re-enabled on `availableChanged`), so
+  every real exit is an explicit `workbench.quit()` — nothing exits merely
+  because the window closed. `hideToTray()` shows a one-time balloon hint.
+- **Activation.** Left-click and the tray's activated signal map to
+  show/hide toggling; the single-instance guard routes "raise" messages from
+  secondary instances into `showWindow()` here.
+
 ### `UiServices`
 
 The single place for system-level UI operations: `copyText()`,
@@ -315,8 +347,9 @@ The single place for system-level UI operations: `copyText()`,
 type as written while QML resolves the `QMetaType` registration name (the
 classes' fully qualified name), so a short type name throws "Unknown method
 return type" and the call silently fails. `pickFolder`/`pickColor` use native
-Win32 dialogs because `QFileDialog`/`QColorDialog` need QtWidgets (this is a
-`QGuiApplication`) and QML's `FolderDialog` is Qt 6 QuickDialogs2 only; the
+Win32 dialogs because `QFileDialog`/`QColorDialog` need QtWidgets (linked into the shell only for the
+tray; core must stay widget-free) and QML's `FolderDialog` is Qt 6 QuickDialogs2
+only; the
 native route is the only version-independent one. Recent colours are an
 in-process, non-persisted list capped at 10, newest first.
 

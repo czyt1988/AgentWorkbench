@@ -1065,37 +1065,37 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="126"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="160"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="134"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="168"/>
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="146"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="180"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="156"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="188"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="165"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="196"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="177"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="208"/>
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="179"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="210"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1296,7 +1296,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="27"/>
-        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="164"/>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="229"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
@@ -1351,17 +1351,37 @@ Command: %2
         <translation>启动时检查启动器版本</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="154"/>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="116"/>
+        <source>Show tray icon</source>
+        <translation>显示托盘图标</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="133"/>
+        <source>Close to tray instead of exiting</source>
+        <translation>关闭窗口时收进托盘而不是退出</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="151"/>
+        <source>Single instance</source>
+        <translation>单实例</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="169"/>
+        <source>Single instance takes effect at the next start</source>
+        <translation>单实例在下次启动时生效</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="219"/>
         <source>Running</source>
         <translation>运行中</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="155"/>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="220"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="159"/>
+        <location filename="../src/shell/qml/SettingsLaunchersPage.qml" line="224"/>
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
@@ -1711,61 +1731,61 @@ Command: %2
 <context>
     <name>SkillCard</name>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="221"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="212"/>
         <source>Plugin: %1</source>
         <translation>插件：%1</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="232"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="223"/>
         <source>No description.</source>
         <translation>没有描述。</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="359"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="350"/>
         <source>Copy path</source>
         <translation>复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="349"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="367"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="340"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="358"/>
         <source>Path copied</source>
         <translation>已复制路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="352"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="370"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="381"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="343"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="361"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="372"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="363"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="354"/>
         <source>Copy SKILL.md path</source>
         <translation>复制 SKILL.md 路径</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="374"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="365"/>
         <source>Copy name</source>
         <translation>复制名称</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="378"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="369"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="386"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="377"/>
         <source>Open containing folder</source>
         <translation>打开所在文件夹</translation>
     </message>
     <message>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="381"/>
         <location filename="../src/skillcatalog/qml/SkillCard.qml" line="390"/>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="399"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="395"/>
+        <location filename="../src/skillcatalog/qml/SkillCard.qml" line="386"/>
         <source>Reveal SKILL.md</source>
         <translation>定位 SKILL.md</translation>
     </message>
@@ -2176,6 +2196,34 @@ Command: %2
         <location filename="../src/tools/qml/ToolsPage.qml" line="483"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
+    </message>
+</context>
+<context>
+    <name>TrayController</name>
+    <message>
+        <location filename="../src/shell/TrayController.cpp" line="109"/>
+        <source>AgentWorkbench</source>
+        <translation>AgentWorkbench</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/TrayController.cpp" line="110"/>
+        <source>AgentWorkbench is still running in the tray. Click the tray icon to show the window again.</source>
+        <translation>AgentWorkbench 仍在托盘中运行。点击托盘图标可重新显示窗口。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/TrayController.cpp" line="183"/>
+        <source>Quit</source>
+        <translation>退出</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/TrayController.cpp" line="235"/>
+        <source>Show Window</source>
+        <translation>显示窗口</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/TrayController.cpp" line="236"/>
+        <source>Hide Window</source>
+        <translation>隐藏窗口</translation>
     </message>
 </context>
 <context>
@@ -2729,7 +2777,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="290"/>
+        <location filename="../app/main.cpp" line="311"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

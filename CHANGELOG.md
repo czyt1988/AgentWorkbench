@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **System tray**: an optional tray icon (Show/Hide/Quit menu, left-click
+  toggle, one-time balloon hint) plus close-to-tray — while the tray is
+  available the app no longer exits on last-window-closed; every exit is
+  explicit and still asks when agents are running. Settings: `launcher.trayEnabled`
+  (default `false`) and `launcher.closeToTray` (default `false`), both live.
+  The shell module links `Qt::Widgets` for this.
+- **Single instance**: an optional guard (vendored SingleApplication 3.5.6)
+  where a second start brings the existing window to the front instead of
+  opening another one. Setting: `launcher.singleInstance` (default `true`),
+  effective from the next start.
 - **Agent Tools page**: a prompt-composing workbench for agent CLI users —
   draft prompts on the left (Enter only inserts a newline, nothing is ever
   sent from the page; Copy puts the draft on the clipboard), browse the

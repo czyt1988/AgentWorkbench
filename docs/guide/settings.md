@@ -32,6 +32,18 @@ whether each is running.
   start-up version probes: cards then show no version label and no
   install/download icon, and no version-command processes run. Takes effect the
   next time you start the app.
+- **Show tray icon** - adds an AgentWorkbench icon to the system tray
+  (notification area). Left-clicking it shows or hides the window; its menu
+  offers **Show**, **Hide** and **Quit**. Applies at once. The first time you
+  hide the window this way, a small balloon reminds you where it went.
+- **Close to tray instead of exiting** - when on, closing the window hides it
+  to the tray and the app keeps running; the tray icon's **Quit** (or
+  right-click **Quit**) is then the way to exit. Only available while the tray
+  icon is on. When off, closing the window exits as before (still asking for
+  confirmation when agents are running).
+- **Single instance** - when on, starting the app a second time does not open
+  a second window: the existing one is brought to the front instead. Takes
+  effect at the next start.
 - **Add Launcher** - opens the form for a new agent.
 - **Edit** on a row - opens the same form, prefilled.
 - **Delete** on a row - removes the agent after a confirmation.

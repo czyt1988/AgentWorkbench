@@ -33,7 +33,9 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
                "lastPageId": "agents" },
   "appearance": { "theme": "mocha-dark", "followSystem": false },
   "locale":  { "override": "" },
-  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true },
+  "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true,
+               "trayEnabled": true, "closeToTray": false,
+               "singleInstance": true },
   "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
@@ -55,6 +57,12 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 - `launcher.startupVersionCheck`（默认 `true`）控制启动时的版本探测。为 `false`
   时不运行任何 `versionCommand` 进程，卡片也不显示版本标签和安装/下载图标。下次
   启动起生效。
+- `launcher.trayEnabled`（默认 `true`）在系统托盘显示应用图标；托盘菜单提供
+  显示/隐藏与退出。`launcher.closeToTray`（默认 `false`）让关闭窗口时收进托盘
+  而不是退出——此时退出经托盘菜单完成。首次收起会弹一次气泡提示托盘位置。
+  两者即时生效。
+- `launcher.singleInstance`（默认 `true`）让再次启动激活已有窗口而不是新开实例。
+  下次启动起生效。
 - `web.homeUrl`（默认空）是网页页 **主页** 按钮打开的地址；留空保持「回到运行中
   agent 列表」的行为。
 - `web.surface` 取 `embedded` 或 `external`；未编译 WebEngine 时自动降级为

@@ -104,8 +104,7 @@ Item {
                 }
             }
 
-            // 托盘与单实例（launcher.* 一节）。singleInstance 只在启动时
-            // 被读一次，改完要到下次启动才生效。
+            // 托盘与单实例（launcher.* 一节）。
             RowLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL
@@ -157,6 +156,17 @@ Item {
                     checked: shell.singleInstance
                     onToggled: shell.singleInstance = checked
                 }
+            }
+            // singleInstance 只在启动时被读一次（实例守卫在界面装配之前
+            // 就已经判定），改完要到下次启动才生效。
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeCaption
+                wrapMode: Text.Wrap
+                text: qsTr("Single instance takes effect at the next start")
             }
 
             ColumnLayout {

@@ -30,7 +30,7 @@ Boundaries:
 | `src/core/Settings.cpp` | `Settings::load()/save()` | Key-set validation, typed reads with clamping, unknown-key warnings, atomic write | `core::JsonStore`, `core::Logging` |
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
 | `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
-| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
+| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, tray/single-instance switches, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `shell.trayEnabled`, `shell.closeToTray`, `shell.singleInstance`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
 | `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | One row per runtime (version + install path) and a Re-detect action | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
 | `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
@@ -40,7 +40,7 @@ Boundaries:
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | Plugin switches and trust notice; `legacyImportNotice` | `core::Settings`, `PluginHost` |
 | `src/theme/Theme.h` / `.cpp` | `Theme` | `applyTheme()` (rejects unknown ids) and `setFontFamily()`; `availableThemes`, `family`, `fontFamilies` | `core::Settings`, `ThemeRegistry` |
 | `src/core/Logging.h` / `.cpp` | `Logging` | `install()` and `isValidLevelName()` used to validate `logging.level` | `core::Settings` |
-| `app/main.cpp` | `main()` | Reads settings before `QGuiApplication`, applies Chromium flags and logging options, loads the translator and font, drives plugin loading | `core::Settings` |
+| `app/main.cpp` | `main()` | Reads settings before the application object, applies Chromium flags and logging options, loads the translator and font, drives plugin loading, runs the single-instance guard | `core::Settings`, `SingleApplication` |
 | `cmake/AwbTranslations.cmake` | build | Lists the settings QML files among the translatable sources | — |
 
 ## Frontend design
@@ -88,7 +88,10 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   `Switch` bound to `agents.startupVersionCheck` calling
   `agents.setStartupVersionCheck(checked)` (next start only — the current
   session's snapshot is `agents.versionCheckEnabled`, which the agent cards use
-  to hide the not-installed icon when no check ran), and a
+  to hide the not-installed icon when no check ran), three more switches bound
+  to `shell.trayEnabled`, `shell.closeToTray` (disabled while the tray icon is
+  off) and `shell.singleInstance` (with a caption that it applies from the next
+  start), and a
   `Repeater` over `agents.model` rendering `AListRow`s (icon, name, command, an
   `AStatusDot`, Edit and Delete). Editing opens `AgentEditDialog`; Delete opens a
   danger `AConfirmDialog` with contextual warnings (running / built-in) whose
@@ -150,6 +153,9 @@ Every key below is validated by `Settings::load()` and written back by
 | `locale.override` | string | `""` | Forced locale; empty follows the system locale | `main.cpp` (translator load), `PluginServices` context |
 | `launcher.healthCheckIntervalMs` | int | `3000` | Agent health-check interval; clamped `[100, 600000]` | `AgentsFacade` → `AgentHealthMonitor` |
 | `launcher.startupVersionCheck` | bool | `true` | Run the version probes at startup; off means no `versionCommand` processes, and cards hide the version label and not-installed icon (both are gated on the model's `versionKnown` role, which only a probe that finished can set; `AgentsFacade::versionCheckEnabled` remains the session snapshot, and **Re-detect version** in the card menu probes regardless of the switch) | `AgentsFacade::start()` gate, `SettingsLaunchersPage` switch |
+| `launcher.trayEnabled` | bool | `true` | Show the system-tray icon; turning it off hides the icon (and un-hides a window parked in the tray, which would otherwise be unreachable) | `TrayController::syncIcon()`, `SettingsLaunchersPage` switch |
+| `launcher.closeToTray` | bool | `false` | Closing the window hides it into the tray instead of exiting; quitting then happens via the tray menu or, with the tray unavailable, the window × | `TrayController::canHideToTray()`, `SettingsLaunchersPage` switch |
+| `launcher.singleInstance` | bool | `true` | A second launch activates the existing instance's window instead of starting a new one; **takes effect at the next start** (the guard runs before the UI is assembled) | `main.cpp` (SingleApplication) |
 | `web.surface` | string | `"embedded"` | `embedded` \| `external`; any other value warns and resets to the default | `WebTabsFacade`, `ShellController::webSurface()`, `SettingsWebPage` |
 | `web.freezeInactiveTabs` | bool | `false` | Freeze non-active tabs (Chromium already throttles them; freezing also suspends JS/websockets) | `WebTabsFacade` (`policyChanged`), `WebEngineSurface.qml` |
 | `web.maxLiveTabs` | int | `8` | Maximum live tabs before LRU release; clamped `[1, 64]` (and re-clamped to `>= 1` at use) | `WebTabsFacade::applyMemoryPolicy()` |
@@ -192,7 +198,8 @@ migration code and none should be added: adding a key means adding a default.
 
 | Subscriber | Keys it reacts to | Effect |
 |---|---|---|
-| `ShellController` | `window.sidebarCollapsed`, `window.sidebarWidth`, `window.width`, `window.height`, `window.title`, `web.surface`, `web.chromiumFlags` | Re-broadcasts the corresponding property so external edits stay in sync |
+| `ShellController` | `window.sidebarCollapsed`, `window.sidebarWidth`, `window.width`, `window.height`, `window.title`, `web.surface`, `web.chromiumFlags`, `launcher.trayEnabled`, `launcher.closeToTray`, `launcher.singleInstance` | Re-broadcasts the corresponding property so external edits stay in sync |
+| `TrayController` | `launcher.trayEnabled` | Re-creates or hides the tray icon immediately |
 | `Theme` | `appearance.theme` or `appearance.followSystem` → `loadCurrent()`; `appearance.fontFamily` → `changed()` | Reloads the theme (also re-resolving the follow-system baseline) or just re-binds the font token |
 | `AgentsFacade` | `launcher.startupVersionCheck` → `startupVersionCheckChanged()` | Re-broadcasts the persisted switch so the settings page echo stays in sync; the session snapshot `versionCheckEnabled` is only re-decided in `start()` |
 | `WebTabsFacade` | `web.freezeInactiveTabs`, `web.downloadDir` or `web.homeUrl` → `policyChanged()`; `web.maxLiveTabs` → `applyMemoryPolicy()` | `policyChanged` re-evaluates QML bindings; lowering the live-tab cap takes effect immediately rather than at the next tab open |
@@ -202,8 +209,9 @@ that reducing it releases tabs at once.
 
 ### Keys that need a restart, and why
 
-`plugins.*`, `web.chromiumFlags` and `logging.*` are consumed during startup
-assembly, before the settings UI can take effect mid-session:
+`plugins.*`, `web.chromiumFlags`, `logging.*` and `launcher.singleInstance`
+are consumed during startup assembly, before the settings UI can take effect
+mid-session:
 
 - `web.chromiumFlags` is read before `QtWebEngineQuick::initialize()` and pushed
   into `QTWEBENGINE_CHROMIUM_FLAGS`; the engine reads it when it initialises.
@@ -213,6 +221,8 @@ assembly, before the settings UI can take effect mid-session:
   re-installs when a value differs from the compiled default (the first install
   must run with defaults so warnings emitted while `Settings` is constructed
   still reach disk).
+- `launcher.singleInstance` decides whether `SingleApplication` allows a
+  second instance, and that decision is made in `main()` before any UI exists.
 
 Everything else (theme, font, sidebar state, last page, web surface, skill
 roots, per-plugin switches stored in `settings.json`) takes effect at once or on

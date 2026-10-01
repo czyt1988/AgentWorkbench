@@ -13,6 +13,7 @@ Each AI coding agent has its own CLI and its own way of starting a local web ser
 ## Features
 
 - **Workbench shell**: sidebar navigation with badges and keyboard shortcuts (`Ctrl+1…9`, `Ctrl+B`, `Ctrl+,`), workspace pages and a status bar with Python/Node runtime badges.
+- **System tray and single instance**: an optional tray icon with show/hide/quit, close-to-tray, and an optional guard that a second start just raises the existing window.
 - **Card grid launcher** with start/install/update actions, version labels, HTTP-detected running state and per-session stop.
 - **Embedded Web tabs** (Qt WebEngine): one persistent profile per agent, frozen inactive tabs, restorable released views, crash/offline/error overlays — with **Open in browser** always available as the fallback.
 - **Skill browser** over the usual `SKILL.md` locations with search, facets, hover details and click-to-copy paths.
