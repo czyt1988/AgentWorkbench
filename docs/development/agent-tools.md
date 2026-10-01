@@ -2,8 +2,11 @@
 
 ## What this feature does
 
-The Agent Tools page is a prompt workbench. It exists to solve two concrete
-pain points:
+The page the sidebar opens is **Agent Tools - Prompt**, listed under the static
+**Agent Tools** group label; its registration id stays `tools`, so a remembered
+`window.lastPageId` keeps resolving to it (the rows themselves are the shell's
+business — see [Workbench and pages](workbench-and-pages.md)). It is a prompt
+workbench, and it exists to solve two concrete pain points:
 
 1. Referencing a file in a prompt normally means hand-building a relative path.
 2. Typing a prompt straight into an agent CLI risks hitting Enter on a
@@ -50,7 +53,7 @@ Outside the module the page leans on `core::Paths::dataRoot()`,
 
 ### `ToolsPage.qml` layout
 
-A `ColumnLayout`: `PageHeader` (title `Agent Tools`) → toolbar row → `SplitView`.
+A `ColumnLayout`: `PageHeader` (title `Agent Tools - Prompt`) → toolbar row → `SplitView`.
 
 - **Toolbar.** A `Workspace` label, the workspace `AComboBox`, an
   `Add Folder...` button, a refresh `AIconButton` (disabled without a workspace)
@@ -348,6 +351,10 @@ both use it, so the prompt always receives the same shape.
       (`_tools_qml` plus the alias) and in `AWB_TS_SOURCES` if they use `qsTr()`.
 - [ ] `objectName`s used by `tests/tools/tst_toolsui.cpp` are unchanged, or the
       test is updated in the same commit.
+- [ ] The sidebar registration in `BuiltinPages::registerPages()` still uses the
+      id `tools` (renaming it strands the persisted `window.lastPageId`) and an
+      `order` adjacent to the `tools-group` label (otherwise the row falls under
+      another label), and its `title` matches the `PageHeader` title.
 - [ ] Model `roleNames()` still match the delegate's `required property` names.
 - [ ] `FileIcons` key names in `config/default_file_icons.json` were not renamed.
 - [ ] `tools.json` key names are unchanged.

@@ -137,14 +137,16 @@ cache — is documented in [Skill browser](../development/skill-browser.md).
 ## Registering a page (a built-in extension point)
 
 A workspace page is described by `awb::shell::PageDescriptor` and registered
-through `awb::shell::NavigationModel::registerPage()`. The shell itself knows
+through `awb::shell::NavigationModel::registerPage()`. One descriptor is one
+sidebar row: an openable page, or — with `kind` set to `NavKind::Header` — a
+static group label heading the rows under it. The shell itself knows
 nothing about agents, Skills or Web — it just renders the descriptors it is
 given, which is why a built-in page and a plugin page travel the same path.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `id` | string | — | Registration key; `NavigationModel` dedupes and looks pages up by it |
-| `title` | string | — | English source string, translated at the display edge |
+| `title` | string | — | Sidebar label, shown verbatim — the shell does not translate a plugin's strings |
 | `iconSource` | string | — | Icon URL, e.g. `qrc:/icons/terminal.svg` |
 | `source` | string | — | Page QML URL, e.g. `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` |
 | `section` | string | `main` | Sidebar section: `main`, `extensions` or `system` |
@@ -152,14 +154,20 @@ given, which is why a built-in page and a plugin page travel the same path.
 | `badgeText` | string | empty | Sidebar badge text; empty means no badge |
 | `enabled` | bool | `true` | When false the page is not shown in the sidebar |
 | `keepAlive` | bool | `false` | When true the page is instantiated once and only hidden on switch-away (see below) |
+| `kind` | enum | `page` | Sidebar row shape: `page` is an openable destination; `header` is a static group label — not clickable, no shortcut number, no badge, cannot become the current page |
+| `level` | int | `0` | Sidebar indent depth; rows under a group label register `1` and the sidebar indents them by `level * theme.spacingM` |
 
 `section` decides where the page lands: `main` is the everyday group,
 `extensions` is where plugin-contributed pages go, and `system` is pinned to the
 bottom of the sidebar. The built-in Settings page is registered in `system`.
+A group label takes part in this same path: it is registered like a page, just
+with `kind` set to `NavKind::Header`, and it must sit in the same `section` as —
+and be adjacent in `order` to — the rows it heads.
 
-`BuiltinPages::registerPages()` is the single place where the built-in pages are
-declared — the launcher (`agents`), Web (`web`), Skills (`skills`), Agent Tools
-(`tools`) and Settings (`settings`). A new built-in page is added there.
+`BuiltinPages::registerPages()` is the single place where the built-in sidebar
+rows are declared — the launcher (`agents`), Web (`web`), Skills (`skills`), the
+`tools-group` group label, the prompt workbench page under it (`tools`) and
+Settings (`settings`). A new built-in page, or a new group label, is added there.
 
 `keepAlive` is not free. A keep-alive page is created once and survives page
 switches; the Workspace only hides it. That is required for pages whose state
@@ -224,6 +232,11 @@ The `Services` interface is the only way a plugin touches the host:
 | `log` / `notify` | Application log line and toast notification |
 | `themeColor` | Read-only theme token access, returned as `"#rrggbb"` |
 | `settingsValue` | Read-only access to a small settings whitelist |
+
+The ABI's `plugin::PageDescriptor` is unchanged by the sidebar's group-label
+support: it has no `kind` or `level` field, so a plugin cannot contribute a
+group label or an indented row, and plugin pages keep landing in `extensions`
+as plain top-level pages.
 
 Discovery scans `<data directory>/plugins/*/plugin.json`. Reading a manifest
 never loads code, so the Settings page can list every plugin — disabled ones

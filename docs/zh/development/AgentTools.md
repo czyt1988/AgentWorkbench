@@ -2,7 +2,7 @@
 
 ## 这个功能做什么
 
-Agent Tools 页是一个提示词编写台，为两个具体痛点而存在：
+侧栏里这一页显示为 **Agent 工具 · 提示词**，挂在不可点击的分组标签 **Agent 工具** 之下；它的注册 id 仍是 `tools`，所以记住的 `window.lastPageId` 照样解析到它（侧栏怎么分组属于 shell 的事，见 [workbench 与页面](workbench与页面.md)）。本页是一个提示词编写台，为两个具体痛点而存在：
 
 1. 在提示词里引用文件，通常要手拼相对路径。
 2. 直接把提示词敲进 agent CLI，有在半成品上误触回车、把消息发出去的风险。
@@ -45,7 +45,7 @@ Agent Tools 页是一个提示词编写台，为两个具体痛点而存在：
 
 ### `ToolsPage.qml` 布局
 
-一个 `ColumnLayout`：`PageHeader`（标题 `Agent Tools`）→ 工具栏行 → `SplitView`。
+一个 `ColumnLayout`：`PageHeader`（标题 `Agent Tools - Prompt`，中文界面显示「Agent 工具 · 提示词」）→ 工具栏行 → `SplitView`。
 
 - **工具栏。** 一个 `Workspace` 标签、工作区 `AComboBox`、`Add Folder...` 按钮、
   一个刷新 `AIconButton`（无工作区时禁用），以及靠右落在编辑区正上方的 `Copy`
@@ -288,6 +288,9 @@ flowchart TD
 - [ ] 新增/移动的 `.qml` 已登记进 `app/CMakeLists.txt`（`_tools_qml` 与 alias），
       含 `qsTr()` 时还要进 `AWB_TS_SOURCES`。
 - [ ] `tests/tools/tst_toolsui.cpp` 依赖的 `objectName` 未改，或同一提交里改了测试。
+- [ ] `BuiltinPages::registerPages()` 里的侧栏注册仍用 id `tools`（改名会让持久化的
+      `window.lastPageId` 找不到页），`order` 仍与 `tools-group` 标签相邻（否则这一行
+      会跑到别的分组底下），且 `title` 与 `PageHeader` 的标题一致。
 - [ ] 模型 `roleNames()` 仍与 delegate 的 `required property` 名匹配。
 - [ ] `config/default_file_icons.json` 里的键名未被改名。
 - [ ] `tools.json` 的键名未变。

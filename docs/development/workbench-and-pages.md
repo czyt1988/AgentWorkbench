@@ -14,13 +14,13 @@ The boundary is vertical, not horizontal: `workbench` may depend on every L2 mod
 | File | Class | Responsibility | Collaborates with |
 |---|---|---|---|
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, …), general actions (copy, notify, open URL/folder/config dir, quit) and the plugin toggle API | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `Settings` |
-| `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | Registers the five built-in pages and wires badges, current-page persistence and the cross-domain Web rules | `NavigationModel`, `ShellController`, `AgentsFacade`, `WebTabsFacade`, `SkillsFacade`, `ToolsFacade`, `Notifications` |
+| `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | Registers the five built-in pages plus the sidebar group label, and wires badges, current-page persistence and the cross-domain Web rules | `NavigationModel`, `ShellController`, `AgentsFacade`, `WebTabsFacade`, `SkillsFacade`, `ToolsFacade`, `Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | Python/Node.js detection for the status bar and the Settings page: dispatches the probe to the thread pool, merges verdicts into the known state, persists the cache and retries inconclusive rounds | `EnvironmentProbe`, `EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe` (with `RuntimeState`, `RuntimeProbe`, `EnvironmentSnapshot`) | The thread-safe worker: probes the candidate programs, asks the runtime where it lives, folds a verdict into the known state | `ProcessRunner`, `TextUtils` |
 | `src/workbench/EnvironmentCache.h` / `.cpp` | `awb::workbench::EnvironmentCache` (with `Snapshot`) | First-paint cache: read/write `<dataRoot>/environment_cache.json` | `core::Paths`, `core::JsonStore` |
 | `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | The host-side implementation of `plugin::Services`; the bridge between the plugin ABI and shell/theme/web | `NavigationModel`, `UiServices`, `Notifications`, `Theme`, `WebTabsFacade`, `Settings`; details in [Plugin host](plugin-host.md) |
 | `src/workbench/CMakeLists.txt` | target `awb_workbench` | Links every L1/L2 module plus core | `app` |
-| `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | The descriptor a page registration consists of (`id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`) | `NavigationModel`, `BuiltinPages`, `PluginServices` |
+| `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | The descriptor one sidebar row is registered from (`id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`, `kind`, `level`); `kind` is `awb::shell::NavKind::Page` for a destination or `NavKind::Header` for a static group label | `NavigationModel`, `BuiltinPages`, `PluginServices` |
 | `src/shell/qml/Workspace.qml` | — | Hosts one page at a time; a `Loader` for normal pages and a `Repeater` for `keepAlive` pages | `NavigationModel` |
 | `src/shell/qml/MainWindow.qml` | — | Declares the lowercase root aliases, keyboard shortcuts, the exit confirmation and the one-time legacy-import dialog | all singletons |
 | `app/main.cpp` | — | The object-graph assembly and the QML-singleton registration; the startup order is a contract | all modules |
@@ -58,21 +58,26 @@ Plugin API (read-only list plus toggles; behaviours are in [Plugin host](plugin-
 
 ## BuiltinPages
 
-`BuiltinPages` registers the built-in pages into the shell's `NavigationModel` and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
+`BuiltinPages` registers the built-in sidebar rows — five pages and one static group label — into the shell's `NavigationModel`, and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
 
 The complete page registry:
 
-| id | title (`tr()`) | icon | source | section | order | keepAlive |
-|---|---|---|---|---|---|---|
-| `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | false |
-| `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | **true** |
-| `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | false |
-| `tools` | Agent Tools | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 40 | false |
-| `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | false |
+| id | title (`tr()`) | icon | source | section | order | kind | level | keepAlive |
+|---|---|---|---|---|---|---|---|---|
+| `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | `Page` | 0 | false |
+| `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
+| `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
+| `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
+| `tools` | Agent Tools - Prompt | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` decides where a page lands in the sidebar and is the only mechanism for it: `system` pages are pinned to the bottom. `keepAlive` is a real trade-off — a normal page is destroyed when you navigate away, so any state that must outlive it belongs in C++. The `web` page is the sole exception because a `WebEngineView` cannot move its state into C++ and destroying it reloads the whole page; `Workspace.qml` instantiates it once and only hides it. A `keepAlive` page must disable its own shortcuts while it is not current.
+`section` decides which part of the sidebar a row lands in and is the only mechanism for that: `system` rows are pinned to the bottom. Inside a section, `order` alone decides the row order — which is what makes grouping work: `tools-group` is a `NavKind::Header` row (a caption-size, muted, bold label with no icon), and `tools` sits under it indented by `level = 1`, so the two must keep adjacent `order` values or the page falls under some other label. A header row is **not** a page: `pageIdsInOrder()` skips it (so `Ctrl+1…9` numbering does not shift), `badges()` has no key for it and `setBadge()` ignores it, and `setCurrentPageId()` rejects it with a `qWarning` because it is not a destination. It still needs an `id`, since `NavigationModel` keys and de-duplicates every row by it. `countInSection()` and `rowOfFirstInSection()` do count header rows, because dividers are placed per model row. `level` is currently only an indent — there is no chevron or collapse interaction, by design, until a group actually has sub-pages (`designs.md`, sidebar rules).
 
-A new feature page belongs in `registerPages()`, using the same `NavigationModel::registerPage()` path that plugins use — there is no separate registration mechanism.
+The header row is also invisible in the collapsed sidebar (`Sidebar.qml` hides it and drops the indent there), and the footer's `system` section never carries one: those rows render as icon buttons whose stacking position is computed from the model row number.
+
+`keepAlive` is a real trade-off — a normal page is destroyed when you navigate away, so any state that must outlive it belongs in C++. The `web` page is the sole exception because a `WebEngineView` cannot move its state into C++ and destroying it reloads the whole page; `Workspace.qml` instantiates it once and only hides it. A `keepAlive` page must disable its own shortcuts while it is not current.
+
+A new feature page belongs in `registerPages()`, using the same `NavigationModel::registerPage()` path that plugins use — there is no separate registration mechanism, and a sidebar group label goes through the very same call with `kind` set to `NavKind::Header`.
 
 The three wirings:
 
@@ -221,7 +226,7 @@ The executable adds `<applicationDirPath>/qml` to the engine's import paths so a
 For a **new built-in page**:
 
 - [ ] Create the page QML under the owning module's `qml/` directory and register it in the area list in `app/CMakeLists.txt` (and in `AWB_TS_SOURCES` if it has `qsTr()`).
-- [ ] Register a `shell::PageDescriptor` in `BuiltinPages::registerPages()` with its id, `tr()` title, icon, source URL, `section` and `order`; set `keepAlive` only if the page has state that cannot live in C++.
+- [ ] Register a `shell::PageDescriptor` in `BuiltinPages::registerPages()` with its id, `tr()` title, icon, source URL, `section` and `order`; set `keepAlive` only if the page has state that cannot live in C++. To put it under a sidebar group label, give it `level = 1` and make sure the label's `order` is adjacent to it.
 - [ ] If the page needs cross-domain behaviour, wire it in `BuiltinPages` (a new `wireXxx()` private method following the existing pattern) rather than reaching across domains from QML.
 - [ ] If the page shows in the sidebar and has a badge, extend `wireBadges()`; if it needs to be restorable, `wirePagePersistence()` already covers it.
 - [ ] Update the [Extension points](../architecture/extension-points.md) page and this registry table, and add the page's own `guide/` and `development/` documents.

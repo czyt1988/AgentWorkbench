@@ -38,7 +38,7 @@ QML interacts with facades and models and nothing else. A facade is a `QObject` 
 - `skillcatalog::SkillsFacade` owns `SkillModel` and `SkillScanner`.
 - `tools::ToolsFacade` owns `ToolsStore`, `FileTreeModel` and `FileTreeFlatModel`.
 - `web::WebTabsFacade` owns `WebTabsModel` and `WebSurfaceRegistry`.
-- On the shell side, `ShellController` holds window-level state, `UiServices` holds generic UI operations, `NavigationModel` is the page registry and list model, and `Notifications` is the toast queue.
+- On the shell side, `ShellController` holds window-level state, `UiServices` holds generic UI operations, `NavigationModel` is the sidebar-row registry and list model (each row is either an openable page or a static group label), and `Notifications` is the toast queue.
 - On the application side, `WorkbenchContext` is the single entry point for cross-domain intents and general actions.
 
 Two responsibilities of a facade are easy to miss. It **preserves the historical Q_INVOKABLE and signal names** — `AgentsFacade` deliberately keeps the API surface of the 0.3.0 `launcher` object so existing QML only had to change the prefix from `launcher.` to `agents.`. It also **derives properties with `NOTIFY` for things QML binds**, rather than exposing them only as methods, because a binding over a method call can never re-evaluate. `SkillsFacade::roots`, `WebTabsFacade::tabCount` and `NavigationModel::badges` exist for this reason.
@@ -55,14 +55,14 @@ The role families in use:
 - `web::WebTabsModel`: `tabId`, `agentId`, `url`, `title`, `iconSource`, `color`, `surfaceKind`, `state`, `loadProgress`, `lastError`, `zoom`, `tabObject`. The last one hands the live `WebTab` object to QML so a surface can bind directly to its `Q_PROPERTY`s.
 - `skillcatalog::SkillModel`: `skillId`, `name`, `description`, `dirPath`, `skillFilePath`, `rootId`, `rootLabel`, `kind`, `pluginId`, `pluginVersion`, `lastModified`, `sizeBytes`, `extras`.
 - `tools::FileTreeModel` (a tree): `display`, `name`, `path`, `relativePath`, `isDir`, `suffix`, `iconSource`. `tools::FileTreeFlatModel` (the flat projection QML actually renders): `display`, `name`, `path`, `relativePath`, `isDir`, `iconSource`, plus the flat-only `depth`, `expanded` and `hasChildren`. Both keep `display` so the delegate keeps its default text role.
-- `shell::NavigationModel`: `pageId`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`.
+- `shell::NavigationModel`: `pageId`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `kind`, `level`.
 - `shell::Notifications`: `toastId`, `level`, `title`, `text`.
 
 `FileTreeFlatModel` is worth reading before writing any model that mirrors another. It projects a tree into a linear list so that both Qt versions can render the same `ListView` delegate, because `TreeView` did not exist in Qt 5.15. Its `data()` **maps each forwarded role explicitly** instead of passing the role number to the source model. The two enums agree up to `IsDirRole`, but the source model has a `SuffixRole` between `IsDirRole` and `IconRole` while the flat model does not, so the numeric values are offset from that point on and a pass-through would return the wrong data. When you mirror another model's roles, mirror the names, then map the numbers by hand.
 
 ## Value types and the meta-object boundary
 
-Most of the project's small types are plain structs with no meta-object machinery: `agentcatalog::AgentDefinition` (the persisted fields), `agentcatalog::AgentState` (the runtime fields), `skillcatalog::SkillDefinition`, `skillcatalog::SkillRoot`, and `theme::ThemeFile`. They are passed by `const &` or by value inside C++, and at the QML edge they are converted to a `QVariantMap` snapshot rather than registered as gadgets — `NavigationModel::page()` returns a page descriptor map, `AgentModel::agent()` merges a definition with its state, and `SkillsFacade::skill()` returns a skill map.
+Most of the project's small types are plain structs with no meta-object machinery: `agentcatalog::AgentDefinition` (the persisted fields), `agentcatalog::AgentState` (the runtime fields), `skillcatalog::SkillDefinition`, `skillcatalog::SkillRoot`, and `theme::ThemeFile`. They are passed by `const &` or by value inside C++, and at the QML edge they are converted to a `QVariantMap` snapshot rather than registered as gadgets — `NavigationModel::page()` returns a sidebar-row descriptor map (`kind` says whether the row is a `page` or a static group `header`, `level` carries its indent), `AgentModel::agent()` merges a definition with its state, and `SkillsFacade::skill()` returns a skill map.
 
 `core::OpResult` is the exception: it is a `Q_GADGET` with `ok` and `error` properties, because QML reads those fields directly off the return value of a `Q_INVOKABLE` such as `UiServices::copyText`. Use a plain struct when the type only travels inside C++, and reach for `Q_GADGET` only when QML must read fields of the returned value; otherwise expose a `QVariantMap`.
 

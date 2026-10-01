@@ -14,13 +14,13 @@
 | 文件 | 类 | 职责 | 与谁协作 |
 |---|---|---|---|
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`Settings` |
-| `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
+| `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面与侧栏的分组标签，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏与设置页的 Python / Node.js 检测：把探测派发到线程池、把结论并入已知状态、按变化落缓存、对没结论的一轮安排重试 | `EnvironmentProbe`、`EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe`（含 `RuntimeState`、`RuntimeProbe`、`EnvironmentSnapshot`） | 线程安全的 worker：逐个试候选程序、问运行时自己装在哪、把结论并入已知状态 | `ProcessRunner`、`TextUtils` |
 | `src/workbench/EnvironmentCache.h` / `.cpp` | `awb::workbench::EnvironmentCache`（含 `Snapshot`） | 首屏缓存：读写 `<dataRoot>/environment_cache.json` | `core::Paths`、`core::JsonStore` |
 | `src/workbench/PluginServices.h` / `.cpp` | `awb::workbench::PluginServices` | `plugin::Services` 的宿主侧实现；插件 ABI 与 shell/theme/web 之间的桥 | `NavigationModel`、`UiServices`、`Notifications`、`Theme`、`WebTabsFacade`、`Settings`；细节见[插件宿主](插件宿主.md) |
 | `src/workbench/CMakeLists.txt` | 构建目标 `awb_workbench` | 链接每个 L1/L2 模块加 core | `app` |
-| `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | 一次页面注册的载体（`id`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`、`keepAlive`） | `NavigationModel`、`BuiltinPages`、`PluginServices` |
+| `src/shell/PageDescriptor.h` | `awb::shell::PageDescriptor` | 侧栏一行的注册载体（`id`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`、`keepAlive`、`kind`、`level`）；`kind` 取 `awb::shell::NavKind::Page` 表示一个目的地，取 `NavKind::Header` 表示静态分组标签 | `NavigationModel`、`BuiltinPages`、`PluginServices` |
 | `src/shell/qml/Workspace.qml` | — | 同一时刻托管一个页面；普通页用 `Loader`，`keepAlive` 页用 `Repeater` | `NavigationModel` |
 | `src/shell/qml/MainWindow.qml` | — | 声明根部小写别名、快捷键、退出确认与一次性旧数据导入弹窗 | 所有单例 |
 | `app/main.cpp` | — | 对象图装配与 QML 单例注册；启动顺序是契约 | 所有模块 |
@@ -58,21 +58,26 @@
 
 ## BuiltinPages
 
-`BuiltinPages` 把内置页面注册进 shell 的 `NavigationModel`，随后布三组规则。构造函数里的顺序是 `registerPages()`、`wireBadges()`、`wirePagePersistence()`、`wireWebRules()`。
+`BuiltinPages` 把内置的侧栏行——五个页面加一个静态分组标签——注册进 shell 的 `NavigationModel`，随后布三组规则。构造函数里的顺序是 `registerPages()`、`wireBadges()`、`wirePagePersistence()`、`wireWebRules()`。
 
 完整的内置页面注册表：
 
-| id | 标题（`tr()`） | 图标 | source | section | order | keepAlive |
-|---|---|---|---|---|---|---|
-| `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | false |
-| `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | **true** |
-| `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | false |
-| `tools` | Agent Tools | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 40 | false |
-| `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | false |
+| id | 标题（`tr()`） | 图标 | source | section | order | kind | level | keepAlive |
+|---|---|---|---|---|---|---|---|---|
+| `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | `Page` | 0 | false |
+| `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
+| `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
+| `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
+| `tools` | Agent Tools - Prompt | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` 决定页面落在侧栏的哪里，而且是唯一机制：`system` 页钉底。`keepAlive` 是一个实打实的取舍——普通页在切走时被销毁，所以必须活过切换的状态要放进 C++。`web` 页是唯一的例外，因为 `WebEngineView` 的状态搬不进 C++、销毁即整页重载；`Workspace.qml` 因此把它实例化一次、只隐藏不销毁。`keepAlive` 页必须自行在非当前页时禁用快捷键。
+`section` 决定一行落在侧栏的哪个区域，而且是这一点的唯一机制：`system` 行钉底。节内的先后顺序则完全由 `order` 决定——分组就是靠这一点生效的：`tools-group` 是一条 `NavKind::Header` 行（caption 档字号、弱化色、加粗，没有图标的小字标签），`tools` 以 `level = 1` 缩进挂在它下面，因此两者的 `order` 必须相邻，否则这一行会跑到别的分组底下去。分组标签行**不是页面**：`pageIdsInOrder()` 会跳过它（`Ctrl+1…9` 的序号不会因此移位），`badges()` 里没有它的键、`setBadge()` 静默忽略它，`setCurrentPageId()` 会记一条 `qWarning` 并拒绝——因为它不是一个目的地。它仍然必须有 `id`，因为 `NavigationModel` 对每一行都按 id 查重与检索。`countInSection()` 与 `rowOfFirstInSection()` 则照分组标签行计数，因为分割线是按模型行画的。`level` 目前只表达缩进——刻意还没有 chevron 与展开收起交互，等真有子页时再加（见 `designs.md` 的侧栏规则）。
 
-新功能页就注册在 `registerPages()` 里，走与插件相同的 `NavigationModel::registerPage()` 路径——没有另一套注册机制。
+分组标签行在折叠态的侧栏里还会整行隐藏（`Sidebar.qml` 里收起时既不显示标签也取消缩进），`system` 区也永远不放分组标签：那一区的行是纯图标按钮，堆叠位置按行号算。
+
+`keepAlive` 是一个实打实的取舍——普通页在切走时被销毁，所以必须活过切换的状态要放进 C++。`web` 页是唯一的例外，因为 `WebEngineView` 的状态搬不进 C++、销毁即整页重载；`Workspace.qml` 因此把它实例化一次、只隐藏不销毁。`keepAlive` 页必须自行在非当前页时禁用快捷键。
+
+新功能页就注册在 `registerPages()` 里，走与插件相同的 `NavigationModel::registerPage()` 路径——没有另一套注册机制，侧栏的分组标签也是同一个调用，只是把 `kind` 设成 `NavKind::Header`。
 
 三组布线：
 
@@ -221,7 +226,7 @@ QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器
 **新增一个内置页面**：
 
 - [ ] 在所属模块的 `qml/` 下建页面 QML，并登记进 `app/CMakeLists.txt` 的对应区域清单（有 `qsTr()` 时还要进 `AWB_TS_SOURCES`）。
-- [ ] 在 `BuiltinPages::registerPages()` 里注册 `shell::PageDescriptor`，写明 id、`tr()` 标题、图标、source URL、`section` 与 `order`；只有当页面状态搬不进 C++ 时才设 `keepAlive`。
+- [ ] 在 `BuiltinPages::registerPages()` 里注册 `shell::PageDescriptor`，写明 id、`tr()` 标题、图标、source URL、`section` 与 `order`；只有当页面状态搬不进 C++ 时才设 `keepAlive`。要让它挂在某个分组标签下，就把 `level` 设成 1，并确认那个标签的 `order` 与它相邻。
 - [ ] 页面需要跨域行为时，在 `BuiltinPages` 里布线（照现有模式加一个 `wireXxx()` 私有方法），而不是从 QML 跨域伸手。
 - [ ] 页面进侧栏且有徽标时，扩展 `wireBadges()`；需要可恢复的话 `wirePagePersistence()` 已经覆盖。
 - [ ] 更新[扩展点](../architecture/扩展点.md)与本页的注册表，并补该页自己的 `guide/` 与 `development/` 文档。

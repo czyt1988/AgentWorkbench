@@ -36,6 +36,14 @@
   运行时经 `ApplicationWindow.font` 传播；本机没有该字体时自动回退系
   统默认。设置 → 外观里可选（"跟随主题" + 本机全部字体族）。动机：
   Win10 默认回退把整个 UI 渲染成宋体。
+- **侧栏分组标签与缩进行**：侧栏的一行现在可以只是静态分组标题
+  （`NavKind::Header`）而不是一个目的地，挂在它下面的条目按 `level`
+  缩进。第一个分组是「Agent 工具」，其页面改名为「Agent 工具 · 提示词」
+  并缩进挂在标题下（英文界面为 "Agent Tools" / "Agent Tools - Prompt"）——
+  该标题不可点击、不会高亮、不占 `Ctrl+1…9` 的序号、不带徽标、当不了当前
+  页，侧栏折叠成图标条时还会整行隐藏。页面的注册 id 仍是 `tools`，因此
+  记住的「上次页面」照样恢复。新增 `tst_shell` 用例
+  （`testSidebarGroupLabel`）覆盖。
 
 ### 变更
 
@@ -115,6 +123,14 @@
   视野、以及把文本组件自身的背景（外框、焦点环）改挂到 `Flickable` 上并按
   它定尺寸——外框因此钉在视口上，不会跟着文本一起滚走。新增一条
   `tst_toolsui` 用例锁住滚动范围、滚动条的出现与实际位移。
+- **侧栏页面标题从未被翻译**：Qt 6 的 `moc` 把带命名空间的完整类名写进
+  meta-object，因此处在命名空间里的类调用 `tr()` 时，用的是
+  `awb::workbench::BuiltinPages` 这一档上下文；而 `lupdate` 往 `.ts` 里记录
+  的是裸类名 `BuiltinPages`。两把钥匙对不上，侧栏标题便一律静默回落成英文，
+  构建与测试都察觉不到。现在 `BuiltinPages` 显式调用
+  `QCoreApplication::translate("BuiltinPages", …)`，上下文与 `lupdate` 写出的
+  一致，它的标题（含新的分组标签与「Agent 工具 · 提示词」）恢复翻译。其余带
+  命名空间的类仍有同样的错配，已在 `docs/zh/development/国际化.md` 说明。
 
 ### 移除
 

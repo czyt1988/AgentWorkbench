@@ -164,7 +164,7 @@ The window is a sidebar, a workspace and a status bar, and the rule that keeps i
 
 ```mermaid
 flowchart LR
-    Sidebar["Sidebar.qml<br/>scrolling main/extensions<br/>divider · pinned footer (system pages)"]
+    Sidebar["Sidebar.qml<br/>scrolling main/extensions<br/>(pages · group labels) ·<br/>divider · pinned footer (system pages)"]
     Workspace["Workspace.qml<br/>one page at a time<br/>Loader for normal pages<br/>Repeater for keep-alive pages"]
     StatusBar["StatusBar.qml<br/>badges · Python/Node"]
     Nav["NavigationModel"]
@@ -175,7 +175,7 @@ flowchart LR
     StatusBar -.->|reads badges| Nav
 ```
 
-Pages are described by `PageDescriptor` (id, title, icon, source URL, `section`, `order`, `keepAlive`) and registered through `NavigationModel::registerPage`. Normal pages are destroyed when you navigate away, so any state that must outlive a page belongs in C++; the single exception is a page declared `keepAlive`, which stays instantiated and is only hidden — that is how the embedded web views survive a page switch. Both rules are explained in [Frontend design](frontend-design.md).
+Sidebar rows are described by `PageDescriptor` (id, title, icon, source URL, `section`, `order`, `keepAlive`, `kind`, `level`) — either an openable page or, with `kind` set to `header`, a static group label heading indented rows — and registered through `NavigationModel::registerPage`. Normal pages are destroyed when you navigate away, so any state that must outlive a page belongs in C++; the single exception is a page declared `keepAlive`, which stays instantiated and is only hidden — that is how the embedded web views survive a page switch. Both rules are explained in [Frontend design](frontend-design.md).
 
 ## Design principles, and where they are expanded
 

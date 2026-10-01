@@ -38,7 +38,7 @@ QML 只与门面和模型交互，不与别的东西交互。门面是一个 `QO
 - `skillcatalog::SkillsFacade` 持有 `SkillModel` 与 `SkillScanner`。
 - `tools::ToolsFacade` 持有 `ToolsStore`、`FileTreeModel` 与 `FileTreeFlatModel`。
 - `web::WebTabsFacade` 持有 `WebTabsModel` 与 `WebSurfaceRegistry`。
-- shell 侧，`ShellController` 持有窗口级状态，`UiServices` 持有通用 UI 操作，`NavigationModel` 是页面注册表与列表模型，`Notifications` 是 toast 队列。
+- shell 侧，`ShellController` 持有窗口级状态，`UiServices` 持有通用 UI 操作，`NavigationModel` 是侧栏行注册表与列表模型（每一行是一个可打开的页面，或一个静态分组标签），`Notifications` 是 toast 队列。
 - 应用侧，`WorkbenchContext` 是跨域意图与通用动作的唯一入口。
 
 门面有两项职责容易被忽略。它**保留历史 Q_INVOKABLE 与信号名**——`AgentsFacade` 刻意保持 0.3.0 的 `launcher` 对象的 API 面，既有 QML 只需把前缀从 `launcher.` 改成 `agents.`。它也**为 QML 要绑定的东西派生带 `NOTIFY` 的属性**，而不是只暴露方法，因为对方法调用的绑定永远不会重新求值。`SkillsFacade::roots`、`WebTabsFacade::tabCount` 与 `NavigationModel::badges` 正为此存在。
@@ -55,14 +55,14 @@ QML 消费的模型都是 `QAbstractListModel` / `QAbstractItemModel` 的子类�
 - `web::WebTabsModel`：`tabId`、`agentId`、`url`、`title`、`iconSource`、`color`、`surfaceKind`、`state`、`loadProgress`、`lastError`、`zoom`、`tabObject`。最后一个把活的 `WebTab` 对象交给 QML，让 surface 能直接绑它的 `Q_PROPERTY`。
 - `skillcatalog::SkillModel`：`skillId`、`name`、`description`、`dirPath`、`skillFilePath`、`rootId`、`rootLabel`、`kind`、`pluginId`、`pluginVersion`、`lastModified`、`sizeBytes`、`extras`。
 - `tools::FileTreeModel`（树）：`display`、`name`、`path`、`relativePath`、`isDir`、`suffix`、`iconSource`。`tools::FileTreeFlatModel`（QML 真正渲染的扁平投影）：`display`、`name`、`path`、`relativePath`、`isDir`、`iconSource`，外加扁平专属的 `depth`、`expanded`、`hasChildren`。两者都保留 `display`，让 delegate 仍然有默认的文本 role。
-- `shell::NavigationModel`：`pageId`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`。
+- `shell::NavigationModel`：`pageId`、`title`、`iconSource`、`source`、`section`、`order`、`badgeText`、`enabled`、`kind`、`level`。
 - `shell::Notifications`：`toastId`、`level`、`title`、`text`。
 
 写任何「镜像另一个模型」的模型之前，值得先读 `FileTreeFlatModel`。它把树投影成线性列表，好让两个 Qt 版本共用同一份 `ListView` delegate，因为 Qt 5.15 没有 `TreeView`。它的 `data()` **显式映射每个转发 role**，而不是把 role 号直传给源模型。两份枚举到 `IsDirRole` 为止数值相同，但源模型在 `IsDirRole` 与 `IconRole` 之间多一个 `SuffixRole`，扁平模型没有，因此从那里起数值错位，直传会返回错误数据。镜像另一个模型的 role 时，镜像名字，然后手工映射数值。
 
 ## 值类型与元对象边界
 
-项目里的小类型大多是没有任何元对象机制的普通结构体：`agentcatalog::AgentDefinition`（持久化字段）、`agentcatalog::AgentState`（运行期字段）、`skillcatalog::SkillDefinition`、`skillcatalog::SkillRoot`、`theme::ThemeFile`。它们在 C++ 内部按 `const &` 或值传递，在 QML 边界处转成 `QVariantMap` 快照，而不是注册成 gadget——`NavigationModel::page()` 返回页面描述符映射，`AgentModel::agent()` 合并定义与状态，`SkillsFacade::skill()` 返回 skill 映射。
+项目里的小类型大多是没有任何元对象机制的普通结构体：`agentcatalog::AgentDefinition`（持久化字段）、`agentcatalog::AgentState`（运行期字段）、`skillcatalog::SkillDefinition`、`skillcatalog::SkillRoot`、`theme::ThemeFile`。它们在 C++ 内部按 `const &` 或值传递，在 QML 边界处转成 `QVariantMap` 快照，而不是注册成 gadget——`NavigationModel::page()` 返回侧栏行的描述符映射（`kind` 说明这一行是可打开的页面 `page` 还是静态分组标签 `header`，`level` 携带缩进层级），`AgentModel::agent()` 合并定义与状态，`SkillsFacade::skill()` 返回 skill 映射。
 
 `core::OpResult` 是例外：它是带 `ok` 与 `error` 属性的 `Q_GADGET`，因为 QML 要直接从 `Q_INVOKABLE` 的返回值（如 `UiServices::copyText`）上读这两个字段。类型只在 C++ 内部流动时用普通结构体；只有 QML 必须读返回值字段时才上 `Q_GADGET`，否则暴露 `QVariantMap`。
 

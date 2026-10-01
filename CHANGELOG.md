@@ -53,6 +53,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   of the executable that answered underneath (the runtime's own
   `sys.executable` / `process.execPath`, falling back to what `PATH` resolves
   to), and Re-detect moved into the page header with a busy indicator.
+- **Sidebar group labels and indented rows**: a sidebar row can now be a static
+  group heading instead of a destination (`NavKind::Header`), and the rows under
+  it indent by their `level`. The first group is **Agent Tools**, whose page is
+  relabelled **Agent Tools - Prompt** (Chinese UI: 「Agent 工具」/「Agent 工具 ·
+  提示词」) and indented under it — the label is not clickable, never highlights,
+  takes no `Ctrl+1…9` slot, carries no badge and cannot become the current page,
+  and hides entirely while the sidebar is collapsed. The page keeps its
+  registration id `tools`, so the remembered last page still resolves. Covered
+  by a new `tst_shell` case (`testSidebarGroupLabel`).
+
 ### Changed
 
 - **Python/Node detection rewritten** (it used to report a red cross for a
@@ -204,6 +214,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   it, so the frame and focus ring stay pinned to the viewport instead of
   scrolling away with the text. A new `tst_toolsui` case locks in the scroll
   extent, the appearing scroll bar and the actual movement.
+- **Sidebar page titles were never translated**: Qt 6's `moc` writes the fully
+  qualified class name into the meta-object, so `tr()` inside a namespaced
+  class looks strings up under a context like `awb::workbench::BuiltinPages`,
+  while `lupdate` records the bare `BuiltinPages` in the `.ts`. The two keys
+  never met, every navigation title silently stayed English, and neither the
+  build nor the test suite noticed. `BuiltinPages` now calls
+  `QCoreApplication::translate("BuiltinPages", …)` explicitly, so the context
+  matches what `lupdate` emits and its titles (including the new group label
+  and "Agent Tools - Prompt") translate. The same mismatch still affects the
+  other namespaced classes; it is documented in `docs/development/i18n.md`.
 
 ### Removed
 

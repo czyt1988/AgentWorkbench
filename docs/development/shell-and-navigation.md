@@ -23,9 +23,9 @@ Boundaries:
 
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/shell/PageDescriptor.h` | `PageDescriptor` | The shell's view of a page: `id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive` | `NavigationModel`, `BuiltinPages` |
-| `src/shell/NavigationModel.h` | `NavigationModel` | Page registry plus the sidebar/workspace list model; properties `currentPageId`, `currentPage`, `badges`, `keepAlivePages`; `Roles` | `Sidebar.qml`, `Workspace.qml`, `StatusBar.qml`, `MainWindow.qml`, `BuiltinPages` |
-| `src/shell/NavigationModel.cpp` | `NavigationModel` | Registration validation, section sort, badge updates, ordered page ids | `BuiltinPages` |
+| `src/shell/PageDescriptor.h` | `PageDescriptor`, `NavKind` | The shell's view of one sidebar row — a page or a static group label: `id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`, `kind`, `level` | `NavigationModel`, `BuiltinPages` |
+| `src/shell/NavigationModel.h` | `NavigationModel` | Sidebar-row registry plus the sidebar/workspace list model; properties `currentPageId`, `currentPage`, `badges`, `keepAlivePages`; `Roles` | `Sidebar.qml`, `Workspace.qml`, `StatusBar.qml`, `MainWindow.qml`, `BuiltinPages` |
+| `src/shell/NavigationModel.cpp` | `NavigationModel` | Registration validation, section sort, badge updates, ordered page ids, rejecting group labels as destinations | `BuiltinPages` |
 | `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `core::Settings` |
 | `src/shell/ShellController.cpp` | `ShellController` | Getters/setters, `saveWindowSize()`, `valueChanged` re-broadcast | `core::Settings` |
 | `src/shell/UiServices.h` | `UiServices` | Clipboard, external URL/file-manager, native folder/colour dialogs, recent-colour memory; colour-picker support data | `ToolsPage.qml`, `AgentEditDialog.qml`, `AColorPicker.qml`, `WorkbenchContext` |
@@ -33,7 +33,7 @@ Boundaries:
 | `src/shell/Notifications.h` | `Notifications` | Non-blocking toast queue model: `IdRole`/`LevelRole`/`TitleRole`/`TextRole`, `notify()`, `dismiss()`, `durationFor()`, `maxVisible()` | `AToastStack.qml`, `Toasts.qml`, `WorkbenchContext`, `BuiltinPages` |
 | `src/shell/Notifications.cpp` | `Notifications` | Append/remove only; all timing lives in QML | `AToastStack.qml` |
 | `src/shell/qml/MainWindow.qml` | `MainWindow` | Window assembly: size clamping, lowercase alias bridge, global shortcuts, exit confirmation, legacy-import notice, font binding | all singletons, `Sidebar`, `Workspace`, `StatusBar`, `Toasts` |
-| `src/shell/qml/Sidebar.qml` | `Sidebar` | Sectioned navigation: scrollable `main`/`extensions`, pinned `system` footer with the collapse handle, badges | `nav`, `shell`, `AIconButton`, `APill` |
+| `src/shell/qml/Sidebar.qml` | `Sidebar` | Sectioned navigation: scrollable `main`/`extensions` with group labels and indented rows, pinned `system` footer with the collapse handle, badges | `nav`, `shell`, `AIconButton`, `APill` |
 | `src/shell/qml/Workspace.qml` | `Workspace` | Loads exactly one page; `keepAlive` pages via a resident `Repeater`, ordinary pages via a destroying `Loader` | `nav`, `PageHeader` consumers, `workbench` |
 | `src/shell/qml/StatusBar.qml` | `StatusBar` | Running-agent and tab counters from `nav.badges`, Python/Node badges from `environment` | `nav`, `environment`, `core::Settings` via `ShellController` |
 | `src/shell/qml/Toasts.qml` | `Toasts` | Anchors `AToastStack` to the bottom-right of the window | `Notifications` |
@@ -49,7 +49,7 @@ without them:
 
 | File | Class | Role |
 |---|---|---|
-| `src/workbench/BuiltinPages.h` / `.cpp` | `BuiltinPages` | Registers the five built-in pages, wires sidebar badges, persists the last page, wires the cross-domain Web rules |
+| `src/workbench/BuiltinPages.h` / `.cpp` | `BuiltinPages` | Registers the five built-in pages plus the sidebar group label, wires sidebar badges, persists the last page, wires the cross-domain Web rules |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `EnvironmentService` | Python/Node detection behind the status-bar badges and the Settings rows |
 | `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | The `workbench` singleton: `showPage()`, `notify()`, `copyText()`, plugin switches and `legacyImportNotice` |
 | `app/main.cpp` | `main()` | Assembly order and singleton registration on the `AgentWorkbench.App` URI |
@@ -90,7 +90,8 @@ The window assembles the frame:
 
 ### `Sidebar.qml`
 
-Renders the navigation model grouped by section. The root is an `Item` because
+Renders the navigation model grouped by section, drawing each row as a page
+entry or as a static group label. The root is an `Item` because
 the sidebar is a frosted-glass panel whose visual body is a stack of declared
 layers, bottom to top: an `AWorkspaceGlow` backdrop (the light the glass lets
 through), a translucent base `theme.alpha(theme.sidebarBg, 0.72)` dark /
@@ -131,12 +132,28 @@ attempted either). See `designs.md` section 2.4 for the full recipe.
   never returns to zero and the spotlight stays lit.
 
 - **Scrollable region.** A `Flickable` over a `ColumnLayout` with a `Repeater`
-  bound to `nav`; each `NavRow` is visible only when `model.enabled` and
-  `model.section !== "system"`. Section dividers are drawn by the first row of
+  bound to `nav`; each `NavRow` is visible only when `model.enabled`,
+  `model.section !== "system"`, and — for a group label — the sidebar is not
+  collapsed. Section dividers are drawn by the first row of
   every non-`main` section (`index === nav.rowOfFirstInSection(model.section)`).
+- **Group label rows.** One inline delegate renders both shapes of a row, picked
+  by `model.kind`. A `"header"` row is static text: caption-size
+  `theme.fontSizeCaption` in `theme.textMuted`, bold, no icon. It gets a
+  `theme.spacingS` gap above it so the group reads as a group — unless it opens
+  its section, where the section divider already provides the air. Its
+  `MouseArea` is
+  disabled with `hoverEnabled` off, so it cannot be clicked, cannot be
+  highlighted, and does not swallow the pointer hover — the panel spotlight
+  travels over it just as it does over blank space. Rows with `model.level > 0`
+  indent their whole chip (background, accent bar, icon slot and label) by
+  `model.level * theme.spacingM`, and indentation is dropped when collapsed
+  because the collapsed sidebar is an icon column.
 - **Current row.** `nav.currentPageId === model.pageId` drives a
   `theme.alpha(theme.surfaceBg, 0.78)` background and a 3 px accent bar; hover
-  uses `theme.alpha(theme.surfaceHoverBg, 0.62)`. Both are translucent rather
+  uses `theme.alpha(theme.surfaceHoverBg, 0.62)`. Neither is drawn on a group
+  label — it is never the current page (`setCurrentPageId()` rejects it), so
+  giving it a selected state would promise a destination it does not have. Both
+  are translucent rather
   than solid because the spotlight sits under the content column: an opaque row
   chip hides the light exactly where the pointer is, which is all the light
   theme has to show.
@@ -162,7 +179,10 @@ attempted either). See `designs.md` section 2.4 for the full recipe.
 - **Pinned footer.** The `system`-section pages render as plain `AIconButton`s
   (`active` when current, title in the tooltip) in a fixed footer, together with
   the collapse handle; expanded puts icons left and the handle right, collapsed
-  stacks them vertically centred.
+  stacks them vertically centred. The footer's `Repeater` skips `"header"` rows
+  — a group label has no icon to pin, and the footer stacks by row index, so a
+  label there would push the icons out of position. Group labels therefore
+  belong to `main`/`extensions` only (`designs.md`).
 - **Tooltips.** Collapsed rows show the title in a tooltip; `NavRow` and the
   footer buttons both carry `Component.onDestruction: ToolTip.hide()`.
 
@@ -211,21 +231,31 @@ the right edge.
 
 ### `PageDescriptor`
 
-The shell's page shape. `id` is the registration key; `title` is an English
-source string translated at the display edge; `iconSource` is a `qrc:` URL;
-`source` is the page QML URL.
+The shell's view of **one sidebar row**: either a page the workspace can open,
+or a static group label that only names the rows under it. `id` is the
+registration key; `title` is an English source string evaluated by the
+registrant at registration time (see [Internationalisation](i18n.md) for why
+`BuiltinPages` uses an explicit translation context here); `iconSource` is a
+`qrc:` URL; `source` is the page QML URL.
 
 | Field | Meaning |
 |---|---|
 | `id` | Registration key; must be unique |
-| `title` | English source string, translated with `qsTr()` at render time |
+| `title` | English source string, evaluated by the registrant at registration time |
 | `iconSource` | `qrc:` icon URL |
 | `source` | Page QML URL, e.g. `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` |
 | `section` | `main` \| `extensions` \| `system`; `system` pins to the sidebar footer |
 | `order` | Sort key inside the section; equal values keep registration order |
 | `badgeText` | Sidebar badge; empty means none |
-| `enabled` | When false the page is hidden from the sidebar |
+| `enabled` | When false the row is hidden from the sidebar |
 | `keepAlive` | When true the workspace keeps it instantiated and only hides it |
+| `kind` | `NavKind::Page` (a destination) \| `NavKind::Header` (a static group label: no `source`, never current, absent from the shortcut sequence and the badge map) |
+| `level` | Sidebar indent depth: 0 = top level, 1 = hangs under the row above it |
+
+A label and the rows it heads are ordinary adjacent model rows — grouping is
+produced by `order` plus `level`, not by a parent/child structure. That keeps
+the existing stable sort untouched and leaves room for a second menu level
+later without changing the shape of a registration.
 
 ### `NavigationModel`
 
@@ -235,7 +265,15 @@ source string translated at the display edge; `iconSource` is a `qrc:` URL;
   decided by the sort, then broadcasts `pagesChanged()` and `badgesChanged()`.
 - **Section ordering.** `sort()` is a `stable_sort` by `sectionRank`
   (`main` < `extensions` < `system`) then `order`; equal `order` keeps
-  registration order.
+  registration order. Group labels take part in the same sort — they are rows,
+  not a separate tree.
+- **Two kinds of row.** `roleNames()` exposes `kind` (`"page"` / `"header"`) and
+  `level` so one delegate can render both. Only page rows are *pages*:
+  `pageIdsInOrder()`, `badges()` and `setBadge()` skip label rows, and
+  `setCurrentPageId()` rejects an id that belongs to one (warns, leaves the
+  current page alone). `countInSection()` and `rowOfFirstInSection()` count
+  model rows, so they include labels — the divider is drawn per row and must not
+  skip one.
 - **Persistence.** `NavigationModel` itself does not persist; `BuiltinPages`
   calls `ShellController::setLastPageId()` on `currentPageChanged()` and restores
   it at startup.
@@ -250,6 +288,8 @@ source string translated at the display edge; `iconSource` is a `qrc:` URL;
   before this was fixed. Assignment (`nav.currentPageId = x`) also still works.
 - Helpers `pageIdsInOrder()`, `countInSection()` and `rowOfFirstInSection()` are
   invokables used by the shortcuts and the sidebar's section rendering.
+  `pageIdsInOrder()` is the `Ctrl+1…9` sequence, so a group label never takes a
+  number.
 
 ### `ShellController`
 
@@ -355,11 +395,11 @@ flowchart TD
     D -- yes --> E["warn and refuse"]
     D -- no --> F["sort by section rank then order"]
     F --> G["pagesChanged / badgesChanged"]
-    G --> H["Sidebar Repeater renders main and extensions rows"]
+    G --> H["Sidebar Repeater renders main/extensions rows and group labels"]
     G --> I["Sidebar footer renders system AIconButtons"]
     G --> J["Workspace keepAlivePages Repeater"]
     K["user clicks a row or Ctrl+1..9"] --> L["NavigationModel::setCurrentPageId(id)"]
-    L --> M{"id known?"}
+    L --> M{"id known and not a group label?"}
     M -- no --> N["warn and ignore"]
     M -- yes --> O["currentPageChanged; BuiltinPages persists lastPageId"]
     O --> P{"currentPage.keepAlive?"}
@@ -389,6 +429,12 @@ toast).
 - **The `system` section never enters the scrollable list.** Pinned pages are
   rendered only in the footer; putting them in the `Repeater` as well would
   duplicate them.
+- **A group label is a row, not a container.** `registerPage()` accepts it like
+  any other descriptor, so nothing enforces that a label sits above its rows:
+  the pairing is `order` adjacency (`designs.md`), and a label with no row under
+  it is just a stray line of text. Because it is a row, its title has no badge
+  slot and no `Ctrl+1…9` number — and it must not be the page the app restores on
+  startup, which `setCurrentPageId()` already guarantees by rejecting it.
 - **`keepAlive` pages are created at 0x0.** Layout children of a resident page
   must supply sizes through `implicitWidth`/`implicitHeight`; direct `width`/
   `height` bindings are overwritten by the first reflow.
@@ -412,7 +458,15 @@ To add a page you touch, at minimum:
 5. **Wiring** — if the page needs a badge, update it from the relevant facade in
    `BuiltinPages`; if it needs a shortcut, add it in `MainWindow.qml` (remember
    `keepAlive` pages must disable their own shortcuts when not current).
-6. **Documentation** — update this document and the corresponding Guide page.
+6. **Documentation** — update this document and the corresponding Guide page
+   (both the English source and its Chinese mirror).
+
+To hang the page under a group label instead of leaving it at top level,
+register the label as one more descriptor: `kind = NavKind::Header`, the same
+`section` as the page, no `source`, an `order` immediately below the group's
+first page — and set `level = 1` on the page itself. A label with no rows under
+it renders as a stray line of text, so both registrations belong in the same
+commit.
 
 ## Related
 

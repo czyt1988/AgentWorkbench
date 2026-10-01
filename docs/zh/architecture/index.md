@@ -164,7 +164,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Sidebar["Sidebar.qml<br/>可滚动的 main/extensions<br/>分割线 · 钉底 footer（system 页）"]
+    Sidebar["Sidebar.qml<br/>可滚动的 main/extensions<br/>（页面 · 分组标签）·<br/>分割线 · 钉底 footer（system 页）"]
     Workspace["Workspace.qml<br/>同一时刻一个页面<br/>普通页走 Loader<br/>常驻页走 Repeater"]
     StatusBar["StatusBar.qml<br/>徽标 · Python/Node"]
     Nav["NavigationModel"]
@@ -175,7 +175,7 @@ flowchart LR
     StatusBar -.->|读 badges| Nav
 ```
 
-页面由 `PageDescriptor` 描述（id、标题、图标、组件 URL、`section`、`order`、`keepAlive`），经 `NavigationModel::registerPage` 注册。普通页面在切走时会被销毁，所以任何要活过页面切换的状态都必须放 C++；唯一的例外是声明了 `keepAlive` 的页面，它常驻、切换时只隐藏——内嵌网页视图正是靠这条规则活下来的。两条规则的展开见[前端设计](前端设计.md)。
+侧栏的行由 `PageDescriptor` 描述（id、标题、图标、组件 URL、`section`、`order`、`keepAlive`、`kind`、`level`）——一行既可是可打开的页面，也可（`kind` 为 `header` 时）是带出缩进项的静态分组标签——经 `NavigationModel::registerPage` 注册。普通页面在切走时会被销毁，所以任何要活过页面切换的状态都必须放 C++；唯一的例外是声明了 `keepAlive` 的页面，它常驻、切换时只隐藏——内嵌网页视图正是靠这条规则活下来的。两条规则的展开见[前端设计](前端设计.md)。
 
 ## 设计原则与它们的出处
 
