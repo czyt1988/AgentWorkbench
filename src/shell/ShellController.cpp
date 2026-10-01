@@ -40,6 +40,15 @@ ShellController::ShellController(core::Settings *settings, QObject *parent)
                 else if (key == QStringLiteral("web.chromiumFlags")) {
                     Q_EMIT webChromiumFlagsChanged();
                 }
+                else if (key == QStringLiteral("launcher.trayEnabled")) {
+                    Q_EMIT trayEnabledChanged();
+                }
+                else if (key == QStringLiteral("launcher.closeToTray")) {
+                    Q_EMIT closeToTrayChanged();
+                }
+                else if (key == QStringLiteral("launcher.singleInstance")) {
+                    Q_EMIT singleInstanceChanged();
+                }
             });
 }
 
@@ -231,6 +240,89 @@ void ShellController::setLastPageId(const QString &id)
     }
     m_settings->setLastPageId(id);
     m_settings->save();
+}
+
+/**
+ * @brief 取托盘图标开关
+ *
+ * @return true = 显示托盘图标
+ */
+bool ShellController::trayEnabled() const
+{
+    return m_settings->launcherOptions().trayEnabled;
+}
+
+/**
+ * @brief 写托盘图标开关并持久化
+ *
+ * 同值直接返回。图标本体的建/销毁由 TrayController 监听
+ * launcher.trayEnabled 的 valueChanged 完成。
+ *
+ * @param on true = 显示托盘图标
+ */
+void ShellController::setTrayEnabled(bool on)
+{
+    if (m_settings->launcherOptions().trayEnabled == on) {
+        return;
+    }
+    m_settings->setTrayEnabled(on);
+    m_settings->save();
+    Q_EMIT trayEnabledChanged();
+}
+
+/**
+ * @brief 取「点 × 收进托盘」开关
+ *
+ * @return true = 关闭窗口时收进托盘而不是退出
+ */
+bool ShellController::closeToTray() const
+{
+    return m_settings->launcherOptions().closeToTray;
+}
+
+/**
+ * @brief 写「点 × 收进托盘」开关并持久化
+ *
+ * 同值直接返回。
+ *
+ * @param on true = 关闭窗口时收进托盘
+ */
+void ShellController::setCloseToTray(bool on)
+{
+    if (m_settings->launcherOptions().closeToTray == on) {
+        return;
+    }
+    m_settings->setCloseToTray(on);
+    m_settings->save();
+    Q_EMIT closeToTrayChanged();
+}
+
+/**
+ * @brief 取单实例开关
+ *
+ * @return true = 只允许一个应用实例
+ */
+bool ShellController::singleInstance() const
+{
+    return m_settings->launcherOptions().singleInstance;
+}
+
+/**
+ * @brief 写单实例开关并持久化
+ *
+ * 同值直接返回。值本身要到下一次启动才生效——实例守卫在界面装配之前
+ * 就已经判定完毕，这里只负责把设置页的选择落盘。
+ *
+ * @param on true = 只允许一个应用实例
+ */
+void ShellController::setSingleInstance(bool on)
+{
+    if (m_settings->launcherOptions().singleInstance == on) {
+        return;
+    }
+    m_settings->setSingleInstance(on);
+    m_settings->save();
+    Q_EMIT singleInstanceChanged();
 }
 
 } // namespace awb::shell

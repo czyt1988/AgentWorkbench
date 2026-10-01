@@ -9,6 +9,7 @@
 #include "skillcatalog/SkillsFacade.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
+#include "shell/TrayController.h"
 #include "shell/UiServices.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
@@ -37,6 +38,7 @@
 #include <QFile>
 #include <QFont>
 #include <QGuiApplication>
+#include <QApplication>
 #include <QIcon>
 #include <QLocale>
 #include <QQmlApplicationEngine>
@@ -44,6 +46,7 @@
 #include <QQmlEngine>
 #include <QQuickStyle>
 #include <QTranslator>
+#include <QWindow>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -108,7 +111,10 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-    QGuiApplication app(argc, argv);
+    // QApplication（而非 QGuiApplication）：托盘菜单 QMenu 与 vendored
+    // SingleApplication 都需要 Widgets；QSystemTrayIcon 本身在 Gui 里，
+    // 但菜单走 Widgets。
+    QApplication app(argc, argv);
     app.setApplicationVersion(QStringLiteral("0.4.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
     // 扁平的兜底样式：Qt 6 把 "Default" 改名成了 "Basic"。
@@ -162,6 +168,7 @@ int main(int argc, char *argv[])
     awb::shell::ShellController shell(&settings);
     awb::shell::UiServices ui;
     awb::shell::Notifications notifications;
+    awb::shell::TrayController tray(&settings);
 
     awb::agentcatalog::AgentsFacade agents(&settings, awb::core::Paths::dataRoot(),
                                      &theme);
@@ -252,6 +259,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &theme);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Nav", &nav);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Shell", &shell);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tray", &tray);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Ui", &ui);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Notifications",
                                  &notifications);
@@ -304,6 +312,19 @@ int main(int argc, char *argv[])
         awb::core::Logging::uninstall();
         return -1;
     }
+
+    // 托盘接管主窗口：setQuitOnLastWindowClosed 的策略是「窗口藏进托盘
+    // 时绝不能因为 last window closed 而退出」。托盘可用期间关掉它；
+    // availableChanged 运行期跟进（开关切换、系统托盘消失）。真正的退出
+    // 一律走 MainWindow.qml 的显式流程（workbench.quit()）。
+    if (QObject *root = engine.rootObjects().constFirst()) {
+        tray.setWindow(qobject_cast<QWindow *>(root));
+    }
+    QObject::connect(&tray, &awb::shell::TrayController::availableChanged,
+                     &app, [&tray, &app]() {
+                         app.setQuitOnLastWindowClosed(!tray.available());
+                     });
+    app.setQuitOnLastWindowClosed(!tray.available());
 
     const int exitCode = app.exec();
     // 同上：不先 uninstall，队列里没写盘的尾部日志会随进程消失。

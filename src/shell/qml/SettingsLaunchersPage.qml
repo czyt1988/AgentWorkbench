@@ -104,6 +104,61 @@ Item {
                 }
             }
 
+            // 托盘与单实例（launcher.* 一节）。singleInstance 只在启动时
+            // 被读一次，改完要到下次启动才生效。
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Show tray icon")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: shell.trayEnabled
+                    onToggled: shell.trayEnabled = checked
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Close to tray instead of exiting")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: shell.closeToTray
+                    enabled: shell.trayEnabled
+                    onToggled: shell.closeToTray = checked
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Single instance")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: shell.singleInstance
+                    onToggled: shell.singleInstance = checked
+                }
+            }
+
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: theme.spacingL

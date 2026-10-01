@@ -17,6 +17,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/agentcatalog/AgentsFacade.cpp
     # shell
     ${CMAKE_SOURCE_DIR}/src/shell/UiServices.cpp
+    ${CMAKE_SOURCE_DIR}/src/shell/TrayController.cpp
     # application layer
     ${CMAKE_SOURCE_DIR}/src/workbench/BuiltinPages.cpp
     ${CMAKE_SOURCE_DIR}/src/workbench/PluginServices.cpp

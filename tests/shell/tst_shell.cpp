@@ -4,6 +4,7 @@
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/ShellController.h"
+#include "shell/TrayController.h"
 #include "shell/UiServices.h"
 
 #include <QClipboard>
@@ -19,6 +20,7 @@ using awb::shell::NavKind;
 using awb::shell::Notifications;
 using awb::shell::PageDescriptor;
 using awb::shell::ShellController;
+using awb::shell::TrayController;
 using awb::shell::UiServices;
 
 namespace {
@@ -258,6 +260,22 @@ private Q_SLOTS:
                  "shell.setSidebarWidth is not invokable — the sidebar "
                  "drag handle would silently do nothing");
             QCOMPARE(shell.sidebarWidth(), 320);
+        }
+
+        // 托盘三入口都是 MainWindow.qml 的 onClosing / Connections 直接
+        // 调用的方法：canHideToTray 判定收不收托盘，hideToTray /
+        // showWindow 由托盘菜单与 quitRequested 处理器调用。没有
+        // QWindow 时它们必须是安全空操作而不是崩溃。
+        {
+            Settings settings;
+            TrayController tray(&settings);
+            QVERIFY2(QMetaObject::invokeMethod(&tray, "canHideToTray"),
+                     "tray.canHideToTray is not invokable — onClosing "
+                     "would throw TypeError in QML");
+            QVERIFY(QMetaObject::invokeMethod(&tray, "hideToTray"));
+            QVERIFY(QMetaObject::invokeMethod(&tray, "showWindow"));
+            QCOMPARE(tray.hidden(), false);
+            QCOMPARE(tray.canHideToTray(), false);
         }
         QFile::remove(Settings::settingsFilePath());
     }

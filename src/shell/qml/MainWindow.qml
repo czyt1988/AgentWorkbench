@@ -18,6 +18,7 @@ ApplicationWindow {
     readonly property var theme: Theme
     readonly property var nav: Nav
     readonly property var shell: Shell
+    readonly property var tray: Tray
     readonly property var ui: Ui
     readonly property var toasts: Notifications
     readonly property var agents: Agents
@@ -51,10 +52,43 @@ ApplicationWindow {
     // 不再重复弹窗。
     property bool exitConfirmed: false
 
+    // 关闭语义按 launcher.closeToTray 分流：开着 = 收进托盘（窗口不关，
+    // 事件循环继续）；关着 = 既有退出流程——确认弹窗挡一道后台终端。托盘
+    // 可用期间 main.cpp 关掉了 quitOnLastWindowClosed，因此真正的退出都
+    // 经 exitNow() 显式结束事件循环，不能指望「窗口关完就退出」。
+    function exitNow(stopAgents) {
+        if (stopAgents)
+            agents.stopAll()
+        exitConfirmed = true
+        close()
+        workbench.quit()
+    }
+
+    // 托盘菜单点「退出」：与点窗口 × 走同一条路（含后台终端确认）。窗口
+    // 还收在托盘里就先唤回，确认弹窗才有地方显示。
+    Connections {
+        target: tray
+        function onQuitRequested() {
+            if (tray.hidden)
+                tray.showWindow()
+            if (!exitConfirmed && agents.hasLaunchedAgents()) {
+                exitConfirmPopup.open()
+            }
+            else {
+                window.exitNow(false)
+            }
+        }
+    }
+
     onClosing: function(close) {
         shell.saveWindowSize(width, height)
         if (exitConfirmed)
             return
+        if (tray.canHideToTray()) {
+            close.accepted = false
+            tray.hideToTray()
+            return
+        }
         if (agents.hasLaunchedAgents()) {
             close.accepted = false
             exitConfirmPopup.open()
@@ -145,10 +179,8 @@ ApplicationWindow {
                     variant: "primary"
                     text: qsTr("Yes, close background terminals")
                     onClicked: {
-                        agents.stopAll()
                         exitConfirmPopup.close()
-                        window.exitConfirmed = true
-                        window.close()
+                        window.exitNow(true)
                     }
                 }
                 AButton {
@@ -156,8 +188,7 @@ ApplicationWindow {
                     text: qsTr("No, just exit")
                     onClicked: {
                         exitConfirmPopup.close()
-                        window.exitConfirmed = true
-                        window.close()
+                        window.exitNow(false)
                     }
                 }
                 AButton {

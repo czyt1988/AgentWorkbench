@@ -16,6 +16,7 @@ target_link_libraries(tst_shell PRIVATE
     Qt::Core
     Qt::Gui
     Qt::Test
+    Qt::Widgets
 )
 
 add_test(NAME tst_shell COMMAND tst_shell)

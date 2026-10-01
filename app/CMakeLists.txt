@@ -88,6 +88,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     awb_workbench
     Qt::Core
     Qt::Gui
+    Qt::Widgets
     Qt::Qml
     Qt::Quick
     Qt::QuickControls2

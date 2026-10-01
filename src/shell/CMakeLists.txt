@@ -8,6 +8,8 @@ add_library(awb_shell STATIC
     PageDescriptor.h
     ShellController.cpp
     ShellController.h
+    TrayController.cpp
+    TrayController.h
     UiServices.cpp
     UiServices.h
 )
@@ -20,6 +22,7 @@ target_link_libraries(awb_shell
         awb_theme
         Qt::Core
         Qt::Gui
+        Qt::Widgets
 )
 
 # ChooseColorW（UiServices::pickColor 的原生颜色对话框）在 comdlg32。

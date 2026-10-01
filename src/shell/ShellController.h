@@ -28,6 +28,14 @@ class ShellController : public QObject
     Q_PROPERTY(QString webSurface READ webSurface NOTIFY webSurfaceChanged)
     Q_PROPERTY(QString webChromiumFlags READ webChromiumFlags NOTIFY
                    webChromiumFlagsChanged)
+    // 托盘与单实例开关（launcher.* 一节）。设置页只经这三个属性读写，
+    // 真正用它们的是 shell::TrayController 与 main.cpp 的实例守卫。
+    Q_PROPERTY(bool trayEnabled READ trayEnabled WRITE setTrayEnabled NOTIFY
+                   trayEnabledChanged)
+    Q_PROPERTY(bool closeToTray READ closeToTray WRITE setCloseToTray NOTIFY
+                   closeToTrayChanged)
+    Q_PROPERTY(bool singleInstance READ singleInstance WRITE setSingleInstance
+                   NOTIFY singleInstanceChanged)
 
 public:
     explicit ShellController(core::Settings *settings,
@@ -70,6 +78,15 @@ public:
     QString webChromiumFlags() const;
     Q_INVOKABLE void setWebChromiumFlags(const QString &flags);
 
+    // 托盘三开关：图标显示、点 × 收进托盘、单实例。都即时写盘；其中
+    // singleInstance 只在启动时被读一次，改动要到下次启动才生效
+    bool trayEnabled() const;
+    void setTrayEnabled(bool on);
+    bool closeToTray() const;
+    void setCloseToTray(bool on);
+    bool singleInstance() const;
+    void setSingleInstance(bool on);
+
 Q_SIGNALS:
     /**
      * @brief window.title 变化时发射（含外部改写 settings.json 的情形）
@@ -100,6 +117,23 @@ Q_SIGNALS:
      * @brief Chromium 命令行开关变化时发射
      */
     void webChromiumFlagsChanged();
+
+    /**
+     * @brief 托盘图标开关（launcher.trayEnabled）变化时发射
+     */
+    void trayEnabledChanged();
+
+    /**
+     * @brief 「点 × 收进托盘」开关（launcher.closeToTray）变化时发射
+     */
+    void closeToTrayChanged();
+
+    /**
+     * @brief 单实例开关（launcher.singleInstance）变化时发射
+     *
+     * @note 值本身要到下一次启动才生效：实例守卫在界面装配之前就跑完了
+     */
+    void singleInstanceChanged();
 
 private:
     core::Settings *m_settings;  ///< 唯一的持久化后端，不持有所有权
