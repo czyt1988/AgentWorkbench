@@ -82,6 +82,11 @@ private Q_SLOTS:
         QCOMPARE(s.fontFamily(), QStringLiteral("Microsoft YaHei"));
         QCOMPARE(s.launcherOptions().healthCheckIntervalMs, 3000);
         QVERIFY(s.launcherOptions().startupVersionCheck);
+        // 托盘默认开、× 收进托盘默认关（保持 0.3.0 起的退出语义）、
+        // 单实例默认开
+        QVERIFY(s.launcherOptions().trayEnabled);
+        QVERIFY(!s.launcherOptions().closeToTray);
+        QVERIFY(s.launcherOptions().singleInstance);
         QCOMPARE(s.webOptions().surface, QStringLiteral("embedded"));
         QVERIFY(!s.webOptions().freezeInactiveTabs);
         QCOMPARE(s.webOptions().maxLiveTabs, 8);
@@ -212,6 +217,44 @@ private Q_SLOTS:
             }
         }
         QVERIFY2(warned, "an unknown key must be logged as a warning");
+    }
+
+    // 托盘与单实例三个开关：写文件读得回，且各自的 valueChanged 键名
+    // 对得上（ShellController/TrayController 订阅的就是这些点分键）。
+    void testTrayAndInstanceKeys()
+    {
+        {
+            Settings s;
+            s.setTrayEnabled(false);
+            s.setCloseToTray(true);
+            s.setSingleInstance(false);
+            QVERIFY(s.save().ok);
+        }
+        Settings again;
+        QVERIFY(!again.launcherOptions().trayEnabled);
+        QVERIFY(again.launcherOptions().closeToTray);
+        QVERIFY(!again.launcherOptions().singleInstance);
+
+        // 只写这三个键的 JSON 也读得回来：证明键名与段名都落在
+        // launcher 段里，而不是靠默认值蒙对。
+        writeSettingsFile(R"({ "launcher": { "closeToTray": true } })");
+        Settings partial;
+        QVERIFY(partial.launcherOptions().closeToTray);
+        QVERIFY(partial.launcherOptions().trayEnabled);
+        QVERIFY(partial.launcherOptions().singleInstance);
+
+        Settings s;
+        QSignalSpy spy(&s, &Settings::valueChanged);
+        s.setTrayEnabled(false);
+        s.setCloseToTray(false);
+        s.setSingleInstance(false);
+        QCOMPARE(spy.count(), 3);
+        QCOMPARE(spy.at(0).at(0).toString(),
+                 QStringLiteral("launcher.trayEnabled"));
+        QCOMPARE(spy.at(1).at(0).toString(),
+                 QStringLiteral("launcher.closeToTray"));
+        QCOMPARE(spy.at(2).at(0).toString(),
+                 QStringLiteral("launcher.singleInstance"));
     }
 
     void testValueChangedSignal()

@@ -41,6 +41,13 @@ struct LauncherSettings
 {
     int healthCheckIntervalMs = 3000;
     bool startupVersionCheck = true;
+    bool trayEnabled = true;      ///< 系统托盘图标；系统没有托盘时自动无效
+    /// 点窗口 × 收进托盘继续运行，而不是退出。默认关：× 保持既有的
+    /// 「有 agent 在跑就问一次」退出语义，打开后退出只走托盘菜单。
+    bool closeToTray = false;
+    /// 只允许一个实例：再次启动时唤起已在跑的窗口并退出。关掉它等于允许
+    /// 两个进程共用同一批 Web profile，Chromium 的 profile 锁会拒绝后者。
+    bool singleInstance = true;
 };
 
 struct WebSettings
@@ -119,6 +126,9 @@ public:
     void setWebChromiumFlags(const QString &flags);
     void setWebHomeUrl(const QString &url);
     void setStartupVersionCheck(bool on);
+    void setTrayEnabled(bool on);
+    void setCloseToTray(bool on);
+    void setSingleInstance(bool on);
     void setSkillRoots(const QJsonArray &roots);
     void setPluginsDisabledIds(const QStringList &ids);
     void setPluginsGloballyEnabled(bool enabled);

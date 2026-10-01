@@ -189,7 +189,10 @@ const QSet<QString> kAppearanceKeys = { QStringLiteral("theme"),
                                         QStringLiteral("fontFamily") };
 const QSet<QString> kLocaleKeys = { QStringLiteral("override") };
 const QSet<QString> kLauncherKeys = { QStringLiteral("healthCheckIntervalMs"),
-                                      QStringLiteral("startupVersionCheck") };
+                                      QStringLiteral("startupVersionCheck"),
+                                      QStringLiteral("trayEnabled"),
+                                      QStringLiteral("closeToTray"),
+                                      QStringLiteral("singleInstance") };
 const QSet<QString> kWebKeys = {
     QStringLiteral("surface"), QStringLiteral("freezeInactiveTabs"),
     QStringLiteral("maxLiveTabs"), QStringLiteral("downloadDir"),
@@ -329,6 +332,15 @@ void Settings::load()
     m_launcher.startupVersionCheck =
         readBool(launcher, QStringLiteral("startupVersionCheck"),
                  m_launcher.startupVersionCheck, QStringLiteral("launcher"));
+    m_launcher.trayEnabled =
+        readBool(launcher, QStringLiteral("trayEnabled"),
+                 m_launcher.trayEnabled, QStringLiteral("launcher"));
+    m_launcher.closeToTray =
+        readBool(launcher, QStringLiteral("closeToTray"),
+                 m_launcher.closeToTray, QStringLiteral("launcher"));
+    m_launcher.singleInstance =
+        readBool(launcher, QStringLiteral("singleInstance"),
+                 m_launcher.singleInstance, QStringLiteral("launcher"));
 
     const QJsonObject web = root.value(QStringLiteral("web")).toObject();
     warnUnknownKeys(web, kWebKeys, QStringLiteral("web"));
@@ -541,6 +553,44 @@ void Settings::setStartupVersionCheck(bool on)
 }
 
 /**
+ * @brief 写「显示托盘图标」开关
+ *
+ * @param on true = 在系统托盘显示图标；系统没有托盘时该项无效果
+ */
+void Settings::setTrayEnabled(bool on)
+{
+    m_launcher.trayEnabled = on;
+    Q_EMIT valueChanged(QStringLiteral("launcher.trayEnabled"));
+}
+
+/**
+ * @brief 写「关闭窗口时收进托盘」开关
+ *
+ * @param on true = 窗口 × 只隐藏窗口、进程继续运行，退出改由托盘菜单发起；
+ *           false = 保持既有的退出语义
+ * @sa setTrayEnabled 关掉托盘时本项无效
+ */
+void Settings::setCloseToTray(bool on)
+{
+    m_launcher.closeToTray = on;
+    Q_EMIT valueChanged(QStringLiteral("launcher.closeToTray"));
+}
+
+/**
+ * @brief 写「只允许一个实例」开关
+ *
+ * @note 只在启动时读取——实例协商发生在窗口与门面装配之前，运行期改它
+ *       不影响当前进程，只影响下一次启动。
+ *
+ * @param on true = 二次启动把参数交给已在跑的实例、唤起它的窗口后退出
+ */
+void Settings::setSingleInstance(bool on)
+{
+    m_launcher.singleInstance = on;
+    Q_EMIT valueChanged(QStringLiteral("launcher.singleInstance"));
+}
+
+/**
  * @brief 写 skill 扫描根
  *
  * @param roots 根路径数组；空数组表示用内置默认根
@@ -604,6 +654,9 @@ OpResult Settings::save()
         m_launcher.healthCheckIntervalMs;
     launcher[QStringLiteral("startupVersionCheck")] =
         m_launcher.startupVersionCheck;
+    launcher[QStringLiteral("trayEnabled")] = m_launcher.trayEnabled;
+    launcher[QStringLiteral("closeToTray")] = m_launcher.closeToTray;
+    launcher[QStringLiteral("singleInstance")] = m_launcher.singleInstance;
 
     QJsonObject web;
     web[QStringLiteral("surface")] = m_web.surface;
