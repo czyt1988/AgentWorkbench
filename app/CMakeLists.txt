@@ -272,6 +272,17 @@ if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
         # Prose and licences stay in the repo, not in the binary.
         EXCLUDE "README\\.md$" "/LICENSE$"
     )
+    # Our own page runtime, under the same /markdown prefix the scheme handler
+    # resolves against, so the page fetches awbmd://runtime/app/renderer.js.
+    # Alias "app" and ROOT must match tests/markdown/CMakeLists.txt: that test
+    # reads this exact tree to check the JS command names against the C++
+    # protocol table, and a mismatch here means the binary ships a runtime the
+    # tests never looked at.
+    awb_add_vendor_resources(AgentWorkbench "markdown_page_runtime"
+        PREFIX "/markdown"
+        ALIAS_PREFIX "app"
+        ROOT ${CMAKE_SOURCE_DIR}/src/markdown/webengine/runtime
+    )
 endif()
 
 # Win32 GUI subsystem (no console window) on Windows.

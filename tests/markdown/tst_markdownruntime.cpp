@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSet>
 #include <QStringList>
 #include <QtTest>
@@ -53,6 +54,40 @@ QJsonObject manifest()
     return doc.isObject() ? doc.object() : QJsonObject();
 }
 
+// 两个名字集合的差异，写成一条能直接读懂的消息；一致时返回空串。
+// 取空串而不是返回 bool，是因为断言失败时「哪边少了哪个名字」正是唯一
+// 有用的信息，而 QCOMPARE 打印两个 QSet 的排序还得不一致才看得出区别。
+QString nameSetDiff(const QSet<QString> &expected, const QSet<QString> &actual,
+                    const QString &label)
+{
+    QStringList missing;
+    QStringList extra;
+    for (const QString &name : expected) {
+        if (!actual.contains(name)) {
+            missing.append(name);
+        }
+    }
+    for (const QString &name : actual) {
+        if (!expected.contains(name)) {
+            extra.append(name);
+        }
+    }
+    missing.sort();
+    extra.sort();
+    if (missing.isEmpty() && extra.isEmpty()) {
+        return QString();
+    }
+    QString message = label;
+    if (!missing.isEmpty()) {
+        message += QStringLiteral(" lacks %1").arg(missing.join(QStringLiteral(", ")));
+    }
+    if (!extra.isEmpty()) {
+        message += QStringLiteral(", but also has %1")
+                       .arg(extra.join(QStringLiteral(", ")));
+    }
+    return message;
+}
+
 // 造一个块（只填切分保真/大纲逻辑要读的字段）
 MarkdownBlock blockOf(int index, const QString &text)
 {
@@ -95,6 +130,7 @@ private Q_SLOTS:
     void testBeaconPayloadRoundTrip();
     void testCommandJson();
     void testProtocolNameTables();
+    void testPageRuntimeMatchesProtocolTables();
     void testManifestMatchesFiles();
     void testVendorFilesResolveAtTheirUrls();
     void testRendererVersionText();
@@ -246,7 +282,7 @@ void TestMarkdownRuntime::testCommandJson()
  *
  * C++ 与页面 JS 之间是字符串协议，没有编译期检查：改名时一边改了、另一边没改，
  * 表现是「命令发出去了、页面什么都不做」。这两张表是唯一权威，测试把每个名字
- * 写死在这里，重命名必须同时改 renderer.js 的分支与本用例，漂移就只能以失败
+ * 写死在这里，重命名必须同时改 bridge.js 的分支与本用例，漂移就只能以失败
  * 收场，不会静默。
  */
 void TestMarkdownRuntime::testProtocolNameTables()
@@ -261,12 +297,61 @@ void TestMarkdownRuntime::testProtocolNameTables()
         QStringLiteral("renderAll"),   QStringLiteral("serialize") }));
     QCOMPARE(kinds, QStringList({
         QStringLiteral("ready"),  QStringLiteral("frame"),
-        QStringLiteral("error"),  QStringLiteral("markup"),
-        QStringLiteral("find") }));
+        QStringLiteral("error"),  QStringLiteral("find") }));
 
     QCOMPARE(QSet<QString>(commands.begin(), commands.end()).size(),
              commands.size());
     QCOMPARE(QSet<QString>(kinds.begin(), kinds.end()).size(), kinds.size());
+}
+
+/**
+ * @brief 页面 JS 的分发分支与信标名，必须和 C++ 的两张表一一对应
+ *
+ * 上一条用例只钉住 C++ 侧；这条把 `runtime/bridge.js` 真的读进来比对，于是
+ * 「一边改了、另一边没改」在 tst_markdown 里就红，而不是拖到页面冒烟、甚至
+ * 拖到用户看到「命令发出去了、页面什么都不做」。之所以能这么读：页面运行时
+ * 与 vendor 资产嵌在同一个 /markdown 前缀下，测试目标里也嵌了一份。
+ *
+ * 比的是集合而不是顺序——switch 分支的书写顺序与协议无关。
+ */
+void TestMarkdownRuntime::testPageRuntimeMatchesProtocolTables()
+{
+    const QByteArray source = readResource(
+        QStringLiteral(":/markdown/app/bridge.js"));
+    QVERIFY2(!source.isEmpty(),
+             "the page runtime must be embedded for tst_markdown: "
+             ":/markdown/app/bridge.js");
+    const QString text = QString::fromUtf8(source);
+
+    QSet<QString> pageCommands;
+    const QRegularExpression commandRule(
+        QStringLiteral("case\\s+\"([A-Za-z]+)\"\\s*:"));
+    QRegularExpressionMatchIterator matches = commandRule.globalMatch(text);
+    while (matches.hasNext()) {
+        pageCommands.insert(matches.next().captured(1));
+    }
+    QVERIFY2(!pageCommands.isEmpty(), "no dispatch branches found in bridge.js");
+    const QString commandDiff = nameSetDiff(
+        QSet<QString>(MarkdownRuntime::commandNames().begin(),
+                      MarkdownRuntime::commandNames().end()),
+        pageCommands,
+        QStringLiteral("bridge.js dispatch"));
+    QVERIFY2(commandDiff.isEmpty(), qPrintable(commandDiff));
+
+    QSet<QString> pageKinds;
+    const QRegularExpression beaconRule(
+        QStringLiteral("beacon\\(\\s*\"([a-z]+)\""));
+    matches = beaconRule.globalMatch(text);
+    while (matches.hasNext()) {
+        pageKinds.insert(matches.next().captured(1));
+    }
+    QVERIFY2(!pageKinds.isEmpty(), "no beacons found in bridge.js");
+    const QString kindDiff = nameSetDiff(
+        QSet<QString>(MarkdownRuntime::eventKinds().begin(),
+                      MarkdownRuntime::eventKinds().end()),
+        pageKinds,
+        QStringLiteral("bridge.js beacons"));
+    QVERIFY2(kindDiff.isEmpty(), qPrintable(kindDiff));
 }
 
 /**

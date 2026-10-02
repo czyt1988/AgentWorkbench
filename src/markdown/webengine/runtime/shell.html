@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  预览页面的骨架。由 awbmd://runtime/app/shell.html 供出，正文与数据都在
+  运行期填：bridge.js 起来后 fetch('/doc.json') 拿整篇文档、块序列、主题变量
+  与文案，再交给 renderer.js 分片挂载。
+
+  资源一律用 origin 绝对路径（"/vendor/…"、"/app/…"）：awbmd:// 的 host 只有
+  runtime 一个，前导斜杠解析出来的正是 scheme handler 认得的两种路径形状，
+  不依赖任何 ".." 归一化行为。第三方库全部本地内置，页面**没有任何** http(s)
+  引用——这是离线渲染的定义，也是导出件不含外链的前提。
+
+  脚本顺序有原因：markdown-it / KaTeX / highlight.js 是经典 <script>（UMD，
+  挂全局），必须在 bridge.js 这个模块之前到位；Mermaid 不在这里，它由
+  diagram.js 在第一个图表靠近视口时才注入 —— 2.6 MB 不该由没有图表的文档付。
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Markdown preview</title>
+    <!-- KaTeX 的 CSS 里字体是相对 url(fonts/*.woff2)，别名把 katex/ 的子目录
+         结构原样带进了资源表，所以这一条能解析到 awbmd://runtime/vendor/katex/
+         fonts/…（spike S1 验的就是这条路径） -->
+    <link rel="stylesheet" href="/vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="/app/theme.css">
+    <script src="/vendor/markdown-it/markdown-it.umd.min.js"></script>
+    <script src="/vendor/katex/katex.min.js"></script>
+    <script src="/vendor/highlight-js/highlight.min.js"></script>
+    <script type="module" src="/app/bridge.js"></script>
+  </head>
+  <body class="awb-page">
+    <!-- 空态文案由 doc.json 的 strings 填（JS 里没有可翻译源串） -->
+    <main id="awb-doc"></main>
+    <p id="awb-empty" hidden></p>
+  </body>
+</html>

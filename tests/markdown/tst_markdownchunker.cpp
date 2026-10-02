@@ -123,6 +123,7 @@ private Q_SLOTS:
     void testTables();
     void testSetextAndThematicBreak();
     void testLooseListStaysOneBlock();
+    void testFenceInsideListStaysOneBlock();
     void testBlockquoteContinuation();
     void testListInterruptsParagraph();
     void testIndexesAndHashes();
@@ -293,6 +294,40 @@ void TestMarkdownChunker::testLooseListStaysOneBlock()
 
     // 有序列表
     QCOMPARE(MarkdownChunker::split(QStringLiteral("1. a\n\n2. b\n")).size(), 1);
+}
+
+/**
+ * @brief 列表项里的缩进围栏属于列表块，顶格围栏才另起一块
+ *
+ * 这是逐块渲染与整篇渲染最容易分道扬镳的一处：项内的 ``` 若被判成「新块起始」，
+ * 一个 `<ul>` 会被切成两块、代码块从 `<li>` 里掉出来，渲染结果不再是同一份内容
+ * 的排版而是**变了形**——不报错，只变形。仓库自己的 docs/zh/standards/
+ * coding-standard.md 里就有这个形状，语料比对第一次跑就抓到了它。
+ */
+void TestMarkdownChunker::testFenceInsideListStaysOneBlock()
+{
+    const QString src = QStringLiteral(
+        "- first\n\n  ```\n  # not a heading\n  | not | a | table |\n  ```\n\n"
+        "- second\n");
+    const QVector<MarkdownBlock> blocks = MarkdownChunker::split(src);
+    QCOMPARE(blocks.size(), 1);
+    QCOMPARE(blocks.at(0).text, src.trimmed());
+
+    // 围栏未闭合时也要一路吃到文件结尾：切在中间会让后半截当正文解析
+    const QString unclosed = QStringLiteral("- one\n\n  ```\n  body\n");
+    QCOMPARE(MarkdownChunker::split(unclosed).size(), 1);
+
+    // 顶格的 ``` 不属于列表项，另起一块（CommonMark 的 content 缩进规则）
+    const QVector<MarkdownBlock> topLevel = MarkdownChunker::split(
+        QStringLiteral("- one\n```\ncode\n```\n"));
+    QCOMPARE(topLevel.size(), 2);
+    QCOMPARE(topLevel.at(0).text, QStringLiteral("- one"));
+    QCOMPARE(topLevel.at(1).text, QStringLiteral("```\ncode\n```"));
+
+    // 段落里的缩进围栏仍然是新块：段落延续不能吞掉围栏
+    const QVector<MarkdownBlock> fromParagraph = MarkdownChunker::split(
+        QStringLiteral("para\n  ```\ncode\n  ```\n"));
+    QCOMPARE(fromParagraph.size(), 2);
 }
 
 /**

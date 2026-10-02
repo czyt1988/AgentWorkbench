@@ -14,6 +14,11 @@ add_subdirectory(workbench)
 add_subdirectory(skillcatalog)
 add_subdirectory(tools)
 add_subdirectory(markdown)
+# 页面层（shell.html + runtime/*.js）的冒烟只在预览能力存在的那条路线上可谈：
+# Qt 5 与 AWB_ENABLE_WEBENGINE=OFF 的连接里既不建这个目标，也没有页面可言。
+if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+    add_subdirectory(markdownpreview)
+endif()
 
 # Architecture rules as a test: a violating build fails
 # instead of relying on people remembering the rules.

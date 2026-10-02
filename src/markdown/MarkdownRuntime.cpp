@@ -675,6 +675,11 @@ const QStringList &MarkdownRuntime::commandNames()
  *
  * 每个事件都对应 MarkdownPreviewController 的一个 report* 入口，scheme handler
  * 照着这张表分发；表里没有的 kind 只记警告，不让页面能调用到任何未声明的方法。
+ *
+ * 这张表只列**小结果**：信标是 GET 的 URL，负载受 kEventPayloadCap 约束，超了
+ * 会被截断。导出的整篇 HTML（reportMarkup）与渲染耗时里的大对象一律不在这里——
+ * 它们由 QML 侧的 runJavaScript 返回值取回，那条通道没有长度限制。把 markup
+ * 放进来会诱使后来人把大结果塞进信标，所以这里刻意不收它。
  */
 const QStringList &MarkdownRuntime::eventKinds()
 {
@@ -682,7 +687,6 @@ const QStringList &MarkdownRuntime::eventKinds()
         QStringLiteral("ready"),
         QStringLiteral("frame"),
         QStringLiteral("error"),
-        QStringLiteral("markup"),
         QStringLiteral("find"),
     };
     return kinds;

@@ -87,9 +87,10 @@ void MarkdownRuntimeHandler::requestStarted(QWebEngineUrlRequestJob *job)
                 m_controller->reportFrame(payload);
             } else if (kind == QLatin1String("error")) {
                 m_controller->reportError(payload);
-            } else if (kind == QLatin1String("markup")) {
-                m_controller->reportMarkup(payload);
             } else {
+                // 剩下唯一的一种是 find：命中数与小序号都是几百字节的东西，
+                // 走信标正合适。导出 HTML 不走这里（见 MarkdownRuntime 的
+                // eventKinds() 注释）。
                 m_controller->reportFindResult(payload);
             }
         } else if (!kind.isEmpty()) {

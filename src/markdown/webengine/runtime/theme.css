@@ -1,0 +1,459 @@
+/*
+ * 预览页面的样式表：只引用 CSS 自定义属性，不写任何颜色字面量以外的主题
+ * 判断。变量由 C++ 侧 MarkdownRuntime::cssVariables() 随 doc.json 与 setTheme
+ * 命令下发（Theme 令牌的 rgba()/px 形式），因此深浅两套主题都可读，且
+ * check-architecture 规则 2（QML 不许字面色）不受影响——这里是 CSS，不是 QML。
+ *
+ * :root 里那批带 !important 的缺省值只在 C++ 一个变量都没给时才用得上
+ * （纯层单测里直接加载本页做 DOM 检查就是这种场景）：页面宁可自己难看，
+ * 也不要因为缺变量而整篇不可读。
+ */
+
+:root {
+    color-scheme: dark;
+    --awb-text: #e6e6e6;
+    --awb-text-secondary: #c4c4c4;
+    --awb-text-muted: #9a9a9a;
+    --awb-text-disabled: #6f6f6f;
+    --awb-link: #7aa2f7;
+    --awb-accent: #7aa2f7;
+    --awb-focus: #7aa2f7;
+    --awb-page-bg: #1a1b1e;
+    --awb-surface: #232428;
+    --awb-surface-alt: #2a2c30;
+    --awb-surface-hover: #313338;
+    --awb-code-bg: #16171a;
+    --awb-border: #33353a;
+    --awb-border-strong: #4a4d54;
+    --awb-separator: #33353a;
+    --awb-selection-bg: #3b4a6b;
+    --awb-selection-text: #e6e6e6;
+    --awb-scrollbar: #3a3d44;
+    --awb-danger: #e06c75;
+    --awb-warning: #e5c07b;
+    --awb-success: #98c379;
+    --awb-info: #61afef;
+    --awb-font-size: 15px;
+    --awb-font-size-small: 12px;
+    --awb-font-size-title: 24px;
+    --awb-radius: 8px;
+    --awb-radius-control: 4px;
+    --awb-gap-s: 6px;
+    --awb-gap: 12px;
+    --awb-gap-l: 20px;
+    --awb-font-family: system-ui, "Segoe UI", sans-serif;
+    --awb-font-mono: Consolas, "Courier New", monospace;
+
+    /* 视图覆盖项：由 setView 命令写在 :root 上，0 表示跟随主题。
+       只有字号与栏宽在这里可被用户改写，且都不触发重解析。 */
+    --awb-doc-font-size: var(--awb-font-size);
+    --awb-doc-width: 880px;
+}
+
+/* 性能主干：屏外块跳过布局与绘制。contain-intrinsic-size 的 auto 关键字
+   保留每块上次真实渲染过的高度，所以滚动条不会因为跳过而抖动。这是本方案
+   对大文件的主收益项，代价是 Ctrl+F 的原生查找不可控——文档内搜索由
+   find.js 自己做（见该文件头注释）。 */
+.awb-block {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 48px;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--awb-page-bg);
+    color: var(--awb-text);
+    font-family: var(--awb-font-family);
+    font-size: var(--awb-doc-font-size);
+    line-height: 1.6;
+}
+
+::selection {
+    background: var(--awb-selection-bg);
+    color: var(--awb-selection-text);
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--awb-scrollbar);
+    border-radius: var(--awb-radius-control);
+}
+
+#awb-doc {
+    max-width: var(--awb-doc-width);
+    margin: 0 auto;
+    padding: var(--awb-gap-l) var(--awb-gap) 40vh;
+    overflow-wrap: anywhere;
+}
+
+#awb-empty {
+    max-width: var(--awb-doc-width);
+    margin: 0 auto;
+    padding: var(--awb-gap-l);
+    color: var(--awb-text-muted);
+    font-style: italic;
+}
+
+/* --- 正文排印 ------------------------------------------------------------- */
+
+#awb-doc h1,
+#awb-doc h2,
+#awb-doc h3,
+#awb-doc h4,
+#awb-doc h5,
+#awb-doc h6 {
+    margin: 1.4em 0 0.5em;
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+#awb-doc h1 {
+    font-size: var(--awb-font-size-title);
+    padding-bottom: var(--awb-gap-s);
+    border-bottom: 1px solid var(--awb-separator);
+}
+
+#awb-doc h2 {
+    font-size: calc(var(--awb-font-size-title) * 0.8);
+}
+
+#awb-doc h3,
+#awb-doc h4,
+#awb-doc h5,
+#awb-doc h6 {
+    font-size: calc(var(--awb-doc-font-size) * 1.15);
+}
+
+#awb-doc p,
+#awb-doc ul,
+#awb-doc ol,
+#awb-doc blockquote {
+    margin: 0.7em 0;
+}
+
+#awb-doc li + li {
+    margin-top: 0.25em;
+}
+
+#awb-doc a {
+    color: var(--awb-link);
+    text-decoration: none;
+}
+
+#awb-doc a:hover {
+    text-decoration: underline;
+}
+
+#awb-doc img {
+    max-width: 100%;
+    border-radius: var(--awb-radius-control);
+}
+
+#awb-doc hr {
+    border: 0;
+    border-top: 1px solid var(--awb-separator);
+    margin: var(--awb-gap-l) 0;
+}
+
+#awb-doc blockquote {
+    padding: 0 0 0 var(--awb-gap);
+    border-left: 3px solid var(--awb-border-strong);
+    color: var(--awb-text-secondary);
+}
+
+#awb-doc :not(pre) > code {
+    background: var(--awb-surface-alt);
+    border: 1px solid var(--awb-border);
+    border-radius: var(--awb-radius-control);
+    padding: 0.1em 0.35em;
+    font-family: var(--awb-font-mono);
+    font-size: 0.92em;
+}
+
+/* 告警块：> [!NOTE] 这类 GitHub 风格提示条，纯 CSS 上颜色，语义色都用令牌 */
+.awb-alert {
+    border: 1px solid var(--awb-border);
+    border-left-width: 4px;
+    border-radius: var(--awb-radius-control);
+    background: var(--awb-surface);
+    padding: var(--awb-gap-s) var(--awb-gap);
+    margin: 0.9em 0;
+}
+
+.awb-alert-note { border-left-color: var(--awb-info); }
+.awb-alert-tip { border-left-color: var(--awb-success); }
+.awb-alert-warning { border-left-color: var(--awb-warning); }
+.awb-alert-important { border-left-color: var(--awb-danger); }
+.awb-alert-caution { border-left-color: var(--awb-danger); }
+
+/* --- 表格 ----------------------------------------------------------------- */
+
+#awb-doc table {
+    border-collapse: collapse;
+    margin: 0.9em 0;
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+#awb-doc th,
+#awb-doc td {
+    border: 1px solid var(--awb-border);
+    padding: 0.35em 0.7em;
+    text-align: left;
+}
+
+#awb-doc thead th {
+    background: var(--awb-surface-alt);
+    font-weight: 600;
+}
+
+#awb-doc tbody tr:nth-child(2n) {
+    background: var(--awb-surface);
+}
+
+/* --- 代码块 --------------------------------------------------------------- */
+
+#awb-doc pre {
+    background: var(--awb-code-bg);
+    border: 1px solid var(--awb-border);
+    border-radius: var(--awb-radius);
+    padding: var(--awb-gap);
+    overflow-x: auto;
+    font-size: calc(var(--awb-doc-font-size) * 0.92);
+}
+
+#awb-doc pre code {
+    font-family: var(--awb-font-mono);
+    background: none;
+    border: 0;
+    padding: 0;
+}
+
+/* highlight.js 的 common bundle 只加类名、不带样式（配色是它另外那批 CSS
+   文件，我们没有随包）。这里按主题令牌给一套够用的语法色：深浅两套都可读，
+   换主题时底色跟着走。不引第三份 hljs 主题文件的理由是要随包多两套配色、
+   且它们的固定色与主题令牌本来就会打架。 */
+#awb-doc pre .hljs {
+    background: transparent;
+    color: var(--awb-text);
+}
+
+#awb-doc pre .hljs-keyword,
+#awb-doc pre .hljs-built_in,
+#awb-doc pre .hljs-doctag,
+#awb-doc pre .hljs-meta .hljs-keyword {
+    color: var(--awb-link);
+}
+
+#awb-doc pre .hljs-string,
+#awb-doc pre .hljs-regexp,
+#awb-doc pre .hljs-addition {
+    color: var(--awb-success);
+}
+
+#awb-doc pre .hljs-number,
+#awb-doc pre .hljs-literal,
+#awb-doc pre .hljs-symbol,
+#awb-doc pre .hljs-bullet {
+    color: var(--awb-warning);
+}
+
+#awb-doc pre .hljs-title,
+#awb-doc pre .hljs-title.function_,
+#awb-doc pre .hljs-title.class_ {
+    color: var(--awb-accent);
+}
+
+#awb-doc pre .hljs-comment,
+#awb-doc pre .hljs-quote {
+    color: var(--awb-text-muted);
+    font-style: italic;
+}
+
+#awb-doc pre .hljs-attr,
+#awb-doc pre .hljs-attribute,
+#awb-doc pre .hljs-property,
+#awb-doc pre .hljs-variable {
+    color: var(--awb-text-secondary);
+}
+
+#awb-doc pre .hljs-type,
+#awb-doc pre .hljs-class .hljs-title {
+    color: var(--awb-info);
+}
+
+#awb-doc pre .hljs-deletion {
+    color: var(--awb-danger);
+}
+
+.awb-code {
+    margin: 0.9em 0;
+}
+
+.awb-code-lang {
+    display: block;
+    margin-bottom: var(--awb-gap-s);
+    color: var(--awb-text-muted);
+    font-size: var(--awb-font-size-small);
+    font-family: var(--awb-font-mono);
+}
+
+/* --- 任务列表复选框（GFM 的 - [ ] / - [x]；规则在 math-rule.js 的
+       installTaskCheckbox，它产出 <span class="awb-task-box" data-checked>。
+       这里只负责长相：预览是只读的，所以用伪元素画勾，不用原生控件） ------- */
+.awb-task {
+    list-style: none;
+    margin-left: -1.2em;
+}
+
+.awb-task-box {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.45em;
+    vertical-align: -0.12em;
+    border: 1px solid var(--awb-border-strong);
+    border-radius: 3px;
+    background: var(--awb-surface);
+}
+
+.awb-task-box[data-checked="1"] {
+    background: var(--awb-accent);
+    border-color: var(--awb-accent);
+}
+
+/* 勾选态只靠底色区分是够不着的：色觉障碍与低对比主题下看不出来。勾形用两条
+   边旋转画，不依赖任何字体里的 ✓ 字形（导出件在别的机器上打开时字体不可控）。 */
+.awb-task-box[data-checked="1"]::after {
+    content: "";
+    display: block;
+    width: 0.3em;
+    height: 0.6em;
+    margin: -0.05em auto 0;
+    border: solid var(--awb-text-on-accent, var(--awb-page-bg));
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* --- 公式 ---------------------------------------------------------------- */
+
+.awb-math-block {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--awb-gap-s) 0;
+}
+
+.awb-math-error {
+    color: var(--awb-danger);
+    font-family: var(--awb-font-mono);
+    font-size: var(--awb-font-size-small);
+}
+
+/* --- 图表 ---------------------------------------------------------------- */
+
+.awb-diagram {
+    margin: 0.9em 0;
+}
+
+.awb-diagram[data-status="queued"],
+.awb-diagram[data-status="rendering"],
+.awb-diagram[data-status="deferred"],
+.awb-diagram[data-status="error"] {
+    border: 1px dashed var(--awb-border-strong);
+    border-radius: var(--awb-radius);
+    background: var(--awb-surface);
+    color: var(--awb-text-muted);
+    padding: var(--awb-gap);
+    font-family: var(--awb-font-mono);
+    font-size: var(--awb-font-size-small);
+    white-space: pre-wrap;
+}
+
+.awb-diagram[data-status="deferred"] {
+    cursor: pointer;
+    color: var(--awb-text-secondary);
+}
+
+.awb-diagram[data-status="error"] {
+    border-style: solid;
+    border-color: var(--awb-danger);
+    color: var(--awb-danger);
+}
+
+/* 「点击渲染」提示与失败说明都在占位里，源码跟在下面：图表画不出来时用户
+   至少还能读到它本来想表达什么（文案由 C++ 的 pageStrings() 下发） */
+.awb-diagram-hint,
+.awb-diagram-error {
+    margin: 0 0 var(--awb-gap-s);
+    font-family: var(--awb-font-family);
+    white-space: normal;
+}
+
+.awb-diagram-error {
+    color: var(--awb-danger);
+}
+
+.awb-diagram svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* --- 渲染失败的块 -------------------------------------------------------- */
+
+.awb-block-error {
+    border: 1px solid var(--awb-danger);
+    border-radius: var(--awb-radius-control);
+    background: var(--awb-surface);
+    color: var(--awb-danger);
+    padding: var(--awb-gap-s) var(--awb-gap);
+    font-size: var(--awb-font-size-small);
+}
+
+.awb-block-error pre {
+    background: var(--awb-code-bg);
+    margin: var(--awb-gap-s) 0 0;
+    padding: var(--awb-gap-s);
+    white-space: pre-wrap;
+}
+
+/* --- 搜索高亮 ------------------------------------------------------------ */
+
+/* 只标当前命中所在那一块（见 find.js 的头注释），所以这里不需要「全部命中」
+   与「当前命中」两种底色以外的样式。 */
+.awb-mark {
+    background: var(--awb-warning);
+    color: var(--awb-page-bg);
+    border-radius: 2px;
+    padding: 0;
+}
+
+.awb-mark-active {
+    outline: 2px solid var(--awb-danger);
+    outline-offset: 1px;
+}
+
+/* --- 导出件（renderer.js 的 serialize()） -------------------------------- */
+
+/* 导出的独立 HTML 里没有增量渲染，也不该有：content-visibility 在别的浏览器
+   上只会让首屏与打印时出现空白块。滚到底的 40vh 留白同理。 */
+html.awb-export .awb-block {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+}
+
+html.awb-export #awb-doc {
+    padding-bottom: var(--awb-gap-l);
+}
+
+/* 公式在导出件里只剩 MathML 分支（HTML 分支要对齐就得带 KaTeX 的字体），
+   所以给它一点点余量就够，剩下的交给浏览器的原生 MathML 排版。 */
+html.awb-export .katex-display {
+    margin: 1em 0;
+}

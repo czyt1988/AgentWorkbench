@@ -32,6 +32,17 @@ awb_add_vendor_resources(tst_markdown "markdown_vendor"
     EXCLUDE "README\\.md$" "/LICENSE$"
 )
 
+# 页面自己的运行时（runtime/*.js、shell.html、theme.css）也按 app/ 别名嵌一份。
+# 不是为了在这里跑页面——JS 引擎在本目标里不存在——而是因为 bridge.js 与 C++
+# 的命令表/事件表是字符串协议：把源码读进来比对分支名，就能在纯层测试里挡住
+# 「一边改名一边没改」，不必等到 WebEngine 冒烟（那个目标在关掉的构建里根本
+# 不建）。同 app/CMakeLists.txt 的前缀与别名，两边必须是同一棵树。
+awb_add_vendor_resources(tst_markdown "markdown_page_runtime"
+    PREFIX "/markdown"
+    ALIAS_PREFIX "app"
+    ROOT ${CMAKE_SOURCE_DIR}/src/markdown/webengine/runtime
+)
+
 target_link_libraries(tst_markdown PRIVATE
     awb_markdown
     awb_core

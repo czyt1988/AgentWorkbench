@@ -12,8 +12,10 @@ namespace awb::markdown {
 namespace {
 
 // 本文件的行判定全部是「CommonMark 顶层块边界」级别的最小实现：只用来决定
-// 在哪里切块，不用来判断语义。判错的后果由 tst_markdownchunker 的等价性
-// 语料测试兜住——逐块渲染再拼接必须与整篇渲染逐字节相同。
+// 在哪里切块，不用来判断语义。判错的后果是逐块渲染与整篇渲染不等价（内容变
+// 形而不是报错），所以有两道闸：tst_markdownchunker 用整个 docs/ 语料检查块
+// 的覆盖与顺序，scripts/spike-markdown-chunker.js 用同一个 markdown-it 实例
+// 比较两种渲染的 HTML。改动这里的判定后两道都要跑。
 
 const QString kFenceBacktick = QStringLiteral("```");
 const QString kFenceTilde = QStringLiteral("~~~");
@@ -372,8 +374,31 @@ QVector<MarkdownBlock> MarkdownChunker::split(const QString &source)
 
         // 一般块：段落 / setext 标题 / 列表 / blockquote / HTML 标签行
         int end = i;
+        // 块内再开围栏的状态（列表项里的缩进围栏是唯一进来的路径）。必须
+        // 吃到配对的结束行：围栏里的 `## 标题`、`|` 表格行、乃至那行 ``` 本身
+        // 都会被下面的判定当成「新块起始」，于是一个 <ul> 被切成两块、代码块
+        // 从项里掉出来——逐块渲染与整篇渲染从此不等价。
+        QChar fenceMarker;
+        int fenceMin = 0;
+        // 缩进的围栏只在「本块是列表」时属于项内内容；顶格 ``` 是另一回事，
+        // 由循环开头的分支决定断不断。
+        auto openFence = [&](int line) {
+            const QString text = lines.at(line);
+            if (fenceMarker.isNull() && isListLike(first) && isFenceStart(text)
+                && text != trimmedLeft(text)) {
+                fenceMarker = trimmedLeft(text).at(0);
+                fenceMin = fenceLength(text);
+            }
+        };
         while (end + 1 < count) {
             const QString next = lines.at(end + 1);
+            if (!fenceMarker.isNull()) {
+                if (closesFence(next, fenceMarker, fenceMin)) {
+                    fenceMarker = QChar();
+                }
+                ++end;
+                continue;
+            }
             if (isBlank(next)) {
                 int probe = end + 1;
                 while (probe < count && isBlank(lines.at(probe))) {
@@ -390,13 +415,26 @@ QVector<MarkdownBlock> MarkdownChunker::split(const QString &source)
                 if (!listContinues && !quoteContinues) {
                     break;
                 }
-                // 跨空行的延续段：空行属于本块内部，必须一起吞进来
+                // 跨空行的延续段：空行属于本块内部，必须一起吞进来。吞进来的
+                // 这一行可能就是项内围栏的起始行，状态要在这里开——漏了它，
+                // 围栏内的下一行（`# 标题` 之类）会被当成新块而把列表切开。
                 end = probe;
+                openFence(end);
                 continue;
             }
             if (isSetextUnderline(next) && !isThematicBreak(lines.at(end))
                 && !isListLike(lines.at(i)) && !isBlockquote(lines.at(i))) {
                 ++end;
+                continue;
+            }
+            // 缩进的围栏属于列表项内容（顶格 ``` 才打断列表）：进去而不是断开
+            if (isFenceStart(next) && next != trimmedLeft(next)) {
+                ++end;
+                openFence(end);
+                if (fenceMarker.isNull()) {
+                    // 不属于本块的缩进围栏（比如段落里的）仍按打断处理
+                    break;
+                }
                 continue;
             }
             if (interrupts(lines.at(i), next)) {

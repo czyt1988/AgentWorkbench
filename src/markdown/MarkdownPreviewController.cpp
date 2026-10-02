@@ -473,10 +473,14 @@ QString MarkdownPreviewController::takeCommand()
 
 /**
  * @brief 页面就绪
- * @param json 页面报回的能力与耗时（{workers,fetchApi,firstPaintMs}）
+ * @param json {page,rev,blocks,firstPaintMs,contentVisibility,fetchApi}
  *
  * 就绪即把视图与主题两条命令补发一次：doc.json 里已经带了它们，这条只是
  * 让「页面加载完成」与「设置命令到达」的顺序无关紧要。
+ *
+ * contentVisibility 为假时不必报错——Chromium 87 以下才没有它——但必须看得见：
+ * 大文档滚动优化的主干（theme.css 的 .awb-block）在这个能力位上，页面照常出、
+ * 滚动却卡，是那种「测不出问题在哪」的卡。
  */
 void MarkdownPreviewController::reportReady(const QString &json)
 {
@@ -498,11 +502,16 @@ void MarkdownPreviewController::reportReady(const QString &json)
 
 /**
  * @brief 页面报回的一次渲染耗时
- * @param json {parseMs, mountMs, blockCount}
+ * @param json {parseMs,mountMs,passes,blockCount,mountedCount,pendingBlocks,
+ *              pendingDiagrams,totalMs}
+ *
+ * 只进日志，不进界面；这条是 docs/research/markdown-preview-runtime.md 里那些
+ * 数字的来源。两个口径要分开看：parseMs+mountMs 是渲染实际做的事，totalMs 是
+ * 用户等的那段时间，passes 说明中间让出了多少次主线程。
  */
 void MarkdownPreviewController::reportFrame(const QString &json)
 {
-    AWB_PERF << "markdown: frame" << json.left(200);
+    AWB_PERF << "markdown: frame" << json.left(320);
 }
 
 /**
