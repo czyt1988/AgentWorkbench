@@ -8,6 +8,19 @@
 
 ### 新增
 
+- **Markdown 预览窗口**：在 Agent Tools 页的文件树里右键一个 `.md` 文件
+  （**预览 Markdown**），它会在自己的窗口里打开。渲染完全离线，用的是一套内置
+  的运行时（markdown-it 15.0.2、KaTeX 0.19.0、mermaid 11.17.2、highlight.js
+  11.12.0），经本地的 `awbmd://` 协议供给：公式、图表、带语法高亮的代码，以及
+  文档自己的相对路径图片。分块按时间预算分趟解析，屏外的块跳过布局，所以几百
+  KB 的文档先出首屏（几百毫秒），不必等整篇排完。窗口还能改源码（`Ctrl+S`
+  保存，未保存时有确认）、大纲导航、文档内搜索、**复制所选** / **复制
+  Markdown 源码**、**从磁盘重新加载**、**在浏览器打开**与导出 HTML。设置键：
+  `markdown.mode`（`preview` / `split` / `source`）、`markdown.fontSizePx`、
+  `markdown.contentWidthPx`、`markdown.showOutline`——由窗口自己写入，设置页
+  没有这一组开关。**仅 Qt 6 + WebEngine 构建可用**：`AWB_ENABLE_WEBENGINE=OFF`
+  或 Qt 5 时菜单条目不会出现，运行时也完全不进二进制（开启时约 4 MB，其中
+  2.6 MB 是 mermaid，只在文档含图表时才请求）。
 - **系统托盘**：可选的托盘图标（显示/隐藏/退出菜单、左键切换显隐、一次性
   气泡提示）与「收进托盘」关闭行为——托盘可用期间应用不再随最后一个窗口
   关闭而退出，所有退出都是显式的，agent 运行中依旧先询问。设置键：

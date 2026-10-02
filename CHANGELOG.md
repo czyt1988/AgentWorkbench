@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Markdown preview window**: right-clicking a `.md` file in the Agent Tools
+  file tree (**Preview Markdown**) opens it in a window of its own. It renders
+  fully offline from a vendored runtime (markdown-it 15.0.2, KaTeX 0.19.0,
+  mermaid 11.17.2, highlight.js 11.12.0) served over a local `awbmd://`
+  scheme: formulas, diagrams, syntax-highlighted code, and the document's own
+  relative images. Blocks are parsed in time-budgeted passes and offscreen
+  blocks skip layout, so a document of several hundred kilobytes shows its
+  first screen in a few hundred milliseconds instead of waiting for the whole
+  file. The window also edits the source (`Ctrl+S` saves, guarded by an
+  unsaved-changes prompt), and has an outline, in-document search,
+  **Copy selection** / **Copy Markdown source**, **Reload from disk**,
+  **Open in browser** and HTML export. Settings: `markdown.mode`
+  (`preview` / `split` / `source`), `markdown.fontSizePx`,
+  `markdown.contentWidthPx`, `markdown.showOutline` — written by the window
+  itself, there is no Settings page UI for them. **Qt 6 + WebEngine builds
+  only**: with `AWB_ENABLE_WEBENGINE=OFF`, or on Qt 5, the menu item does not
+  appear and none of the runtime reaches the binary (otherwise it costs about
+  4 MB, 2.6 MB of which is mermaid, requested only when a document contains a
+  diagram).
 - **System tray**: an optional tray icon (Show/Hide/Quit menu, left-click
   toggle, one-time balloon hint) plus close-to-tray — while the tray is
   available the app no longer exits on last-window-closed; every exit is
