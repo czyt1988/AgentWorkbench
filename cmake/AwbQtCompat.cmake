@@ -81,6 +81,61 @@ function(awb_add_resources target name)
     endif()
 endfunction()
 
+# awb_add_vendor_resources(<target> <name> PREFIX <prefix>
+#                          ALIAS_PREFIX <alias-dir> ROOT <dir>
+#                          [EXCLUDE <regex>...])
+# 把一个**目录树**整体嵌进资源，并保留它内部的相对路径。
+# awb_add_resources 只认 PREFIX + FILES、既不递归也不认 BASE，而第三方运行时
+# （third_party/markdown-runtime/：katex 的字体在 fonts/ 子目录里）与本项目自
+# 有的 runtime/ 目录都是「按子路径取用」的——CSS 里的 url(fonts/x.woff2) 靠的
+# 就是别名把子目录结构原样带过去。所以这里递归列举、逐文件算出相对 ROOT 的
+# 路径、拼上 ALIAS_PREFIX 写成 QT_RESOURCE_ALIAS，再转交 awb_add_resources。
+# 别名带斜杠是有效的：Qt 6 的 qt_add_resources 把 QT_RESOURCE_ALIAS 原样写进
+# 生成 qrc 的 alias（__qt_get_relative_resource_path_for_file 不做 basename），
+# rcc 也按斜杠建目录树（:/pfx/sub/a.txt 这类 URL 就是这么来的）。
+# ROOT 不存在或 glob 为空时静默产出空资源（配置期不报错），由调用方的 guard
+# 决定这块到底该不该有内容。
+# 用 CONFIGURE_DEPENDS：新增/删除 vendor 文件时让构建系统自动重新 glob，
+# 不必手工 re-configure（漏了 re-configure 的表现是「文件在盘上但二进制里
+# 没有」，排查成本远高于这一次 glob）。
+function(awb_add_vendor_resources target name)
+    set(oneValueArgs PREFIX ALIAS_PREFIX ROOT)
+    set(multiValueArgs EXCLUDE)
+    cmake_parse_arguments(AAVR "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    set(_kept "")
+    if (IS_DIRECTORY "${AAVR_ROOT}")
+        file(GLOB_RECURSE _files CONFIGURE_DEPENDS "${AAVR_ROOT}/*")
+        list(SORT _files)
+        foreach (_f IN LISTS _files)
+            if (IS_DIRECTORY "${_f}")
+                continue()
+            endif()
+            set(_drop FALSE)
+            foreach (_pat IN LISTS AAVR_EXCLUDE)
+                if (_f MATCHES "${_pat}")
+                    set(_drop TRUE)
+                    break()
+                endif()
+            endforeach()
+            if (_drop)
+                continue()
+            endif()
+            # file(RELATIVE_PATH) 才是纯字符串取相对路径。get_filename_component
+            # (REALPATH BASE_DIR) 尽管带 BASE_DIR 也返回**绝对**路径（还顺带解析
+            # 符号链接），别名会变成 "vendor/C:/src/…"，URL whole 一层层多出目录。
+            file(RELATIVE_PATH _rel "${AAVR_ROOT}" "${_f}")
+            set_source_files_properties("${_f}" PROPERTIES
+                QT_RESOURCE_ALIAS "${AAVR_ALIAS_PREFIX}/${_rel}")
+            list(APPEND _kept "${_f}")
+        endforeach()
+    endif()
+
+    awb_add_resources(${target} "${name}"
+        PREFIX "${AAVR_PREFIX}"
+        FILES ${_kept})
+endfunction()
+
 # awb_internal_write_qrc(<out.qrc> <prefix> <file>...)
 # 生成 RCC 文件：每个输入按 QT_RESOURCE_ALIAS 源属性取别名（缺省用文件名），
 # URL 布局与 Qt 6 的 qt_add_resources 完全一致。路径不含 XML 特殊字符（&<>）。

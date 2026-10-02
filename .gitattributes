@@ -3,3 +3,12 @@
 # CRLF conversion never adds phantom diffs, and hide their churn from GitHub's
 # linguist stats and PR file diffs.
 translations/*.ts text eol=lf linguist-generated=true
+
+# Markdown 预览运行时的第三方浏览器构建产物（third_party/markdown-runtime/）。
+# manifest.json 记的是逐文件 sha256，tst_markdown 会重算比对——而 core.autocrlf
+# 是 true，任何 EOL 转换都会在检出后把 JS/CSS 的字节改掉、让完整性检查恒失败，
+# 所以整目录禁转换（-text）。二进制文件本来也不该被当文本处理。
+third_party/markdown-runtime/** -text linguist-generated=true
+# 例外：这两份是给人读/给实现代码解析的，要能正常 diff。
+third_party/markdown-runtime/README.md text eol=lf
+third_party/markdown-runtime/manifest.json text eol=lf

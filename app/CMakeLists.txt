@@ -246,6 +246,26 @@ awb_add_resources(AgentWorkbench "theme_resources"
         ${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json
 )
 
+# --- Markdown preview runtime (Qt 6 + WebEngine only) -----------------------
+# Third-party browser builds served to the embedded view over awbmd://. They
+# are embedded as-is (no build-time bundling) because the app must render
+# offline and a packaging machine may have no network at all.
+#
+# The guard is on purpose, and it is what keeps the Qt 5 route untouched: with
+# neither the QML window nor these ~4 MiB embedded, a Qt 5 binary does not
+# contain the feature at all, rather than containing a broken version of it.
+# See src/markdown/MarkdownRuntime.cpp's isSupportedBuild() for the matching
+# compile-time gate and docs/development/markdown-preview.md for the rationale.
+if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+    awb_add_vendor_resources(AgentWorkbench "markdown_vendor"
+        PREFIX "/markdown"
+        ALIAS_PREFIX "vendor"
+        ROOT ${CMAKE_SOURCE_DIR}/third_party/markdown-runtime
+        # Prose and licences stay in the repo, not in the binary.
+        EXCLUDE "README\\.md$" "/LICENSE$"
+    )
+endif()
+
 # Win32 GUI subsystem (no console window) on Windows.
 set_target_properties(AgentWorkbench PROPERTIES
     WIN32_EXECUTABLE ON
