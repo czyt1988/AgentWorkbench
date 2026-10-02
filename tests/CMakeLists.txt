@@ -13,6 +13,7 @@ endif()
 add_subdirectory(workbench)
 add_subdirectory(skillcatalog)
 add_subdirectory(tools)
+add_subdirectory(markdown)
 
 # Architecture rules as a test: a violating build fails
 # instead of relying on people remembering the rules.

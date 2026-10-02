@@ -1065,37 +1065,37 @@ Command: %2
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="160"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="165"/>
         <source>Confirm Exit</source>
         <translation>确认退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="168"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="173"/>
         <source>Background terminals were launched via AgentWorkbench this session. Close them before exiting?</source>
         <translation>本次会话通过 AgentWorkbench 启动了后台终端，是否在退出前关闭它们？</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="180"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="185"/>
         <source>Yes, close background terminals</source>
         <translation>是，关闭后台终端</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="188"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="193"/>
         <source>No, just exit</source>
         <translation>否，直接退出</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="196"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="201"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="208"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="213"/>
         <source>Configuration imported</source>
         <translation>配置已导入</translation>
     </message>
     <message>
-        <location filename="../src/shell/qml/MainWindow.qml" line="210"/>
+        <location filename="../src/shell/qml/MainWindow.qml" line="215"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -1141,6 +1141,208 @@ Command: %2
         <location filename="../src/tools/qml/MarkdownContextMenu.qml" line="105"/>
         <source>Paste</source>
         <translation>粘贴</translation>
+    </message>
+</context>
+<context>
+    <name>MarkdownDocument</name>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="87"/>
+        <source>The file does not exist.</source>
+        <translation>文件不存在。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="91"/>
+        <source>The file is larger than the 20 MB preview limit.</source>
+        <translation>文件超过 20 MB 的预览上限。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="97"/>
+        <source>The file could not be opened for reading.</source>
+        <translation>无法打开文件进行读取。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="148"/>
+        <source>There is no file to save to.</source>
+        <translation>没有可保存的目标文件。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="265"/>
+        <source>The file is not valid UTF-8, so editing is disabled to keep it from being corrupted.</source>
+        <translation>文件不是合法的 UTF-8，为避免损坏内容，已禁用编辑。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="271"/>
+        <source>The file is larger than the 2 MB editing limit, so it is opened read-only.</source>
+        <translation>文件超过 2 MB 的编辑上限，已按只读方式打开。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownDocument.cpp" line="277"/>
+        <source>The file is write-protected.</source>
+        <translation>文件受写保护。</translation>
+    </message>
+</context>
+<context>
+    <name>MarkdownPreviewController</name>
+    <message>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="134"/>
+        <source>Only Markdown files can be previewed here.</source>
+        <translation>这里只能预览 Markdown 文件。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="252"/>
+        <source>There is no file to reload.</source>
+        <translation>没有可重新加载的文件。</translation>
+    </message>
+</context>
+<context>
+    <name>MarkdownPreviewPage</name>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="490"/>
+        <source>Outline</source>
+        <translation>大纲</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="492"/>
+        <source>Search</source>
+        <translation>搜索</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="494"/>
+        <source>Find in document</source>
+        <translation>在文档中查找</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="496"/>
+        <source>No matches</source>
+        <translation>无匹配</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="498"/>
+        <source>%1 of %2</source>
+        <translation>第 %1 处，共 %2 处</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="500"/>
+        <source>Match case</source>
+        <translation>区分大小写</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="502"/>
+        <source>Previous match</source>
+        <translation>上一处匹配</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="504"/>
+        <source>Next match</source>
+        <translation>下一处匹配</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="506"/>
+        <source>Close search</source>
+        <translation>关闭搜索</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="508"/>
+        <source>Copy selection</source>
+        <translation>复制所选内容</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="510"/>
+        <source>Copy Markdown source</source>
+        <translation>复制 Markdown 源码</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="512"/>
+        <source>Open in browser</source>
+        <translation>在浏览器打开</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="514"/>
+        <source>Export standalone HTML</source>
+        <translation>导出独立 HTML</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="516"/>
+        <source>Exported</source>
+        <translation>已导出</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="518"/>
+        <source>Save</source>
+        <translation>保存</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="520"/>
+        <source>Saved</source>
+        <translation>已保存</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="522"/>
+        <source>Discard changes</source>
+        <translation>放弃更改</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="524"/>
+        <source>Reload from disk</source>
+        <translation>从磁盘重新加载</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="526"/>
+        <source>Edit</source>
+        <translation>编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="528"/>
+        <source>Preview only</source>
+        <translation>仅预览</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="530"/>
+        <source>Font size</source>
+        <translation>字号</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="532"/>
+        <source>Content width</source>
+        <translation>正文宽度</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="534"/>
+        <source>This block failed to render</source>
+        <translation>此块渲染失败</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="536"/>
+        <source>Diagram could not be drawn</source>
+        <translation>图表无法绘制</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="538"/>
+        <source>Click to render this diagram</source>
+        <translation>点击渲染此图表</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="540"/>
+        <source>The document is empty</source>
+        <translation>文档为空</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="542"/>
+        <source>The file changed on disk while you were editing</source>
+        <translation>你编辑期间文件在磁盘上已被修改</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="544"/>
+        <source>%1 lines, %2 words, %3 blocks</source>
+        <translation>%1 行 · %2 词 · %3 块</translation>
+    </message>
+</context>
+<context>
+    <name>MarkdownRuntime</name>
+    <message>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="220"/>
+        <source>This build has no Markdown preview: it needs Qt 6 with WebEngine enabled.</source>
+        <translation>此构建没有 Markdown 预览：需要启用 WebEngine 的 Qt 6 构建。</translation>
     </message>
 </context>
 <context>
@@ -2777,7 +2979,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="311"/>
+        <location filename="../app/main.cpp" line="318"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

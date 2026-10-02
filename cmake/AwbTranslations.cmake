@@ -70,4 +70,9 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/tools/ToolsFacade.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    # markdown preview (the page's JS strings come from MarkdownRuntime's
+    # dictionary instead: lupdate does not see .js/.css files)
+    ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownDocument.cpp
+    ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownPreviewController.cpp
+    ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownRuntime.cpp
 )

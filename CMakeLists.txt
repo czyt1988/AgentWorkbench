@@ -87,6 +87,7 @@ add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
 add_subdirectory(src/web)       # L2 web tabs (+ webengine adapter when ON)
 add_subdirectory(src/skillcatalog) # L2 skill catalog
 add_subdirectory(src/tools)     # L2 agent tools (workspace memory, prompt draft)
+add_subdirectory(src/markdown)  # L2 markdown preview (state layer; adapter when ON)
 add_subdirectory(src/workbench) # L3 application layer
 
 # Translations. The default build only runs lrelease (.ts -> .qm) via

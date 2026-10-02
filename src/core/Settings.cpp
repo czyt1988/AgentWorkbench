@@ -206,11 +206,15 @@ const QSet<QString> kLoggingKeys = { QStringLiteral("maxFileSize"),
                                      QStringLiteral("mirrorToStderr") };
 const QSet<QString> kPluginsKeys = { QStringLiteral("enabled"),
                                      QStringLiteral("disabledIds") };
+const QSet<QString> kMarkdownKeys = {
+    QStringLiteral("mode"), QStringLiteral("fontSizePx"),
+    QStringLiteral("contentWidthPx"), QStringLiteral("showOutline") };
 const QSet<QString> kRootKeys = {
     QStringLiteral("window"), QStringLiteral("appearance"),
     QStringLiteral("locale"), QStringLiteral("launcher"),
     QStringLiteral("web"), QStringLiteral("skills"),
-    QStringLiteral("logging"), QStringLiteral("plugins") };
+    QStringLiteral("logging"), QStringLiteral("plugins"),
+    QStringLiteral("markdown") };
 
 } // namespace
 
@@ -412,6 +416,30 @@ void Settings::load()
     m_plugins.disabledIds = readStringList(
         plugins, QStringLiteral("disabledIds"), m_plugins.disabledIds,
         QStringLiteral("plugins"));
+
+    const QJsonObject markdown =
+        root.value(QStringLiteral("markdown")).toObject();
+    warnUnknownKeys(markdown, kMarkdownKeys, QStringLiteral("markdown"));
+    m_markdown.mode = readString(markdown, QStringLiteral("mode"),
+                                 m_markdown.mode, QStringLiteral("markdown"));
+    if (m_markdown.mode != QStringLiteral("preview")
+        && m_markdown.mode != QStringLiteral("split")
+        && m_markdown.mode != QStringLiteral("source")) {
+        qWarning().noquote() << QStringLiteral(
+            "Settings: markdown.mode \"%1\" is not one of preview, split, "
+            "source; using the default").arg(m_markdown.mode);
+        m_markdown.mode = MarkdownSettings().mode;
+    }
+    // 0 是合法的「跟随主题」，所以区间从 0 起。
+    m_markdown.fontSizePx = readInt(markdown, QStringLiteral("fontSizePx"),
+                                    m_markdown.fontSizePx, 0, 48,
+                                    QStringLiteral("markdown"));
+    m_markdown.contentWidthPx = readInt(
+        markdown, QStringLiteral("contentWidthPx"), m_markdown.contentWidthPx,
+        0, 4000, QStringLiteral("markdown"));
+    m_markdown.showOutline = readBool(markdown, QStringLiteral("showOutline"),
+                                      m_markdown.showOutline,
+                                      QStringLiteral("markdown"));
 }
 
 /**
@@ -624,6 +652,50 @@ void Settings::setPluginsGloballyEnabled(bool enabled)
 }
 
 /**
+ * @brief 写 Markdown 预览的视图模式
+ *
+ * @param mode preview / split / source
+ */
+void Settings::setMarkdownMode(const QString &mode)
+{
+    m_markdown.mode = mode;
+    Q_EMIT valueChanged(QStringLiteral("markdown.mode"));
+}
+
+/**
+ * @brief 写 Markdown 正文字号
+ *
+ * @param pixels 像素字号；0 = 跟随主题
+ */
+void Settings::setMarkdownFontSizePx(int pixels)
+{
+    m_markdown.fontSizePx = pixels;
+    Q_EMIT valueChanged(QStringLiteral("markdown.fontSizePx"));
+}
+
+/**
+ * @brief 写 Markdown 正文栏宽
+ *
+ * @param pixels 像素宽度；0 = 用内置基准
+ */
+void Settings::setMarkdownContentWidthPx(int pixels)
+{
+    m_markdown.contentWidthPx = pixels;
+    Q_EMIT valueChanged(QStringLiteral("markdown.contentWidthPx"));
+}
+
+/**
+ * @brief 写大纲侧栏的开关
+ *
+ * @param show true = 显示大纲
+ */
+void Settings::setMarkdownShowOutline(bool show)
+{
+    m_markdown.showOutline = show;
+    Q_EMIT valueChanged(QStringLiteral("markdown.showOutline"));
+}
+
+/**
  * @brief 把全部设置写回 settings.json
  *
  * 原子写入（经 JsonStore::writeFile），写入失败记一条警告并把失败
@@ -685,6 +757,12 @@ OpResult Settings::save()
     }
     plugins[QStringLiteral("disabledIds")] = disabled;
 
+    QJsonObject markdown;
+    markdown[QStringLiteral("mode")] = m_markdown.mode;
+    markdown[QStringLiteral("fontSizePx")] = m_markdown.fontSizePx;
+    markdown[QStringLiteral("contentWidthPx")] = m_markdown.contentWidthPx;
+    markdown[QStringLiteral("showOutline")] = m_markdown.showOutline;
+
     QJsonObject root;
     root[QStringLiteral("window")] = window;
     root[QStringLiteral("appearance")] = appearance;
@@ -694,6 +772,7 @@ OpResult Settings::save()
     root[QStringLiteral("skills")] = skills;
     root[QStringLiteral("logging")] = logging;
     root[QStringLiteral("plugins")] = plugins;
+    root[QStringLiteral("markdown")] = markdown;
 
     const OpResult result = JsonStore::writeFile(settingsFilePath(), root);
     if (!result.ok) {

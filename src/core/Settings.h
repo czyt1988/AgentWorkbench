@@ -86,6 +86,20 @@ struct PluginsSettings
     QStringList disabledIds;
 };
 
+/// Markdown 预览窗口的视图偏好。四个键都是「显示」而不是「行为」——窗口
+/// 本身只在 Qt 6 + WebEngine 的构建里存在，这里不放开关，因为一个用户改
+/// 不动、也解释不了为什么改不动的开关不如不给。
+struct MarkdownSettings
+{
+    /// preview | split | source；非法取值回落 preview
+    QString mode = QStringLiteral("preview");
+    /// 正文像素字号；0 = 用当前主题的 fontSizeBody
+    int fontSizePx = 0;
+    /// 正文栏宽（像素）；0 = 用内置基准
+    int contentWidthPx = 0;
+    bool showOutline = true;
+};
+
 /// settings.json 的类型化访问层：应用的其它部分不许直接读这个文件。
 class Settings : public QObject
 {
@@ -106,6 +120,7 @@ public:
     const SkillsSettings &skillsOptions() const { return m_skills; }
     const LoggingSettings &loggingOptions() const { return m_logging; }
     const PluginsSettings &pluginsOptions() const { return m_plugins; }
+    const MarkdownSettings &markdownOptions() const { return m_markdown; }
 
     // 按规范命名的快捷取值
     QString themeId() const;
@@ -132,6 +147,10 @@ public:
     void setSkillRoots(const QJsonArray &roots);
     void setPluginsDisabledIds(const QStringList &ids);
     void setPluginsGloballyEnabled(bool enabled);
+    void setMarkdownMode(const QString &mode);
+    void setMarkdownFontSizePx(int pixels);
+    void setMarkdownContentWidthPx(int pixels);
+    void setMarkdownShowOutline(bool show);
 
     // 把整个设置对象持久化（原子写）
     OpResult save();
@@ -155,6 +174,7 @@ private:
     SkillsSettings m_skills;
     LoggingSettings m_logging;
     PluginsSettings m_plugins;
+    MarkdownSettings m_markdown;
 };
 
 } // namespace awb::core

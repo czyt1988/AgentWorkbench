@@ -257,6 +257,49 @@ private Q_SLOTS:
                  QStringLiteral("launcher.singleInstance"));
     }
 
+    // Markdown 预览的四个视图键：默认值、经 save() 的文件往返、非法 mode 与
+    // 越界数字各自回落默认并告警。栏宽/字号是直接从文件进布局的数，一个
+    // 40 万像素的栏宽原样落进界面就是把预览窗口撑到屏幕外。
+    void testMarkdownViewKeys()
+    {
+        {
+            Settings s;
+            QCOMPARE(s.markdownOptions().mode, QStringLiteral("preview"));
+            QCOMPARE(s.markdownOptions().fontSizePx, 0);
+            QCOMPARE(s.markdownOptions().contentWidthPx, 0);
+            QVERIFY(s.markdownOptions().showOutline);
+
+            s.setMarkdownMode(QStringLiteral("split"));
+            s.setMarkdownFontSizePx(18);
+            s.setMarkdownContentWidthPx(920);
+            s.setMarkdownShowOutline(false);
+            QVERIFY(s.save().ok);
+        }
+        Settings again;
+        QCOMPARE(again.markdownOptions().mode, QStringLiteral("split"));
+        QCOMPARE(again.markdownOptions().fontSizePx, 18);
+        QCOMPARE(again.markdownOptions().contentWidthPx, 920);
+        QVERIFY(!again.markdownOptions().showOutline);
+
+        writeSettingsFile(R"({ "markdown": { "mode": "zoom",
+            "fontSizePx": 900, "contentWidthPx": -5 } })");
+        g_captured.clear();
+        const QtMessageHandler previous =
+            qInstallMessageHandler(&captureMessage);
+        Settings bad;
+        qInstallMessageHandler(previous);
+        QCOMPARE(bad.markdownOptions().mode, QStringLiteral("preview"));
+        QCOMPARE(bad.markdownOptions().fontSizePx, 0);
+        QCOMPARE(bad.markdownOptions().contentWidthPx, 0);
+        bool warned = false;
+        for (const QString &msg : std::as_const(g_captured)) {
+            if (msg.contains(QStringLiteral("markdown."))) {
+                warned = true;
+            }
+        }
+        QVERIFY2(warned, "an invalid markdown preference must be logged");
+    }
+
     void testValueChangedSignal()
     {
         Settings s;
