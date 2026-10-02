@@ -17,10 +17,11 @@ Files in the data directory:
 |---|---|---|
 | `agents.json` | launcher page / settings | user agents + the `removed` list |
 | `agent_state.json` | one-time setup | which agents finished their setup |
-| `settings.json` | settings page | application settings (see below) |
+| `settings.json` | settings page, Markdown preview | application settings (see below) |
 | `themes/*.json` | you | custom themes (same `id` overrides a built-in) |
 | `plugins/*/` | you | plugin manifests + libraries ([Plugins](plugins.md)) |
 | `webprofiles/<agentId>/` | Web tabs | per-agent cookies + localStorage |
+| `preview/*.html` | Markdown preview | the self-contained copy "open in browser" writes; replaced on each use |
 | `log/agentworkbench.log` | the app | rotating log (5 MB × 3 files) |
 
 The log records what the app does: every command it runs — the real command
@@ -58,7 +59,9 @@ Missing keys take their defaults in place — there is no migration code:
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
   "logging": { "maxFileSize": 5242880, "maxFiles": 3,
                "level": "debug", "mirrorToStderr": true },
-  "plugins": { "enabled": false, "disabledIds": [] }
+  "plugins": { "enabled": false, "disabledIds": [] },
+  "markdown": { "mode": "preview", "fontSizePx": 0,
+               "contentWidthPx": 0, "showOutline": true }
 }
 ```
 
@@ -113,6 +116,14 @@ Missing keys take their defaults in place — there is no migration code:
 - `plugins.enabled` is the master switch; `disabledIds` lists per-plugin
   opt-outs. Plugins load at startup, so toggles take effect after a
   restart. See [Plugins](plugins.md).
+- `markdown.*` is the Markdown preview window's remembered view: `mode` is
+  `preview`, `split` or `source`; `fontSizePx` `0` follows the theme's body
+  size and `contentWidthPx` `0` uses the built-in column width (both clamp to
+  `[0, 48]` and `[0, 4000]`); `showOutline` decides whether the outline panel
+  starts open. The window writes these as you use its pickers — there is no
+  Settings page for the group. Only Qt 6 + WebEngine builds contain the preview
+  window; elsewhere the keys are still read and preserved, but nothing in the
+  app can change them. See [Markdown preview](guide/markdown-preview.md).
 
 ## Themes
 

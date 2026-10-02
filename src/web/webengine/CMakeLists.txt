@@ -1,4 +1,6 @@
-# awb_web_webengine (L2 adapter): the only target linking Qt WebEngine.
+# awb_web_webengine (L2 adapter): one of the two targets that link Qt WebEngine
+# (the other is awb_markdown_webengine). The rule the name encodes is the point:
+# only *_webengine adapter targets link the engine.
 # The program still builds with
 # AWB_ENABLE_WEBENGINE=OFF — the external surface takes over.
 add_library(awb_web_webengine STATIC

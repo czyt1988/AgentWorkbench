@@ -46,6 +46,7 @@ plugins:
                 - Web interface: guide/web-ui.md
                 - Skills: guide/skills.md
                 - Agent Tools: guide/agent-tools.md
+                - Markdown preview: guide/markdown-preview.md
                 - Appearance: guide/appearance.md
                 - Settings: guide/settings.md
                 - Plugins: guide/plugins.md
@@ -64,6 +65,7 @@ plugins:
                 - WebEngine adapter: development/webengine-adapter.md
                 - Skill browser: development/skill-browser.md
                 - Agent Tools: development/agent-tools.md
+                - Markdown preview: development/markdown-preview.md
                 - Shell and navigation: development/shell-and-navigation.md
                 - Settings: development/settings.md
                 - Theme engine: development/theme-engine.md
@@ -75,6 +77,7 @@ plugins:
             - Writing plugins: plugins.md
             - Coding standard: standards/coding-standard.md
             - WebEngine embedding (research): research/webengine-embedding.md
+            - Markdown preview runtime (research): research/markdown-preview-runtime.md
         - locale: zh
           name: 中文
           build: true
@@ -87,6 +90,7 @@ plugins:
                 - 网页界面: guide/网页界面.md
                 - 技能: guide/技能.md
                 - 提示词编写台: guide/提示词编写台.md
+                - Markdown 预览: guide/Markdown预览.md
                 - 外观: guide/外观.md
                 - 设置: guide/设置.md
                 - 插件: guide/插件.md
@@ -105,6 +109,7 @@ plugins:
                 - WebEngine 适配层: development/WebEngine适配层.md
                 - Skill 浏览: development/Skill浏览.md
                 - Agent Tools: development/AgentTools.md
+                - Markdown 预览: development/Markdown预览.md
                 - 外壳与导航: development/外壳与导航.md
                 - 设置: development/设置.md
                 - 主题引擎: development/主题引擎.md

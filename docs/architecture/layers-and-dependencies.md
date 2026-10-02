@@ -21,6 +21,8 @@ flowchart TB
         tools["awb_tools"]
         web["awb_web"]
         webengine["awb_web_webengine<br/>adapter"]
+        markdown["awb_markdown"]
+        mdwebengine["awb_markdown_webengine<br/>adapter, Qt 6 only"]
     end
     subgraph L1["L1"]
         theme["awb_theme"]
@@ -33,23 +35,28 @@ flowchart TB
     app --> workbench
     app --> shell
     app --> webengine
+    app --> mdwebengine
     workbench --> shell
     workbench --> agentcatalog
     workbench --> skillcatalog
     workbench --> tools
     workbench --> web
+    workbench --> markdown
     web --> webengine
+    markdown --> mdwebengine
     shell --> theme
     agentcatalog --> theme
     skillcatalog --> theme
     tools --> theme
     web --> theme
+    markdown --> theme
     theme --> core
     shell --> core
     agentcatalog --> core
     skillcatalog --> core
     tools --> core
     web --> core
+    markdown --> core
     workbench --> core
     core --> pluginapi
 ```
@@ -64,19 +71,21 @@ The real CMake link lines, for reference:
 | `awb_shell` | `awb_core`, `awb_theme`, `Qt::Core`, `Qt::Gui`; `comdlg32` on Windows |
 | `awb_agentcatalog`, `awb_skillcatalog`, `awb_web` | `awb_core`, `awb_theme` |
 | `awb_tools` | `awb_core`, `awb_theme`; `Qt::Quick` is `PRIVATE` (only the Markdown editor support touches Quick) |
+| `awb_markdown` | `awb_core`, `awb_theme`, `Qt::Core`, `Qt::Gui` |
 | `awb_web_webengine` | `awb_web` + the Qt WebEngine target |
-| `awb_workbench` | `awb_agentcatalog`, `awb_core`, `awb_shell`, `awb_skillcatalog`, `awb_theme`, `awb_tools`, `awb_web` |
-| `AgentWorkbench` | every `awb_*` module, plus `awb_web_webengine` when WebEngine is enabled |
+| `awb_markdown_webengine` | `awb_markdown`, `Qt::Core`, `Qt::Gui` + the Qt WebEngine target — built only on Qt 6 |
+| `awb_workbench` | `awb_agentcatalog`, `awb_core`, `awb_markdown`, `awb_shell`, `awb_skillcatalog`, `awb_theme`, `awb_tools`, `awb_web` |
+| `AgentWorkbench` | every `awb_*` module, plus `awb_web_webengine` when WebEngine is enabled and `awb_markdown_webengine` when it is enabled on Qt 6 |
 
 ## The rules
 
 ### 1. Domains never depend on each other, or on the shell
 
-`awb_agentcatalog`, `awb_skillcatalog`, `awb_tools` and `awb_web` must not include `shell/`, `workbench/`, or each other's directories.
+`awb_agentcatalog`, `awb_skillcatalog`, `awb_tools`, `awb_web` and `awb_markdown` must not include `shell/`, `workbench/`, or each other's directories.
 
 The reason is not purity for its own sake: this is what makes the modules independently testable (each has its own test target that links only that module) and what keeps the dependency graph a tree instead of a tangle. In practice it means a domain must not assume anything about *where* it is being displayed.
 
-If you need two domains to cooperate, the code belongs in `awb_workbench`. Concretely: the agent launcher must not know how to open a web tab, so `AgentsFacade` deliberately has no `openWeb` method — `WorkbenchContext::openWeb(agentId)` does that job. `BuiltinPages` then connects domain signals to each other (`runningChanged` → `markOnlineForAgent`, `sessionUrlChanged` → `retargetTabForAgent`) so no domain holds a pointer to another.
+If you need two domains to cooperate, the code belongs in `awb_workbench`. Concretely: the agent launcher must not know how to open a web tab, so `AgentsFacade` deliberately has no `openWeb` method — `WorkbenchContext::openWeb(agentId)` does that job. The same shape repeats one layer over: the file tree on the Agent Tools page must not know that a Markdown preview exists, so `ToolsPage.qml` asks `workbench.canPreviewMarkdown(path)` whether to show the menu entry and `workbench.previewMarkdown(path)` to act, and only `WorkbenchContext` holds the preview controller. `BuiltinPages` then connects domain signals to each other (`runningChanged` → `markOnlineForAgent`, `sessionUrlChanged` → `retargetTabForAgent`) so no domain holds a pointer to another.
 
 ### 2. `core` and `theme` stay free of UI and of business knowledge
 
@@ -103,6 +112,7 @@ Dependencies point downward: `app → workbench → domains → theme → core`.
 | A general-purpose widget used by several pages | `src/shell/qml/components/` (name it `A*`) | the shelf is the only sanctioned place for shared UI |
 | An action that needs two domains (launch this agent *and* open its web UI) | `awb_workbench` / `WorkbenchContext` | the only layer allowed to know both |
 | A dialog, a toast, clipboard access, a native file/folder picker | `awb_shell` (`UiServices`, `Notifications`, `A*` dialogs) | these are UI framework facilities, not domain features |
+| Something that has to render in the embedded browser engine | a domain module for the state, plus a `*_webengine` adapter for the engine | only adapter targets link WebEngine, so an `AWB_ENABLE_WEBENGINE=OFF` build still compiles and simply lacks the capability |
 | A file, path, JSON, process or HTTP helper | `awb_core` | infrastructure belongs below everything; keep it UI-free |
 | A colour, spacing or duration value | `resources/themes/*.json` + a `theme` property | never a literal in QML |
 | A new agent, icon mapping, theme or skill root | data (`agents.json`, `file_icons.json`, a theme JSON, `skills.roots`) | see [Extension points](extension-points.md) |
@@ -121,10 +131,11 @@ Dependencies point downward: `app → workbench → domains → theme → core`.
 
 Rule 5 is worth internalising: it is the only one whose violations are invisible to every other check. When you add a method intended for QML, mark it `Q_INVOKABLE`; when you add a property QML will assign, give it a `WRITE` accessor. `tst_shell::testQmlCalledMethodsAreInvokable` reproduces the same class of bug through `QMetaObject::invokeMethod`.
 
-## Two things that look like exceptions but are not
+## Three things that look like exceptions but are not
 
 - **`shell` ships `A*` components.** The component shelf lives in `awb_shell` because it is generic UI framework, not because `shell` knows about business. The components themselves reference only `theme.*` tokens and their own properties.
 - **`workbench` links every domain.** That is its definition, not a layering violation — it is L3, and the layers below it still do not link each other.
+- **`MainWindow.qml` hosts the Markdown preview window.** The window QML belongs to `src/markdown/qml/`, yet it is created by a `Loader` in the shell's window. That is not `shell` reaching into a domain: the loader names the file by its resource URL and its `active` guard is the `Markdown` singleton's `available` property, both wired up by `app/main.cpp`. `awb_shell` neither links nor includes `awb_markdown`, and the preview window QML is only registered into the binary in builds that can run it — where it is absent the loader simply never activates. A domain that owns a whole window, rather than a page the shell hands out, is the one case where the shell has to be the host.
 
 ## Related
 
@@ -132,3 +143,4 @@ Rule 5 is worth internalising: it is the only one whose violations are invisible
 - [C++ library design](cpp-design.md) — the patterns that make cross-module contracts safe (facades, model roles, `OpResult`).
 - [Frontend design](frontend-design.md) — the QML side of rules 2 and 5.
 - [Extension points](extension-points.md) — the sanctioned ways to add behaviour without breaking these rules.
+- [Development: Markdown preview](../development/markdown-preview.md) — a domain plus its adapter and a window hosted by the shell, i.e. all three rules in one feature.

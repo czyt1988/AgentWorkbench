@@ -13,7 +13,9 @@
 
 边界：本页不与任何 agent 通信、不运行任何东西、不编辑仓库文件。它唯一的读取是
 工作区文件树，唯一的写入是 `tools.json`（工作区记忆 + 草稿）与系统剪贴板。文件
-树是只读浏览。
+树是只读浏览。有一处会走得更远：右键一个 Markdown 文件可以把它的路径交给
+`workbench.previewMarkdown()`，由它开出预览窗口——本页只交出一个路径，其余的读、
+改、存全在那扇窗口里发生（见 [Markdown 预览](Markdown预览.md)）。
 
 ## 文件与类清单
 
@@ -33,7 +35,7 @@
 | `src/tools/MarkdownEdit.cpp` | `MarkdownEdit` | 静态光标操作、主题配色、高亮器簿记 | `MarkdownHighlighter` |
 | `src/tools/MarkdownHighlighter.h` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
 | `src/tools/MarkdownHighlighter.cpp` | `MarkdownHighlighter::highlightBlock()` | 围栏状态机加行内正则规则 | `MarkdownEdit` |
-| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | 页面：头部、工作区下拉、添加/刷新/复制工具栏、含编辑器与文件树的 `SplitView` | `tools.*`、`ui.pickFolder`、`MarkdownEdit`、`MarkdownContextMenu` |
+| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | 页面：头部、工作区下拉、添加/刷新/复制工具栏、含编辑器与文件树的 `SplitView` | `tools.*`、`ui.pickFolder`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench.canPreviewMarkdown()` / `previewMarkdown()` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
 | `src/tools/CMakeLists.txt` | 构建目标 `awb_tools` | 静态库；`Qt::Quick` 是 PRIVATE 链接（只有 `MarkdownEdit` 碰 `QQuickTextDocument`） | — |
 
@@ -88,8 +90,11 @@
   让模型 reset 期间箭头的旋转动画保持安静。拖出用
   `Drag.dragType: Drag.Automatic`、`Drag.mimeData` 取
   `tools.fileReference(relativePath)`，`Drag.active: rowDragHandler.active`。两个
-  `TapHandler` 负责单击展开与双击插入；只吃右键的 `MouseArea` 弹一个复制相对/绝对
-  路径的两条目 `AMenu`。
+  `TapHandler` 负责单击展开与双击插入；只吃右键的 `MouseArea` 弹出一份 `AMenu`
+  （`objectName: "treeRowMenu"`，正是 `tst_toolsui` 的锚点），里面是两条复制路径，
+  外加——当 `workbench.canPreviewMarkdown(treeRow.path)` 说是时——**预览 Markdown**
+  和一条把它们分开的分隔线。后缀清单与能力判定都住在预览域里，QML 从不判断后缀，
+  所以没有这个能力的构建里菜单就只剩两条复制项，不会留一条点了没动静的条目。
 - **`AEmptyState` 的约束。** 它的根是普通 `Item`，不能带 `anchors`（未定义行为），
   尺寸由布局接管；内部用 `Column` 而不是 `ColumnLayout`，避免 Qt 5 的递归重排。
 
@@ -279,7 +284,8 @@ flowchart TD
 - **`ui.pickFolder` 是选目录入口。** QML 的 `FolderDialog` 是 Qt 6 QuickDialogs2
   独有；C++ 原生对话框（`UiServices::pickFolder`）是 Qt 5/Qt 6 行为一致的唯一路线。
 - **`objectName` 是测试契约。** `tests/tools/tst_toolsui.cpp` 按 `objectName` 定位
-  `promptEditor`、`editorMenu`、`fileTree`；改名会打断交互冒烟。
+  `promptEditor`、`editorMenu`、`fileTree`，并按 `treeRowMenu` 定位文件树的右键菜单；
+  改名会打断交互冒烟。
 
 ## 改动检查清单
 
@@ -304,6 +310,7 @@ flowchart TD
   `SettingsSkillsPage` 形态的设置页。
 - [设置](设置.md) —— 本页复用的 `A*` 表单控件。
 - [Agent Tools（使用）](../guide/提示词编写台.md) —— 面向用户的描述。
+- [Markdown 预览](Markdown预览.md) —— 右键那条目打开的是什么，以及为什么这条目归预览域判定。
 - [前端设计](../architecture/前端设计.md) —— `A*` 组件货架与 `AMenu` 家族。
 - [分层与依赖](../architecture/分层与依赖.md) —— 为什么 `tools` 不许
   依赖 `shell`。

@@ -17,6 +17,7 @@ Each AI coding agent has its own CLI and its own way of starting a local web ser
 - **Card grid launcher** with start/install/update actions, version labels, HTTP-detected running state and per-session stop.
 - **Embedded Web tabs** (Qt WebEngine): one persistent profile per agent, frozen inactive tabs, restorable released views, crash/offline/error overlays — with **Open in browser** always available as the fallback.
 - **Skill browser** over the usual `SKILL.md` locations with search, facets, hover details and click-to-copy paths.
+- **Markdown preview window** (Qt 6 + WebEngine builds): right-click a `.md` file in the prompt page's file tree and it opens in a window of its own — it renders in chunks, so a document of several hundred kilobytes shows its first screen quickly while the rest keeps being laid out in the background, with KaTeX formulas, mermaid diagrams and highlighted code, plus source editing with save, an outline, in-document search and HTML export.
 - **Themes** driven by JSON files: two built-in Catppuccin variants, custom themes hot-reload on save, and a build gate that rejects literal colors in QML.
 - **Fully config-driven** via `agents.json` and `settings.json`.
 - **Experimental plugins** with a versioned ABI (disabled by default).

@@ -37,6 +37,12 @@ editing a JSON file, no code changes required.
 - **Themes**: colors/metrics come from JSON theme files; two Catppuccin
   variants ship built-in, custom themes hot-reload on save, and a ctest
   gate (`check_architecture`) rejects literal colors in QML.
+- **Markdown preview window** (Qt 6 + WebEngine builds): right-click a `.md`
+  file in the Agent Tools file tree and it opens in a window of its own —
+  rendering happens chunk by chunk, so a document of several hundred
+  kilobytes shows its first screen quickly while the rest keeps being laid
+  out in the background. KaTeX formulas, mermaid diagrams, highlighted code,
+  source editing with save, an outline, in-document search and HTML export.
 - **Config-driven**: all agents, commands, URLs and config directories live
   in `agents.json`; app settings live in `settings.json`.
 - **Experimental plugins**: an ABI-stable header + example plugin; disabled

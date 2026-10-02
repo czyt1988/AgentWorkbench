@@ -29,14 +29,16 @@ Every module is a static library with its own `src/<module>/CMakeLists.txt`. The
 | `src/skillcatalog` | L2 | local skill discovery and presentation | [Development: skill browser](../development/skill-browser.md) |
 | `src/tools` | L2 | the Agent Tools page: workspace memory, lazy file tree, prompt draft, Markdown support | [Development: agent tools](../development/agent-tools.md) |
 | `src/web` | L2 | tab model, surface selection, memory policy (no WebEngine here) | [Development: web tabs](../development/web-tabs.md) |
-| `src/web/webengine` | L2 adapter | the only target linking Qt WebEngine | [Development: WebEngine adapter](../development/webengine-adapter.md) |
+| `src/web/webengine` | L2 adapter | the embedded web surface; one of the two targets linking Qt WebEngine | [Development: WebEngine adapter](../development/webengine-adapter.md) |
+| `src/markdown` | L2 | the Markdown preview window: document I/O with byte-fidelity save, block chunking, the `awbmd://` URL/MIME/theme-string layer, the preview controller (no WebEngine here) | [Development: Markdown preview](../development/markdown-preview.md) |
+| `src/markdown/webengine` | L2 adapter | the `awbmd://` scheme handler and the preview-only profile; Qt 6 only | [Development: Markdown preview](../development/markdown-preview.md) |
 | `src/theme` | L1 | JSON themes → semantic tokens → QML bindable properties | [Development: theme engine](../development/theme-engine.md) |
 | `src/core` | L0 | paths, JSON store, settings, logging, processes, scripts, HTTP probe, plugin host, legacy import | [Development: core infrastructure](../development/core-infrastructure.md) |
 | `src/plugin_api` | L0 | the header-only plugin ABI that external repositories link | [Extension points](extension-points.md) |
 
 Two modules carry a rule that is easy to violate by accident:
 
-- `src/shell` **does not know** about agents, skills, web tabs or tools. It renders pages it is handed and answers "where am I". Business pages are registered *into* it from `src/workbench`.
+- `src/shell` **does not know** about agents, skills, web tabs or tools. It renders pages it is handed and answers "where am I". Business pages are registered *into* it from `src/workbench`. The one thing it hosts outside that pattern is the Markdown preview window, addressed by resource URL through a `Loader` — see [Layers and dependencies](layers-and-dependencies.md).
 - `src/workbench` is **the only place allowed to know more than one domain**. Every cross-domain action (open this agent's web UI, open a config folder, notify) is a method on `WorkbenchContext`, not on a domain facade.
 
 ## The system at a glance
@@ -52,7 +54,9 @@ flowchart TB
     skillcatalog["skillcatalog (L2)"]
     tools["tools (L2)"]
     web["web (L2)"]
-    webengine["web/webengine (L2 adapter)<br/>only target linking Qt WebEngine"]
+    webengine["web/webengine (L2 adapter)<br/>links Qt WebEngine"]
+    markdown["markdown (L2)"]
+    mdwebengine["markdown/webengine (L2 adapter)<br/>links Qt WebEngine, Qt 6 only"]
     theme["theme (L1)"]
     core["core (L0)"]
     pluginapi["plugin_api (L0)<br/>header-only ABI"]
@@ -60,21 +64,26 @@ flowchart TB
     app --> workbench
     app --> shell
     app --> webengine
+    app --> mdwebengine
     workbench --> shell
     workbench --> agentcatalog
     workbench --> skillcatalog
     workbench --> tools
     workbench --> web
+    workbench --> markdown
     web --> webengine
+    markdown --> mdwebengine
     agentcatalog --> theme
     skillcatalog --> theme
     tools --> theme
+    markdown --> theme
     web --> theme
     shell --> theme
     theme --> core
     agentcatalog --> core
     skillcatalog --> core
     tools --> core
+    markdown --> core
     web --> core
     shell --> core
     workbench --> core

@@ -67,7 +67,10 @@ The usual keyboard shortcuts work too (see the [User guide](index.md)).
 - **Double-click a file** to insert a reference to it into the editor.
 - **Drag a file row** into the editor to insert its reference at the drop point.
 - **Right-click a file row** for **Copy relative path** or
-  **Copy absolute path**.
+  **Copy absolute path**. On a Markdown file the menu also offers
+  **Preview Markdown**, which opens the file in a window of its own — see
+  [Markdown preview](markdown-preview.md). The entry only appears when this
+  build can preview and the file is a Markdown file by extension.
 - The tree refreshes automatically when files change; the refresh button in the
   toolbar forces a refresh.
 

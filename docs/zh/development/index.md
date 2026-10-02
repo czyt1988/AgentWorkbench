@@ -11,6 +11,7 @@
 | WebEngine 适配层（引擎差异、Qt 5/6 兼容） | [WebEngine 适配层](WebEngine适配层.md) | [网页界面](../guide/网页界面.md) |
 | Skill 浏览 | [Skill 浏览](Skill浏览.md) | [技能](../guide/技能.md) |
 | Agent Tools 页（提示词编写台、文件树） | [Agent Tools](AgentTools.md) | [Agent Tools](../guide/提示词编写台.md) |
+| Markdown 预览窗口（分块渲染、公式、图表） | [Markdown 预览](Markdown预览.md) | [Markdown 预览](../guide/Markdown预览.md) |
 | 外壳、导航与组件 | [外壳与导航](外壳与导航.md) | [入门](../guide/index.md) |
 | 设置页与设置文件 | [设置](设置.md) | [设置](../guide/设置.md) |
 | 主题引擎 | [主题引擎](主题引擎.md) | [外观](../guide/外观.md) |
@@ -66,7 +67,9 @@ src/
   skillcatalog/ L2：本机 skill 目录（SKILL.md frontmatter、扫描、模型、门面）+ QML
   tools/        L2：Agent Tools 页（工作区记忆、懒加载文件树、图标映射、提示词草稿）+ QML
   web/          L2：标签、表面、内存策略 + QML
-    webengine/  L2 适配器（唯一链接 Qt WebEngine 的目标）
+    webengine/  L2 适配器（链接 Qt WebEngine；这样的目标有两个）
+  markdown/     L2：Markdown 预览的状态层（文档读写、分块、awbmd:// URL、预览控制器）+ 窗口 QML
+    webengine/  L2 适配器（链接 Qt WebEngine；awbmd:// 的 handler——仅 Qt 6）
   workbench/    L3：跨域意图、内置页面、环境检测、插件服务
 cmake/        共享构建选项（AwbOptions.cmake、AwbTranslations.cmake）
 resources/    内置主题 JSON
@@ -107,10 +110,13 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 | `tst_theme` | 加载器校验规则、注册表覆盖行为 |
 | `tst_shell` | 导航注册、徽标、窗口持久化、剪贴板结果、QML 可调用方法面 |
 | `tst_web` | 标签复用、关闭语义、离线/在线迁移、LRU 释放（不需要 WebEngine） |
-| `tst_webengine` | QML 表面加载冒烟（仅在 `AWB_ENABLE_WEBENGINE=ON` 时构建） |
+| `tst_webengine` | QML 表面加载冒烟，外加 Markdown 适配器的路由分类、信标契约、资产路径过滤、scheme 注册与表面挂载（仅在 `AWB_ENABLE_WEBENGINE=ON` 时构建） |
 | `tst_workbench` | 跨域意图：`openWeb` 导航、外部表面不建标签的路径、交浏览器打开时的 URL 交接 |
 | `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
 | `tst_tools` | 工作区记忆语义、懒加载树模型（角色/取子/增量刷新）、图标映射、门面接线、QML 可调用面 |
+| `tst_markdown` | 纯层：文档逐字节读写、分块与差异、`awbmd://` URL 与 MIME 映射、主题转 CSS 字符串、控制器状态——不碰 WebEngine，每个构建都跑 |
+| `tst_markdownpreview` | 真引擎里的页面：模块脚本图、按块挂载、KaTeX/mermaid/highlight.js 的实际产物、增量替换、搜索、序列化（仅 Qt 6 + WebEngine） |
+| `tst_markdownpreviewui` | 随包那份 `MarkdownPreviewWindow.qml`：它能编译加载、命令泵真在跑、find/serialize 往返、开窗关窗的报到契约（仅 Qt 6 + WebEngine） |
 
 单个用例可以按名字跑，例如 `./build/tst_core testRoundTrip`。
 

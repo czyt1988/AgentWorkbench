@@ -21,7 +21,10 @@ or double-click.
 Boundaries: the page does not talk to any agent, does not run anything, and does
 not edit repository files. Its only reads are the workspace tree and its only
 writes are `tools.json` (workspace memory plus draft) and the system clipboard.
-The file tree is browse-only.
+The file tree is browse-only. One entry goes further: right-clicking a Markdown
+file can hand its path to `workbench.previewMarkdown()`, which opens the preview
+window — the page passes a path and nothing else, and every read, edit and save
+happens inside that window (see [Markdown preview](markdown-preview.md)).
 
 ## Files and classes
 
@@ -41,7 +44,7 @@ The file tree is browse-only.
 | `src/tools/MarkdownEdit.cpp` | `MarkdownEdit` | Static cursor operations, theme-driven colours, highlighter bookkeeping | `MarkdownHighlighter` |
 | `src/tools/MarkdownHighlighter.h` | `MarkdownHighlighter`, `MarkdownColors` | Lightweight per-block Markdown highlighter; colour tokens | `MarkdownEdit` |
 | `src/tools/MarkdownHighlighter.cpp` | `MarkdownHighlighter::highlightBlock()` | Fence state machine plus inline regex rules | `MarkdownEdit` |
-| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | The page: header, workspace combo, add/refresh/copy toolbar, `SplitView` with editor and file tree | `tools.*`, `ui.pickFolder`, `MarkdownEdit`, `MarkdownContextMenu` |
+| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | The page: header, workspace combo, add/refresh/copy toolbar, `SplitView` with editor and file tree | `tools.*`, `ui.pickFolder`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench.canPreviewMarkdown()` / `previewMarkdown()` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | `AMenu` with a top formatting toolbar and undo/redo/cut/copy/paste items | `MarkdownEdit`, `AMenu`/`AMenuItem` |
 | `src/tools/CMakeLists.txt` | build target `awb_tools` | Static library; `Qt::Quick` is a PRIVATE link (only `MarkdownEdit` touches `QQuickTextDocument`) | — |
 
@@ -107,8 +110,13 @@ A `ColumnLayout`: `PageHeader` (title `Agent Tools - Prompt`) → toolbar row �
   `Drag.dragType: Drag.Automatic` with `Drag.mimeData` text from
   `tools.fileReference(relativePath)` and `Drag.active: rowDragHandler.active`.
   Two `TapHandler`s do single-click expand and double-click insert; a
-  right-button `MouseArea` opens a two-item `AMenu` for copying the relative or
-  absolute path.
+  right-button `MouseArea` opens an `AMenu` (`objectName: "treeRowMenu"`, the
+  anchor `tst_toolsui` uses) holding two copy-path items plus — when
+  `workbench.canPreviewMarkdown(treeRow.path)` says yes — **Preview Markdown**
+  and a separator above the copy items. The extension list and the
+  capability check both live in the preview domain; the QML never tests a
+  suffix, so a build without the capability simply shows the two copy items and
+  there is no dead entry to explain.
 - **`AEmptyState` constraint.** Its root is a plain `Item` and must not carry
   `anchors` (undefined behaviour); it sizes itself from the layout. Inside it,
   use `Column` rather than `ColumnLayout` to avoid a Qt 5 recursive re-arrange.
@@ -340,8 +348,9 @@ both use it, so the prompt always receives the same shape.
   to Qt 6 QuickDialogs2; the C++ native dialog (`UiServices::pickFolder`) is the
   only route that behaves identically on Qt 5 and Qt 6.
 - **`objectName`s are test contracts.** `tests/tools/tst_toolsui.cpp` locates
-  `promptEditor`, `editorMenu` and `fileTree` by `objectName`; renaming them
-  breaks the interaction smoke test.
+  `promptEditor`, `editorMenu` and `fileTree` by `objectName`, and the file
+  tree's right-click menu by `treeRowMenu`; renaming them breaks the interaction
+  smoke test.
 
 ## Change checklist
 
@@ -368,6 +377,7 @@ both use it, so the prompt always receives the same shape.
   and loaded, and the settings page that reuses `SettingsSkillsPage` patterns.
 - [Settings](settings.md) — the `A*` form controls this page reuses.
 - [Agent Tools (guide)](../guide/agent-tools.md) — the user-facing description.
+- [Markdown preview](markdown-preview.md) — what the right-click entry opens, and why the entry is the preview domain's decision.
 - [Frontend design](../architecture/frontend-design.md) — the `A*` component
   shelf and the `AMenu` family.
 - [Layers and dependencies](../architecture/layers-and-dependencies.md) — why

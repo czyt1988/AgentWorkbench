@@ -3,7 +3,8 @@
 The adapter is the layer that isolates the embedded browser engine. It registers the `embedded`
 web surface, owns one persistent browser profile per agent, bridges the Qt 5 / Qt 6 WebEngine API
 differences, injects JavaScript polyfills for older engines, and renders each tab with overlay
-fallbacks. It is also the **only** CMake target that links Qt WebEngine.
+fallbacks. It is also one of the two CMake targets that link Qt WebEngine — the other is
+`awb_markdown_webengine`, the Markdown preview's adapter ([Markdown preview](markdown-preview.md)).
 
 User view: see [Agent Web UI](../guide/web-ui.md).
 Architecture context: [Layers and dependencies](../architecture/layers-and-dependencies.md) and
@@ -16,9 +17,11 @@ The domain module `awb_web` never includes a WebEngine header. Everything engine
 the sibling target `awb_web_webengine`:
 
 - `src/web/CMakeLists.txt` adds `webengine/` only when `AWB_ENABLE_WEBENGINE` is `ON`.
-- That target is the only one linking `${AWB_WEBENGINE_TARGET}`
-  (`Qt::WebEngineQuick` on Qt 6, `Qt::WebEngine` on Qt 5) and pulling the WebEngine private include
-  directories.
+- That target links `${AWB_WEBENGINE_TARGET}` (`Qt::WebEngineQuick` on Qt 6, `Qt::WebEngine` on
+  Qt 5) and pulls the WebEngine private include directories. The rule the target name encodes is
+  what matters: **only `*_webengine` adapter targets link WebEngine**, and today there are two of
+  them — this one and `awb_markdown_webengine`. A domain module that needs the engine gets an
+  adapter directory instead of a link line.
 
 The payoff is that `AWB_ENABLE_WEBENGINE=OFF` builds a fully working application: the `embedded`
 surface is never registered, `WebTabsFacade::engineAvailable()` is false, and `openTab()` degrades to
@@ -274,8 +277,9 @@ fails silently.
 | Polyfill injection point | profile `scripts()` (6.8+), view `userScripts` (6.2–6.7) | view `userScripts` |
 | Download-state enum source | core `QWebEngineDownloadRequest` (public header) | Quick private `QQuickWebEngineDownloadItem` |
 
-The `AWB_WEBENGINE_TARGET` variable is defined once in `cmake/AwbQtCompat.cmake`, and consumers only
-reference it — never a concrete component name. That file also covers the Qt 5 QML differences:
+The `AWB_WEBENGINE_TARGET` variable is defined once in `cmake/AwbQtCompat.cmake`, and its consumers —
+`awb_web_webengine` and `awb_markdown_webengine` — only reference it, never a concrete component
+name. That file also covers the Qt 5 QML differences:
 `import QtWebEngine` is rewritten to `import QtWebEngine 1.10` (the Qt 5 compiler requires a version
 on every library import), and `awb_add_qml_module` generates a `qmldir` plus a qrc that mirrors Qt
 6's `/qt/qml/AgentWorkbench/...` URLs, so every `qrc:/qt/qml/AgentWorkbench/...` path in the C++ code

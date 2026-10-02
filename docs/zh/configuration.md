@@ -42,7 +42,9 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   "skills":  { "roots": [], "includePluginCaches": true, "maxDepth": 6 },
   "logging": { "maxFileSize": 5242880, "maxFiles": 3,
                "level": "debug", "mirrorToStderr": true },
-  "plugins": { "enabled": false, "disabledIds": [] }
+  "plugins": { "enabled": false, "disabledIds": [] },
+  "markdown": { "mode": "preview", "fontSizePx": 0,
+               "contentWidthPx": 0, "showOutline": true }
 }
 ```
 
@@ -78,6 +80,12 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 - `logging.level` 是落盘的最低级别——`debug`（默认，全部记录）、`info`、`warning`、`critical` 或 `off`，非法值告警后回退 `debug`；`logging.mirrorToStderr`（默认开启）把每行同时镜像到启动它的控制台。两项都在下次启动时生效。
 - `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
   加载，开关重启后生效。参见[插件](plugins.md)。
+- `markdown.*` 是 Markdown 预览窗口记住的视图状态：`mode` 取 `preview`、
+  `split` 或 `source`；`fontSizePx` 为 `0` 时跟随主题正文字号，`contentWidthPx`
+  为 `0` 时用内置栏宽（两者分别钳制 `[0, 48]` 与 `[0, 4000]`）；`showOutline`
+  决定大纲面板打开时是否展开。你在窗口的下拉里改动时由窗口自己写入——这一组没有
+  设置页。预览窗口只存在于 Qt 6 + WebEngine 的构建里，其它构建照样读取并保留这
+  几个键，但应用内没有任何地方能改它们。参见 [Markdown 预览](guide/Markdown预览.md)。
 
 ## 主题
 

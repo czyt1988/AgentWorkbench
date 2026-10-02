@@ -26,7 +26,7 @@ Boundaries:
 
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/core/Settings.h` | `Settings` plus `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings` | The typed schema: one struct per section, all defaults inline; property-style getters and setters; `valueChanged(key)` | every module |
+| `src/core/Settings.h` | `Settings` plus `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings`, `MarkdownSettings` | The typed schema: one struct per section, all defaults inline; property-style getters and setters; `valueChanged(key)` | every module; `MarkdownSettings` is read and written by `awb_markdown`, not by a Settings page |
 | `src/core/Settings.cpp` | `Settings::load()/save()` | Key-set validation, typed reads with clamping, unknown-key warnings, atomic write | `core::JsonStore`, `core::Logging` |
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
 | `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
@@ -171,9 +171,22 @@ Every key below is validated by `Settings::load()` and written back by
 | `logging.mirrorToStderr` | bool | `true` | Mirror logs to stderr | `main.cpp` → `Logging::install()` (restart) |
 | `plugins.enabled` | bool | `false` | Plugin master switch | `main.cpp` plugin load (next start), `WorkbenchContext` |
 | `plugins.disabledIds` | string array | `[]` | Individually disabled plugin ids | `main.cpp` plugin load (next start) |
+| `markdown.mode` | string | `"preview"` | View the preview window opens in: `preview` \| `split` \| `source`; anything else warns and resets to the default | `MarkdownPreviewController` (reads on open, writes on change) |
+| `markdown.fontSizePx` | int | `0` | Body text size; `0` means the active theme's body size, clamped `[0, 48]`. The window's picker offers `0` and 12, 13, 14, 16, 18, 20, 24 px | `MarkdownPreviewController` → the page's view payload |
+| `markdown.contentWidthPx` | int | `0` | Text column width; `0` means the built-in baseline, clamped `[0, 4000]`. The window's picker offers `0`, 640, 760, 900, 1200 and **Full width** — which is the `4000` ceiling, since a column wider than the viewport renders as full width | `MarkdownPreviewController` → the page's view payload |
+| `markdown.showOutline` | bool | `true` | Whether the outline panel starts open | `MarkdownPreviewController`, the window's outline toggle |
 
 The schema's root sections are exactly `window`, `appearance`, `locale`,
-`launcher`, `web`, `skills`, `logging`, `plugins`; any other root key warns.
+`launcher`, `web`, `skills`, `logging`, `plugins`, `markdown`; any other root
+key warns.
+
+The four `markdown.*` keys are the only settings group with no Settings-page
+UI: they are the preview window's remembered view state, written when you
+change the mode, text size, column width or outline, and hand-editing them
+still works — but there is nothing to switch them from inside the app, which is
+deliberate. A capability switch would be worse than none: the window exists
+only in Qt 6 + WebEngine builds, and a key the user cannot change and cannot
+explain is not a setting.
 
 ## Business logic
 

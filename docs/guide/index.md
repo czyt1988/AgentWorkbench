@@ -93,6 +93,11 @@ In the **Agent Tools - Prompt** editor, the usual text shortcuts apply: `Ctrl+Z`
 to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and
 paste.
 
+In a **Markdown preview** window: `Ctrl+S` saves, `Ctrl+F` opens the in-document
+search, `Esc` closes that search bar, and `F5` re-reads the file from disk. These
+only apply while the preview window itself is in front, so they cannot steal a
+`Ctrl+S` from the main window.
+
 ## Where your data lives
 
 Everything the app writes lives in one folder:
@@ -119,6 +124,7 @@ folder**.
 | [Embedded web interface](web-ui.md) | Tabs, full screen, downloads, saved logins |
 | [Skills](skills.md) | Finding skill files and choosing where to look |
 | [Agent Tools](agent-tools.md) | The prompt scratchpad and its file tree |
+| [Markdown preview](markdown-preview.md) | Reading and tidying a Markdown file in its own window |
 | [Appearance](appearance.md) | Themes and fonts |
 | [Settings](settings.md) | Every settings section explained |
 | [Plugins](plugins.md) | Third-party extensions, in plain language |

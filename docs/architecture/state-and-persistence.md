@@ -36,7 +36,7 @@ make the "untouched root" check fail forever.
 |---|---|---|---|
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
-| `settings.json` | Settings page | all application settings | `core::Settings` — the only entry point |
+| `settings.json` | Settings page, Markdown preview | all application settings, including the preview window's remembered view | `core::Settings` — the only entry point |
 | `tools.json` | Agent Tools page | workspace MRU list (max 20), current workspace, prompt draft | `ToolsStore` via `ToolsFacade` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
@@ -44,6 +44,7 @@ make the "untouched root" check fail forever.
 | `themes/*.json` | you | themes (same `id` overrides a built-in) | `ThemeRegistry` / `ThemeLoader` |
 | `plugins/<id>/` | you | plugin manifest and library | `core::PluginHost` |
 | `webprofiles/<agentId>/` | Web tabs | per-agent cookies and localStorage | `WebProfilePaths` / `WebEngineProfileStore` |
+| `preview/*.html` | Markdown preview | the self-contained page "open in external browser" writes, since an outside browser cannot speak `awbmd://` | `core::Paths::markdownPreviewDir()` |
 | `log/agentworkbench.log` | the app | rotating event log (5 MB × 3 files) | `core::Logging` |
 | `log/output/<agentId>.log` | `AgentRuntime` | an agent process's stdout + stderr, polled to extract the session URL | `AgentRuntime` |
 
@@ -62,11 +63,13 @@ user chose or paid for; everything else is rebuilt from scratch.
 | Captured session URL (`m_sessionUrls`) | memory | dropped when the process stops |
 | Agent running / installed / version / console output (`AgentState`) | memory (except `setupDone`) | until app exit or the next health check |
 | `WebTab` state, load progress, zoom, LRU timestamp | memory | until the tab is closed or the app exits |
+| Markdown preview document, dirty flag, block hash table, asset cache | memory (`MarkdownPreviewController`) | until the window closes — the page's rendered DOM dies with it |
 | Purely visual state (expanded rows, current filter …) | memory | until the view is destroyed |
 | Agent definitions | `agents.json` | across restarts |
 | Application settings, including the last sidebar page | `settings.json` | across restarts |
 | One-time setup completion | `agent_state.json` | across restarts |
 | Workspace memory and prompt draft | `tools.json` | across restarts |
+| Markdown preview view choices | `settings.json` (`markdown.*`) | across restarts |
 
 The draft is the one piece of memory state with a tuned write path. Editing the
 prompt does not write on every keystroke: `ToolsFacade::setDraft()` returns
@@ -149,6 +152,7 @@ sequenceDiagram
     participant main as app/main.cpp
     participant log as core::Logging
     participant set as core::Settings
+    participant md as MarkdownPreviewProvider
     participant wb as QtWebEngineQuick
     participant dom as domain facades
     participant plug as core::PluginHost
@@ -158,7 +162,9 @@ sequenceDiagram
     main->>set: read settings.json
     set-->>main: web.chromiumFlags and logging options
     main->>log: install() again when logging options changed
+    main->>md: registerScheme() for awbmd:// (Qt 6 + WebEngine builds)
     main->>wb: set QTWEBENGINE_CHROMIUM_FLAGS, then initialize()
+    note over main,wb: the scheme table locks at the first page context — registering later is ignored
     main->>main: QGuiApplication, translator, font
     main->>main: LegacyImport::runOnce()
     main->>dom: construct and start agents, web, skills, tools, environment
@@ -181,8 +187,21 @@ Why this order and not another:
   put into `QTWEBENGINE_CHROMIUM_FLAGS` before `QtWebEngineQuick::initialize()`,
   and WebEngine must be initialized before `QGuiApplication` exists. Reading
   settings later would silently drop the flags.
+- **The `awbmd://` scheme before `initialize()`.**
+  `MarkdownPreviewProvider::registerScheme()` runs on the line immediately above
+  the WebEngine call, because the scheme table is frozen when the first page
+  context is created and a later registration is ignored with a warning. The
+  failure is not a blank page: the handler still serves the document, the
+  scripts and the fonts, and what dies is `fetch()` — so the prose renders while
+  formulas and diagrams never do, the build stays green, and the pure-function
+  tests stay green. The provider re-checks the registry when it is constructed
+  and logs, precisely because nothing else would notice.
 - **Assembly bottom-up.** core → theme → shell → agentcatalog → skillcatalog →
-  web → tools, each module constructed after what it depends on.
+  web → tools → markdown, each module constructed after what it depends on. The
+  preview controller is constructed in every build; the provider that makes the
+  capability real exists only on the Qt 6 + WebEngine branch, and
+  `MarkdownRuntime::isSupportedBuild()` is what the controller reports through
+  its `available` property.
 - **Plugins before page restore.** `PluginHost` loads enabled plugins before
   `BuiltinPages` restores the last page. A plugin page id can therefore survive a
   restart; if plugins loaded after the restore, the remembered page would not

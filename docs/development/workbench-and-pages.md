@@ -13,7 +13,7 @@ The boundary is vertical, not horizontal: `workbench` may depend on every L2 mod
 
 | File | Class | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, …), general actions (copy, notify, open URL/folder/config dir, quit) and the plugin toggle API | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `Settings` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, `previewMarkdown`, …), general actions (copy, notify, open URL/folder/config dir, quit) and the plugin toggle API | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `MarkdownPreviewController`, `Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | Registers the five built-in pages plus the sidebar group label, and wires badges, current-page persistence and the cross-domain Web rules | `NavigationModel`, `ShellController`, `AgentsFacade`, `WebTabsFacade`, `SkillsFacade`, `ToolsFacade`, `Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | Python/Node.js detection for the status bar and the Settings page: dispatches the probe to the thread pool, merges verdicts into the known state, persists the cache and retries inconclusive rounds | `EnvironmentProbe`, `EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe` (with `RuntimeState`, `RuntimeProbe`, `EnvironmentSnapshot`) | The thread-safe worker: probes the candidate programs, asks the runtime where it lives, folds a verdict into the known state | `ProcessRunner`, `TextUtils` |
@@ -45,6 +45,8 @@ Cross-domain intents:
 - `openWebExternal(agentId)` — bypasses the surface policy and hands the URL to the system browser. Same URL priority, no tab.
 - `closeWeb(agentId)` / `reloadWeb(agentId)` — find the agent's tab and close or reload it; silently return when there is no tab.
 - `launchAgent(agentId)` — forwards to `AgentsFacade::launch()`; the outcome arrives through the facade's own signals.
+- `previewMarkdown(path)` — opens one file from the Agent Tools file tree in the preview window. It calls `MarkdownPreviewController::openFile(path)` and, when that returns a failed `OpResult`, raises the error toast with the controller's reason — the reason is explained once, here, rather than by the menu item, the controller and the workbench each in their own words. When no controller is wired in, it still shows one error toast instead of doing nothing.
+- `canPreviewMarkdown(path)` — whether that menu entry should exist for this path: true only when a controller is wired in *and* the controller recognises the extension. The extension list lives in the preview domain, shared with `openFile()`'s rejection, so the entry and the refusal cannot drift apart.
 
 General actions:
 
@@ -105,6 +107,7 @@ flowchart TD
     Web["WebTabsFacade (web)"]
     Skills["SkillsFacade (skillcatalog)"]
     Tools["ToolsFacade (tools)"]
+    MD["MarkdownPreviewController (markdown)"]
     Theme["Theme (theme)"]
     Settings["Settings (core)"]
     PR["ProcessRunner (core)"]
@@ -121,6 +124,7 @@ flowchart TD
     WC -->|openExternalUrl, copyText, openFolder| UI
     WC -->|openTab, tabForAgent, closeTab, reloadTab| Web
     WC -->|launch, openConfigDir, sessionUrl| Agents
+    WC -->|openFile, canPreviewPath| MD
     WC -->|notify| Notif
     WC -->|plugins.enabled, disabledIds| Settings
     ES -->|dispatch to the thread pool, merge| EP
@@ -175,15 +179,15 @@ All properties (`pythonStatus`, `pythonVersion`, `pythonPath`, `pythonInstalled`
 `app/main.cpp` builds the object graph by hand and the order is a hard contract; several steps silently misbehave when moved.
 
 1. **Logging is installed first** (`Logging::install()`), so anything that fails afterwards is on disk. After `Settings` is read, the log backend is installed a second time only when the user actually changed a rotation or level option, so that warnings emitted while reading settings still land.
-2. **`Settings` is read before `QGuiApplication` exists.** `web.chromiumFlags` must be pushed into `QTWEBENGINE_CHROMIUM_FLAGS`, and the WebEngine module must be initialised (`QtWebEngineQuick::initialize()` on Qt 6, `QtWebEngine::initialize()` on Qt 5) *before* the application object is constructed. Getting this wrong makes the user's Chromium flags ineffective.
+2. **`Settings` is read before `QGuiApplication` exists.** `web.chromiumFlags` must be pushed into `QTWEBENGINE_CHROMIUM_FLAGS`, and the WebEngine module must be initialised (`QtWebEngineQuick::initialize()` on Qt 6, `QtWebEngine::initialize()` on Qt 5) *before* the application object is constructed. Getting this wrong makes the user's Chromium flags ineffective. On the Qt 6 route, `MarkdownPreviewProvider::registerScheme()` runs on the line just before `initialize()` — the `awbmd://` scheme table freezes with the first page context, so a later registration is ignored and the preview loses `fetch()`, which is to say its formulas and diagrams, while everything else keeps working.
 3. `QGuiApplication` is created, the version and icon are set, and the Qt Quick Controls style is pinned (`Basic` on Qt 6, `Default` on Qt 5).
 4. The translator is installed from `:/i18n` for the locale (or the `locale.override` value); see [Internationalisation](i18n.md).
 5. The global UI font from `appearance.fontFamily` is applied to the application before the engine exists.
 6. **`LegacyImport::runOnce()` runs before the default `settings.json` is written**, because the import decides whether to act by checking whether the data root is still untouched. Only then is a default `settings.json` saved if the file does not exist.
-7. **The graph is assembled bottom-up**: `ThemeRegistry` → `Theme` → shell (`NavigationModel`, `ShellController`, `UiServices`, `Notifications`) → `AgentsFacade` (+ `start()`) → `WebTabsFacade` → `SkillsFacade` (+ `start()`) → `ToolsFacade` → `MarkdownEdit` → `EnvironmentService` (+ `start()`) → `WorkbenchContext`.
+7. **The graph is assembled bottom-up**: `ThemeRegistry` → `Theme` → shell (`NavigationModel`, `ShellController`, `UiServices`, `Notifications`) → `AgentsFacade` (+ `start()`) → `WebTabsFacade` → `SkillsFacade` (+ `start()`) → `ToolsFacade` → `MarkdownEdit` → `MarkdownPreviewController` → `EnvironmentService` (+ `start()`) → `WorkbenchContext`. The preview controller is constructed unconditionally — it exists in Qt 5 and WebEngine-OFF builds too, where its `available` is simply false — and `workbench.setMarkdownPreview(&controller)` is likewise called without a compile-time guard, so the wiring is not a second place where the capability can drift out of sync with the gate.
 8. **Plugins are discovered and loaded before pages are registered and restored.** Manifests are always read (the Settings page lists them even while disabled); libraries are loaded only when the global switch is on, and each manifest's enable flag is resolved against `plugins.disabledIds`. The discovered list is pushed into `WorkbenchContext`. Because `BuiltinPages` is constructed *after* this, a plugin page id can survive a restart.
 9. `BuiltinPages` is constructed, which registers the built-in pages and restores the last page.
-10. When WebEngine is enabled, the surface provider, profile store and compat object are created, and `WebProfiles` / `WebEngineCompat` are registered as singletons.
+10. When WebEngine is enabled, the surface provider, profile store and compat object are created, and `WebProfiles` / `WebEngineCompat` are registered as singletons. On Qt 6 the Markdown preview's provider and runtime handler are created in the same block — the adapter that serves `awbmd://` is what turns `MarkdownRuntime::isSupportedBuild()` into a live window; on Qt 5 nothing is created and nothing is registered, because that route does not ship a reduced preview, it ships none.
 11. `qRegisterMetaType<awb::core::OpResult>()` and the QML singletons are registered (see the table below).
 12. A `QQmlApplicationEngine` is created, the import path `<applicationDirPath>/qml` is added (plus `qrc:/qt/qml` on Qt 5), and `MainWindow.qml` is loaded. If no root object was created, the import paths are logged, a Win32 message box explains the failure, the log queue is drained with `Logging::uninstall()` and the process exits with `-1`.
 13. After `app.exec()`, `Logging::uninstall()` is called before returning. At the QML layer, `MainWindow.qml`'s `onClosing` saves the window size and shows the exit confirmation; choosing to close background terminals calls `agents.stopAll()`. Loaded plugin libraries stay alive for the process lifetime and are unloaded by `PluginHost::shutdown()` (its destruction at the end of `main` does the same).
@@ -202,6 +206,8 @@ Singleton names and their QML aliases. Every global is registered on the pure C+
 | `Skills` | `skills` | |
 | `Tools` | `tools` | |
 | `MarkdownEdit` | — | referenced directly as `MarkdownEdit` |
+| `Markdown` | `markdown` | the preview controller; registered in every build, and its `available` property is what says whether this binary can preview at all |
+| `MarkdownPreview` | — | registered only on Qt 6 + WebEngine; the `awbmd://` profile the preview window assigns to its view |
 | `Workbench` | `workbench` | |
 | `Environment` | `environment` | |
 | `WebProfiles` | — | registered only with WebEngine; used directly inside `WebEngineSurface.qml` |
@@ -243,6 +249,7 @@ For a **new cross-domain action**:
 - [Core infrastructure](core-infrastructure.md) — `Settings`, `Paths` and the objects assembled at startup.
 - [Theme engine](theme-engine.md) — the `Theme` singleton registered by `main.cpp`.
 - [Plugin host](plugin-host.md) — the plugin side of page registration and the services bridge.
+- [Markdown preview](markdown-preview.md) — a cross-domain intent (`previewMarkdown`) and a window the shell hosts rather than registers as a page.
 - [C++ library design](../architecture/cpp-design.md) — the facade and `Q_INVOKABLE` contracts.
 - [Layers and dependencies](../architecture/layers-and-dependencies.md) — why `workbench` is the only multi-domain layer.
 - [Guide index](../guide/index.md) — the pages, navigation and shortcuts as the user sees them.

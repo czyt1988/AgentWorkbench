@@ -2,7 +2,8 @@
 
 适配层是隔离内嵌浏览器引擎的那一层。它注册 `embedded` Web 表面、为每个 agent 持有一个持久浏览器
 profile、桥接 Qt 5 / Qt 6 的 WebEngine API 差异、为旧引擎注入 JavaScript polyfill，并用覆盖层兜底
-渲染每个标签。它也是**唯一**链接 Qt WebEngine 的 CMake 目标。
+渲染每个标签。它也是链接 Qt WebEngine 的两个 CMake 目标之一——另一个是 `awb_markdown_webengine`，
+Markdown 预览的适配器（见 [Markdown 预览](Markdown预览.md)）。
 
 用户视角见 [Agent Web UI](../guide/网页界面.md)。
 架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
@@ -15,8 +16,10 @@ profile、桥接 Qt 5 / Qt 6 的 WebEngine API 差异、为旧引擎注入 JavaS
 `awb_web_webengine` 里：
 
 - `src/web/CMakeLists.txt` 仅在 `AWB_ENABLE_WEBENGINE` 为 `ON` 时加入 `webengine/`。
-- 该目标是唯一链接 `${AWB_WEBENGINE_TARGET}`（Qt 6 为 `Qt::WebEngineQuick`，Qt 5 为
-  `Qt::WebEngine`）并引入 WebEngine 私有包含目录的目标。
+- 该目标链接 `${AWB_WEBENGINE_TARGET}`（Qt 6 为 `Qt::WebEngineQuick`，Qt 5 为
+  `Qt::WebEngine`）并引入 WebEngine 私有包含目录。真正要紧的是这个目标名所编码的规则：**只有
+  `*_webengine` 适配器目标链接 WebEngine**，而这样的目标今天有两个——本目标与
+  `awb_markdown_webengine`。一个领域需要引擎时，它得到的是一个适配器目录，而不是一条链接行。
 
 好处是 `AWB_ENABLE_WEBENGINE=OFF` 构建出完全可用的应用：`embedded` 表面从不注册，
 `WebTabsFacade::engineAvailable()` 为 false，`openTab()` 降级到系统浏览器。标签模型里没有任何
@@ -241,8 +244,9 @@ flowchart TD
 | polyfill 注入点 | profile 的 `scripts()`（6.8+）、view 的 `userScripts`（6.2–6.7） | view 的 `userScripts` |
 | 下载状态枚举来源 | core 的 `QWebEngineDownloadRequest`（公共头） | Quick 私有头 `QQuickWebEngineDownloadItem` |
 
-`AWB_WEBENGINE_TARGET` 变量在 `cmake/AwbQtCompat.cmake` 里定义一次，消费方只引用它——从不写具体的
-组件名。该文件同样覆盖 Qt 5 的 QML 差异：`import QtWebEngine` 被改写为
+`AWB_WEBENGINE_TARGET` 变量在 `cmake/AwbQtCompat.cmake` 里定义一次，它的消费方——
+`awb_web_webengine` 与 `awb_markdown_webengine`——只引用它，从不写具体的组件名。该文件同样覆盖
+Qt 5 的 QML 差异：`import QtWebEngine` 被改写为
 `import QtWebEngine 1.10`（Qt 5 编译器硬性要求库 import 带版本），`awb_add_qml_module` 生成一份
 `qmldir` 加一个 qrc，镜像 Qt 6 的 `/qt/qml/AgentWorkbench/...` URL，因此 C++ 里所有
 `qrc:/qt/qml/AgentWorkbench/...` 路径在两个大版本上都有效。Qt 5 路线的验证基准是 **5.15.16 LTS**，

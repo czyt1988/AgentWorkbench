@@ -14,9 +14,9 @@
 
 | 文件 | 类 / 结构 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | 数据目录及其全部派生路径的唯一来源（`themesDir()`、`pluginsDir()`、`logsDir()`、`webProfilesDir()`、`skillCacheFile()`、`environmentCacheFile()`、`downloadsDir()`）；测试注入 | 所有碰磁盘的模块 |
+| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | 数据目录及其全部派生路径的唯一来源（`themesDir()`、`pluginsDir()`、`logsDir()`、`webProfilesDir()`、`markdownPreviewDir()`、`skillCacheFile()`、`environmentCacheFile()`、`downloadsDir()`）；测试注入 | 所有碰磁盘的模块 |
 | `src/core/JsonStore.h` / `.cpp` | `awb::core::JsonStore` | 原子 JSON 读写：`readFile()`、`writeFile()`、`writeBytes()` | `Settings`、`agentcatalog`、`tools`、测试夹具 |
-| `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`、`AppearanceSettings`、`LocaleSettings`、`LauncherSettings`、`WebSettings`、`SkillsSettings`、`LoggingSettings`、`PluginsSettings` | `settings.json` 的类型化访问层；其它任何地方不许读这个文件 | `Paths`、`JsonStore`、`Logging::isValidLevelName` |
+| `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`、`AppearanceSettings`、`LocaleSettings`、`LauncherSettings`、`WebSettings`、`SkillsSettings`、`LoggingSettings`、`PluginsSettings`、`MarkdownSettings` | `settings.json` 的类型化访问层；其它任何地方不许读这个文件 | `Paths`、`JsonStore`、`Logging::isValidLevelName` |
 | `src/core/Logging.h` / `.cpp` | `awb::core::Logging`、内部类 `RotatingFileSink`、宏 `AWB_DEBUG`/`AWB_INFO`/`AWB_WARNING`/`AWB_CRITICAL`/`AWB_PERF` | 异步轮转文件日志加 stderr 镜像；装 Qt 消息处理器 | `Paths`、`TextUtils`、spdlog |
 | `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`、`awb::core::ProcessResult` | 外部命令的机制层：PATH/PATHEXT 解析、可捕获输出的分离启动、带超时的同步运行、杀进程树、命令行拆分、输出解码 | `agentcatalog`（启动、版本检查）、`workbench::EnvironmentProbe` |
 | `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner`（+ 私有 `Slot`） | 按 key 的一次性命令执行器，带流式输出与 epoch 规则 | `agentcatalog`（install/update/version/setup） |
@@ -84,6 +84,8 @@ flowchart TD
 3. 否则取 `<HomeLocation>/.AgentWorkbench`。
 
 所有子目录都由 `dataRoot()` 派生；**不要在别处拼这些路径**。`setDataRootForTesting()` 传空串可清除覆盖，`isDataRootOverridden()` 报告当前是否有覆盖。含非 ASCII 字符的用户目录只能交给 `QFile`/`QDir`，绝不许把这种路径传给窄字符 API。
+
+`markdownPreviewDir()` 是 `<dataRoot>/preview`：Markdown 预览选择「用外部浏览器打开」时写出的自包含 HTML 就放这里，因为外部浏览器无从解析 `awbmd://`，必须先有一份真实落在磁盘上的文件。和其它派生路径一样，这个路径也不由预览域自己拼。
 
 ### JsonStore
 

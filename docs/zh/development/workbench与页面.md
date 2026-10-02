@@ -13,7 +13,7 @@
 
 | 文件 | 类 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`Settings` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent`、`previewMarkdown` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`MarkdownPreviewController`、`Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面与侧栏的分组标签，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏与设置页的 Python / Node.js 检测：把探测派发到线程池、把结论并入已知状态、按变化落缓存、对没结论的一轮安排重试 | `EnvironmentProbe`、`EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe`（含 `RuntimeState`、`RuntimeProbe`、`EnvironmentSnapshot`） | 线程安全的 worker：逐个试候选程序、问运行时自己装在哪、把结论并入已知状态 | `ProcessRunner`、`TextUtils` |
@@ -45,6 +45,8 @@
 - `openWebExternal(agentId)` —— 绕过表面策略，把 URL 交给系统浏览器。URL 优先级同上，不建标签页。
 - `closeWeb(agentId)` / `reloadWeb(agentId)` —— 找到该 agent 的标签页并关闭或重载；没有标签页时静默返回。
 - `launchAgent(agentId)` —— 转发给 `AgentsFacade::launch()`；结果经门面自己的信号回报。
+- `previewMarkdown(path)` —— 把 Agent Tools 文件树里的一个文件开成预览窗口。它调 `MarkdownPreviewController::openFile(path)`，失败时用控制器给的理由发一条 error toast——同一个原因只在这里解释一次，若在菜单项、控制器和这里各说一遍，就会变成三个互相漂移的版本。没有接进控制器时它照样发一条 error toast，而不是点了没反应。
+- `canPreviewMarkdown(path)` —— 这条菜单项在该路径上要不要出现：只有接进了控制器**并且**控制器认这个后缀才为真。后缀清单住在预览域里，与 `openFile()` 的拒绝共用一处，所以「菜单项出现」和「打开被拒」不会各说一套。
 
 通用动作：
 
@@ -105,6 +107,7 @@ flowchart TD
     Web["WebTabsFacade（web）"]
     Skills["SkillsFacade（skillcatalog）"]
     Tools["ToolsFacade（tools）"]
+    MD["MarkdownPreviewController（markdown）"]
     Theme["Theme（theme）"]
     Settings["Settings（core）"]
     PR["ProcessRunner（core）"]
@@ -121,6 +124,7 @@ flowchart TD
     WC -->|openExternalUrl、copyText、openFolder| UI
     WC -->|openTab、tabForAgent、closeTab、reloadTab| Web
     WC -->|launch、openConfigDir、sessionUrl| Agents
+    WC -->|openFile、canPreviewPath| MD
     WC -->|notify| Notif
     WC -->|plugins.enabled、disabledIds| Settings
     ES -->|派发到线程池、合并结论| EP
@@ -175,15 +179,15 @@ flowchart TD
 `app/main.cpp` 手工搭出对象图，顺序是硬契约；有几步挪位会静默失效。
 
 1. **日志最先装**（`Logging::install()`），之后任何失败都落在磁盘上。读完 `Settings` 后，只有当用户确实改过轮转或级别选项时才二次安装日志后端，好让读设置期间发出的告警仍能落盘。
-2. **`Settings` 在 `QGuiApplication` 之前读。** `web.chromiumFlags` 必须推进 `QTWEBENGINE_CHROMIUM_FLAGS`，而 WebEngine 模块必须在应用对象构造*之前*初始化（Qt 6 是 `QtWebEngineQuick::initialize()`，Qt 5 是 `QtWebEngine::initialize()`）。顺序错了，用户配的 Chromium flags 就会静默失效。
+2. **`Settings` 在 `QGuiApplication` 之前读。** `web.chromiumFlags` 必须推进 `QTWEBENGINE_CHROMIUM_FLAGS`，而 WebEngine 模块必须在应用对象构造*之前*初始化（Qt 6 是 `QtWebEngineQuick::initialize()`，Qt 5 是 `QtWebEngine::initialize()`）。顺序错了，用户配的 Chromium flags 就会静默失效。Qt 6 路线上 `MarkdownPreviewProvider::registerScheme()` 就写在 `initialize()` 的上一行——`awbmd://` 的 scheme 表在第一个页面上下文创建时就冻结，晚注册被忽略，预览会丢掉 `fetch()`，也就是丢掉公式与图表，而其余一切照常工作。
 3. 创建 `QGuiApplication`，设版本与图标，钉住 Qt Quick Controls 样式（Qt 6 用 `Basic`，Qt 5 用 `Default`）。
 4. 按区域（或 `locale.override` 的值）从 `:/i18n` 安装翻译器；见[国际化](国际化.md)。
 5. 引擎创建之前把 `appearance.fontFamily` 应用到应用字体上。
 6. **`LegacyImport::runOnce()` 在写默认 `settings.json` 之前跑**，因为导入是否行动取决于数据根是否仍未动过。此后，若 `settings.json` 不存在才写一份默认的。
-7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `EnvironmentService`（+ `start()`）→ `WorkbenchContext`。
+7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `MarkdownPreviewController` → `EnvironmentService`（+ `start()`）→ `WorkbenchContext`。预览控制器是无条件构造的——Qt 5 与关掉 WebEngine 的构建里它照样存在，只是 `available` 为假；`workbench.setMarkdownPreview(&controller)` 同样不带编译期开关地接上，这样接线处不会是「能力」与门禁之间第二处可能漂移的地方。
 8. **插件在页面注册与恢复之前发现并加载。** manifest 总是要读（设置页即使插件被禁用也要列出它们）；库只在总开关打开时装载，每个 manifest 的启用标志再对照 `plugins.disabledIds` 解析。发现结果被灌进 `WorkbenchContext`。因为 `BuiltinPages` 在这之后才构造，插件页面 id 才能活过一次重启。
 9. 构造 `BuiltinPages`，它注册内置页面并恢复上次的页面。
-10. WebEngine 打开时，创建表面 provider、profile store 与 compat 对象，并把 `WebProfiles` / `WebEngineCompat` 注册为单例。
+10. WebEngine 打开时，创建表面 provider、profile store 与 compat 对象，并把 `WebProfiles` / `WebEngineCompat` 注册为单例。Qt 6 上同一个代码块里还会创建 Markdown 预览的 provider 与 runtime handler——供出 `awbmd://` 的那个适配器才是把 `MarkdownRuntime::isSupportedBuild()` 变成一扇真窗口的东西；Qt 5 上两者都不构造、不注册，因为那条路线带的不是简化版预览，而是完全没有。
 11. 调 `qRegisterMetaType<awb::core::OpResult>()`，并注册 QML 单例（见下表）。
 12. 创建 `QQmlApplicationEngine`，加入导入路径 `<applicationDirPath>/qml`（Qt 5 再补 `qrc:/qt/qml`），加载 `MainWindow.qml`。若没有生成根对象，打日志列出导入路径，在 Windows 上弹一个说明弹窗，用 `Logging::uninstall()` 排空日志队列，并以 `-1` 退出。
 13. `app.exec()` 返回后再调 `Logging::uninstall()`。QML 侧，`MainWindow.qml` 的 `onClosing` 保存窗口尺寸并弹退出确认；选择关闭后台终端会调 `agents.stopAll()`。已加载的插件库进程级存活，由 `PluginHost::shutdown()` 统一卸载（它在 `main` 结尾析构时效果相同）。
@@ -202,6 +206,8 @@ flowchart TD
 | `Skills` | `skills` | |
 | `Tools` | `tools` | |
 | `MarkdownEdit` | — | 直接以 `MarkdownEdit` 引用 |
+| `Markdown` | `markdown` | 预览控制器；每个构建都注册，这个二进制能不能预览由它的 `available` 属性说话 |
+| `MarkdownPreview` | — | 仅 Qt 6 + WebEngine 注册；预览窗口赋给视图的 `awbmd://` profile |
 | `Workbench` | `workbench` | |
 | `Environment` | `environment` | |
 | `WebProfiles` | — | 仅 WebEngine 开启时注册；在 `WebEngineSurface.qml` 内直接使用 |
@@ -243,6 +249,7 @@ QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器
 - [core 基础设施](core基础设施.md)——启动时装配的 `Settings`、`Paths` 与各对象。
 - [主题引擎](主题引擎.md)——`main.cpp` 注册的 `Theme` 单例。
 - [插件宿主](插件宿主.md)——页面注册与宿主服务桥的插件侧。
+- [Markdown 预览](Markdown预览.md)——一个跨域意图（`previewMarkdown`），以及一扇由外壳宿主、而非注册成页面的窗口。
 - [C++ 库设计](../architecture/C++库设计.md)——门面与 `Q_INVOKABLE` 契约。
 - [分层与依赖](../architecture/分层与依赖.md)——workbench 为何是唯一的多领域层。
 - [使用指引](../guide/index.md)——用户看到的页面、导航与快捷键。
