@@ -36,5 +36,8 @@ endif()
 
 # The WebEngine adapter (awbmd:// scheme handler + the preview profile) is the
 # only target in this domain allowed to link Qt WebEngine; it lands with the
-# same condition as the define above.
-# add_subdirectory(webengine)
+# same condition as the define above. Qt 5 gets neither the adapter nor the
+# assets — see src/markdown/webengine/CMakeLists.txt.
+if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+    add_subdirectory(webengine)
+endif()

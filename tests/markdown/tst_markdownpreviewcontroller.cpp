@@ -127,18 +127,23 @@ private:
 AWB_TEST(TestMarkdownPreviewController)
 
 /**
- * @brief 能力判定与其解释成对出现
+ * @brief 能力判定成对出现，且必须等适配器把表面装上
  */
 void TestMarkdownPreviewController::testAvailabilityGate()
 {
     MarkdownPreviewController controller(m_settings, nullptr);
+    // 没有 scheme handler 就没有「能被供出去的页面」，此时菜单项与窗口都
+    // 不许出现——否则注册顺序写错的那种缺陷会表现成一片 404。
+    QVERIFY(!controller.available());
+    QVERIFY2(!controller.unavailableReason().isEmpty(),
+             "a build without the feature must say why");
+    controller.setSurfaceReady(true);
+    QCOMPARE(controller.available(), MarkdownRuntime::isSupportedBuild());
+    QCOMPARE(controller.unavailableReason().isEmpty(),
+             MarkdownRuntime::isSupportedBuild());
     if (MarkdownRuntime::isSupportedBuild()) {
-        QVERIFY(controller.available());
-        QVERIFY(controller.rendererVersion().contains(QStringLiteral("markdown-it")));
-    } else {
-        QVERIFY(!controller.available());
-        QVERIFY2(!controller.unavailableReason().isEmpty(),
-                 "a build without the feature must say why");
+        QVERIFY(controller.rendererVersion().contains(
+            QStringLiteral("markdown-it")));
     }
     QVERIFY(!controller.active());
 }
@@ -153,6 +158,7 @@ void TestMarkdownPreviewController::testOpenFileValidatesExtension()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
 
     const QString txt = writeDoc(m_dir.path(), QStringLiteral("notes.txt"),
                                  QStringLiteral("hello\n"));
@@ -183,6 +189,7 @@ void TestMarkdownPreviewController::testOpenFileRejectsMissingAndHuge()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
 
     QVERIFY(!controller.openFile(QDir(m_dir.path())
                                      .filePath(QStringLiteral("ghost.md"))).ok);
@@ -206,6 +213,7 @@ void TestMarkdownPreviewController::testOpenFilePopulatesStateAndRequestsWindow(
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
 
     const QString body =
         QStringLiteral("# Alpha\n\nbody one\n\n## Beta\n\n- a\n- b\n");
@@ -254,6 +262,7 @@ void TestMarkdownPreviewController::testOpenFileFailureKeepsPreviousDocument()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString first = writeDoc(m_dir.path(), QStringLiteral("first.md"),
                                    QStringLiteral("# one\n"));
     QVERIFY(controller.openFile(first).ok);
@@ -275,6 +284,7 @@ void TestMarkdownPreviewController::testDocumentBodyJsonShape()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("payload.md"),
                                   QStringLiteral("# Title\n\nbody\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -319,6 +329,7 @@ void TestMarkdownPreviewController::testDocumentBodyJsonIsCachedPerRev()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("cache.md"),
                                   QStringLiteral("# one\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -349,6 +360,7 @@ void TestMarkdownPreviewController::testCommandQueueKeepsLatestPerCmd()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("queue.md"),
                                   QStringLiteral("# one\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -378,6 +390,7 @@ void TestMarkdownPreviewController::testCollapsedCommandCarriesLatestBlocks()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("latest.md"),
                                   QStringLiteral("# one\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -407,6 +420,7 @@ void TestMarkdownPreviewController::testSetDocumentDropsPendingUpdateBlocks()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString a = writeDoc(m_dir.path(), QStringLiteral("a.md"),
                                QStringLiteral("# a\n"));
     QVERIFY(controller.openFile(a).ok);
@@ -432,6 +446,7 @@ void TestMarkdownPreviewController::testEditorEditEnqueuesDeltaOnly()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString original = QStringLiteral("one\n\ntwo\n\nthree\n");
     const QString path = writeDoc(m_dir.path(), QStringLiteral("delta.md"),
                                  original);
@@ -475,6 +490,7 @@ void TestMarkdownPreviewController::testViewSettersPersistAndEnqueue()
     AWB_SKIP_IF_NO_PREVIEW();
     {
         MarkdownPreviewController controller(m_settings, nullptr);
+        controller.setSurfaceReady(true);
         const QString path = writeDoc(m_dir.path(), QStringLiteral("view.md"),
                                       QStringLiteral("# v\n"));
         QVERIFY(controller.openFile(path).ok);
@@ -533,6 +549,7 @@ void TestMarkdownPreviewController::testModeRejectsUnknownValue()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString before = controller.mode();
 
     controller.setMode(QStringLiteral("nonsense"));
@@ -555,6 +572,7 @@ void TestMarkdownPreviewController::testFindAndScrollCommands()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("find.md"),
                                   QStringLiteral("# one\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -618,6 +636,7 @@ void TestMarkdownPreviewController::testReportsAndSignals()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
 
     int failed = 0;
     QString failedJson;
@@ -663,6 +682,7 @@ void TestMarkdownPreviewController::testDiskNoticeAndReload()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("disk.md"),
                                   QStringLiteral("# on disk\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -728,6 +748,7 @@ void TestMarkdownPreviewController::testWindowCloseClearsState()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QString path = writeDoc(m_dir.path(), QStringLiteral("closing.md"),
                                   QStringLiteral("# c\n"));
     QVERIFY(controller.openFile(path).ok);
@@ -769,6 +790,7 @@ void TestMarkdownPreviewController::testWindowCloseClearsState()
 void TestMarkdownPreviewController::testQmlCallableMethodsAreInvokable()
 {
     MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
     const QStringList names = {
         QStringLiteral("openFile"), QStringLiteral("notifyWindowOpened"),
         QStringLiteral("notifyWindowClosed"), QStringLiteral("setEditorText"),

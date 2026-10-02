@@ -58,4 +58,39 @@ awb_add_qml_module(tst_webengine
     QML_FILES ${_tst_webengine_qml}
 )
 
+# --- Markdown preview runtime (Qt 6 + WebEngine only) ----------------------
+# testMarkdownSurfaceServesRuntime loads a real page over awbmd:// and needs
+# the same :/markdown/ tree the app embeds: the vendor builds (KaTeX JS/CSS and
+# its woff2 fonts) plus this test's own probe files under app/. Mirroring
+# app/CMakeLists.txt here is the point — the probe asserts the same path
+# mapping (awbmd://runtime/<p> -> :/markdown/<p>) and the same MIME table the
+# product uses, so a mapping that only works by accident in one of the two
+# targets fails loudly.
+if (QT_VERSION_MAJOR EQUAL 6)
+    target_link_libraries(tst_webengine PRIVATE
+        awb_markdown
+        awb_markdown_webengine
+    )
+
+    awb_add_vendor_resources(tst_webengine "test_markdown_vendor"
+        PREFIX "/markdown"
+        ALIAS_PREFIX "vendor"
+        ROOT ${CMAKE_SOURCE_DIR}/third_party/markdown-runtime
+        EXCLUDE "README\\.md$" "/LICENSE$"
+    )
+
+    set(_tst_webengine_md_probe ${CMAKE_CURRENT_LIST_DIR}/md-probe.html)
+    set(_tst_webengine_md_probe_js ${CMAKE_CURRENT_LIST_DIR}/md-probe-module.js)
+    set_source_files_properties(${_tst_webengine_md_probe}
+        PROPERTIES QT_RESOURCE_ALIAS "app/md-probe.html")
+    set_source_files_properties(${_tst_webengine_md_probe_js}
+        PROPERTIES QT_RESOURCE_ALIAS "app/md-probe-module.js")
+    awb_add_resources(tst_webengine "test_markdown_probe"
+        PREFIX "/markdown"
+        FILES
+            ${_tst_webengine_md_probe}
+            ${_tst_webengine_md_probe_js}
+    )
+endif()
+
 add_test(NAME tst_webengine COMMAND tst_webengine)

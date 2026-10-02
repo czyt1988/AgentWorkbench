@@ -1184,12 +1184,17 @@ Command: %2
 <context>
     <name>MarkdownPreviewController</name>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="134"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="121"/>
+        <source>Markdown preview is unavailable: the preview surface is not installed.</source>
+        <translation>Markdown 预览不可用：预览组件未安装。</translation>
+    </message>
+    <message>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="165"/>
         <source>Only Markdown files can be previewed here.</source>
         <translation>这里只能预览 Markdown 文件。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="252"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="283"/>
         <source>There is no file to reload.</source>
         <translation>没有可重新加载的文件。</translation>
     </message>
@@ -2979,7 +2984,7 @@ Command: %2
         <translation type="vanished">未安装 Node.js 或 Node.js 不在环境变量中，这可能影响依赖 Node.js 的程序运行。</translation>
     </message>
     <message>
-        <location filename="../app/main.cpp" line="318"/>
+        <location filename="../app/main.cpp" line="341"/>
         <source>The user interface failed to load. The Qt runtime files shipped next to the application seem to be missing or incomplete.
 
 Please re-extract the whole application folder from the zip archive (especially the &quot;qml&quot; subfolder) and make sure your antivirus did not quarantine any files.

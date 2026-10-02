@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QStringList>
 #include <QtTest>
 
@@ -26,6 +27,17 @@ QByteArray readResource(const QString &path)
     const QByteArray bytes = file.readAll();
     file.close();
     return bytes;
+}
+
+// 纯 ASCII 判定：没有任何码点超过 0x7F 时为真。
+bool isAsciiText(const QString &text)
+{
+    for (const QChar &c : text) {
+        if (c.unicode() > 0x7F) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // 清单是资产与代码之间唯一的契约：它说有什么、在哪、什么版本，
@@ -82,6 +94,7 @@ private Q_SLOTS:
     void testMimeTypeTable();
     void testBeaconPayloadRoundTrip();
     void testCommandJson();
+    void testProtocolNameTables();
     void testManifestMatchesFiles();
     void testVendorFilesResolveAtTheirUrls();
     void testRendererVersionText();
@@ -226,6 +239,34 @@ void TestMarkdownRuntime::testCommandJson()
                  .value(QStringLiteral("rev")).toInt(), 3);
     // 非 ASCII 不能变成 \uXXXX 之外的形态；紧凑格式里换行都不该有
     QVERIFY(!json.contains(QLatin1Char('\n')));
+}
+
+/**
+ * @brief 协议名表：非空、不重复，且把页面侧认识的名字逐个钉住
+ *
+ * C++ 与页面 JS 之间是字符串协议，没有编译期检查：改名时一边改了、另一边没改，
+ * 表现是「命令发出去了、页面什么都不做」。这两张表是唯一权威，测试把每个名字
+ * 写死在这里，重命名必须同时改 renderer.js 的分支与本用例，漂移就只能以失败
+ * 收场，不会静默。
+ */
+void TestMarkdownRuntime::testProtocolNameTables()
+{
+    const QStringList commands = MarkdownRuntime::commandNames();
+    const QStringList kinds = MarkdownRuntime::eventKinds();
+
+    QCOMPARE(commands, QStringList({
+        QStringLiteral("setDocument"), QStringLiteral("updateBlocks"),
+        QStringLiteral("setView"),     QStringLiteral("setTheme"),
+        QStringLiteral("scrollTo"),    QStringLiteral("find"),
+        QStringLiteral("renderAll"),   QStringLiteral("serialize") }));
+    QCOMPARE(kinds, QStringList({
+        QStringLiteral("ready"),  QStringLiteral("frame"),
+        QStringLiteral("error"),  QStringLiteral("markup"),
+        QStringLiteral("find") }));
+
+    QCOMPARE(QSet<QString>(commands.begin(), commands.end()).size(),
+             commands.size());
+    QCOMPARE(QSet<QString>(kinds.begin(), kinds.end()).size(), kinds.size());
 }
 
 /**
@@ -407,8 +448,15 @@ void TestMarkdownRuntime::testPageStringsAreAsciiAndComplete()
     const QJsonObject strings = MarkdownRuntime::pageStrings();
     QVERIFY(strings.size() >= 28);
     for (const QString &key : strings.keys()) {
-        QVERIFY2(!strings.value(key).toString().isEmpty(),
+        const QString text = strings.value(key).toString();
+        QVERIFY2(!text.isEmpty(),
                  qPrintable(QStringLiteral("%1 has no text").arg(key)));
+        // 源语言是英文、且必须纯 ASCII。门禁规则 3 只扫 tr()/qsTr()，
+        // 而这份字典走的是带上下文的 translate()——它得自己把关，否则
+        // 「顺手把分隔符写成 ·」这种改动会一路进 .ts，翻译侧无从分辨。
+        QVERIFY2(isAsciiText(text),
+                 qPrintable(QStringLiteral("%1 is not ASCII: %2")
+                                .arg(key, text)));
     }
     const QStringList needed = {
         QStringLiteral("outline"),     QStringLiteral("search"),

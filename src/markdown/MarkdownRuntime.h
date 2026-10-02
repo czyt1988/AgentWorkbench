@@ -5,6 +5,7 @@
 
 #include <QByteArray>
 #include <QJsonObject>
+#include <QStringList>
 #include <QUrl>
 #include <QVariantList>
 #include <QVector>
@@ -98,6 +99,16 @@ public:
     // 页面用它把结果对回命令。
     static QString commandJson(const QString &cmd, int seq,
                                const QJsonObject &args);
+
+    // --- 协议名表 --------------------------------------------------------
+    // C++ → 页面的命令名。这张表是唯一权威：MarkdownPreviewController::enqueue()
+    // 按它挡下写错的名字，页面的 dispatch 分支与 tst_markdownruntime 也都对着
+    // 它断言。协议是字符串的，没有编译期检查，不加这张表就会漂移到「页面收了
+    // 一个没人发的命令」。
+    static const QStringList &commandNames();
+    // 页面 → C++ 的信标事件名（awbmd://runtime/event?k=…）。scheme handler 按
+    // 它分发到 MarkdownPreviewController 的 report* 入口，同样由测试对齐。
+    static const QStringList &eventKinds();
 };
 
 } // namespace awb::markdown

@@ -81,6 +81,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     SingleApplication::SingleApplication
     awb_agentcatalog
     awb_core
+    awb_markdown
     awb_shell
     awb_skillcatalog
     awb_theme
@@ -100,6 +101,13 @@ if (AWB_ENABLE_WEBENGINE)
     target_compile_definitions(AgentWorkbench PRIVATE AWB_ENABLE_WEBENGINE=1)
     target_link_libraries(AgentWorkbench PRIVATE awb_web_webengine
                                                  ${AWB_WEBENGINE_TARGET})
+    # The markdown preview surface (awbmd:// handler + preview profile). Same
+    # condition as the :/markdown/ embed and AWB_MD_PREVIEW_SUPPORTED below:
+    # linking the adapter is what makes the QML window able to resolve
+    # awbmd://runtime/… at all.
+    if (QT_VERSION_MAJOR EQUAL 6)
+        target_link_libraries(AgentWorkbench PRIVATE awb_markdown_webengine)
+    endif()
 endif()
 
 # The QML module shared by every page/component. awb_add_qml_module (from

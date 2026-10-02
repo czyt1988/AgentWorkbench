@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>AWBMD-PENDING</title>
+    <!-- 一律用 origin 绝对路径（"/vendor/…"）：本页面由
+         awbmd://runtime/app/ 供出，前导斜杠解析出的正是 handler 认得的
+         /vendor/… 与 /app/… 两种形状，不依赖 ".." 的归一化行为。
+         CSS 内部的字体 URL 是相对的（fonts/*.woff2 相对 CSS 自己），
+         那一段留给字体检查去验。 -->
+    <link rel="stylesheet" href="/vendor/katex/katex.min.css">
+  </head>
+  <body>
+    <div id="math"></div>
+    <script src="/vendor/katex/katex.min.js"></script>
+    <!-- type="module" 是这里的 MIME 断言：经典 <script> 会被 Chromium
+         宽容执行，模块脚本要求 Content-Type 真的是 JS，否则不执行。 -->
+    <script type="module" src="/app/md-probe-module.js"></script>
+  </body>
+</html>

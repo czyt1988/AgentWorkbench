@@ -5,6 +5,7 @@
 #include "core/OpResult.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
+#include "markdown/MarkdownPreviewController.h"
 #include "shell/NavigationModel.h"
 #include "skillcatalog/SkillsFacade.h"
 #include "shell/Notifications.h"
@@ -29,6 +30,10 @@
 #include "web/webengine/WebEngineProfileStore.h"
 #include "web/webengine/WebEngineSurfaceProvider.h"
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+// Markdown 预览只在 Qt 6 + WebEngine 的构建里存在：awbmd:// 的供体、随包
+// 渲染资源、预览窗口 QML 都只在这条分支上编译与嵌入，Qt 5 二进制里根本没有
+// 这个功能（不是有一个残缺的版本）。见 src/markdown/webengine/CMakeLists.txt。
+#include "markdown/webengine/MarkdownPreviewProvider.h"
 #include <QtWebEngineQuick>
 #else
 #include <QtWebEngine>
@@ -107,6 +112,13 @@ int main(int argc, char *argv[])
     // GPU/驱动问题经 web.chromiumFlags 绕过；此处硬失败只记日志、
     // 降级继续。
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // awbmd:// 必须赶在 initialize() 之前注册：scheme 表在第一次创建上下文时
+    // 就锁死了，晚注册被引擎忽略并告警。失效的样子不是白屏——handler 照样
+    // 供出文档、脚本和字体，废掉的是 fetch()，于是正文在、公式与图表永远
+    // 渲染不出来，而构建和纯函数用例照样全绿。这一行是启动契约的一部分，
+    // 位置错就半失效（提供者构造时会核对注册表并留下警告，见
+    // MarkdownPreviewProvider）。
+    awb::markdown::MarkdownPreviewProvider::registerScheme();
     QtWebEngineQuick::initialize();
 #else
     QtWebEngine::initialize();
@@ -204,6 +216,10 @@ int main(int argc, char *argv[])
     // Agent Tools 编辑器的 markdown 支持：语法高亮 + 右键菜单的格式化动作。
     // 配色跟 Theme 走（切换主题即时重扫）。
     awb::tools::MarkdownEdit markdownEdit(&theme);
+    // Markdown 预览的状态与命令队列。纯层在每个构建里都存在——Qt 5 与关掉
+    // WebEngine 的构建里它只是 available 恒为假，菜单项与窗口自然不出现；
+    // 真正把能力点亮的是下面那个只在 Qt 6 分支上构造的 provider。
+    awb::markdown::MarkdownPreviewController markdownPreview(&settings, &theme);
 
     // 构造只恢复上次的探测结果（首屏立刻有版本可显示），start() 才派
     // 后台那一轮真探测——探测要等子进程，不占装配期。首轮延迟 4 s：
@@ -271,6 +287,13 @@ int main(int argc, char *argv[])
                                  &profileStore);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebEngineCompat",
                                  &webEngineCompat);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // 预览表面：awbmd:// 的供体 + 预览专用 profile，构造时把控制器的
+    // available 位点亮（scheme 没注册成功时它不点亮，只留一条警告）。
+    // 声明顺序要求控制器在前：控制器是本对象的成员依赖，#ifdef 不构成作用域，
+    // 两者都活到 main 结尾，销毁顺序相反——provider 先毁、controller 后毁。
+    awb::markdown::MarkdownPreviewProvider markdownProvider(&markdownPreview);
+#endif
 #endif
 
     // 4) 注册 QML 全局：AgentWorkbench.App URI 上一律大写类型名；
@@ -289,6 +312,8 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools", &tools);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownEdit",
                                  &markdownEdit);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Markdown",
+                                 &markdownPreview);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",

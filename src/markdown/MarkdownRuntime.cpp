@@ -647,4 +647,45 @@ QString MarkdownRuntime::commandJson(const QString &cmd, int seq,
         QJsonDocument(message).toJson(QJsonDocument::Compact));
 }
 
+/**
+ * @brief C++ → 页面的命令名表
+ * @return 唯一的命令名列表
+ *
+ * 名字同时出现在三处：这里的表、MarkdownPreviewController 的 enqueue() 调用、
+ * 页面 renderer.js 的 dispatch 分支。改一处必须改三处，测试只挡得住前两处。
+ */
+const QStringList &MarkdownRuntime::commandNames()
+{
+    static const QStringList names = {
+        QStringLiteral("setDocument"),
+        QStringLiteral("updateBlocks"),
+        QStringLiteral("setView"),
+        QStringLiteral("setTheme"),
+        QStringLiteral("scrollTo"),
+        QStringLiteral("find"),
+        QStringLiteral("renderAll"),
+        QStringLiteral("serialize"),
+    };
+    return names;
+}
+
+/**
+ * @brief 页面 → C++ 的信标事件名表
+ * @return 唯一的事件名列表
+ *
+ * 每个事件都对应 MarkdownPreviewController 的一个 report* 入口，scheme handler
+ * 照着这张表分发；表里没有的 kind 只记警告，不让页面能调用到任何未声明的方法。
+ */
+const QStringList &MarkdownRuntime::eventKinds()
+{
+    static const QStringList kinds = {
+        QStringLiteral("ready"),
+        QStringLiteral("frame"),
+        QStringLiteral("error"),
+        QStringLiteral("markup"),
+        QStringLiteral("find"),
+    };
+    return kinds;
+}
+
 } // namespace awb::markdown

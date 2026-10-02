@@ -94,19 +94,50 @@ MarkdownPreviewController::MarkdownPreviewController(core::Settings *settings,
 /**
  * @brief 本构建有没有预览能力
  * @return 有则为真
+ *
+ * 两个条件缺一不可：编译期有 WebEngine 与资源，运行期适配器真的把
+ * awbmd:// 的表面装上了。少后者会让菜单在「scheme 注册顺序写错」这种缺陷里
+ * 依然可点，而用户看到的是一篇能打开、公式与图表却永远出不来的文档。
  */
 bool MarkdownPreviewController::available() const
 {
-    return MarkdownRuntime::isSupportedBuild();
+    return m_surfaceReady && MarkdownRuntime::isSupportedBuild();
 }
 
 /**
  * @brief 没有能力时的解释
- * @return 英文源串
+ * @return 英文源串；有能力时为空
  */
 QString MarkdownPreviewController::unavailableReason() const
 {
-    return MarkdownRuntime::unavailableReason();
+    if (available()) {
+        return QString();
+    }
+    if (!MarkdownRuntime::isSupportedBuild()) {
+        return MarkdownRuntime::unavailableReason();
+    }
+    // 走到这里说明这个二进制本该有预览、却没有表面——是接线错了，
+    // 不是用户的构建问题，但界面仍要给出一个字，不能显示空原因。
+    return QCoreApplication::translate(
+        "MarkdownPreviewController",
+        "Markdown preview is unavailable: the preview surface is not "
+        "installed.");
+}
+
+/**
+ * @brief 适配器报告预览表面就绪
+ * @param ready 表面已装上为真
+ *
+ * 由 MarkdownPreviewProvider 在装好 scheme handler 之后调用一次。变化要惊动
+ * 所有盯 available 的地方（菜单项与窗口 Loader）。
+ */
+void MarkdownPreviewController::setSurfaceReady(bool ready)
+{
+    if (m_surfaceReady == ready) {
+        return;
+    }
+    m_surfaceReady = ready;
+    Q_EMIT capabilitiesChanged();
 }
 
 /**
@@ -594,6 +625,12 @@ void MarkdownPreviewController::enqueue(const QString &cmd,
 void MarkdownPreviewController::enqueue(const QString &cmd,
                                         const QJsonObject &args)
 {
+    // 名字必须在协议表里：命令是字符串协议，写错时页面只会安静地什么都不做，
+    // 所以在这里挡一道并留下日志，而不是让它一路漂到「功能不生效」。
+    if (!MarkdownRuntime::commandNames().contains(cmd)) {
+        qWarning() << "markdown: dropped unknown command:" << cmd;
+        return;
+    }
     if (cmd == QStringLiteral("setDocument")) {
         for (int i = m_queue.size() - 1; i >= 0; --i) {
             if (m_queue.at(i).first == QStringLiteral("updateBlocks")) {

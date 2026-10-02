@@ -78,6 +78,13 @@ public:
     bool available() const;
     QString unavailableReason() const;
     QString rendererVersion() const;
+
+    /// 预览表面（awbmd:// 的 scheme handler 与它的 profile）装好了没有，
+    /// 由 src/markdown/webengine/ 的 provider 在构造时置位。这里判的不是
+    /// 「这个二进制链接了 WebEngine」而是「页面真的能被供出去」：scheme
+    /// 注册顺序错了的时候前者照样为真，而页面的 fetch 全废——正文在、公式
+    /// 与图表出不来。只给适配器调用——QML 侧一律读 available 属性。
+    void setSurfaceReady(bool ready);
     bool active() const { return m_windowOpen; }
     QString filePath() const { return m_document.path(); }
     QString fileTitle() const { return m_document.fileName(); }
@@ -195,6 +202,7 @@ private:
     int m_docSeq = 0;              ///< docId 的自增序号
     int m_rev = 0;                 ///< 文档版本，进 doc.json 的 query
     int m_seq = 0;                 ///< 命令序号，只用于日志对齐
+    bool m_surfaceReady = false;   ///< 适配器是否已装好预览表面（见 setSurfaceReady）
     bool m_windowOpen = false;     ///< 窗口是否活着
     bool m_changedOnDisk = false;  ///< 外部改动提示的当前状态
     QString m_markupPurpose;       ///< 在飞的序列化请求用途
