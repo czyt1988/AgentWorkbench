@@ -117,6 +117,8 @@ private Q_SLOTS:
     void testReportsAndSignals();
     void testDiskNoticeAndReload();
     void testWindowCloseClearsState();
+    void testPageUrlAndPreviewEligibility();
+    void testExportLandingWritesFiles();
     void testQmlCallableMethodsAreInvokable();
 
 private:
@@ -780,6 +782,138 @@ void TestMarkdownPreviewController::testWindowCloseClearsState()
 }
 
 /**
+ * @brief 页面地址只有一个来源，后缀清单只有一处判定
+ *
+ * 两条都是「界面拿不到第二套真相」的护栏：视图的 url 由 pageUrl() 给，QML 不
+ * 自己拼 awbmd://（拼错的表现是页面 404，而构建与测试全绿）；右键菜单出不出
+ * 「Preview Markdown」用 canPreviewPath()，与 openFile() 的拒绝共用同一个后缀
+ * 判据，否则迟早出现「菜单里能点、点开被拒」。
+ */
+void TestMarkdownPreviewController::testPageUrlAndPreviewEligibility()
+{
+    AWB_SKIP_IF_NO_PREVIEW();
+    MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
+
+    QCOMPARE(controller.pageUrl().toString(),
+             QStringLiteral("awbmd://runtime/app/shell.html"));
+
+    // 后缀清单（大小写不敏感）；`\z` 锚定，所以 .md.bak 不算 Markdown
+    QVERIFY(controller.canPreviewPath(QStringLiteral("/tmp/NOTE.MD")));
+    QVERIFY(controller.canPreviewPath(QStringLiteral("C:/x/readme.markdown")));
+    QVERIFY(controller.canPreviewPath(QStringLiteral("notes.mdown")));
+    QVERIFY(controller.canPreviewPath(QStringLiteral("notes.mdtxt")));
+    QVERIFY(controller.canPreviewPath(QStringLiteral("notes.text")));
+    QVERIFY(!controller.canPreviewPath(QStringLiteral("notes.txt")));
+    QVERIFY(!controller.canPreviewPath(QStringLiteral("notes.md.bak")));
+    QVERIFY(!controller.canPreviewPath(QStringLiteral("readme")));
+    QVERIFY(!controller.canPreviewPath(QString()));
+
+    // 表面没装上（Qt 5 与关掉 WebEngine 的构建）时后缀再对也不给预览：
+    // 菜单项整批消失，而不是点开一个开不了的窗。
+    MarkdownPreviewController bare(m_settings, nullptr);
+    QVERIFY(!bare.available());
+    QVERIFY(!bare.canPreviewPath(QStringLiteral("/tmp/NOTE.MD")));
+}
+
+/**
+ * @brief 序列化件的落点：默认在文档旁边、用户挑过就换目录、外部打开另有去处
+ *
+ * 这段是纯层的「文件 IO」，而 QML 侧一行都不碰磁盘——所以「写到哪、写不写得成」
+ * 只能在这里验。三条路各自的后果不同：导出件里的图片是相对引用，落到别处就
+ * 显示不出来；「用外部浏览器打开」必须写真实文件，因为外部浏览器不认识
+ * awbmd://；两者都没有落点时必须报原因，不能静默什么都不写。
+ */
+void TestMarkdownPreviewController::testExportLandingWritesFiles()
+{
+    AWB_SKIP_IF_NO_PREVIEW();
+    MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
+    controller.notifyWindowOpened();
+
+    QSignalSpy written(&controller, &MarkdownPreviewController::markupWritten);
+    QSignalSpy failed(&controller, &MarkdownPreviewController::markupWriteFailed);
+    QSignalSpy ready(&controller, &MarkdownPreviewController::markupReady);
+
+    const QString html = QStringLiteral("<html><body><p>exported</p></body></html>");
+
+    // 没有文档 = 没有落点：失败要有 purpose，界面才知道该收回哪个按钮的等待态
+    controller.requestMarkup(QStringLiteral("export"));
+    const QStringList queued = drain(controller);
+    QCOMPARE(queued.size(), 1);
+    QCOMPARE(queued.at(0), QStringLiteral("serialize"));
+    controller.reportMarkup(html);
+    QCOMPARE(ready.count(), 1);
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(failed.at(0).at(0).toString(), QStringLiteral("export"));
+    QVERIFY(written.isEmpty());
+
+    // 有文档：默认落在文档旁边，名字是主名换 .html
+    const QString docPath = writeDoc(m_dir.path(), QStringLiteral("note.md"),
+                                     QStringLiteral("# n\n"));
+    QVERIFY(controller.openFile(docPath).ok);
+    QCOMPARE(controller.exportFileName(), QStringLiteral("note.html"));
+    QVERIFY(controller.exportDirectory().isEmpty());
+    controller.requestMarkup(QStringLiteral("export"));
+    drain(controller);
+    controller.reportMarkup(html);
+    QCOMPARE(written.count(), 1);
+    QCOMPARE(written.at(0).at(1).toString(), QStringLiteral("export"));
+    const QString beside = written.at(0).at(0).toString();
+    QCOMPARE(beside, QDir(m_dir.path()).filePath(QStringLiteral("note.html")));
+    QFile besideFile(beside);
+    QVERIFY(besideFile.open(QIODevice::ReadOnly));
+    QCOMPARE(QString::fromUtf8(besideFile.readAll()), html);
+
+    // 用户挑过目录就写挑的那里（图片取不到是他知情选择的后果，不是程序的）
+    const QString other = QDir(m_dir.path()).filePath(QStringLiteral("elsewhere"));
+    QVERIFY(QDir().mkpath(other));
+    controller.setExportDirectory(other);
+    QCOMPARE(controller.exportDirectory(), other);
+    written.clear();
+    controller.requestMarkup(QStringLiteral("export"));
+    drain(controller);
+    controller.reportMarkup(html);
+    QCOMPARE(written.count(), 1);
+    QCOMPARE(written.at(0).at(0).toString(),
+             QDir(other).filePath(QStringLiteral("note.html")));
+
+    // 外部打开不看用户挑的目录：临时件一律进数据根的 preview/
+    written.clear();
+    controller.requestMarkup(QStringLiteral("browser"));
+    drain(controller);
+    controller.reportMarkup(html);
+    QCOMPARE(written.count(), 1);
+    QCOMPARE(written.at(0).at(1).toString(), QStringLiteral("browser"));
+    const QString temp = written.at(0).at(0).toString();
+    QCOMPARE(temp, Paths::markdownPreviewDir() + QStringLiteral("/note.html"));
+    QVERIFY(QFile::exists(temp));
+
+    // 目录存在却写不进去（同名是个文件）：报失败原因，不抛异常也不写坏东西
+    const QString blocked = QDir(m_dir.path()).filePath(QStringLiteral("blocked"));
+    {
+        QFile notADir(blocked);
+        QVERIFY(notADir.open(QIODevice::WriteOnly));
+        notADir.write("x");
+        notADir.close();
+    }
+    failed.clear();
+    controller.setExportDirectory(blocked);
+    controller.requestMarkup(QStringLiteral("export"));
+    drain(controller);
+    controller.reportMarkup(html);
+    QCOMPARE(failed.count(), 1);
+    QVERIFY(!failed.at(0).at(1).toString().isEmpty());
+    // 没有新增落盘：计数的还是上面 browser 那一次
+    QCOMPARE(written.count(), 1);
+
+    // 关窗把目录选择放下：留着它，下一份 README 会被导出到别的项目里
+    controller.notifyWindowClosed();
+    QVERIFY(controller.exportDirectory().isEmpty());
+    QCOMPARE(controller.exportFileName(), QStringLiteral("Markdown.html"));
+}
+
+/**
  * @brief QML 用到的每个方法都是 Q_INVOKABLE
  *
  * 这条不是形式：裸方法不在 meta-object 方法表里，QML 调用即抛
@@ -805,6 +939,8 @@ void TestMarkdownPreviewController::testQmlCallableMethodsAreInvokable()
         QStringLiteral("scrollToAnchor"), QStringLiteral("setMode"),
         QStringLiteral("setFontSizePx"), QStringLiteral("setContentWidthPx"),
         QStringLiteral("setShowOutline"),
+        // 窗口那两份接线新用的：视图的 url 绑 pageUrl()，导出前设落点
+        QStringLiteral("pageUrl"), QStringLiteral("setExportDirectory"),
     };
     // 表里的普通方法（Method 型、公开）即 Q_INVOKABLE；信号另算
     const QMetaObject *meta = controller.metaObject();

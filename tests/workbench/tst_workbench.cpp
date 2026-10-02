@@ -5,6 +5,8 @@
 #include "agentcatalog/AgentsFacade.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
+#include "markdown/MarkdownPreviewController.h"
+#include "markdown/MarkdownRuntime.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"
@@ -18,6 +20,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
@@ -29,6 +32,8 @@ using awb::agentcatalog::AgentRepository;
 using awb::agentcatalog::AgentsFacade;
 using awb::core::Paths;
 using awb::core::Settings;
+using awb::markdown::MarkdownPreviewController;
+using awb::markdown::MarkdownRuntime;
 using awb::shell::NavigationModel;
 using awb::shell::Notifications;
 using awb::shell::PageDescriptor;
@@ -75,7 +80,8 @@ void registerNavPages(NavigationModel *nav)
 
 /// 测 workbench::WorkbenchContext 的跨域意图：openWeb 建标签并切页、外置
 /// 表面策略不建标签也不切页、split-button 的外置路线把最终 URL（含 token
-/// 片段）交给系统浏览器。
+/// 片段）交给系统浏览器、previewMarkdown 把开窗交给预览控制器而自己只报失败
+/// 原因。
 class TestWorkbenchContext : public QObject
 {
     Q_OBJECT
@@ -200,6 +206,75 @@ private Q_SLOTS:
         QVERIFY(!recorder.lastUrl.isValid());
 
         QDesktopServices::unsetUrlHandler(QStringLiteral("http"));
+    }
+
+    // 跨域意图「把这份 Markdown 开成独立预览窗」：后缀判定、读盘、切块都在预览
+    // 域里做，这里只验两条接线——意图有没有原样传到（菜单项的能力位 + 控制器
+    // 收到请求），以及每一次失败有没有留下一条 toast。少了后者，界面就是
+    // 「点了没反应」这种最难查的缺陷：构建里没有 WebEngine、文件不是 Markdown、
+    // 组装层漏接线，三种原因用户一个字都看不到。
+    void testPreviewMarkdownDelegates()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        {
+            AgentRepository seed(tmp.path());
+            seed.load();
+        }
+        Settings settings;
+        AgentsFacade agents(&settings, tmp.path());
+        WebTabsFacade web(&settings);
+        NavigationModel nav;
+        Notifications notifications;
+        UiServices ui;
+        WorkbenchContext workbench(&nav, &ui, &notifications, &agents,
+                                   &web, &settings);
+        MarkdownPreviewController markdown(&settings, nullptr);
+
+        const QString docPath = QDir(tmp.path()).filePath(QStringLiteral("note.md"));
+        QFile doc(docPath);
+        QVERIFY(doc.open(QIODevice::WriteOnly));
+        doc.write("# hi\n");
+        doc.close();
+
+        // 组装层没接预览控制器（接线漏了）：菜单项恒为假，硬调用只报原因。
+        QVERIFY(!workbench.canPreviewMarkdown(docPath));
+        workbench.previewMarkdown(docPath);
+        QCOMPARE(notifications.rowCount(), 1);
+        QCOMPARE(notifications.index(0, 0).data(Notifications::LevelRole).toString(),
+                 QStringLiteral("error"));
+
+        markdown.setSurfaceReady(true);
+        workbench.setMarkdownPreview(&markdown);
+        notifications.dismiss(notifications.index(0, 0)
+                                  .data(Notifications::IdRole).toString());
+        QCOMPARE(notifications.rowCount(), 0);
+
+        // 不归预览管的后缀：条目不出场，硬点开也只报原因，不开窗。
+        const QString textPath = QDir(tmp.path()).filePath(QStringLiteral("notes.txt"));
+        QVERIFY(!workbench.canPreviewMarkdown(textPath));
+        workbench.previewMarkdown(textPath);
+        QCOMPARE(notifications.rowCount(), 1);
+        notifications.dismiss(notifications.index(0, 0)
+                                  .data(Notifications::IdRole).toString());
+
+        if (!MarkdownRuntime::isSupportedBuild()) {
+            QSKIP("Markdown preview is compiled out in this build");
+        }
+
+        // 能力齐了：菜单项为真，调用让控制器发出 windowRequested（主窗的 Loader
+        // 据此建窗），且成功不产生任何 toast。
+        QVERIFY(workbench.canPreviewMarkdown(docPath));
+        QSignalSpy requested(&markdown,
+                             &MarkdownPreviewController::windowRequested);
+        workbench.previewMarkdown(docPath);
+        QCOMPARE(requested.count(), 1);
+        QCOMPARE(notifications.rowCount(), 0);
+        // 窗口还没建：控制器不该自己认领「有窗口」，否则命令会排进没人泵的空队列
+        QVERIFY(!markdown.active());
+        // 比对的是载入时归一化过的绝对路径：MarkdownDocument::load 存进去的是
+        // QFileInfo::absoluteFilePath()，而不是调用方给的那个串。
+        QCOMPARE(markdown.filePath(), QFileInfo(docPath).absoluteFilePath());
     }
 };
 

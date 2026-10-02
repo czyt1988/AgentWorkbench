@@ -407,6 +407,10 @@ Item {
                             // 没有 WebEngine 的构建里它恒为假，菜单自然只剩两条。
                             AMenu {
                                 id: pathMenu
+                                // tst_toolsui 的锚点：右键弹出后按名字找到这份
+                                // 菜单，再断言「Preview Markdown」条目的出场与
+                                // 点击落点（同 fileTree 的做法）。
+                                objectName: "treeRowMenu"
 
                                 AMenuItem {
                                     visible: workbench.canPreviewMarkdown(treeRow.path)

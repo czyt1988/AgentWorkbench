@@ -69,6 +69,10 @@ private Q_SLOTS:
         QCOMPARE(Paths::logsDir(), tmp.path() + QStringLiteral("/log"));
         QCOMPARE(Paths::webProfilesDir(),
                  tmp.path() + QStringLiteral("/webprofiles"));
+        // 预览的「用外部浏览器打开」写盘处：外部浏览器不认识 awbmd://，
+        // 那份自包含 HTML 必须有真实的盘上落点，路径同样只经 Paths 取。
+        QCOMPARE(Paths::markdownPreviewDir(),
+                 tmp.path() + QStringLiteral("/preview"));
         // DownloadLocation 跟随系统的已知文件夹：名字与位置都随用户配置
         // 变化（本机就重定向到了自定义名字的目录），不能按名字断言；只验
         // 证拿到的是一条非空绝对路径。另注意 Qt 5.15 的实现不做测试模式

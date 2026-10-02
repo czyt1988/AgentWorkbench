@@ -13,6 +13,7 @@
 #include "core/Settings.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "tools/FileTreeModel.h"
 #include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
@@ -21,7 +22,7 @@
 // 这类缺陷；本套件补上交互层（tst_webengine 加载真实 QML 的同款做法：
 // 页面与组件以与 app 相同的模块 URL/别名嵌进本二进制）。
 //
-// 四个回归锚点：
+// 五个回归锚点：
 // 1. 打字 + Ctrl+Z / Ctrl+Y：编辑器 undo/redo（TextControl 标准键链路）；
 // 2. 单击目录行展开文件树：Qt 5.15 里 delegate 声明 required property 后
 //    裸 index 抛 ReferenceError、toggleExpanded 从未执行——树无法展开
@@ -30,6 +31,8 @@
 //    MarkdownContextMenu 真实弹出；
 // 4. 长文可滚动：编辑区若是裸 TextArea，内容撑出高度后既看不到也翻不到
 //    （没有滚动条、滚轮与拖拽皆无效）。
+// 5. 文件树右键的 Markdown 预览条目：可见性跟着 workbench 的结论走，
+//    点击交出的是这一行的绝对路径。
 //
 // ToolsFacade 用 QTemporaryDir 数据根，不碰真实数据目录；窗口尺寸给足
 // 让 SplitView 两栏都有非零宽度。
@@ -37,17 +40,38 @@
 using awb::core::Settings;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
+using awb::tools::FileTreeModel;
 using awb::tools::MarkdownEdit;
 using awb::tools::ToolsFacade;
 
 // workbench/ui 桩：页面加载与交互路径只用 notify/copyText/pickFolder
 // 这几个名字，行为不在断言范围内。
+//
+// 预览那两条是例外：文件树右键的「Preview Markdown」条目出不出场、点下去
+// 交出的是哪条路径，全靠 canPreviewMarkdown/previewMarkdown 这两个名字接
+// 得上——名字拼错一个字母，绑定抛 TypeError、条目停在默认值上，页面加载的
+// 冒烟照样全绿。所以桩把结论交给用例（previewCapable 由 loadPage 灌，
+// askedAbout/previewed 是来路记录）。「哪些后缀归预览管」的真判定在纯层，
+// 由 tst_markdown 覆盖，这里不重复实现一遍。
 class WorkbenchStub : public QObject
 {
     Q_OBJECT
 public:
+    bool previewCapable = false;
+    QStringList askedAbout;
+    QStringList previewed;
+
     Q_INVOKABLE void notify(const QString &, const QString &, const QString &) {}
     Q_INVOKABLE void copyText(const QString &) {}
+    Q_INVOKABLE bool canPreviewMarkdown(const QString &path)
+    {
+        askedAbout.append(path);
+        return previewCapable;
+    }
+    Q_INVOKABLE void previewMarkdown(const QString &path)
+    {
+        previewed.append(path);
+    }
 };
 
 class UiStub : public QObject
@@ -80,6 +104,10 @@ private Q_SLOTS:
         m_tools = std::make_unique<ToolsFacade>(m_dataRoot->path());
         m_markdownEdit = std::make_unique<MarkdownEdit>(m_theme.get());
         m_workbench = std::make_unique<WorkbenchStub>();
+        // 能力开关在页面装配前定死：菜单条目的可见性是一条方法调用绑定，
+        // 建好之后不会因桩的成员变量变化重算（QML 追不到 C++ 方法内部的
+        // 依赖），所以「有/没有预览能力」必须是两次独立的装配。
+        m_workbench->previewCapable = m_previewCapable;
         m_ui = std::make_unique<UiStub>();
 
         m_engine = std::make_unique<QQmlEngine>();
@@ -365,8 +393,137 @@ private Q_SLOTS:
         QVERIFY(!menu->property("opened").toBool());
     }
 
+    // 文件树右键的「Preview Markdown」：workbench 说有预览能力时条目出场，
+    // 真实点击把这一行的绝对路径交给 previewMarkdown。
+    void testTreeRowPreviewMenuItemAppearsAndOpens()
+    {
+        m_previewCapable = true;
+        QString error;
+        QQuickWindow *window = nullptr;
+        QQuickItem *page = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
+        runRowMenuCase(window, page, tools, true);
+    }
+
+    // 同一个菜单在没有预览能力的构建里（workbench 恒答否）：条目不出场，
+    // 也不会因为点在别处而误发预览。
+    void testTreeRowPreviewMenuItemHiddenWithoutCapability()
+    {
+        m_previewCapable = false;
+        QString error;
+        QQuickWindow *window = nullptr;
+        QQuickItem *page = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
+        runRowMenuCase(window, page, tools, false);
+    }
+
 private:
+    // 文件树那一行的右键菜单。找它不能靠 page->findChild：ListView 的行
+    // delegate 的 QObject 父项是视图内部的复用器，不在页面那条 QObject 链上
+    // （从页面递归找不到），只能顺可视树走到行，再从行的 QObject 子项里取
+    // ——菜单本身不是可视子项，它是那一行的普通 QObject 子项。
+    static QObject *rowMenu(QQuickItem *tree)
+    {
+        const auto containers = tree->childItems();
+        for (QQuickItem *container : containers) {
+            const auto rows = container->childItems();
+            for (QQuickItem *row : rows) {
+                QObject *const menu = row->findChild<QObject *>(
+                    QStringLiteral("treeRowMenu"));
+                if (menu) {
+                    return menu;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    // 造一个只含 note.md 的工作区，右键那一行让菜单弹出，按 expectPreview
+    // 断言「Preview Markdown」条目的出场；期望出场时再真实点一次，断言交出
+    // 去的是这一行的绝对路径。两个用例共用它，只在装配前换一个开关。
+    void runRowMenuCase(QQuickWindow *window, QQuickItem *page,
+                        ToolsFacade *tools, bool expectPreview)
+    {
+        const QString root = m_dataRoot->path() + QStringLiteral("/menuws");
+        QVERIFY(QDir().mkpath(root));
+        const QString docPath = QDir(root).filePath(QStringLiteral("note.md"));
+        QFile doc(docPath);
+        QVERIFY(doc.open(QIODevice::WriteOnly));
+        doc.write("# hi\n");
+        doc.close();
+        QVERIFY(tools->addWorkspace(root).ok);
+
+        QQuickItem *const tree = page->findChild<QQuickItem *>(
+            QStringLiteral("fileTree"));
+        QVERIFY(tree);
+        QTRY_VERIFY2(tree->width() > 10 && tree->height() > 10,
+                     "file tree never got a size from the layout");
+        QTRY_COMPARE(tree->property("count").toInt(), 1);
+
+        // 等到行真的建出来：模型有行数（count）与 delegate 实例是两件事，
+        // 后者要等一轮 polish。菜单建不出来时这里会带着原因失败，而不是
+        // 让后面的查找以「找不到条目」的假面目出现。
+        QTRY_VERIFY2_WITH_TIMEOUT(rowMenu(tree) != nullptr,
+                                  "the file tree never rendered a row delegate",
+                                  4000);
+
+        // 右键行中心：delegate 里那只吃右键的 MouseArea → pathMenu.popup。
+        QTest::mouseClick(window, Qt::RightButton, Qt::NoModifier,
+                          tree->mapToScene(QPointF(30, 12)).toPoint());
+        QObject *const menu = rowMenu(tree);
+        QVERIFY2(menu, "treeRowMenu not found by objectName");
+        QTRY_VERIFY2(menu->property("opened").toBool(),
+                     "right-click did not open the tree row menu");
+
+        QObject *previewItem = nullptr;
+        const auto items = menu->findChildren<QObject *>();
+        for (QObject *child : items) {
+            if (child->property("text").toString()
+                    == QStringLiteral("Preview Markdown")) {
+                previewItem = child;
+                break;
+            }
+        }
+        // 条目在对象图里一直都在（visible=false 不销毁 delegate），两种构建
+        // 的差别就是这一个布尔——「没有预览能力就没有这一条」的承诺落到它身上。
+        QVERIFY2(previewItem, "Preview Markdown item not found in treeRowMenu");
+        QCOMPARE(previewItem->property("visible").toBool(), expectPreview);
+
+        // 问过 workbench 的正是这一行的路径：后缀判断留在纯层，QML 只问结果。
+        const QString rowPath = tools->model()
+                                    ->index(0, 0)
+                                    .data(FileTreeModel::PathRole)
+                                    .toString();
+        QVERIFY(!rowPath.isEmpty());
+        QVERIFY2(m_workbench->askedAbout.contains(rowPath),
+                 qPrintable(QStringLiteral("canPreviewMarkdown was asked about ")
+                            + m_workbench->askedAbout.join(QLatin1Char(';'))));
+
+        if (!expectPreview) {
+            QVERIFY(m_workbench->previewed.isEmpty());
+            QTest::keyClick(window, Qt::Key_Escape);
+            return;
+        }
+
+        // 真实点击条目：onTriggered 应当把同一个绝对路径交给 previewMarkdown
+        // （交相对路径的话预览域无从定位文件，交错行则打开别的文档）。
+        QQuickItem *const row = qobject_cast<QQuickItem *>(previewItem);
+        QVERIFY2(row, "Preview Markdown item is not a QQuickItem");
+        const QPointF center = row->mapToScene(
+            QPointF(row->width() / 2.0, row->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        QVERIFY2(m_workbench->previewed.contains(rowPath),
+                 qPrintable(QStringLiteral("previewMarkdown received ")
+                            + m_workbench->previewed.join(QLatin1Char(';'))
+                            + QStringLiteral(" instead of ") + rowPath));
+        QTest::keyClick(window, Qt::Key_Escape);
+    }
+
     // 装配成员按依赖顺序声明、在 loadPage/cleanup 里成对管理。
+    bool m_previewCapable = false;
     std::unique_ptr<QTemporaryDir> m_dataRoot;
     std::unique_ptr<Settings> m_settings;
     std::unique_ptr<ThemeRegistry> m_registry;
