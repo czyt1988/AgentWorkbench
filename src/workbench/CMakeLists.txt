@@ -21,6 +21,7 @@ target_link_libraries(awb_workbench
     PUBLIC
         awb_agentcatalog
         awb_core
+        awb_markdown
         awb_shell
         awb_skillcatalog
         awb_theme

@@ -24,6 +24,7 @@ set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml ToolsPage MarkdownContextMenu)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
+set(_markdown_qml MarkdownPreviewWindow)
 
 set(AWB_QML_FILES "")
 foreach(name IN LISTS _skillcatalog_qml)
@@ -68,6 +69,19 @@ foreach(name IN LISTS _tools_qml)
     set_source_files_properties(${_f} PROPERTIES
         QT_RESOURCE_ALIAS "tools/${name}.qml")
 endforeach()
+# The preview window is registered only where the feature can actually run:
+# Qt 6 + WebEngine, the same condition as the /markdown runtime embed below and
+# MarkdownRuntime::isSupportedBuild(). Elsewhere the file is not in the binary at
+# all — not a broken half of it. MainWindow.qml reaches the window by resource
+# URL (see its Loader), so an unregistered type costs nothing to compile.
+if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+    foreach(name IN LISTS _markdown_qml)
+        set(_f ${CMAKE_SOURCE_DIR}/src/markdown/qml/${name}.qml)
+        list(APPEND AWB_QML_FILES ${_f})
+        set_source_files_properties(${_f} PROPERTIES
+            QT_RESOURCE_ALIAS "markdown/${name}.qml")
+    endforeach()
+endif()
 
 add_executable(AgentWorkbench
     main.cpp

@@ -9,6 +9,7 @@
 #include <QList>
 #include <QPair>
 #include <QObject>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -108,9 +109,18 @@ public:
     Q_INVOKABLE void setContentWidthPx(int pixels);
     Q_INVOKABLE void setShowOutline(bool show);
 
+    /// 预览页面的地址（awbmd://runtime/app/shell.html）。视图只经它拿 URL：
+    /// scheme 名、host、资源前缀三处拼一次的地方多了，就会有一处拼错而页面
+    /// 只在运行时 404。
+    Q_INVOKABLE QUrl pageUrl() const;
+
     /// 打开一份 Markdown：校验、读盘、切块，成功后发 windowRequested()。
     /// 失败只返回原因，不动既有文档，也不开窗。
     Q_INVOKABLE awb::core::OpResult openFile(const QString &path);
+
+    /// 这个路径是否归预览管（后缀判定与 openFile() 同一处，见 .cpp）。
+    /// 文件树右键菜单用它决定条目出不出——后缀清单不是 QML 该知道的事。
+    Q_INVOKABLE bool canPreviewPath(const QString &path) const;
 
     // 窗口 QML 的生命周期播报
     Q_INVOKABLE void notifyWindowOpened();
@@ -142,11 +152,22 @@ public:
     Q_INVOKABLE void reportReady(const QString &json);
     Q_INVOKABLE void reportFrame(const QString &json);
     Q_INVOKABLE void reportError(const QString &json);
+    /// 页面报回整篇序列化的 HTML。**这里就是落盘点**：QML 不碰文件系统，
+    /// 所以「写到哪、写不写得成」全在本类决定，结果经 markupWritten /
+    /// markupWriteFailed 报给界面。purpose 是 requestMarkup() 记住的那个。
     Q_INVOKABLE void reportMarkup(const QString &html);
 
     /// 请求把当前渲染结果整篇序列化（导出 / 外部打开），结果从 reportMarkup
     /// 回来。purpose 取 "export" 或 "browser"，决定接手方。
     Q_INVOKABLE void requestMarkup(const QString &purpose);
+
+    /// 导出目录。空串 = 文档所在目录——导出件里的图片是相对引用，只有落在
+    /// 文档旁边才取到，换目录导出是个用户知情选择的降级，不是默认。
+    /// 窗口 QML 经原生目录对话框选好这里，再调 requestMarkup("export")。
+    Q_INVOKABLE void setExportDirectory(const QString &directory);
+    Q_INVOKABLE QString exportDirectory() const { return m_exportDirectory; }
+    /// 导出文件的建议名：文档主名换 .html，没有文档时给 "Markdown.html"
+    Q_INVOKABLE QString exportFileName() const;
     // 请求整篇渲染（把懒渲染的图表全部补上），只在导出/外部打开前需要
     Q_INVOKABLE void requestFullRender();
     // 文档内搜索：命令进队列，命中数从 reportFindResult 回来
@@ -178,6 +199,11 @@ Q_SIGNALS:
     void changedOnDiskChanged();
     /// 导出/外部打开的 HTML 已就绪（异步：页面要先补渲染再序列化）
     void markupReady(const QString &html, const QString &purpose);
+    /// 序列化件已写盘（purpose："export" 给用户挑的目录或文档目录，
+    /// "browser" 给 <dataRoot>/preview 下的临时件——外部浏览器不认识 awbmd://）
+    void markupWritten(const QString &path, const QString &purpose);
+    /// 序列化件写盘失败
+    void markupWriteFailed(const QString &purpose, const QString &message);
     /// 页面报回来的渲染失败
     void renderFailed(const QString &message);
     /// 搜索结果（total/active）
@@ -206,6 +232,7 @@ private:
     bool m_windowOpen = false;     ///< 窗口是否活着
     bool m_changedOnDisk = false;  ///< 外部改动提示的当前状态
     QString m_markupPurpose;       ///< 在飞的序列化请求用途
+    QString m_exportDirectory;     ///< 导出目录；空 = 文档所在目录
     QList<QPair<QString, QString>>
         m_queue;                   ///< 待发送命令：cmd → 命令 JSON
 

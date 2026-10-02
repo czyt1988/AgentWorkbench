@@ -401,9 +401,22 @@ Item {
                                 }
                             }
 
+                            // 右键：Markdown 文件多一条预览，其余仍是复制路径。
+                            // 条目出不出场交给 workbench.canPreviewMarkdown()——
+                            // 哪些后缀归预览管是纯层的事实，QML 不写后缀判断，
+                            // 没有 WebEngine 的构建里它恒为假，菜单自然只剩两条。
                             AMenu {
                                 id: pathMenu
 
+                                AMenuItem {
+                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                    icon.source: "qrc:/icons/file.svg"
+                                    text: qsTr("Preview Markdown")
+                                    onTriggered: workbench.previewMarkdown(treeRow.path)
+                                }
+                                AMenuSeparator {
+                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                }
                                 AMenuItem {
                                     icon.source: "qrc:/icons/copy.svg"
                                     text: qsTr("Copy relative path")

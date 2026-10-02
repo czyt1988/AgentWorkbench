@@ -18,6 +18,7 @@ add_subdirectory(markdown)
 # Qt 5 与 AWB_ENABLE_WEBENGINE=OFF 的连接里既不建这个目标，也没有页面可言。
 if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
     add_subdirectory(markdownpreview)
+    add_subdirectory(markdownpreviewui)
 endif()
 
 # Architecture rules as a test: a violating build fails

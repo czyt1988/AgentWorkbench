@@ -102,6 +102,16 @@ QString Paths::webProfilesDir()
 }
 
 /**
+ * @brief 取 Markdown 预览写出的自包含 HTML 目录
+ *
+ * @return <dataRoot>/preview
+ */
+QString Paths::markdownPreviewDir()
+{
+    return dataRoot() + QStringLiteral("/preview");
+}
+
+/**
  * @brief 取 skill 扫描缓存文件
  *
  * @return <dataRoot>/skills_cache.json

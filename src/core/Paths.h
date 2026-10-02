@@ -23,6 +23,9 @@ public:
     static QString logsDir();
     // <dataRoot>/webprofiles
     static QString webProfilesDir();
+    // <dataRoot>/preview —— Markdown 预览「用外部浏览器打开」写出的自包含
+    // HTML 落在这里：外部浏览器不认识 awbmd://，必须先有一份真实的盘上文件。
+    static QString markdownPreviewDir();
     // <dataRoot>/skills_cache.json —— skillcatalog 的扫描结果缓存。
     static QString skillCacheFile();
     // <dataRoot>/environment_cache.json —— workbench 的运行时探测缓存。

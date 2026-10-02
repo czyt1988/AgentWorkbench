@@ -20,6 +20,9 @@ class UiServices;
 namespace awb::web {
 class WebTabsFacade;
 } // namespace awb::web
+namespace awb::markdown {
+class MarkdownPreviewController;
+} // namespace awb::markdown
 
 namespace awb::workbench {
 
@@ -75,6 +78,14 @@ public:
     // 重启 agent（离线遮罩、启动器卡片）
     Q_INVOKABLE void launchAgent(const QString &agentId);
 
+    // --- Markdown 预览（跨域：Tools 页的文件树 → 预览窗口） ----------------
+    // 打开一份 Markdown 的独立预览窗口。成功与失败都给 toast：失败的原因来自
+    // 预览域（过大、非 UTF-8、本构建没有预览能力），QML 不重复解释一遍。
+    Q_INVOKABLE void previewMarkdown(const QString &path);
+    // 文件树右键菜单据此决定「预览」这一项出不出场——没有预览能力的构建里
+    // 它恒为假，条目根本不出现。
+    Q_INVOKABLE bool canPreviewMarkdown(const QString &path) const;
+
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void notify(const QString &level, const QString &title,
@@ -97,6 +108,9 @@ public:
     Q_INVOKABLE QString pluginTrustNotice() const;
     // 组装层灌进来的发现结果快照（main.cpp 扫描后调用）
     void setDiscoveredPlugins(const QVariantList &plugins);
+    /// 组装层灌进来的预览控制器（main.cpp 在构造后设一次）。没设过 = 本构建
+    /// 没有预览能力，previewMarkdown 只报原因、不开窗。
+    void setMarkdownPreview(markdown::MarkdownPreviewController *markdown);
 
 Q_SIGNALS:
     /**
@@ -115,6 +129,8 @@ private:
     agentcatalog::AgentsFacade *m_agents;   ///< agent 目录与运行
     web::WebTabsFacade *m_web;              ///< Web 标签页域
     core::Settings *m_settings;             ///< 设置（插件开关等）
+    markdown::MarkdownPreviewController
+        *m_markdown = nullptr;   ///< Markdown 预览（可空：本构建可能没有）
     QString m_legacyImportNotice;           ///< 一次性导入提示；正常启动为空串
     QVariantList m_discoveredPlugins;       ///< 发现的插件快照（设置页列表）
 };

@@ -27,6 +27,14 @@ ApplicationWindow {
     readonly property var tools: Tools
     readonly property var workbench: Workbench
     readonly property var environment: Environment
+    // Markdown 预览的状态门面（每个构建都在，能力位由 available 决定）。
+    readonly property var markdown: Markdown
+
+    // 预览窗口的开关：唯一置真的来源是 markdown 的 windowRequested 信号，唯一
+    // 置假的来源是 markdown.active 变假（窗口自己报到关闭）。窗口活不长——关掉
+    // 即由 Loader 销毁，WebEngineView 是渲染进程与合成层的入口，常驻会让每次
+    // 启动都付这份钱，而预览是低频动作。
+    property bool markdownWindowOpen: false
 
     visible: true
     // 恢复的窗口尺寸按可用屏幕区域钳制：在大屏上保存过的窗口换到小屏打开
@@ -156,6 +164,49 @@ ApplicationWindow {
 
     // toast 宿主：锚定在窗口右下角（逻辑在它自己的文件里）。
     Toasts {}
+
+    // --- Markdown 预览窗口（按需创建，关掉即销毁） -------------------------
+    // 挂在这里而不是页面里：Loader 是主窗的内联对象，被它创建的窗口因此继承
+    // 主窗的 QML 上下文，窗口文件里的 `theme` / `markdown` / `workbench` 别名
+    // 才解析得到（与各页面用别名的方式一致，见 AGENTS.md 的 QML 契约）。
+    //
+    // 用 source（URL 字符串）而不是 sourceComponent（类型名）：那个 .qml 只在
+    // Qt 6 + WebEngine 的构建里登记进模块（见 app/CMakeLists.txt 的同一处守卫），
+    // 写成类型名会在其余构建里留下一个解析不到的引用；字符串的代价要到真正
+    // 加载时才付，而加载条件 `markdown.available` 与那道守卫同源。
+    Loader {
+        id: markdownWindowLoader
+        active: window.markdownWindowOpen && markdown.available
+        source: "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewWindow.qml"
+        // 与 Workspace 的页面 Loader 同一做法：加载失败要喊出来。这里失败的表现
+        // 不是白屏而是什么都没弹出来——右键点了没反应，比一个错误弹窗难查得多。
+        onStatusChanged: {
+            if (status === Loader.Error) {
+                console.error("markdown: failed to load the preview window",
+                              source)
+                workbench.notify("error", qsTr("Preview window failed to open"),
+                                 String(source))
+                // 失败的 Loader 留在 active 上没有意义：它没有内容，而
+                // markdown.active 也永远不会变真，下一次请求同样不开窗。
+                window.markdownWindowOpen = false
+            }
+        }
+    }
+
+    Connections {
+        target: markdown
+
+        // 预览请求：开窗（已经开着则由窗口自己 raise，见 MarkdownPreviewWindow）
+        function onWindowRequested() {
+            window.markdownWindowOpen = true
+        }
+
+        // 窗口报到关闭 / 销毁 → 放下 Loader，连带释放渲染进程那一侧的一切。
+        function onActiveChanged() {
+            if (!markdown.active)
+                window.markdownWindowOpen = false
+        }
+    }
 
     // --- 退出确认（保留 0.3.0 行为） ----------------------------------------
     ADialog {

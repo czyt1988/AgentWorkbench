@@ -4,6 +4,7 @@
 #include "agentcatalog/AgentUrls.h"
 #include "core/Settings.h"
 #include "agentcatalog/AgentsFacade.h"
+#include "markdown/MarkdownPreviewController.h"
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"
@@ -187,6 +188,62 @@ void WorkbenchContext::reloadWeb(const QString &agentId)
 void WorkbenchContext::launchAgent(const QString &agentId)
 {
     m_agents->launch(agentId);
+}
+
+/**
+ * @brief 跨域意图：把一份 Markdown 开成独立预览窗口
+ *
+ * @param path 磁盘路径（文件树右键的那一行）
+ *
+ * 开窗本身在预览域里：MarkdownPreviewController::openFile() 校验、读盘、切块，
+ * 成功后发 windowRequested()。这里只把失败原因说给用户一次——同一个原因在
+ * 菜单项、控制器与这里各解释一遍，就会变成三个互相漂移的版本。
+ */
+void WorkbenchContext::previewMarkdown(const QString &path)
+{
+    if (!m_markdown) {
+        // 组装层没接进预览控制器：那是接线漏了，不是用户的构建问题，
+        // 但界面仍要给一句话，不能点了什么都没发生。
+        m_notifications->notify(
+            QStringLiteral("error"),
+            QCoreApplication::translate("WorkbenchContext",
+                                        "Markdown preview"),
+            QCoreApplication::translate("WorkbenchContext",
+                                        "Markdown preview is unavailable."));
+        return;
+    }
+    const core::OpResult opened = m_markdown->openFile(path);
+    if (!opened) {
+        m_notifications->notify(
+            QStringLiteral("error"),
+            QCoreApplication::translate("WorkbenchContext",
+                                        "Cannot preview this file"),
+            opened.error);
+    }
+}
+
+/**
+ * @brief 这份路径能不能给「Preview Markdown」菜单项
+ *
+ * @param path 磁盘路径
+ * @return 本构建有预览能力且路径认作 Markdown 时为真
+ *
+ * 判定全部在预览域里做（后缀清单与 openFile() 的拒绝共用一处），QML 只问结果。
+ */
+bool WorkbenchContext::canPreviewMarkdown(const QString &path) const
+{
+    return m_markdown && m_markdown->canPreviewPath(path);
+}
+
+/**
+ * @brief 组装层灌进预览控制器
+ *
+ * @param markdown Markdown 预览控制器；空指针表示本会话没有预览能力
+ */
+void WorkbenchContext::setMarkdownPreview(
+    markdown::MarkdownPreviewController *markdown)
+{
+    m_markdown = markdown;
 }
 
 /**

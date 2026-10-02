@@ -9,6 +9,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
@@ -189,6 +190,31 @@ core::OpResult MarkdownPreviewController::openFile(const QString &path)
 }
 
 /**
+ * @brief 预览页面的地址
+ * @return awbmd://runtime/app/shell.html
+ *
+ * 视图的 url 由 QML 绑到这里，而不是在 QML 里拼字符串：scheme 名、host 与
+ * 资源前缀的定义只有 MarkdownRuntime 一处。
+ */
+QUrl MarkdownPreviewController::pageUrl() const
+{
+    return MarkdownRuntime::appUrl(QStringLiteral("shell.html"));
+}
+
+/**
+ * @brief 这个路径是否归预览管
+ * @param path 磁盘路径
+ * @return 本构建有预览能力且后缀认作 Markdown 时为真
+ *
+ * 菜单项用它决定出不出场，openFile() 用它挡下别的文件——同一个答案只能有
+ * 一处来源，否则「菜单里能点、点开被拒」这种分裂迟早出现。
+ */
+bool MarkdownPreviewController::canPreviewPath(const QString &path) const
+{
+    return available() && isMarkdownPath(path);
+}
+
+/**
  * @brief 窗口已建立，后续命令要真的发出去了
  */
 void MarkdownPreviewController::notifyWindowOpened()
@@ -214,6 +240,9 @@ void MarkdownPreviewController::notifyWindowClosed()
     m_blocks.clear();
     m_outline.clear();
     m_changedOnDisk = false;
+    // 用户为上一份文档挑的导出目录不属于下一份：留着它会把 README 导出到
+    // 别的项目里去。
+    m_exportDirectory.clear();
     ++m_rev;
 
     Q_EMIT activeChanged();
@@ -525,16 +554,79 @@ void MarkdownPreviewController::reportError(const QString &json)
 }
 
 /**
- * @brief 页面把整篇序列化好的 HTML 交回来
+ * @brief 页面把整篇序列化好的 HTML 交回来，这里负责落盘
  * @param html 自包含的 HTML 文本
  *
  * purpose 由 requestMarkup() 记住：一次只可能有一个序列化请求在飞（按钮
  * 点了会等结果回来才再可用），所以不需要把 id 传进传出。
+ *
+ * 两条路都写盘，区别只在写到哪：
+ *  - "export" → exportDirectory()（空 = 文档所在目录）下的 exportFileName()。
+ *    图片在导出件里是**相对引用**，落在文档旁边才显示得出来，这是默认目录的
+ *    理由，也是用户换目录导出时要自己承担的后果。
+ *  - "browser" → <dataRoot>/preview 下的同名文件。外部浏览器不认识 awbmd://，
+ *    也没有文档目录的概念，只能给它一份真实的盘上文件。
+ * QML 侧不做文件 IO（AGENTS.md），所以目标位置在 requestMarkup() 之前就经
+ * setExportDirectory() 定好，这里只负责写与报结果。
  */
 void MarkdownPreviewController::reportMarkup(const QString &html)
 {
-    Q_EMIT markupReady(html, m_markupPurpose);
+    const QString purpose = m_markupPurpose;
     m_markupPurpose.clear();
+    Q_EMIT markupReady(html, purpose);
+
+    const QByteArray bytes = html.toUtf8();
+    QString target;
+    if (purpose == QLatin1String("browser")) {
+        QDir().mkpath(core::Paths::markdownPreviewDir());
+        target = core::Paths::markdownPreviewDir() + QLatin1Char('/')
+                + exportFileName();
+    } else {
+        const QString directory = m_exportDirectory.isEmpty()
+                ? m_document.directory() : m_exportDirectory;
+        if (directory.isEmpty()) {
+            Q_EMIT markupWriteFailed(purpose, QCoreApplication::translate(
+                "MarkdownPreviewController",
+                "There is no folder to export into: open a saved file first, "
+                "or pick a folder."));
+            return;
+        }
+        target = directory + QLatin1Char('/') + exportFileName();
+    }
+
+    const core::OpResult written = core::JsonStore::writeBytes(target, bytes);
+    if (!written) {
+        Q_EMIT markupWriteFailed(purpose, written.error);
+        return;
+    }
+    AWB_PERF << "markdown: wrote markup" << target << bytes.size() << "bytes";
+    Q_EMIT markupWritten(target, purpose);
+}
+
+/**
+ * @brief 记下导出目录
+ * @param directory 绝对路径；空串恢复默认（文档所在目录）
+ */
+void MarkdownPreviewController::setExportDirectory(const QString &directory)
+{
+    m_exportDirectory = directory;
+}
+
+/**
+ * @brief 导出文件的建议名
+ * @return 文档主名换 .html；没有文档时 "Markdown.html"
+ *
+ * 名字里带的是**当前文档**的主名，与内容脏不脏无关：导出件本来就是当前屏幕
+ * 上那份渲染结果，用户要的「把这份 README 导出去」不该得到一个 preview.html。
+ */
+QString MarkdownPreviewController::exportFileName() const
+{
+    const QString source = m_document.fileName();
+    if (source.isEmpty()) {
+        return QStringLiteral("Markdown.html");
+    }
+    const int dot = source.lastIndexOf(QLatin1Char('.'));
+    return (dot > 0 ? source.left(dot) : source) + QStringLiteral(".html");
 }
 
 /**

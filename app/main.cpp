@@ -229,6 +229,10 @@ int main(int argc, char *argv[])
     environment.start(4000);
     awb::workbench::WorkbenchContext workbench(&nav, &ui, &notifications,
                                                &agents, &webTabs, &settings);
+    // 文件树右键 → 预览窗口这条跨域线接在这里。控制器在每个构建里都存在，
+    // 所以这里无条件设；能力有没有由它的 available 决定（provider 没构造时
+    // 恒为假），不在接线处再判一次编译期开关。
+    workbench.setMarkdownPreview(&markdownPreview);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
     // 插件：manifest 总是发现（设置页列表要用），库只在用户开启总开关后
@@ -314,6 +318,15 @@ int main(int argc, char *argv[])
                                  &markdownEdit);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Markdown",
                                  &markdownPreview);
+#if defined(AWB_ENABLE_WEBENGINE) \
+    && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // 预览表面的 profile 供体：预览窗 QML 把它赋给 WebEngineView.profile。
+    // 只在真有表面的构建里注册——Qt 5 与 WebEngine 关闭的构建里既没有这个
+    // 类型，也没有会去用它的那扇窗（MainWindow.qml 的 Loader 以
+    // Markdown.available 为条件，那里恒为假）。
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownPreview",
+                                 &markdownProvider);
+#endif
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Workbench",
                                  &workbench);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Environment",
