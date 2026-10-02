@@ -680,9 +680,11 @@ private Q_SLOTS:
         QString text;
         for (int index = 0; index < 3000; ++index) {
             if (index % 20 == 0) {
+                // 单次 .arg() 会把所有 %1 一起填掉，多写一次是「Argument
+                // missing」警告的来源（填不出第二个占位符）。
                 text += QStringLiteral("## Section %1\n\n"
                                        "Body under heading %1.\n\n")
-                            .arg(index).arg(index);
+                            .arg(index);
                 continue;
             }
             text += QStringLiteral(
