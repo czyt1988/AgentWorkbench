@@ -140,12 +140,14 @@ void TrayController::showWindow()
 /**
  * @brief 点窗口 × 时是否应该收进托盘
  *
- * @return true = 托盘可用且 launcher.closeToTray 为真；false = 走正常退出
+ * @return true = 托盘可用，且用户记住了收进托盘的选择；false = 由窗口
+ *         询问或走退出流程
  */
 bool TrayController::canHideToTray() const
 {
-    return m_available && m_window != nullptr
-           && m_settings->launcherOptions().closeToTray;
+    const core::LauncherSettings &options = m_settings->launcherOptions();
+    return m_available && m_window != nullptr && options.rememberCloseAction
+           && options.closeToTray;
 }
 
 /**

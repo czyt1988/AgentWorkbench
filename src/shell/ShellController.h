@@ -34,6 +34,8 @@ class ShellController : public QObject
                    trayEnabledChanged)
     Q_PROPERTY(bool closeToTray READ closeToTray WRITE setCloseToTray NOTIFY
                    closeToTrayChanged)
+    Q_PROPERTY(bool rememberCloseAction READ rememberCloseAction WRITE
+                   setRememberCloseAction NOTIFY rememberCloseActionChanged)
     Q_PROPERTY(bool singleInstance READ singleInstance WRITE setSingleInstance
                    NOTIFY singleInstanceChanged)
 
@@ -78,12 +80,14 @@ public:
     QString webChromiumFlags() const;
     Q_INVOKABLE void setWebChromiumFlags(const QString &flags);
 
-    // 托盘三开关：图标显示、点 × 收进托盘、单实例。都即时写盘；其中
-    // singleInstance 只在启动时被读一次，改动要到下次启动才生效
+    // 托盘四开关：图标显示、记住的关闭动作、是否记住、单实例。都即时写盘；
+    // 其中 singleInstance 只在启动时被读一次，改动要到下次启动才生效
     bool trayEnabled() const;
     void setTrayEnabled(bool on);
     bool closeToTray() const;
     void setCloseToTray(bool on);
+    bool rememberCloseAction() const;
+    void setRememberCloseAction(bool on);
     bool singleInstance() const;
     void setSingleInstance(bool on);
 
@@ -127,6 +131,11 @@ Q_SIGNALS:
      * @brief 「点 × 收进托盘」开关（launcher.closeToTray）变化时发射
      */
     void closeToTrayChanged();
+
+    /**
+     * @brief 是否记住关闭选择（launcher.rememberCloseAction）变化时发射
+     */
+    void rememberCloseActionChanged();
 
     /**
      * @brief 单实例开关（launcher.singleInstance）变化时发射

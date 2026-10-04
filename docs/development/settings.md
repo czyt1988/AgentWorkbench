@@ -30,7 +30,7 @@ Boundaries:
 | `src/core/Settings.cpp` | `Settings::load()/save()` | Key-set validation, typed reads with clamping, unknown-key warnings, atomic write | `core::JsonStore`, `core::Logging` |
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
 | `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
-| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, tray/single-instance switches, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `shell.trayEnabled`, `shell.closeToTray`, `shell.singleInstance`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
+| `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, tray/close-choice/single-instance switches, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `shell.trayEnabled`, `shell.closeToTray`, `shell.rememberCloseAction`, `shell.singleInstance`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
 | `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | One row per runtime (version + install path) and a Re-detect action | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
 | `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
@@ -89,9 +89,9 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   `agents.setStartupVersionCheck(checked)` (next start only — the current
   session's snapshot is `agents.versionCheckEnabled`, which the agent cards use
   to hide the not-installed icon when no check ran), three more switches bound
-  to `shell.trayEnabled`, `shell.closeToTray` (disabled while the tray icon is
-  off) and `shell.singleInstance` (with a caption that it applies from the next
-  start), and a
+  to `shell.trayEnabled`, `shell.closeToTray` and `shell.rememberCloseAction`
+  (the close-action controls are disabled while the tray icon is off), and
+  `shell.singleInstance` (with a caption that it applies from the next start), and a
   `Repeater` over `agents.model` rendering `AListRow`s (icon, name, command, an
   `AStatusDot`, Edit and Delete). Editing opens `AgentEditDialog`; Delete opens a
   danger `AConfirmDialog` with contextual warnings (running / built-in) whose
@@ -154,7 +154,8 @@ Every key below is validated by `Settings::load()` and written back by
 | `launcher.healthCheckIntervalMs` | int | `3000` | Agent health-check interval; clamped `[100, 600000]` | `AgentsFacade` → `AgentHealthMonitor` |
 | `launcher.startupVersionCheck` | bool | `true` | Run the version probes at startup; off means no `versionCommand` processes, and cards hide the version label and not-installed icon (both are gated on the model's `versionKnown` role, which only a probe that finished can set; `AgentsFacade::versionCheckEnabled` remains the session snapshot, and **Re-detect version** in the card menu probes regardless of the switch) | `AgentsFacade::start()` gate, `SettingsLaunchersPage` switch |
 | `launcher.trayEnabled` | bool | `true` | Show the system-tray icon; turning it off hides the icon (and un-hides a window parked in the tray, which would otherwise be unreachable) | `TrayController::syncIcon()`, `SettingsLaunchersPage` switch |
-| `launcher.closeToTray` | bool | `false` | Closing the window hides it into the tray instead of exiting; quitting then happens via the tray menu or, with the tray unavailable, the window × | `TrayController::canHideToTray()`, `SettingsLaunchersPage` switch |
+| `launcher.closeToTray` | bool | `false` | The saved close action: `true` hides the window into the tray, `false` exits; used only when `launcher.rememberCloseAction` is true | `TrayController::canHideToTray()`, `MainWindow`, `SettingsLaunchersPage` switch |
+| `launcher.rememberCloseAction` | bool | `false` | Skip the close-choice dialog and execute `launcher.closeToTray`; false keeps asking whenever the tray is available | `MainWindow`, `ShellController`, `SettingsLaunchersPage` switch |
 | `launcher.singleInstance` | bool | `true` | A second launch activates the existing instance's window instead of starting a new one; **takes effect at the next start** (the guard runs before the UI is assembled) | `main.cpp` (SingleApplication) |
 | `web.surface` | string | `"embedded"` | `embedded` \| `external`; any other value warns and resets to the default | `WebTabsFacade`, `ShellController::webSurface()`, `SettingsWebPage` |
 | `web.freezeInactiveTabs` | bool | `false` | Freeze non-active tabs (Chromium already throttles them; freezing also suspends JS/websockets) | `WebTabsFacade` (`policyChanged`), `WebEngineSurface.qml` |
@@ -211,7 +212,7 @@ migration code and none should be added: adding a key means adding a default.
 
 | Subscriber | Keys it reacts to | Effect |
 |---|---|---|
-| `ShellController` | `window.sidebarCollapsed`, `window.sidebarWidth`, `window.width`, `window.height`, `window.title`, `web.surface`, `web.chromiumFlags`, `launcher.trayEnabled`, `launcher.closeToTray`, `launcher.singleInstance` | Re-broadcasts the corresponding property so external edits stay in sync |
+| `ShellController` | `window.sidebarCollapsed`, `window.sidebarWidth`, `window.width`, `window.height`, `window.title`, `web.surface`, `web.chromiumFlags`, `launcher.trayEnabled`, `launcher.closeToTray`, `launcher.rememberCloseAction`, `launcher.singleInstance` | Re-broadcasts the corresponding property so external edits stay in sync |
 | `TrayController` | `launcher.trayEnabled` | Re-creates or hides the tray icon immediately |
 | `Theme` | `appearance.theme` or `appearance.followSystem` → `loadCurrent()`; `appearance.fontFamily` → `changed()` | Reloads the theme (also re-resolving the follow-system baseline) or just re-binds the font token |
 | `AgentsFacade` | `launcher.startupVersionCheck` → `startupVersionCheckChanged()` | Re-broadcasts the persisted switch so the settings page echo stays in sync; the session snapshot `versionCheckEnabled` is only re-decided in `start()` |

@@ -40,11 +40,13 @@ whether each is running.
   click the `^` chevron on the taskbar to find it, or pin it under
   **Settings → Personalization → Taskbar → Other system tray icons** so it
   stays visible.
-- **Close to tray instead of exiting** - when on, closing the window hides it
-  to the tray and the app keeps running; the tray icon's **Quit** (or
-  right-click **Quit**) is then the way to exit. Only available while the tray
-  icon is on. When off, closing the window exits as before (still asking for
-  confirmation when agents are running).
+- **When remembered, close to tray instead of exiting** - chooses what a
+  remembered close action does. When it is on, closing the window hides it to
+  the tray and the app keeps running; when it is off, closing exits as usual.
+- **Remember my close choice** - off by default. With a tray icon available,
+  closing the window first asks whether to exit or minimize to the tray. Turn
+  this on to skip that question and use the chosen action until you change it
+  here. Both controls are available only while the tray icon is on.
 - **Single instance** - when on, starting the app a second time does not open
   a second window: the existing one is brought to the front instead. Takes
   effect at the next start.

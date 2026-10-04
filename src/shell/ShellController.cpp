@@ -46,6 +46,9 @@ ShellController::ShellController(core::Settings *settings, QObject *parent)
                 else if (key == QStringLiteral("launcher.closeToTray")) {
                     Q_EMIT closeToTrayChanged();
                 }
+                else if (key == QStringLiteral("launcher.rememberCloseAction")) {
+                    Q_EMIT rememberCloseActionChanged();
+                }
                 else if (key == QStringLiteral("launcher.singleInstance")) {
                     Q_EMIT singleInstanceChanged();
                 }
@@ -295,6 +298,30 @@ void ShellController::setCloseToTray(bool on)
     m_settings->setCloseToTray(on);
     m_settings->save();
     Q_EMIT closeToTrayChanged();
+}
+
+/**
+ * @brief 取是否记住窗口关闭操作
+ *
+ * @return true = 直接按 closeToTray 执行；false = 每次询问
+ */
+bool ShellController::rememberCloseAction() const
+{
+    return m_settings->launcherOptions().rememberCloseAction;
+}
+
+/**
+ * @brief 写是否记住窗口关闭操作并持久化
+ *
+ * @param on true = 以后直接执行保存的动作
+ */
+void ShellController::setRememberCloseAction(bool on)
+{
+    if (m_settings->launcherOptions().rememberCloseAction == on) {
+        return;
+    }
+    m_settings->setRememberCloseAction(on);
+    m_settings->save();
 }
 
 /**

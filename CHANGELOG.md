@@ -28,12 +28,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   4 MB, 2.6 MB of which is mermaid, requested only when a document contains a
   diagram).
 - **System tray**: an optional tray icon (Show/Hide/Quit menu, left-click
-  toggle, one-time balloon hint) plus close-to-tray — while the tray is
-  available the app no longer exits on last-window-closed; every exit is
-  explicit and still asks when agents are running. Settings: `launcher.trayEnabled`
-  (default `true`) and `launcher.closeToTray` (default `false`), both live.
-  The shell module links `Qt::Widgets` for this. Windows may park the new icon in
-  its hidden-icons area; the guide says how to pin it.
+  toggle, one-time balloon hint) plus a close-choice dialog — while the tray
+  is available the app no longer exits on last-window-closed; closing the
+  window asks whether to exit or minimize to the tray until the choice is
+  remembered, and every exit is explicit and still asks when agents are
+  running. Settings: `launcher.trayEnabled` (default `true`),
+  `launcher.rememberCloseAction` (default `false`) and `launcher.closeToTray`
+  (default `false`, the remembered action), all live. The shell module links
+  `Qt::Widgets` for this. Windows may park the new icon in its hidden-icons
+  area; the guide says how to pin it.
 - **Single instance**: an optional guard (vendored SingleApplication 3.5.6)
   where a second start brings the existing window to the front instead of
   opening another one. Setting: `launcher.singleInstance` (default `true`),

@@ -48,9 +48,9 @@ public:
     Q_INVOKABLE void hideToTray();
     Q_INVOKABLE void showWindow();
 
-    // 点窗口 × 时该不该收进托盘：托盘可用且 launcher.closeToTray 打开。
-    // 用 Q_INVOKABLE 而不是属性——QML 在 onClosing 里即时问一次，不需要
-    // 绑定，也就没有属性缓存过期的问题
+    // 点窗口 × 时该不该收进托盘：托盘可用、关闭选择已记住且
+    // launcher.closeToTray 打开。用 Q_INVOKABLE 而不是属性——QML 在 onClosing
+    // 里即时问一次，不需要绑定，也就没有属性缓存过期的问题
     Q_INVOKABLE bool canHideToTray() const;
 
 Q_SIGNALS:

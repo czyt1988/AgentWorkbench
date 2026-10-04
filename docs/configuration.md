@@ -52,7 +52,7 @@ Missing keys take their defaults in place — there is no migration code:
   "locale":  { "override": "" },
   "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true,
                "trayEnabled": true, "closeToTray": false,
-               "singleInstance": true },
+               "rememberCloseAction": false, "singleInstance": true },
   "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
@@ -83,10 +83,12 @@ Missing keys take their defaults in place — there is no migration code:
   neither a version label nor an install/download icon. Applies from the next
   start.
 - `launcher.trayEnabled` (default `true`) shows the app icon in the system
-  tray; the tray menu offers show/hide and quit. `launcher.closeToTray`
-  (default `false`) makes closing the window hide it into the tray instead of
-  exiting — quitting then happens via the tray menu. The first hide shows a
-  one-time balloon pointing at the tray. Both apply immediately.
+  tray; the tray menu offers show/hide and quit. With a tray available, closing
+  the window asks whether to exit or minimize to the tray until
+  `launcher.rememberCloseAction` (default `false`) is enabled. The saved action
+  is selected by `launcher.closeToTray`: `true` minimizes to the tray and
+  `false` exits. The first hide shows a one-time balloon pointing at the tray.
+  All three keys apply immediately.
 - `launcher.singleInstance` (default `true`) makes a second launch activate
   the existing window instead of opening a new instance. Applies from the next
   start.

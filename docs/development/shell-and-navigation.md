@@ -26,7 +26,7 @@ Boundaries:
 | `src/shell/PageDescriptor.h` | `PageDescriptor`, `NavKind` | The shell's view of one sidebar row — a page or a static group label: `id`, `title`, `iconSource`, `source`, `section`, `order`, `badgeText`, `enabled`, `keepAlive`, `kind`, `level` | `NavigationModel`, `BuiltinPages` |
 | `src/shell/NavigationModel.h` | `NavigationModel` | Sidebar-row registry plus the sidebar/workspace list model; properties `currentPageId`, `currentPage`, `badges`, `keepAlivePages`; `Roles` | `Sidebar.qml`, `Workspace.qml`, `StatusBar.qml`, `MainWindow.qml`, `BuiltinPages` |
 | `src/shell/NavigationModel.cpp` | `NavigationModel` | Registration validation, section sort, badge updates, ordered page ids, rejecting group labels as destinations | `BuiltinPages` |
-| `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags, tray/single-instance switches | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `SettingsLaunchersPage.qml`, `core::Settings` |
+| `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags, tray/remembered-close/single-instance switches | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `SettingsLaunchersPage.qml`, `core::Settings` |
 | `src/shell/ShellController.cpp` | `ShellController` | Getters/setters, `saveWindowSize()`, `valueChanged` re-broadcast | `core::Settings` |
 | `src/shell/TrayController.h` / `.cpp` | `TrayController` | System-tray icon (`QSystemTrayIcon` + `QMenu`) with a minimal Show/Hide + Quit menu; hide-to-tray, raise-from-tray, `quitRequested` | `MainWindow.qml` (onClosing, quit flow), `core::Settings` |
 | `src/shell/UiServices.h` | `UiServices` | Clipboard, external URL/file-manager, native folder/colour dialogs, recent-colour memory; colour-picker support data | `ToolsPage.qml`, `AgentEditDialog.qml`, `AColorPicker.qml`, `WorkbenchContext` |
@@ -82,9 +82,12 @@ The window assembles the frame:
 - **Font binding.** `font.family: theme.family.length > 0 ? theme.family :
   undefined`, so an empty token falls back to the system default; `theme.changed`
   makes it live.
-- **Exit confirmation.** `onClosing` first calls `shell.saveWindowSize()`, then,
-  if `agents.hasLaunchedAgents()` and the user has not confirmed, blocks the
-  close and opens an `ADialog` with three buttons (close background terminals
+- **Close choice and exit confirmation.** `onClosing` first calls
+  `shell.saveWindowSize()`. With a tray available it opens a close-choice
+  `ADialog` until `launcher.rememberCloseAction` is true; the choice can exit or
+  minimize to the tray and may save the action. A remembered tray action hides
+  the window. Any exit path still blocks for the existing three-button
+  `ADialog` when `agents.hasLaunchedAgents()` is true (close background terminals
   via `agents.stopAll()`, exit anyway, cancel).
 - **Legacy notice.** An `AAlertDialog` opens once in `Component.onCompleted`
   when `workbench.legacyImportNotice` is non-empty.
@@ -321,8 +324,9 @@ engine loads.
   destructor so it dies before the base `QObject` teardown.
 - **Settings.** `launcher.trayEnabled` gates the icon; a `valueChanged`
   connection re-syncs the icon when the settings page toggles it at runtime.
-  `launcher.closeToTray` is only consulted by `MainWindow.qml`'s `onClosing`.
-  `available` mirrors `QSystemTrayIcon::isSystemTrayAvailable()` (with
+  `MainWindow.qml` consults `launcher.rememberCloseAction` before opening the
+  close-choice dialog and uses `launcher.closeToTray` only for a remembered
+  action. `available` mirrors `QSystemTrayIcon::isSystemTrayAvailable()` (with
   `availableChanged`), and `hidden` tracks hide-to-tray state. The icon carries
   a tooltip because Windows lists hidden-area icons by that text: without it the
   entry in the "Show hidden icons" flyout is anonymous, and `syncIcon()` logs

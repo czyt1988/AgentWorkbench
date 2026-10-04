@@ -60,16 +60,34 @@ ApplicationWindow {
     // 不再重复弹窗。
     property bool exitConfirmed: false
 
-    // 关闭语义按 launcher.closeToTray 分流：开着 = 收进托盘（窗口不关，
-    // 事件循环继续）；关着 = 既有退出流程——确认弹窗挡一道后台终端。托盘
-    // 可用期间 main.cpp 关掉了 quitOnLastWindowClosed，因此真正的退出都
-    // 经 exitNow() 显式结束事件循环，不能指望「窗口关完就退出」。
+    // 关闭选择未记住时，× 先显示一个二选一对话框。记住后才按保存的动作
+    // 分流；退出路径仍保留后台终端确认。托盘可用期间 main.cpp 关掉了
+    // quitOnLastWindowClosed，真正的退出必须经 exitNow() 显式结束事件循环。
     function exitNow(stopAgents) {
         if (stopAgents)
             agents.stopAll()
         exitConfirmed = true
         close()
         workbench.quit()
+    }
+
+    function requestExit() {
+        if (agents.hasLaunchedAgents())
+            exitConfirmPopup.open()
+        else
+            exitNow(false)
+    }
+
+    function chooseCloseAction(hideToTray) {
+        if (closeChoicePopup.rememberChoice) {
+            shell.closeToTray = hideToTray
+            shell.rememberCloseAction = true
+        }
+        closeChoicePopup.close()
+        if (hideToTray)
+            tray.hideToTray()
+        else
+            requestExit()
     }
 
     // 托盘菜单点「退出」：与点窗口 × 走同一条路（含后台终端确认）。窗口
@@ -92,6 +110,11 @@ ApplicationWindow {
         shell.saveWindowSize(width, height)
         if (exitConfirmed)
             return
+        if (tray.available && !shell.rememberCloseAction) {
+            close.accepted = false
+            closeChoicePopup.open()
+            return
+        }
         if (tray.canHideToTray()) {
             close.accepted = false
             tray.hideToTray()
@@ -205,6 +228,58 @@ ApplicationWindow {
         function onActiveChanged() {
             if (!markdown.active)
                 window.markdownWindowOpen = false
+        }
+    }
+
+    // --- 窗口关闭选择 --------------------------------------------------------
+    ADialog {
+        id: closeChoicePopup
+        width: 440
+        titleText: qsTr("Close AgentWorkbench?")
+        property bool rememberChoice: false
+
+        onClosed: rememberChoice = false
+
+        ColumnLayout {
+            width: closeChoicePopup.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Do you want to exit or keep AgentWorkbench running in the tray?")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            CheckBox {
+                text: qsTr("Remember my choice")
+                // Basic/Default 样式的标签色取自系统调色板，与应用主题无关：
+                // 深色主题 + 系统浅色时是黑字黑底，显式钉到主题令牌上。
+                palette.windowText: theme.textPrimary
+                checked: closeChoicePopup.rememberChoice
+                onToggled: closeChoicePopup.rememberChoice = checked
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Exit")
+                    onClicked: window.chooseCloseAction(false)
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Minimize to Tray")
+                    onClicked: window.chooseCloseAction(true)
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: closeChoicePopup.close()
+                }
+            }
         }
     }
 

@@ -35,7 +35,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   "locale":  { "override": "" },
   "launcher": { "healthCheckIntervalMs": 3000, "startupVersionCheck": true,
                "trayEnabled": true, "closeToTray": false,
-               "singleInstance": true },
+               "rememberCloseAction": false, "singleInstance": true },
   "web":     { "surface": "embedded", "freezeInactiveTabs": false,
                "maxLiveTabs": 8, "downloadDir": "", "chromiumFlags": "",
                "homeUrl": "" },
@@ -60,9 +60,10 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   时不运行任何 `versionCommand` 进程，卡片也不显示版本标签和安装/下载图标。下次
   启动起生效。
 - `launcher.trayEnabled`（默认 `true`）在系统托盘显示应用图标；托盘菜单提供
-  显示/隐藏与退出。`launcher.closeToTray`（默认 `false`）让关闭窗口时收进托盘
-  而不是退出——此时退出经托盘菜单完成。首次收起会弹一次气泡提示托盘位置。
-  两者即时生效。
+  显示/隐藏与退出。托盘可用时，关闭窗口会先询问是退出还是收进托盘，直到开启
+  `launcher.rememberCloseAction`（默认 `false`）。保存的动作由
+  `launcher.closeToTray` 决定：`true` 收进托盘，`false` 退出。首次收起会弹一次
+  气泡提示托盘位置。三个键都即时生效。
 - `launcher.singleInstance`（默认 `true`）让再次启动激活已有窗口而不是新开实例。
   下次启动起生效。
 - `web.homeUrl`（默认空）是网页页 **主页** 按钮打开的地址；留空保持「回到运行中

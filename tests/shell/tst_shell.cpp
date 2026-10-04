@@ -292,6 +292,35 @@ private Q_SLOTS:
                  qPrintable(failures.join(QStringLiteral("\n"))));
     }
 
+    // 关闭动作只在 rememberCloseAction 打开后才会被主窗口直接执行；两项经
+    // ShellController 分别持久化，用户在设置页重新关掉记忆后下次关闭会再问。
+    void testRememberedCloseActionPersists()
+    {
+        QVERIFY(QDir().mkpath(
+            QFileInfo(Settings::settingsFilePath()).absolutePath()));
+        QFile::remove(Settings::settingsFilePath());
+        {
+            Settings settings;
+            ShellController shell(&settings);
+            QSignalSpy actionSpy(&shell, &ShellController::closeToTrayChanged);
+            QSignalSpy rememberSpy(&shell,
+                                   &ShellController::rememberCloseActionChanged);
+            shell.setCloseToTray(true);
+            shell.setRememberCloseAction(true);
+            QVERIFY(shell.closeToTray());
+            QVERIFY(shell.rememberCloseAction());
+            QCOMPARE(actionSpy.count(), 2);
+            QCOMPARE(rememberSpy.count(), 1);
+        }
+        {
+            Settings settings;
+            ShellController shell(&settings);
+            QVERIFY(shell.closeToTray());
+            QVERIFY(shell.rememberCloseAction());
+        }
+        QFile::remove(Settings::settingsFilePath());
+    }
+
     // 侧栏折叠与窗口几何持久化到 settings.json，新的 controller 读得回来。
     // 宽度经 setSidebarWidth 钳制到 [180, 480]：低于下限侧栏内容挤成一团，
     // 高于上限工作区被吃掉大半——拖拽手柄据此算极限，这里钉住边界。

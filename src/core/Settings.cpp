@@ -192,6 +192,7 @@ const QSet<QString> kLauncherKeys = { QStringLiteral("healthCheckIntervalMs"),
                                       QStringLiteral("startupVersionCheck"),
                                       QStringLiteral("trayEnabled"),
                                       QStringLiteral("closeToTray"),
+                                      QStringLiteral("rememberCloseAction"),
                                       QStringLiteral("singleInstance") };
 const QSet<QString> kWebKeys = {
     QStringLiteral("surface"), QStringLiteral("freezeInactiveTabs"),
@@ -342,6 +343,9 @@ void Settings::load()
     m_launcher.closeToTray =
         readBool(launcher, QStringLiteral("closeToTray"),
                  m_launcher.closeToTray, QStringLiteral("launcher"));
+    m_launcher.rememberCloseAction =
+        readBool(launcher, QStringLiteral("rememberCloseAction"),
+                 m_launcher.rememberCloseAction, QStringLiteral("launcher"));
     m_launcher.singleInstance =
         readBool(launcher, QStringLiteral("singleInstance"),
                  m_launcher.singleInstance, QStringLiteral("launcher"));
@@ -605,6 +609,17 @@ void Settings::setCloseToTray(bool on)
 }
 
 /**
+ * @brief 写是否记住窗口关闭操作
+ *
+ * @param on true = 以后按 launcher.closeToTray 直接执行；false = 每次询问
+ */
+void Settings::setRememberCloseAction(bool on)
+{
+    m_launcher.rememberCloseAction = on;
+    Q_EMIT valueChanged(QStringLiteral("launcher.rememberCloseAction"));
+}
+
+/**
  * @brief 写「只允许一个实例」开关
  *
  * @note 只在启动时读取——实例协商发生在窗口与门面装配之前，运行期改它
@@ -728,6 +743,8 @@ OpResult Settings::save()
         m_launcher.startupVersionCheck;
     launcher[QStringLiteral("trayEnabled")] = m_launcher.trayEnabled;
     launcher[QStringLiteral("closeToTray")] = m_launcher.closeToTray;
+    launcher[QStringLiteral("rememberCloseAction")] =
+        m_launcher.rememberCloseAction;
     launcher[QStringLiteral("singleInstance")] = m_launcher.singleInstance;
 
     QJsonObject web;

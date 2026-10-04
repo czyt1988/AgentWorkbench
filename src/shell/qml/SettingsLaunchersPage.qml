@@ -130,7 +130,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    text: qsTr("Close to tray instead of exiting")
+                    text: qsTr("When remembered, close to tray instead of exiting")
                     color: theme.textPrimary
                     font.pixelSize: theme.fontSizeBody
                 }
@@ -138,6 +138,24 @@ Item {
                     checked: shell.closeToTray
                     enabled: shell.trayEnabled
                     onToggled: shell.closeToTray = checked
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Remember my close choice")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: shell.rememberCloseAction
+                    enabled: shell.trayEnabled
+                    onToggled: shell.rememberCloseAction = checked
                 }
             }
             RowLayout {
