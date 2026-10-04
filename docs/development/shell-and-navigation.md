@@ -323,7 +323,11 @@ engine loads.
   connection re-syncs the icon when the settings page toggles it at runtime.
   `launcher.closeToTray` is only consulted by `MainWindow.qml`'s `onClosing`.
   `available` mirrors `QSystemTrayIcon::isSystemTrayAvailable()` (with
-  `availableChanged`), and `hidden` tracks hide-to-tray state.
+  `availableChanged`), and `hidden` tracks hide-to-tray state. The icon carries
+  a tooltip because Windows lists hidden-area icons by that text: without it the
+  entry in the "Show hidden icons" flyout is anonymous, and `syncIcon()` logs
+  `trayEnabled` / `isSystemTrayAvailable()` / whether the icon object exists so
+  "where is my tray icon" is answerable from the log alone.
 - **The tray never quits on its own.** Quit emits `quitRequested`; the window
   decides. This keeps the exit confirmation (running agents) as the single
   exit path — the connection in `MainWindow.qml` first un-hides the window so

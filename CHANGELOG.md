@@ -32,7 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   available the app no longer exits on last-window-closed; every exit is
   explicit and still asks when agents are running. Settings: `launcher.trayEnabled`
   (default `true`) and `launcher.closeToTray` (default `false`), both live.
-  The shell module links `Qt::Widgets` for this.
+  The shell module links `Qt::Widgets` for this. Windows may park the new icon in
+  its hidden-icons area; the guide says how to pin it.
 - **Single instance**: an optional guard (vendored SingleApplication 3.5.6)
   where a second start brings the existing window to the front instead of
   opening another one. Setting: `launcher.singleInstance` (default `true`),

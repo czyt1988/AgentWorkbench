@@ -36,6 +36,10 @@ whether each is running.
   (notification area). Left-clicking it shows or hides the window; its menu
   offers **Show**, **Hide** and **Quit**. Applies at once. The first time you
   hide the window this way, a small balloon reminds you where it went.
+  Windows keeps a newly appearing icon in the hidden-icons area by default:
+  click the `^` chevron on the taskbar to find it, or pin it under
+  **Settings → Personalization → Taskbar → Other system tray icons** so it
+  stays visible.
 - **Close to tray instead of exiting** - when on, closing the window hides it
   to the tray and the app keeps running; the tray icon's **Quit** (or
   right-click **Quit**) is then the way to exit. Only available while the tray

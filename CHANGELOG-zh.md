@@ -25,7 +25,8 @@
   气泡提示）与「收进托盘」关闭行为——托盘可用期间应用不再随最后一个窗口
   关闭而退出，所有退出都是显式的，agent 运行中依旧先询问。设置键：
   `launcher.trayEnabled`（默认 `true`）与 `launcher.closeToTray`（默认
-  `false`），立即生效。shell 模块为此链接 `Qt::Widgets`。
+  `false`），立即生效。shell 模块为此链接 `Qt::Widgets`。Windows 可能把新出现的
+  图标收进「隐藏的图标」区，指引里写了怎么把它固定出来。
 - **单实例**：可选的守卫（内置 SingleApplication 3.5.6），再次启动时把已有
   窗口带到最前而不是开出第二个。设置键：`launcher.singleInstance`（默认
   `true`），下次启动起生效。
