@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Prompt workbench relayout**: the page (formerly **Agent Tools - Prompt**,
+  now **Prompt Writing**) swaps its panes — the file tree sits on the **left**,
+  the editor fills the right workspace — and the workspace switcher, the
+  folder picker and the refresh button move into a compact header row on top
+  of the tree (the picker is an icon-only button whose tooltip names it; the
+  switcher tracks the tree's width when the divider is dragged). **Copy** moves
+  into the page header, the toolbar row is gone, and both panes drop their
+  corner radius at the divider so the tree and the editor meet the splitter
+  flush. The sidebar drops the one-member **Agent Tools** group label: the page
+  is a plain top-level row again (registration id unchanged).
 - **Markdown preview window**: right-clicking a `.md` file in the Agent Tools
   file tree (**Preview Markdown**) opens it in a window of its own. It renders
   fully offline from a vendored runtime (markdown-it 15.0.2, KaTeX 0.19.0,
@@ -85,13 +95,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   to), and Re-detect moved into the page header with a busy indicator.
 - **Sidebar group labels and indented rows**: a sidebar row can now be a static
   group heading instead of a destination (`NavKind::Header`), and the rows under
-  it indent by their `level`. The first group is **Agent Tools**, whose page is
+  it indent by their `level`. The first group was **Agent Tools** with its page
   relabelled **Agent Tools - Prompt** (Chinese UI: 「Agent 工具」/「Agent 工具 ·
-  提示词」) and indented under it — the label is not clickable, never highlights,
-  takes no `Ctrl+1…9` slot, carries no badge and cannot become the current page,
-  and hides entirely while the sidebar is collapsed. The page keeps its
+  提示词」) indented under it — the label was not clickable, never highlighted,
+  took no `Ctrl+1…9` slot, carried no badge and could not become the current
+  page, and hid entirely while the sidebar was collapsed. The page kept its
   registration id `tools`, so the remembered last page still resolves. Covered
-  by a new `tst_shell` case (`testSidebarGroupLabel`).
+  by a new `tst_shell` case (`testSidebarGroupLabel`). (Unreleased: the
+  group's one member has since been promoted back to a top-level row — see
+  the relayout entry above.)
 
 ### Changed
 

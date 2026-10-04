@@ -166,8 +166,8 @@ and be adjacent in `order` to — the rows it heads.
 
 `BuiltinPages::registerPages()` is the single place where the built-in sidebar
 rows are declared — the launcher (`agents`), Web (`web`), Skills (`skills`), the
-`tools-group` group label, the prompt workbench page under it (`tools`) and
-Settings (`settings`). A new built-in page, or a new group label, is added there.
+prompt workbench (`tools`) and Settings (`settings`). A new built-in page, or a
+new group label, is added there.
 
 `keepAlive` is not free. A keep-alive page is created once and survives page
 switches; the Workspace only hides it. That is required for pages whose state

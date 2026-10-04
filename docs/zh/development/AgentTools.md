@@ -2,13 +2,13 @@
 
 ## 这个功能做什么
 
-侧栏里这一页显示为 **Agent 工具 · 提示词**，挂在不可点击的分组标签 **Agent 工具** 之下；它的注册 id 仍是 `tools`，所以记住的 `window.lastPageId` 照样解析到它（侧栏怎么分组属于 shell 的事，见 [workbench 与页面](workbench与页面.md)）。本页是一个提示词编写台，为两个具体痛点而存在：
+侧栏里这一页显示为 **提示词撰写**——一个顶层条目（原先挂在静态分组标签下，后来这个组始终只有一页，标签就删了）；它的注册 id 仍是 `tools`，所以记住的 `window.lastPageId` 照样解析到它（侧栏怎么分组属于 shell 的事，见 [workbench 与页面](workbench与页面.md)）。本页是一个提示词编写台，为两个具体痛点而存在：
 
 1. 在提示词里引用文件，通常要手拼相对路径。
 2. 直接把提示词敲进 agent CLI，有在半成品上误触回车、把消息发出去的风险。
 
 因此本页**没有发送动作**。回车只换行，什么都不会离开这一页；提示词写好后由用户
-复制粘贴进目标 agent。右侧面板浏览当前工作区，可经拖放或双击把
+复制粘贴进目标 agent。左侧面板浏览当前工作区，可经拖放或双击把
 `` `./相对路径` `` 文件引用插进编辑器。
 
 边界：本页不与任何 agent 通信、不运行任何东西、不编辑仓库文件。它唯一的读取是
@@ -35,7 +35,7 @@
 | `src/tools/MarkdownEdit.cpp` | `MarkdownEdit` | 静态光标操作、主题配色、高亮器簿记 | `MarkdownHighlighter` |
 | `src/tools/MarkdownHighlighter.h` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
 | `src/tools/MarkdownHighlighter.cpp` | `MarkdownHighlighter::highlightBlock()` | 围栏状态机加行内正则规则 | `MarkdownEdit` |
-| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | 页面：头部、工作区下拉、添加/刷新/复制工具栏、含编辑器与文件树的 `SplitView` | `tools.*`、`ui.pickFolder`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench.canPreviewMarkdown()` / `previewMarkdown()` |
+| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | 页面：头部（含 `Copy` 主动作）、`SplitView`（左文件树、右编辑器） | `tools.*`、`ui.pickFolder`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench.canPreviewMarkdown()` / `previewMarkdown()` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
 | `src/tools/CMakeLists.txt` | 构建目标 `awb_tools` | 静态库；`Qt::Quick` 是 PRIVATE 链接（只有 `MarkdownEdit` 碰 `QQuickTextDocument`） | — |
 
@@ -47,11 +47,10 @@
 
 ### `ToolsPage.qml` 布局
 
-一个 `ColumnLayout`：`PageHeader`（标题 `Agent Tools - Prompt`，中文界面显示「Agent 工具 · 提示词」）→ 工具栏行 → `SplitView`。
+一个 `ColumnLayout`：`PageHeader`（标题 `Prompt Writing`，中文界面显示「提示词撰写」，`Copy` 主动作在头部的动作槽里）→ `SplitView`。
 
-- **工具栏。** 一个 `Workspace` 标签、工作区 `AComboBox`、`Add Folder...` 按钮、
-  一个刷新 `AIconButton`（无工作区时禁用），以及靠右落在编辑区正上方的 `Copy`
-  主动作。
+- **分割顺序。** 文件树是**左**栏、编辑器是**右**栏；树保持 `preferredWidth`，编辑器吃剩余宽度。
+- **树面板头部。** 树面板顶部一排紧凑的 `RowLayout`：工作区 `AComboBox`（`Layout.fillWidth`，拖分割线调树宽时下拉框同步伸缩）、选文件夹的 `AIconButton`（只放图标，tooltip 为 **Choose a workspace folder**）与刷新 `AIconButton`（无工作区时禁用）。面板不带圆角：树与编辑器在分割线处以直角齐平相接，圆角会在交界处切出楔形缺口。
 - **工作区 `AComboBox`。** `model: tools.workspaces`、`currentIndex:
   page.currentWorkspaceIndex()`。`contentItem` 与 `delegate` 都被覆写：默认
   `ItemDelegate` 的背景是硬编码浅色系、深色主题下不可读，所以 delegate 自带
@@ -61,7 +60,8 @@
   （`objectName: "promptScroll"`、`clip`、`StopAtBounds`）挂
   `ScrollBar.vertical: AScrollBar {}`，内容体是经 `TextArea.flickable` 附加属性
   附上去的 `ATextArea`；`SplitView.fillWidth` 与 `minimumWidth: 260` 落在
-  `Flickable` 上。`TextArea` 自己的文本滚不动——裸用会把超出可视区的内容画到
+  `Flickable` 上。`ATextArea` 设 `cornerRadius: 0`——左缘与分割线齐平相接，理由
+  同树面板。`TextArea` 自己的文本滚不动——裸用会把超出可视区的内容画到
   够不着的地方——附加属性补齐了滚动需要的那三件事：文本随内容高度增长、每次
   `cursorRectangleChanged` 把光标滚回视野、以及把文本组件自身的背景（外框、
   焦点环）改挂到 `Flickable` 上并按它定尺寸，于是外框钉在视口上、文本在它下面
@@ -295,8 +295,7 @@ flowchart TD
       含 `qsTr()` 时还要进 `AWB_TS_SOURCES`。
 - [ ] `tests/tools/tst_toolsui.cpp` 依赖的 `objectName` 未改，或同一提交里改了测试。
 - [ ] `BuiltinPages::registerPages()` 里的侧栏注册仍用 id `tools`（改名会让持久化的
-      `window.lastPageId` 找不到页），`order` 仍与 `tools-group` 标签相邻（否则这一行
-      会跑到别的分组底下），且 `title` 与 `PageHeader` 的标题一致。
+      `window.lastPageId` 找不到页），且 `title` 与 `PageHeader` 的标题一致。
 - [ ] 模型 `roleNames()` 仍与 delegate 的 `required property` 名匹配。
 - [ ] `config/default_file_icons.json` 里的键名未被改名。
 - [ ] `tools.json` 的键名未变。
