@@ -4,7 +4,9 @@
 your own pace in a text editor, with a file tree beside it, and copy the finished
 text into the agent when you are ready. **Nothing is ever sent from this page.**
 
-Find it in the sidebar as the row **Prompt Writing**.
+Find it in the sidebar as the row **Prompt Writing**, listed under the
+**Agent Tools** heading. That heading is only a name for the group: clicking it
+does nothing, and it disappears when the sidebar is collapsed to icons.
 
 ## What it is
 

@@ -44,7 +44,9 @@ The window has three parts.
 - **Skills** - a searchable list of the "skill" instruction files found on your
   computer, with their locations.
 - **Prompt Writing** - the prompt-composing scratchpad with a file tree beside
-  it.
+  it. It sits under an **Agent Tools** heading, which is a group name rather
+  than a page: clicking it does nothing, and it is hidden while the sidebar is
+  collapsed.
 - **Settings** - pinned at the very bottom as an icon. Themes, launchers,
   environment checks, skill folders, browser options, plugins and reset
   actions.

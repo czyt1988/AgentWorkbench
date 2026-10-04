@@ -2,9 +2,10 @@
 
 ## What this feature does
 
-The page the sidebar opens is **Prompt Writing** — a single top-level row (it
-used to sit under a static group label, dropped once it became clear the group
-would stay a one-member family); its registration id stays `tools`, so a
+The page the sidebar opens is **Prompt Writing**, listed under the static
+**Agent Tools** group label — a family reserved for agent-facing tools, of which
+this is the first member; the member's title carries no "Agent Tools" prefix
+because the label already says it. Its registration id stays `tools`, so a
 remembered `window.lastPageId` keeps resolving to it (the rows themselves are
 the shell's business — see [Workbench and pages](workbench-and-pages.md)). It
 is a prompt workbench, and it exists to solve two concrete pain points:
@@ -371,8 +372,9 @@ both use it, so the prompt always receives the same shape.
 - [ ] `objectName`s used by `tests/tools/tst_toolsui.cpp` are unchanged, or the
       test is updated in the same commit.
 - [ ] The sidebar registration in `BuiltinPages::registerPages()` still uses the
-      id `tools` (renaming it strands the persisted `window.lastPageId`), and
-      its `title` matches the `PageHeader` title.
+      id `tools` (renaming it strands the persisted `window.lastPageId`) and an
+      `order` adjacent to the `tools-group` label (otherwise the row falls under
+      another label), and its `title` matches the `PageHeader` title.
 - [ ] Model `roleNames()` still match the delegate's `required property` names.
 - [ ] `FileIcons` key names in `config/default_file_icons.json` were not renamed.
 - [ ] `tools.json` key names are unchanged.
