@@ -168,6 +168,11 @@ void TrayController::syncIcon()
         }
         else {
             m_icon = new QSystemTrayIcon(icon, this);
+            // 提示文字同时是托盘图标的辅助功能名：Windows 11 默认把新图标收进
+            // 「显示隐藏的图标」溢出区，那里只显示名字不显示 tooltip，不设这一
+            // 项的话溢出面板里会是一个没有名字的格子，用户无从认出是本应用。
+            m_icon->setToolTip(
+                QCoreApplication::translate("TrayController", "AgentWorkbench"));
 
             m_menu = new QMenu;
             m_toggleAction = m_menu->addAction(QString(), this, [this]() {
@@ -219,6 +224,16 @@ void TrayController::syncIcon()
 
     if (m_available != nowVisible) {
         m_available = nowVisible;
+        // 「托盘图标怎么没出现」是本功能最常见的问题，而 Windows 会把新图标
+        // 默认收进溢出区，看起来就像功能没生效。三个判据一次性写进日志，
+        // 不用重跑就能区分是设置关了、系统托盘不可用，还是图标已经显示、
+        // 只是被系统藏进了溢出区。
+        qInfo() << "[shell] tray:" << (nowVisible ? "icon shown" : "icon hidden")
+                << "| trayEnabled="
+                << m_settings->launcherOptions().trayEnabled
+                << "| systemTrayAvailable="
+                << QSystemTrayIcon::isSystemTrayAvailable()
+                << "| iconObjectCreated=" << (m_icon != nullptr);
         Q_EMIT availableChanged();
     }
 }
