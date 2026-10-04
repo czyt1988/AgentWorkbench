@@ -102,11 +102,21 @@ void BuiltinPages::registerPages()
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
 
-    // The prompt workbench is a single top-level destination. It used to sit
-    // under an "Agent Tools" group label (kept for a family of tools that
-    // never grew), which made the user-facing name twice as long; with one
-    // page the label row was noise, so the page row itself is the whole
-    // sidebar entry now.
+    // Agent Tools is a sidebar group reserved for a family of agent-facing
+    // tools: the prompt workbench is its first member and more are meant to
+    // join under it. The label is a NavKind::Header row - not clickable, not
+    // selectable, and absent from the Ctrl+1..9 sequence. Its order stays
+    // adjacent to the pages it heads, because adjacency is decided by order
+    // alone. The member's title carries no "Agent Tools" prefix: the group
+    // label already says it, and the row reads "Prompt Writing" on its own.
+    shell::PageDescriptor toolsGroup;
+    toolsGroup.id = QStringLiteral("tools-group");
+    toolsGroup.title = QCoreApplication::translate("BuiltinPages", "Agent Tools");
+    toolsGroup.section = QStringLiteral("main");
+    toolsGroup.order = 40;
+    toolsGroup.kind = shell::NavKind::Header;
+    m_nav->registerPage(toolsGroup);
+
     shell::PageDescriptor toolsPage;
     toolsPage.id = QStringLiteral("tools");
     toolsPage.title =
@@ -115,7 +125,8 @@ void BuiltinPages::registerPages()
     toolsPage.source = QStringLiteral(
             "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml");
     toolsPage.section = QStringLiteral("main");
-    toolsPage.order = 40;
+    toolsPage.order = 41;
+    toolsPage.level = 1;
     m_nav->registerPage(toolsPage);
 
     shell::PageDescriptor settings;

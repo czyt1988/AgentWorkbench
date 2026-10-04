@@ -1034,25 +1034,26 @@ Command: %2
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="113"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="123"/>
         <source>Prompt Writing</source>
         <translation>提示词撰写</translation>
     </message>
     <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="114"/>
         <source>Agent Tools</source>
-        <translation type="vanished">Agent 工具</translation>
+        <translation>Agent 工具</translation>
     </message>
     <message>
         <source>Agent Tools - Prompt</source>
         <translation type="vanished">Agent 工具 · 提示词</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="123"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="134"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="198"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="209"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
