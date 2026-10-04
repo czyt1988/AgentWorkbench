@@ -4,10 +4,10 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Agent Tools 页：提示词编写台。解决两个痛点——引用文件要手拼相对路径、
-// 在 agent CLI 里误触回车把半成品发送出去。本页没有发送动作：回车只换行，
-// 写好后点 Copy 粘贴进目标 agent；右侧文件树浏览当前工作区，
-// 把文件行拖进编辑区（或双击文件行）即插入 `./相对路径` 引用。
+// 提示词撰写页。解决两个痛点——引用文件要手拼相对路径、在 agent CLI 里
+// 误触回车把半成品发送出去。本页没有发送动作：回车只换行，写好后点
+// Copy 粘贴进目标 agent；左侧文件树浏览当前工作区，把文件行拖进编辑区
+// （或双击文件行）即插入 `./相对路径` 引用。
 Item {
     id: page
 
@@ -48,118 +48,20 @@ Item {
         spacing: 0
 
         PageHeader {
-            title: qsTr("Agent Tools - Prompt")
+            title: qsTr("Prompt Writing")
             subtitle: qsTr("Compose prompts without accidentally sending them")
-        }
 
-        // --- Toolbar: workspace switcher + add + refresh + copy -----------
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: theme.spacingL
-            Layout.rightMargin: theme.spacingL
-            Layout.bottomMargin: theme.spacingM
-            spacing: theme.spacingM
-
-            Label {
-                text: qsTr("Workspace")
-                color: theme.textMuted
-                font.pixelSize: theme.fontSizeCaption
-            }
-
-            AComboBox {
-                id: workspaceCombo
-
-                Layout.preferredWidth: 340
-                model: tools.workspaces
-                currentIndex: page.currentWorkspaceIndex()
-                enabled: tools.workspaces.length > 0
-
-                // 路径可能很长，中部省略让盘符与末段同时可见。
-                contentItem: Text {
-                    text: workspaceCombo.displayText
-                    font.pixelSize: theme.fontSizeCaption
-                    color: workspaceCombo.enabled ? theme.textPrimary
-                                                  : theme.textDisabled
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideMiddle
-                    leftPadding: 10
-                    rightPadding: 34
-                }
-
-                onActivated: function(index) {
-                    tools.currentWorkspace = tools.workspaces[index]
-                }
-
-                delegate: ItemDelegate {
-                    id: workspaceChoice
-
-                    required property var modelData
-                    required property int index
-
-                    width: workspaceCombo.width
-                    highlighted: workspaceCombo.highlightedIndex === index
-                    // 弹层底色随 AComboBox 主题化后，条目悬停态也要跟令
-                    // 牌走（默认 ItemDelegate 背景是硬编码浅色系）。
-                    background: Rectangle {
-                        color: workspaceChoice.hovered
-                               || workspaceChoice.highlighted
-                               ? theme.surfaceHoverBg : "transparent"
-                    }
-
-                    contentItem: RowLayout {
-                        spacing: theme.spacingS
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: workspaceChoice.modelData
-                            color: theme.textPrimary
-                            font.pixelSize: theme.fontSizeCaption
-                            elide: Text.ElideMiddle
-                        }
-
-                        AIconButton {
-                            iconSource: "qrc:/icons/close.svg"
-                            tooltip: qsTr("Remove this workspace")
-                            onClicked: {
-                                const result =
-                                        tools.removeWorkspace(workspaceChoice.modelData)
-                                if (!result.ok)
-                                    workbench.notify("error",
-                                                     qsTr("Could not remove the workspace"),
-                                                     result.error)
-                            }
-                        }
-                    }
-                }
-            }
-
-            AButton {
-                text: qsTr("Add Folder...")
-                onClicked: page.addWorkspaceViaDialog()
-            }
-
-            AIconButton {
-                iconSource: "qrc:/icons/refresh.svg"
-                tooltip: qsTr("Refresh the file tree")
-                enabled: tools.currentWorkspace.length > 0
-                onClicked: tools.refresh()
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            // 页面主动作，靠右落在编辑区正上方：与刷新同一水平线，
-            // 也贴着它作用的那个编辑框。
-            AButton {
+            // 页面主动作（Copy）收进头部动作槽：树与编辑区要各自贴满可
+            // 用高度，页里不再放一条横跨两栏的工具栏。
+            actions: AButton {
                 text: qsTr("Copy")
                 onClicked: page.copyDraft()
             }
         }
 
-        // --- Body: prompt editor (left) + workspace file tree (right) ----
-        // SplitView：中间分割条可拖，编辑区吃剩余宽度。最小宽保证两边
-        // 都不会被拖到不可用；preferred 是初始/复位宽度。
+        // --- Body: workspace file tree (left) + prompt editor (right) ----
+        // SplitView：树在左（preferred 可拖），编辑区在右吃剩余宽度。
+        // 中间分割条可拖，最小宽保证两边都不会被拖到不可用。
         SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -185,91 +87,16 @@ Item {
                 }
             }
 
-            // 编辑区：Flickable 承载 ATextArea。TextArea 本身不会滚动（不是
-            // Flickable，文本超出控件高度就看不到也翻不到），`TextArea.flickable`
-            // 这个附加属性正是为此存在，且由 Qt 接管三件事：文本随内容增高、
-            // 光标始终滚进视野、以及把 ATextArea 自绘的外框（焦点环在此）移到
-            // Flickable 上——外框必须固定在视口上，跟着内容走会随文本一起滚走，
-            // 滚到中间时只剩左右两条边线。
-            Flickable {
-                id: promptScroll
-                objectName: "promptScroll"
-
-                SplitView.fillWidth: true
-                SplitView.minimumWidth: 260
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                // 折行显示，宽度即视口宽度，横向永不溢出。
-                flickableDirection: Flickable.VerticalFlick
-
-                // objectName 是 tst_toolsui 的定位锚点（同 fileTree）。
-                ScrollBar.vertical: AScrollBar {
-                    objectName: "promptScrollBar"
-                }
-
-                TextArea.flickable: ATextArea {
-                    id: promptEditor
-                    objectName: "promptEditor"
-
-                    placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
-                    // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
-                    Component.onCompleted: {
-                        text = tools.draft
-                        // markdown 语法高亮在此时挂到 textDocument 上；主题切换
-                        // 由 MarkdownEdit 自己跟随。
-                        MarkdownEdit.attach(promptEditor)
-                    }
-                    onTextChanged: tools.draft = text
-
-                    // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
-                    DropArea {
-                        anchors.fill: parent
-
-                        onEntered: function(drag) {
-                            drag.accept(Qt.CopyAction)
-                        }
-                        onDropped: function(drop) {
-                            // 只接受文件树来的行：编辑区自身的选区拖动
-                            // （source 为空）不在此列。
-                            if (!drop.source || !drop.source.isFileReferenceDrag)
-                                return
-                            // 落点坐标即文档坐标：滚动是 Flickable 整体平移
-                            // 编辑器（TextArea 自己不吃滚动、也没有 contentY
-                            // 可折算），positionAt 直接用本地坐标即可。
-                            promptEditor.insert(
-                                        promptEditor.positionAt(drop.x, drop.y),
-                                        drop.text)
-                            drop.acceptProposedAction()
-                        }
-                    }
-
-                    // 右键弹 markdown 异型菜单（顶部格式化工具栏 + 复制/粘贴）。
-                    // TextEdit 只吃左/中键，右键不触碰编辑器选区；MouseArea 只
-                    // 接受右键，左键的选中/点击不受影响，鼠标处给 I-beam 光标。
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.RightButton
-                        cursorShape: Qt.IBeamCursor
-                        onClicked: function(mouse) {
-                            editorMenu.editor = promptEditor
-                            editorMenu.popup(mouse.x, mouse.y)
-                        }
-                    }
-
-                    MarkdownContextMenu {
-                        id: editorMenu
-                        objectName: "editorMenu"
-                    }
-                }
-            }
-
+            // 文件树面板：头部一排放工作区切换、选文件夹与刷新；下拉框
+            // 经 fillWidth 始终与树同宽——拖分割线调树宽时它同步伸缩。
+            // 不留圆角：树与编辑区在分割线处要齐平相接，圆角会在交界
+            // 处留下楔形缺口。
             Rectangle {
                 id: treePanel
 
                 SplitView.preferredWidth: 360
                 SplitView.minimumWidth: 220
                 color: theme.surfaceBg
-                radius: theme.radiusControl
                 border.color: theme.borderSubtle
                 border.width: 1
                 clip: true
@@ -278,23 +105,103 @@ Item {
                     anchors.fill: parent
                     spacing: 0
 
-                    Label {
+                    // 面板头部：紧凑一排（切换 + 选文件夹 + 刷新），
+                    // spacingXs 级内距，不加标题行。
+                    RowLayout {
                         Layout.fillWidth: true
-                        Layout.leftMargin: theme.spacingM
-                        Layout.topMargin: theme.spacingS
-                        Layout.bottomMargin: theme.spacingXs
-                        text: qsTr("Files")
-                        color: theme.textMuted
-                        font.pixelSize: theme.fontSizeCaption
+                        Layout.margins: theme.spacingXs
+                        spacing: theme.spacingXs
+
+                        AComboBox {
+                            id: workspaceCombo
+
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 120
+                            model: tools.workspaces
+                            currentIndex: page.currentWorkspaceIndex()
+                            enabled: tools.workspaces.length > 0
+
+                            // 路径可能很长，中部省略让盘符与末段同时可见。
+                            contentItem: Text {
+                                text: workspaceCombo.displayText
+                                font.pixelSize: theme.fontSizeCaption
+                                color: workspaceCombo.enabled ? theme.textPrimary
+                                                              : theme.textDisabled
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideMiddle
+                                leftPadding: 10
+                                rightPadding: 34
+                            }
+
+                            onActivated: function(index) {
+                                tools.currentWorkspace = tools.workspaces[index]
+                            }
+
+                            delegate: ItemDelegate {
+                                id: workspaceChoice
+
+                                required property var modelData
+                                required property int index
+
+                                width: workspaceCombo.width
+                                highlighted: workspaceCombo.highlightedIndex === index
+                                // 弹层底色随 AComboBox 主题化后，条目悬停态也要跟令
+                                // 牌走（默认 ItemDelegate 背景是硬编码浅色系）。
+                                background: Rectangle {
+                                    color: workspaceChoice.hovered
+                                           || workspaceChoice.highlighted
+                                           ? theme.surfaceHoverBg : "transparent"
+                                }
+
+                                contentItem: RowLayout {
+                                    spacing: theme.spacingS
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: workspaceChoice.modelData
+                                        color: theme.textPrimary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
+
+                                    AIconButton {
+                                        iconSource: "qrc:/icons/close.svg"
+                                        tooltip: qsTr("Remove this workspace")
+                                        onClicked: {
+                                            const result =
+                                                    tools.removeWorkspace(workspaceChoice.modelData)
+                                            if (!result.ok)
+                                                workbench.notify("error",
+                                                                 qsTr("Could not remove the workspace"),
+                                                                 result.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 选工作区文件夹：只放图标，说明走 tooltip。
+                        AIconButton {
+                            iconSource: "qrc:/icons/folder.svg"
+                            tooltip: qsTr("Choose a workspace folder")
+                            onClicked: page.addWorkspaceViaDialog()
+                        }
+
+                        AIconButton {
+                            iconSource: "qrc:/icons/refresh.svg"
+                            tooltip: qsTr("Refresh the file tree")
+                            enabled: tools.currentWorkspace.length > 0
+                            onClicked: tools.refresh()
+                        }
                     }
 
                     // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model 暴露）：
                     // Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本统一用
                     // ListView + depth/expanded role 渲染同一份数据。
-                        // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
-                        ListView {
-                            id: fileTree
-                            objectName: "fileTree"
+                    // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
+                    ListView {
+                        id: fileTree
+                        objectName: "fileTree"
 
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -500,6 +407,87 @@ Item {
                         description: qsTr("Add a folder to browse its files and insert references into the prompt.")
                         actionText: qsTr("Add Folder...")
                         onActionClicked: page.addWorkspaceViaDialog()
+                    }
+                }
+            }
+
+            // 编辑区：Flickable 承载 ATextArea。TextArea 本身不会滚动（不是
+            // Flickable，文本超出控件高度就看不到也翻不到），`TextArea.flickable`
+            // 这个附加属性正是为此存在，且由 Qt 接管三件事：文本随内容增高、
+            // 光标始终滚进视野、以及把 ATextArea 自绘的外框（焦点环在此）移到
+            // Flickable 上——外框必须固定在视口上，跟着内容走会随文本一起滚走，
+            // 滚到中间时只剩左右两条边线。
+            // 左缘贴着分割线，cornerRadius 置 0：与树面板齐平相接。
+            Flickable {
+                id: promptScroll
+                objectName: "promptScroll"
+
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 260
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                // 折行显示，宽度即视口宽度，横向永不溢出。
+                flickableDirection: Flickable.VerticalFlick
+
+                // objectName 是 tst_toolsui 的定位锚点（同 fileTree）。
+                ScrollBar.vertical: AScrollBar {
+                    objectName: "promptScrollBar"
+                }
+
+                TextArea.flickable: ATextArea {
+                    id: promptEditor
+                    objectName: "promptEditor"
+
+                    cornerRadius: 0
+
+                    placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this page.")
+                    // 只在初始化时从门面取草稿：常驻双向绑定会与用户输入互相打架。
+                    Component.onCompleted: {
+                        text = tools.draft
+                        // markdown 语法高亮在此时挂到 textDocument 上；主题切换
+                        // 由 MarkdownEdit 自己跟随。
+                        MarkdownEdit.attach(promptEditor)
+                    }
+                    onTextChanged: tools.draft = text
+
+                    // 拖放目标：接住来自文件树的行，把文件引用插到落点光标处。
+                    DropArea {
+                        anchors.fill: parent
+
+                        onEntered: function(drag) {
+                            drag.accept(Qt.CopyAction)
+                        }
+                        onDropped: function(drop) {
+                            // 只接受文件树来的行：编辑区自身的选区拖动
+                            // （source 为空）不在此列。
+                            if (!drop.source || !drop.source.isFileReferenceDrag)
+                                return
+                            // 落点坐标即文档坐标：滚动是 Flickable 整体平移
+                            // 编辑器（TextArea 自己不吃滚动、也没有 contentY
+                            // 可折算），positionAt 直接用本地坐标即可。
+                            promptEditor.insert(
+                                        promptEditor.positionAt(drop.x, drop.y),
+                                        drop.text)
+                            drop.acceptProposedAction()
+                        }
+                    }
+
+                    // 右键弹 markdown 异型菜单（顶部格式化工具栏 + 复制/粘贴）。
+                    // TextEdit 只吃左/中键，右键不触碰编辑器选区；MouseArea 只
+                    // 接受右键，左键的选中/点击不受影响，鼠标处给 I-beam 光标。
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.RightButton
+                        cursorShape: Qt.IBeamCursor
+                        onClicked: function(mouse) {
+                            editorMenu.editor = promptEditor
+                            editorMenu.popup(mouse.x, mouse.y)
+                        }
+                    }
+
+                    MarkdownContextMenu {
+                        id: editorMenu
+                        objectName: "editorMenu"
                     }
                 }
             }

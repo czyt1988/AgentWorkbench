@@ -14,7 +14,7 @@
 
 namespace awb::tools {
 
-/// Agent Tools 页右侧的文件树模型：对单个工作区目录做懒加载浏览。
+/// Agent Tools 页（提示词撰写页）的文件树模型：对单个工作区目录做懒加载浏览。
 ///
 /// 目录节点在 fetch 前只有箭头没有子行（hasChildren 恒真），展开时才读磁盘；
 /// 内建 QFileSystemWatcher 监听已读取的目录，变更经防抖触发 refresh()。
