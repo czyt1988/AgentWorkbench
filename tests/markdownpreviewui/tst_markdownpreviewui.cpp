@@ -30,6 +30,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
+#include <QPointer>
 #include <QQuickWindow>
 #include <QQuickStyle>
 #include <QQmlComponent>
@@ -71,6 +72,47 @@ The distinct needle word lives in this paragraph.
 
 - [x] a checked task
 )MD";
+
+// 与 MainWindow.qml 同构的宿主：Loader 按需创建预览窗，开关只由控制器的
+// windowRequested / activeChanged 两个信号驱动。
+//
+// 这份内联 QML 存在的理由是：产品里预览窗从来不是直接 createObject 出来的，
+// 而是被主窗内容项里的 Loader 创建——窗口因此是一个「有父项的 Window」，布局
+// 与生命周期都走的是另一条路。只用 createObject 的用例看不见这两条路上的任何
+// 缺陷（内容区塌成 0 高、关掉之后第二次打不开都在这一层），所以这里连宿主
+// 一起复刻，让被测的时序与真实入口一致。
+const char *kHostQml = R"QML(
+import QtQuick
+import QtQuick.Controls
+
+ApplicationWindow {
+    id: host
+    width: 900
+    height: 600
+    visible: true
+    property bool markdownWindowOpen: false
+
+    Loader {
+        id: markdownWindowLoader
+        objectName: "markdownWindowLoader"
+        active: host.markdownWindowOpen && markdown.available
+        source: "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewWindow.qml"
+    }
+
+    Connections {
+        target: markdown
+
+        function onWindowRequested() {
+            host.markdownWindowOpen = true
+        }
+
+        function onActiveChanged() {
+            if (!markdown.active)
+                host.markdownWindowOpen = false
+        }
+    }
+}
+)QML";
 
 /**
  * @brief workbench 的替身：记下窗口发出的每一次用户可见动作
@@ -144,10 +186,30 @@ private Q_SLOTS:
     void cleanup();
 
     void testWindowLoadsAndTakesOwnership();
+    void testLoaderHostedWindowFillsTheWindowAndReopens();
     void testSearchRoundTripFindsTheRenderedText();
     void testExportWritesTheRenderedMarkup();
 
 private:
+    /**
+     * @brief 把夹具写进本用例的临时目录
+     * @param error 输出：失败原因
+     * @return 文档路径；写失败时为空
+     */
+    QString writeFixture(QString *error)
+    {
+        const QString path = QDir(m_dir->path())
+                                 .filePath(QStringLiteral("note.md"));
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            *error = QStringLiteral("cannot write the fixture: ") + path;
+            return QString();
+        }
+        file.write(kFixture);
+        file.close();
+        return path;
+    }
+
     /**
      * @brief 装配现场并加载产品那份 MarkdownPreviewWindow.qml
      * @param error 输出：失败原因（含 QML 的完整错误串）
@@ -165,15 +227,10 @@ private:
                      + m_controller->unavailableReason();
             return false;
         }
-        const QString path = QDir(m_dir->path())
-                                 .filePath(QStringLiteral("note.md"));
-        QFile file(path);
-        if (!file.open(QIODevice::WriteOnly)) {
-            *error = QStringLiteral("cannot write the fixture: ") + path;
+        const QString path = writeFixture(error);
+        if (path.isEmpty()) {
             return false;
         }
-        file.write(kFixture);
-        file.close();
 
         m_windowRequested.reset(new QSignalSpy(m_controller.get(),
             &MarkdownPreviewController::windowRequested));
@@ -214,6 +271,113 @@ private:
             return false;
         }
         return true;
+    }
+
+    /**
+     * @brief 建出与主窗同构的宿主，并按真实信号时序开第一扇预览窗
+     * @param error 输出：失败原因
+     * @return 宿主已建、文档已交给控制器则为真
+     *
+     * 与 load() 的区别只在「谁创建窗口」：这里由宿主的 Loader 在收到
+     * windowRequested 之后创建，产品路径就是这一条。
+     */
+    bool loadHost(QString *error)
+    {
+        m_theme.applyTheme(QStringLiteral("mocha-dark"));
+        if (!m_controller->available()) {
+            *error = QStringLiteral("surface unavailable: ")
+                     + m_controller->unavailableReason();
+            return false;
+        }
+        m_docPath = writeFixture(error);
+        if (m_docPath.isEmpty()) {
+            return false;
+        }
+
+        m_context.reset(new QQmlContext(m_engine->rootContext()));
+        m_context->setContextProperty(QStringLiteral("theme"), &m_theme);
+        m_context->setContextProperty(QStringLiteral("markdown"),
+                                      m_controller.get());
+        m_context->setContextProperty(QStringLiteral("workbench"), &m_workbench);
+        m_context->setContextProperty(QStringLiteral("ui"), &m_ui);
+
+        QQmlComponent component(m_engine.get());
+        component.setData(QByteArray(kHostQml), QUrl());
+        if (component.isError()) {
+            *error = component.errorString();
+            return false;
+        }
+        QObject *created = component.create(m_context.get());
+        if (!created) {
+            *error = component.errorString();
+            return false;
+        }
+        m_host.reset(qobject_cast<QQuickWindow *>(created));
+        if (!m_host) {
+            *error = QStringLiteral("the host root is not a window: ")
+                     + QString::fromLatin1(created->metaObject()->className());
+            delete created;
+            return false;
+        }
+        m_loader = m_host->findChild<QObject *>(
+            QStringLiteral("markdownWindowLoader"));
+        if (!m_loader) {
+            *error = QStringLiteral("the host has no preview Loader");
+            return false;
+        }
+        m_windowRequested.reset(new QSignalSpy(m_controller.get(),
+            &MarkdownPreviewController::windowRequested));
+        const awb::core::OpResult opened = m_controller->openFile(m_docPath);
+        if (!opened) {
+            *error = opened.error;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @brief 取宿主 Loader 当前创建出来的那扇预览窗
+     * @return 窗口对象；Loader 关着（没有内容项）时为空
+     */
+    QPointer<QObject> hostedWindow() const
+    {
+        if (!m_loader) {
+            return nullptr;
+        }
+        return m_loader->property("item").value<QObject *>();
+    }
+
+    /**
+     * @brief 等预览视图拿到与窗口相称的高度
+     * @param window 预览窗
+     * @param reason 输出：失败时视图与窗口的实测尺寸
+     * @return 视图高度不为 0 且至少占窗口高度一半则为真
+     *
+     * 判据是「内容区看得见」而不是「视图对象存在」：产品里的缺陷表现是只看到
+     * 工具栏，即布局把 fillHeight 的那一栏挤成 0 高，而对象一个不少。
+     */
+    bool waitContentHeight(QObject *window, QString *reason)
+    {
+        QElapsedTimer clock;
+        clock.start();
+        qreal viewHeight = 0.0;
+        qreal windowHeight = 0.0;
+        QObject *view = nullptr;
+        while (clock.elapsed() < kBootTimeoutMs) {
+            view = window->findChild<QObject *>(
+                QStringLiteral("markdownPreviewView"));
+            viewHeight = view ? view->property("height").toReal() : 0.0;
+            windowHeight = window->property("height").toReal();
+            if (viewHeight > 0.0 && viewHeight >= windowHeight * 0.5) {
+                return true;
+            }
+            QTest::qWait(100);
+        }
+        *reason = QStringLiteral("content collapsed: view height=%1 of window "
+                                 "height=%2, view found=%3")
+                      .arg(viewHeight).arg(windowHeight)
+                      .arg(view ? QStringLiteral("yes") : QStringLiteral("no"));
+        return false;
     }
 
     /**
@@ -300,6 +464,9 @@ private:
     UiStub m_ui;
     std::unique_ptr<QQmlContext> m_context;
     std::unique_ptr<QQuickWindow> m_window;
+    std::unique_ptr<QQuickWindow> m_host;   ///< 复刻主窗结构的宿主窗（Loader 在它里面）
+    QObject *m_loader = nullptr;    ///< 宿主的预览 Loader（归宿主所有）
+    QString m_docPath;              ///< 夹具写出的文档路径
     std::unique_ptr<QSignalSpy> m_windowRequested;
     QObject *m_view = nullptr;      ///< 窗口里的那块视图（归窗口所有）
     std::unique_ptr<QTemporaryDir> m_dir;   ///< 文档与导出目录
@@ -342,6 +509,10 @@ void TestMarkdownPreviewUi::init()
 void TestMarkdownPreviewUi::cleanup()
 {
     m_view = nullptr;
+    // 宿主先走：Loader 创建出来的那扇预览窗是它的子对象，反序会让宿主拿着一个
+    // 已经随引擎死掉的 item。
+    m_host.reset();
+    m_loader = nullptr;
     m_window.reset();
     m_context.reset();
     m_windowRequested.reset();
@@ -374,6 +545,59 @@ void TestMarkdownPreviewUi::testWindowLoadsAndTakesOwnership()
     // 由文档决定。
     QCOMPARE(m_controller->mode(), QStringLiteral("preview"));
     QCOMPARE(m_controller->dirty(), false);
+
+    // 布局自查：内容区要真的拿到与窗口相称的高度。上一版缺陷的表现正是工具栏
+    // 把自己撑成整扇窗、正文只剩 15 px，而对象一个不少——只有量尺寸看得见。
+    QString contentError;
+    QVERIFY2(waitContentHeight(m_window.get(), &contentError),
+             qPrintable(contentError));
+}
+
+/**
+ * @brief 由 Loader 创建的预览窗要真的撑开内容区，关掉之后还得能再开
+ *
+ * 两条判据各挡一类真实缺陷，且都只在「窗口被宿主创建」这条路径上才存在：
+ *   1. 内容区塌陷——窗口作为 Loader 的内容项时，布局与直接 createObject 不
+ *      同；产品里的表现是只看到工具栏、正文看不见，而对象一个不少，只有量
+ *      高度才看得见；
+ *   2. 关掉再预览——用户点 × 之后，控制器必须把 active 放下、宿主必须把窗口
+ *      销毁，否则下一次 windowRequested 只是把已经为真的开关再写一遍真，界面
+ *      上就是「第二次右键没反应」。
+ */
+void TestMarkdownPreviewUi::testLoaderHostedWindowFillsTheWindowAndReopens()
+{
+    QString error;
+    QVERIFY2(loadHost(&error), qPrintable(error));
+
+    QPointer<QObject> first;
+    QTRY_VERIFY_WITH_TIMEOUT(!(first = hostedWindow()).isNull(), kBootTimeoutMs);
+    QObject *firstRaw = first.data();
+    QQuickWindow *firstWindow = qobject_cast<QQuickWindow *>(firstRaw);
+    QVERIFY2(firstWindow, "the Loader's content item is not a window");
+    QVERIFY2(firstWindow->isVisible(),
+             "the hosted preview window is not visible");
+    QVERIFY2(firstWindow->height() >= 400,
+             qPrintable(QStringLiteral("the hosted window was shrunk to height=")
+                        + QString::number(firstWindow->height())));
+    QVERIFY2(waitContentHeight(firstWindow, &error), qPrintable(error));
+    QCOMPARE(m_controller->active(), true);
+
+    // 用户点 ×：走 Qt 的关闭事件，与产品里那一下点击同一条路径。
+    QMetaObject::invokeMethod(firstWindow, "close");
+    QTRY_VERIFY_WITH_TIMEOUT(!m_controller->active(), kBootTimeoutMs);
+    QTRY_VERIFY_WITH_TIMEOUT(hostedWindow().isNull(), kBootTimeoutMs);
+
+    // 第二次预览同一份文件：必须重新开出一扇窗口，而不是留着那个已经看不见的。
+    const awb::core::OpResult again = m_controller->openFile(m_docPath);
+    QVERIFY2(again, qPrintable(again.error));
+    QPointer<QObject> second;
+    QTRY_VERIFY_WITH_TIMEOUT(!(second = hostedWindow()).isNull(), kBootTimeoutMs);
+    QVERIFY2(second.data() != firstRaw,
+             "the second preview reused the window object that was closed");
+    QQuickWindow *secondWindow = qobject_cast<QQuickWindow *>(second.data());
+    QVERIFY2(secondWindow && secondWindow->isVisible(),
+             "the second preview window never became visible");
+    QVERIFY2(waitContentHeight(secondWindow, &error), qPrintable(error));
 }
 
 /**

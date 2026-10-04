@@ -166,10 +166,9 @@ ApplicationWindow {
     }
 
     function approveClose() {
-        // 顺序要紧：先让控制器把文档与状态放下，再收窗口。反过来会让
-        // notifyWindowClosed() 之后还有编辑器的销毁回调在写文本。
+        // 只放行，报到交给 onClosing：两条关闭路径（点 × 与这里的对话框）都
+        // 从那里过，状态放一次就够。
         closeApproved = true
-        markdown.notifyWindowClosed()
         previewWindow.close()
     }
 
@@ -181,14 +180,20 @@ ApplicationWindow {
             markdown.setMode("preview")
     }
 
-    // 任何一条销毁路径（点 ×、主窗退出、Loader 被关掉）都要把状态位放下来，
-    // 否则 `markdown.active` 永远为真，下一次右键预览只改状态、不开窗。
+    // 没有关闭事件也要把状态位放下来：主窗退出、Loader 被直接关掉都会跳过
+    // onClosing。控制器里的 m_windowOpen 有幂等守卫，与 onClosing 各报一次不冲突。
     Component.onDestruction: markdown.notifyWindowClosed()
 
     // --- 关闭语义 ----------------------------------------------------------
     onClosing: function (close) {
         if (previewWindow.closeApproved || !markdown.dirty) {
             previewWindow.closeApproved = false
+            // 关窗必须报到：QML 的 Window 关掉只是藏起来，对象还活着。不报的话
+            // `markdown.active` 永远为真，主窗那个 Loader 的 active 不会翻转，
+            // 第二次右键预览就只剩一次 raise() 打在一扇已经隐藏的窗上。
+            // 顺序要紧：先让控制器把文档与状态放下，窗口随后才销毁；反过来会让
+            // notifyWindowClosed() 之后还有编辑器的销毁回调在写文本。
+            markdown.notifyWindowClosed()
             return
         }
         // 有未保存的改动时不静默丢弃：这扇窗的存盘键是 Ctrl+S，用户完全可能
@@ -271,11 +276,16 @@ ApplicationWindow {
                 }
             }
 
+            // 分隔条用确定高度，不用 Layout.fillHeight：RowLayout 里的跨轴
+            // fill 会让这一行的 implicitHeight 跟着自己的实测高度走，而外层
+            // ColumnLayout 正是按 implicitHeight 给非 fill 的行分配——于是
+            // 工具栏把自己撑成整扇窗（实测 765/820），正文那一栏只剩 15 px。
             Rectangle {
-                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignVCenter
                 Layout.leftMargin: theme.spacingXs
                 Layout.rightMargin: theme.spacingXs
                 implicitWidth: 1
+                implicitHeight: 24
                 color: theme.separator
             }
 
