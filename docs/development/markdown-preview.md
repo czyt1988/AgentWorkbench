@@ -254,6 +254,14 @@ module in builds that can run it, so a type name would leave an unresolvable ref
 build. Loader failures are surfaced as a toast on purpose — otherwise the symptom of a mis-registered
 resource is "right-click does nothing", which is much harder to diagnose than an error box.
 
+Closing that window is a report, not a disappearance: a QML `Window` survives its own close — the
+`closing` handler only hides it — so nothing would flip `markdown.active` back to false, the `Loader`
+would keep holding the hidden item, and the second preview request would only `raise()` a window
+nobody can see. `onClosing` therefore calls `notifyWindowClosed()` on every accepted path (the
+unsaved-changes dialog just sets the approval flag and calls `close()`, so both paths report from the
+same place), and `Component.onDestruction` reports again for the paths that never deliver a close
+event, such as quitting the app; `MarkdownPreviewController::notifyWindowClosed()` is idempotent.
+
 ## View settings, outline, export, external browser
 
 The four view settings (`mode`, `fontSizePx`, `contentWidthPx`, `showOutline`) are read at controller

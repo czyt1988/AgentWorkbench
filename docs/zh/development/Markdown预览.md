@@ -210,6 +210,12 @@ HTML 刻意不进事件表，因为一张收了一个大负载的表，会诱使
 构建里留下一个解析不到的引用。Loader 加载失败刻意要弹 toast——否则资源漏登记的表现为「右键点了没反应」，
 比一个错误框难查得多。
 
+关这扇窗是一次**报到**，不是一次消失：QML 的 `Window` 关不掉自己——`closing` 只把它藏起来——于是什么
+都不会把 `markdown.active` 放回假，`Loader` 继续握着那扇隐藏的窗口，第二次右键预览只是把一扇看不见的窗
+`raise()` 一遍。所以 `onClosing` 的每一条放行路径都要调 `notifyWindowClosed()`（未保存对话框只置批准位
+再 `close()`，两条路径从同一处报到），而根本没有关闭事件的那些路径（例如退出应用）由
+`Component.onDestruction` 再报一次——`MarkdownPreviewController::notifyWindowClosed()` 是幂等的。
+
 ## 视图设置、大纲、导出、外部浏览器
 
 四个视图设置（`mode`、`fontSizePx`、`contentWidthPx`、`showOutline`）在控制器构造时由 `loadView()`
