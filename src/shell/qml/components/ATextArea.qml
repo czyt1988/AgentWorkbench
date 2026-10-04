@@ -19,6 +19,9 @@ TextArea {
 
     // 无效态：为真时边框转 danger 红。
     property bool invalid: false
+    // 外框圆角，默认圆角控制框。要与相邻面板齐平相接的编辑区（提示词页
+    // 的编辑框贴着可拖分割线，圆角会在交界处留下楔形缺口）覆写为 0。
+    property real cornerRadius: theme.radiusControl
 
     color: theme.textPrimary
     placeholderTextColor: theme.textMuted
@@ -35,7 +38,7 @@ TextArea {
     persistentSelection: true
 
     background: Rectangle {
-        radius: theme.radiusControl
+        radius: control.cornerRadius
         color: theme.surfaceBg
         border.color: control.invalid ? theme.danger
                                       : (control.activeFocus ? theme.focusRing

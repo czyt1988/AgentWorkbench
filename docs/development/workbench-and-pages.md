@@ -60,7 +60,7 @@ Plugin API (read-only list plus toggles; behaviours are in [Plugin host](plugin-
 
 ## BuiltinPages
 
-`BuiltinPages` registers the built-in sidebar rows — five pages and one static group label — into the shell's `NavigationModel`, and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
+`BuiltinPages` registers the built-in sidebar rows — five pages plus one static group label — into the shell's `NavigationModel`, and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
 
 The complete page registry:
 
@@ -70,10 +70,10 @@ The complete page registry:
 | `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
 | `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
 | `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
-| `tools` | Agent Tools - Prompt | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `tools` | Prompt Writing | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
 | `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` decides which part of the sidebar a row lands in and is the only mechanism for that: `system` rows are pinned to the bottom. Inside a section, `order` alone decides the row order — which is what makes grouping work: `tools-group` is a `NavKind::Header` row (a caption-size, muted, bold label with no icon), and `tools` sits under it indented by `level = 1`, so the two must keep adjacent `order` values or the page falls under some other label. A header row is **not** a page: `pageIdsInOrder()` skips it (so `Ctrl+1…9` numbering does not shift), `badges()` has no key for it and `setBadge()` ignores it, and `setCurrentPageId()` rejects it with a `qWarning` because it is not a destination. It still needs an `id`, since `NavigationModel` keys and de-duplicates every row by it. `countInSection()` and `rowOfFirstInSection()` do count header rows, because dividers are placed per model row. `level` is currently only an indent — there is no chevron or collapse interaction, by design, until a group actually has sub-pages (`designs.md`, sidebar rules).
+`section` decides which part of the sidebar a row lands in and is the only mechanism for that: `system` rows are pinned to the bottom. Inside a section, `order` alone decides the row order — which is what makes grouping work: `tools-group` is a `NavKind::Header` row (a caption-size, muted, bold label with no icon), and `tools` sits under it indented by `level = 1`, so the two must keep adjacent `order` values or the page falls under some other label. The group is reserved for a family of agent-facing tools — the prompt workbench is its first member, and the member's title deliberately carries no "Agent Tools" prefix: the label already says it, so the row reads just **Prompt Writing**. A header row is **not** a page: `pageIdsInOrder()` skips it (so `Ctrl+1…9` numbering does not shift), `badges()` has no key for it and `setBadge()` ignores it, and `setCurrentPageId()` rejects it with a `qWarning` because it is not a destination. It still needs an `id`, since `NavigationModel` keys and de-duplicates every row by it. `countInSection()` and `rowOfFirstInSection()` do count header rows, because dividers are placed per model row. `level` is currently only an indent — there is no chevron or collapse interaction, by design, until a group actually has sub-pages (`designs.md`, sidebar rules).
 
 The header row is also invisible in the collapsed sidebar (`Sidebar.qml` hides it and drops the indent there), and the footer's `system` section never carries one: those rows render as icon buttons whose stacking position is computed from the model row number.
 

@@ -102,11 +102,13 @@ void BuiltinPages::registerPages()
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
 
-    // Agent Tools is a sidebar group rather than a single destination: the
-    // prompt workbench is its first member and more tools will join under it.
-    // The label is a NavKind::Header row - not clickable, not selectable,
-    // and absent from the Ctrl+1..9 sequence. Its order stays adjacent to the
-    // pages it heads, because adjacency is decided by order alone.
+    // Agent Tools is a sidebar group reserved for a family of agent-facing
+    // tools: the prompt workbench is its first member and more are meant to
+    // join under it. The label is a NavKind::Header row - not clickable, not
+    // selectable, and absent from the Ctrl+1..9 sequence. Its order stays
+    // adjacent to the pages it heads, because adjacency is decided by order
+    // alone. The member's title carries no "Agent Tools" prefix: the group
+    // label already says it, and the row reads "Prompt Writing" on its own.
     shell::PageDescriptor toolsGroup;
     toolsGroup.id = QStringLiteral("tools-group");
     toolsGroup.title = QCoreApplication::translate("BuiltinPages", "Agent Tools");
@@ -118,7 +120,7 @@ void BuiltinPages::registerPages()
     shell::PageDescriptor toolsPage;
     toolsPage.id = QStringLiteral("tools");
     toolsPage.title =
-        QCoreApplication::translate("BuiltinPages", "Agent Tools - Prompt");
+        QCoreApplication::translate("BuiltinPages", "Prompt Writing");
     toolsPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
     toolsPage.source = QStringLiteral(
             "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml");

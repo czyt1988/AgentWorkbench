@@ -9,8 +9,8 @@ read or tidy that file.
 
 ## How to open a file
 
-1. Go to **Agent Tools - Prompt** and pick the folder that holds the file.
-2. In the file tree on the right, **right-click a `.md` or `.markdown` file**.
+1. Go to **Prompt Writing** and pick the folder that holds the file.
+2. In the file tree on the left, **right-click a `.md` or `.markdown` file**.
 3. Choose **Preview Markdown**.
 
 The window opens with the rendered document. If you right-click another file while the window is

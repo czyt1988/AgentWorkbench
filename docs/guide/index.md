@@ -43,10 +43,10 @@ The window has three parts.
   app.
 - **Skills** - a searchable list of the "skill" instruction files found on your
   computer, with their locations.
-- **Agent Tools - Prompt** - the prompt-writing scratchpad with a file tree
-  beside it. It sits under an **Agent Tools** heading, which is a group name
-  rather than a page: clicking it does nothing, and it is hidden while the
-  sidebar is collapsed.
+- **Prompt Writing** - the prompt-composing scratchpad with a file tree beside
+  it. It sits under an **Agent Tools** heading, which is a group name rather
+  than a page: clicking it does nothing, and it is hidden while the sidebar is
+  collapsed.
 - **Settings** - pinned at the very bottom as an icon. Themes, launchers,
   environment checks, skill folders, browser options, plugins and reset
   actions.
@@ -89,7 +89,7 @@ These work while the **Agent Web UI** page is open:
 | `F12` | Open the developer tools (debug builds only) |
 | `Esc` | Leave full screen |
 
-In the **Agent Tools - Prompt** editor, the usual text shortcuts apply: `Ctrl+Z`
+In the **Prompt Writing** editor, the usual text shortcuts apply: `Ctrl+Z`
 to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and
 paste.
 

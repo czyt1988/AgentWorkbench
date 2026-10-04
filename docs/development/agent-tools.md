@@ -2,11 +2,13 @@
 
 ## What this feature does
 
-The page the sidebar opens is **Agent Tools - Prompt**, listed under the static
-**Agent Tools** group label; its registration id stays `tools`, so a remembered
-`window.lastPageId` keeps resolving to it (the rows themselves are the shell's
-business — see [Workbench and pages](workbench-and-pages.md)). It is a prompt
-workbench, and it exists to solve two concrete pain points:
+The page the sidebar opens is **Prompt Writing**, listed under the static
+**Agent Tools** group label — a family reserved for agent-facing tools, of which
+this is the first member; the member's title carries no "Agent Tools" prefix
+because the label already says it. Its registration id stays `tools`, so a
+remembered `window.lastPageId` keeps resolving to it (the rows themselves are
+the shell's business — see [Workbench and pages](workbench-and-pages.md)). It
+is a prompt workbench, and it exists to solve two concrete pain points:
 
 1. Referencing a file in a prompt normally means hand-building a relative path.
 2. Typing a prompt straight into an agent CLI risks hitting Enter on a
@@ -14,7 +16,7 @@ workbench, and it exists to solve two concrete pain points:
 
 The page therefore has **no send action**. Enter inserts a newline; nothing
 leaves the page. When the prompt is ready the user copies it and pastes it into
-the target agent. The right-hand panel browses the current workspace and can
+the target agent. The left-hand panel browses the current workspace and can
 insert a `` `./relative/path` `` file reference into the editor by drag-and-drop
 or double-click.
 
@@ -44,7 +46,7 @@ happens inside that window (see [Markdown preview](markdown-preview.md)).
 | `src/tools/MarkdownEdit.cpp` | `MarkdownEdit` | Static cursor operations, theme-driven colours, highlighter bookkeeping | `MarkdownHighlighter` |
 | `src/tools/MarkdownHighlighter.h` | `MarkdownHighlighter`, `MarkdownColors` | Lightweight per-block Markdown highlighter; colour tokens | `MarkdownEdit` |
 | `src/tools/MarkdownHighlighter.cpp` | `MarkdownHighlighter::highlightBlock()` | Fence state machine plus inline regex rules | `MarkdownEdit` |
-| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | The page: header, workspace combo, add/refresh/copy toolbar, `SplitView` with editor and file tree | `tools.*`, `ui.pickFolder`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench.canPreviewMarkdown()` / `previewMarkdown()` |
+| `src/tools/qml/ToolsPage.qml` | `ToolsPage` | The page: header (with the Copy action), `SplitView` with the file tree (left) and the editor (right) | `tools.*`, `ui.pickFolder`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench.canPreviewMarkdown()` / `previewMarkdown()` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | `AMenu` with a top formatting toolbar and undo/redo/cut/copy/paste items | `MarkdownEdit`, `AMenu`/`AMenuItem` |
 | `src/tools/CMakeLists.txt` | build target `awb_tools` | Static library; `Qt::Quick` is a PRIVATE link (only `MarkdownEdit` touches `QQuickTextDocument`) | — |
 
@@ -56,11 +58,18 @@ Outside the module the page leans on `core::Paths::dataRoot()`,
 
 ### `ToolsPage.qml` layout
 
-A `ColumnLayout`: `PageHeader` (title `Agent Tools - Prompt`) → toolbar row → `SplitView`.
+A `ColumnLayout`: `PageHeader` (title `Prompt Writing`, the `Copy` primary
+action in its actions slot) → `SplitView`.
 
-- **Toolbar.** A `Workspace` label, the workspace `AComboBox`, an
-  `Add Folder...` button, a refresh `AIconButton` (disabled without a workspace)
-  and, right-aligned above the editor, the `Copy` primary action.
+- **Split order.** The file tree is the **left** pane, the editor the **right**
+  one; the tree keeps its `preferredWidth` and the editor fills the rest.
+- **Tree panel header.** A compact `RowLayout` at the top of the tree panel:
+  the workspace `AComboBox` (`Layout.fillWidth`, so the combo tracks the tree
+  panel's width when the splitter is dragged), a folder-picker `AIconButton`
+  (icon only, tooltip **Choose a workspace folder**) and a refresh `AIconButton`
+  (disabled without a workspace). The panel has no corner radius: the tree and
+  the editor meet the splitter as flush squares, and rounded corners would cut
+  wedge-shaped gaps at the junction.
 - **Workspace `AComboBox`.** `model: tools.workspaces`, `currentIndex:
   page.currentWorkspaceIndex()`. Both `contentItem` and `delegate` are
   overridden: the default `ItemDelegate` background is a hard-coded light
@@ -71,7 +80,9 @@ A `ColumnLayout`: `PageHeader` (title `Agent Tools - Prompt`) → toolbar row �
   (`objectName: "promptScroll"`, `clip`, `StopAtBounds`), with
   `ScrollBar.vertical: AScrollBar {}`, carrying an `ATextArea` through the
   `TextArea.flickable` attached property; `SplitView.fillWidth` and
-  `minimumWidth: 260` sit on the `Flickable`. A `TextArea` never scrolls its
+  `minimumWidth: 260` sit on the `Flickable`. The `ATextArea` sets
+  `cornerRadius: 0` — its left edge meets the splitter flush, same reasoning as
+  the tree panel. A `TextArea` never scrolls its
   own text — a bare one draws everything past the visible area where it cannot
   be reached — and the attached property supplies the three parts that make it
   scroll: the text area grows to its content height, the caret is scrolled back

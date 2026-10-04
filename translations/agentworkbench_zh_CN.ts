@@ -1034,22 +1034,26 @@ Command: %2
         <translation>Skills</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="112"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="123"/>
+        <source>Prompt Writing</source>
+        <translation>提示词撰写</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="114"/>
         <source>Agent Tools</source>
         <translation>Agent 工具</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="121"/>
         <source>Agent Tools - Prompt</source>
-        <translation>Agent 工具 · 提示词</translation>
+        <translation type="vanished">Agent 工具 · 提示词</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="132"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="134"/>
         <source>Settings</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/workbench/BuiltinPages.cpp" line="207"/>
+        <location filename="../src/workbench/BuiltinPages.cpp" line="209"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
@@ -2631,6 +2635,7 @@ Command: %2
     </message>
     <message>
         <location filename="../src/tools/qml/ToolsPage.qml" line="37"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="186"/>
         <source>Choose a workspace folder</source>
         <translation>选择工作区文件夹</translation>
     </message>
@@ -2644,78 +2649,79 @@ Command: %2
         <translation>安心编写提示词，不会误触发送</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="155"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="57"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="64"/>
         <source>Workspace</source>
-        <translation>工作区</translation>
+        <translation type="vanished">工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="51"/>
         <source>Agent Tools - Prompt</source>
-        <translation>Agent 工具 · 提示词</translation>
+        <translation type="vanished">Agent 工具 · 提示词</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="122"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="169"/>
         <source>Remove this workspace</source>
         <translation>移除此工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="128"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="175"/>
         <source>Could not remove the workspace</source>
         <translation>无法移除工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="137"/>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="501"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="408"/>
         <source>Add Folder...</source>
         <translation>添加文件夹…</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="143"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="192"/>
         <source>Refresh the file tree</source>
         <translation>刷新文件树</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="214"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="51"/>
+        <source>Prompt Writing</source>
+        <translation>提示词撰写</translation>
+    </message>
+    <message>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="443"/>
         <source>Write your prompt here. Enter only inserts a new line; nothing is sent from this page.</source>
         <translation>在这里编写提示词。回车只换行，本页不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="286"/>
         <source>Files</source>
-        <translation>文件</translation>
+        <translation type="vanished">文件</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="418"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="325"/>
         <source>Preview Markdown</source>
         <translation>预览 Markdown</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="426"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="333"/>
         <source>Copy relative path</source>
         <translation>复制相对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="431"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="338"/>
         <source>Copy absolute path</source>
         <translation>复制绝对路径</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="486"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="393"/>
         <source>The workspace folder is empty or unavailable.</source>
         <translation>工作区文件夹为空或不可用。</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="499"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="406"/>
         <source>No workspace selected</source>
         <translation>未选择工作区</translation>
     </message>
     <message>
-        <location filename="../src/tools/qml/ToolsPage.qml" line="500"/>
+        <location filename="../src/tools/qml/ToolsPage.qml" line="407"/>
         <source>Add a folder to browse its files and insert references into the prompt.</source>
         <translation>添加一个文件夹，即可浏览其中的文件并把引用插入提示词。</translation>
     </message>

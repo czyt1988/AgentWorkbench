@@ -70,10 +70,10 @@
 | `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
 | `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
 | `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
-| `tools` | Agent Tools - Prompt | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `tools` | Prompt Writing | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
 | `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` 决定一行落在侧栏的哪个区域，而且是这一点的唯一机制：`system` 行钉底。节内的先后顺序则完全由 `order` 决定——分组就是靠这一点生效的：`tools-group` 是一条 `NavKind::Header` 行（caption 档字号、弱化色、加粗，没有图标的小字标签），`tools` 以 `level = 1` 缩进挂在它下面，因此两者的 `order` 必须相邻，否则这一行会跑到别的分组底下去。分组标签行**不是页面**：`pageIdsInOrder()` 会跳过它（`Ctrl+1…9` 的序号不会因此移位），`badges()` 里没有它的键、`setBadge()` 静默忽略它，`setCurrentPageId()` 会记一条 `qWarning` 并拒绝——因为它不是一个目的地。它仍然必须有 `id`，因为 `NavigationModel` 对每一行都按 id 查重与检索。`countInSection()` 与 `rowOfFirstInSection()` 则照分组标签行计数，因为分割线是按模型行画的。`level` 目前只表达缩进——刻意还没有 chevron 与展开收起交互，等真有子页时再加（见 `designs.md` 的侧栏规则）。
+`section` 决定一行落在侧栏的哪个区域，而且是这一点的唯一机制：`system` 行钉底。节内的先后顺序则完全由 `order` 决定——分组就是靠这一点生效的：`tools-group` 是一条 `NavKind::Header` 行（caption 档字号、弱化色、加粗，没有图标的小字标签），`tools` 以 `level = 1` 缩进挂在它下面，因此两者的 `order` 必须相邻，否则这一行会跑到别的分组底下去。这个分组是为将来的一族 agent 工具预留的——提示词编写台是它的第一个成员；成员的标题刻意不带「Agent Tools」前缀：标签已经说了，这一行自己只读作 **Prompt Writing**（提示词撰写）。分组标签行**不是页面**：`pageIdsInOrder()` 会跳过它（`Ctrl+1…9` 的序号不会因此移位），`badges()` 里没有它的键、`setBadge()` 静默忽略它，`setCurrentPageId()` 会记一条 `qWarning` 并拒绝——因为它不是一个目的地。它仍然必须有 `id`，因为 `NavigationModel` 对每一行都按 id 查重与检索。`countInSection()` 与 `rowOfFirstInSection()` 则照分组标签行计数，因为分割线是按模型行画的。`level` 目前只表达缩进——刻意还没有 chevron 与展开收起交互，等真有子页时再加（见 `designs.md` 的侧栏规则）。
 
 分组标签行在折叠态的侧栏里还会整行隐藏（`Sidebar.qml` 里收起时既不显示标签也取消缩进），`system` 区也永远不放分组标签：那一区的行是纯图标按钮，堆叠位置按行号算。
 

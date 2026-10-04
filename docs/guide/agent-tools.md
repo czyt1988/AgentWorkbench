@@ -1,17 +1,17 @@
 # Agent Tools
 
-**Agent Tools - Prompt** is a prompt-writing scratchpad. You compose a prompt at
+**Prompt Writing** is a prompt-composing scratchpad. You compose a prompt at
 your own pace in a text editor, with a file tree beside it, and copy the finished
 text into the agent when you are ready. **Nothing is ever sent from this page.**
 
-Find it in the sidebar as the row **Agent Tools - Prompt**, listed under the
+Find it in the sidebar as the row **Prompt Writing**, listed under the
 **Agent Tools** heading. That heading is only a name for the group: clicking it
 does nothing, and it disappears when the sidebar is collapsed to icons.
 
 ## What it is
 
-A two-pane workbench: the editor on the left, a browser for one of your project
-folders on the right. Pressing Enter only adds a new line - there is no send
+A two-pane workbench: a browser for one of your project folders on the left, the
+editor on the right. Pressing Enter only adds a new line - there is no send
 button to hit by accident.
 
 ## When to use it
@@ -24,19 +24,19 @@ button to hit by accident.
 
 ## The two panes
 
-- **Left: the editor.** This is where you write. It highlights Markdown
-  formatting as you type. A long prompt scrolls — use the scroll bar on its
-  right edge or the mouse wheel — and the caret is kept in view while you type.
-- **Right: the file tree.** It shows the files in the workspace folder you
+- **Left: the file tree.** It shows the files in the workspace folder you
   selected. A draggable divider separates the two - drag it to give either side
   more room.
+- **Right: the editor.** This is where you write. It highlights Markdown
+  formatting as you type. A long prompt scrolls — use the scroll bar on its
+  right edge or the mouse wheel — and the caret is kept in view while you type.
 
-Above the panes is a toolbar with the workspace selector, **Add Folder...**, a
-refresh button for the tree, and the **Copy** button at the right.
+The **Copy** button sits in the page header, at the top right.
 
 ## Writing a prompt
 
-1. Pick a folder from the **Workspace** menu, or click **Add Folder...** to add
+1. Pick a folder from the workspace menu at the top of the file tree, or click
+   the **folder button** (tooltip **Choose a workspace folder**) beside it to add
    one.
 2. Write your prompt in the editor. Pressing Enter inserts a new line - it does
    not send anything.
@@ -71,14 +71,16 @@ The usual keyboard shortcuts work too (see the [User guide](index.md)).
   **Preview Markdown**, which opens the file in a window of its own — see
   [Markdown preview](markdown-preview.md). The entry only appears when this
   build can preview and the file is a Markdown file by extension.
-- The tree refreshes automatically when files change; the refresh button in the
-  toolbar forces a refresh.
+- The tree refreshes automatically when files change; the refresh button next to
+  the workspace menu forces a refresh.
 
 ## Managing workspace folders
 
-- **Add Folder...** opens a folder picker. Choose any folder on your computer.
-- The **Workspace** menu lists your folders, most recently used first. Pick one
-  to switch to it.
+- The **folder button** next to the workspace menu (tooltip
+  **Choose a workspace folder**) opens a folder picker. Choose any folder on your
+  computer.
+- The workspace menu lists your folders, most recently used first. Pick one to
+  switch to it.
 - Each entry in that menu has an × to remove it from the list.
 - The app remembers up to twenty folders. Adding a twenty-first drops the least
   recently used one.
