@@ -179,6 +179,8 @@ public:
     Q_INVOKABLE void setEditorText(const QString &text);
     Q_INVOKABLE QString editorText() const;
     Q_INVOKABLE awb::core::OpResult saveNow();
+    /// 按 id 存某个文件会话，**不改变激活**（关窗守卫批量存盘用）。
+    Q_INVOKABLE awb::core::OpResult saveSession(const QString &docId);
     // 磁盘那份重新读进来（放弃本地改动）
     Q_INVOKABLE awb::core::OpResult reloadFromDisk();
     // 差异提示消失（用户选了「保留我的改动」）

@@ -97,11 +97,39 @@ ApplicationWindow {
     font.family: theme.family.length > 0 ? theme.family : undefined
 
     // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
+    // 预设与活跃会话耦合：提示词预设激活草稿会话（预览面渲染草稿），文档
+    // 预设激活上次的文件会话（没有文件 tab 就退回提示词）。lastFileDocId
+    // 记住「上一个活跃的文件会话」：prompt ⇄ document 来回切时回到看的那份，
+    // 而不是总跳到最后打开的。
+    property string lastFileDocId: ""
+
+    readonly property var dirtyFileTabs: {
+        const dirty = []
+        for (let i = 0; i < markdown.tabs.length; ++i) {
+            if (markdown.tabs[i].dirty)
+                dirty.push(markdown.tabs[i])
+        }
+        return dirty
+    }
+
     function applyPreset(requested) {
         const documentUsable = markdown.available
-                               && markdown.fileTitle.length > 0
-        preset = (requested === "document" && documentUsable)
-                 ? "document" : "prompt"
+                               && markdown.tabs.length > 0
+        if (requested === "document" && documentUsable) {
+            preset = "document"
+            if (markdown.draftActive || markdown.activeDocId.length === 0) {
+                const target = lastFileDocId.length > 0
+                        && markdown.tabs.length > 0
+                        ? lastFileDocId
+                        : markdown.tabs[markdown.tabs.length - 1].docId
+                markdown.activateSession(target)
+            }
+        }
+        else {
+            preset = "prompt"
+            // 草稿会话承载提示词形态的渲染（虚拟文档）；已激活时是幂等的。
+            markdown.activateSession(markdown.openDraftSession())
+        }
     }
 
     onInitialPresetChanged: applyPreset(initialPreset)
@@ -291,9 +319,29 @@ ApplicationWindow {
         workbenchWindow.close()
     }
 
+    // 关窗守卫的「全部保存」：逐个按 id 存，不换激活（中途失败就地报因，
+    // 剩下的下一轮再存）。返回是否全部成功。
+    function saveAllDirtySessions() {
+        let allOk = true
+        for (let i = 0; i < markdown.tabs.length; ++i) {
+            const tab = markdown.tabs[i]
+            if (!tab.dirty)
+                continue
+            const result = markdown.saveSession(tab.docId)
+            if (!result.ok) {
+                allOk = false
+                workbench.notify("error", qsTr("Could not save"),
+                                 tab.title + " — " + result.error)
+            }
+        }
+        return allOk
+    }
+
     // 开窗即向控制器报到：从此它才往外排命令（窗口不在时命令一律不排）。
+    // 草稿会话在这里灌进初始正文——之后每敲一键经防抖器增量喂给它。
     Component.onCompleted: {
         markdown.notifyWindowOpened()
+        markdown.setDraftText(tools.draft)
         applyPreset(initialPreset)
         if (!markdown.canEdit && markdown.mode === "source")
             markdown.setMode("preview")
@@ -301,20 +349,26 @@ ApplicationWindow {
 
     // 没有关闭事件也要把状态位放下来：主窗退出、Loader 被直接关掉都会跳过
     // onClosing。控制器里的 m_windowOpen 有幂等守卫。
-    Component.onDestruction: markdown.notifyWindowClosed()
+    Component.onDestruction: {
+        draftSyncTimer.stop()
+        markdown.notifyWindowClosed()
+    }
 
     // --- 关闭语义 ----------------------------------------------------------
+    // 只读文档不能 Ctrl+S，但「只读」挡不住别的 tab 脏：守卫看的是全部文件
+    // 会话，不只有激活的那个——静默丢掉一个后台 tab 的改动是这个窗口能犯的
+    // 最贵的错。
     onClosing: function (close) {
-        if (closeApproved || !markdown.dirty) {
+        if (closeApproved || dirtyFileTabs.length === 0) {
             closeApproved = false
             // 关窗必须报到：QML 的 Window 关掉只是藏起来，对象还活着。不报
             // 的话 `markdown.active` 永远为真，主窗那个 Loader 的 active 不会
             // 翻转，第二次请求就只剩一次 raise 打在一扇已经隐藏的窗上。
-            // 顺序要紧：先让控制器把文档与状态放下，窗口随后才销毁。
+            // 顺序要紧：先让控制器把窗口态放下，窗口随后才销毁（会话保留）。
             markdown.notifyWindowClosed()
             return
         }
-        // 有未保存的改动时不静默丢弃：这扇窗的存盘键是 Ctrl+S，用户完全
+        // 有未保存的文件时不静默丢弃：这扇窗的存盘键是 Ctrl+S，用户完全
         // 可能改完直接点 ×。
         close.accepted = false
         unsavedDialog.open()
@@ -755,14 +809,16 @@ ApplicationWindow {
             }
 
             // --- 中间：文档区 ----------------------------------------------
-            // 单隐式草稿 tab + 三态 + 状态条。tab 条上的标签随预设切换
-            // （草稿 / 文件名），统一 tab 模型的多 tab 化是后续里程碑的事。
+            // 文件 tab 条 + 三态 + 状态条。tab 只装文件会话（草稿是提示词
+            // 形态的隐式主体，不占 tab；多草稿并入 tab 条是 M4 的事）。
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 0
 
-                // tab 条：一条贴顶的窄条，单个 tab。
+                // tab 条：一条贴顶的窄条。文件 tab 可点（激活 + 切文档
+                // 预设）、可关（关视图不删文件）；脏标记以圆点呈现，
+                // 不只靠颜色。
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 34
@@ -774,29 +830,82 @@ ApplicationWindow {
                         anchors.rightMargin: theme.spacingS
                         spacing: theme.spacingS
 
-                        // 徽标区分来源：草稿 tab 与文件 tab 不靠记忆。
-                        APill {
-                            text: preset === "prompt" ? qsTr("Draft")
-                                                      : qsTr("File")
+                        Repeater {
+                            model: markdown.tabs
+
+                            delegate: Item {
+                                id: fileTab
+                                required property var modelData
+                                required property int index
+
+                                // 根用 Item + 视觉背景放内层：delegate 的
+                                // required property 与同名视觉属性的遮蔽坑
+                                //（AGENTS.md QML 契约）。
+                                readonly property bool isActive:
+                                    fileTab.modelData.active
+
+                                implicitWidth: tabRow.implicitWidth + theme.spacingS * 2
+                                implicitHeight: 34
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: theme.radiusControl
+                                    color: fileTab.isActive
+                                          ? theme.surfaceBg : "transparent"
+                                    border.width: fileTab.isActive ? 1 : 0
+                                    border.color: theme.borderSubtle
+                                }
+
+                                RowLayout {
+                                    id: tabRow
+                                    anchors.centerIn: parent
+                                    spacing: theme.spacingXs
+
+                                    // 脏标记：一个 6 px 的圆点，标题旁。
+                                    Rectangle {
+                                        visible: fileTab.modelData.dirty
+                                        implicitWidth: 6
+                                        implicitHeight: 6
+                                        radius: 3
+                                        color: theme.warning
+                                    }
+
+                                    Label {
+                                        text: fileTab.modelData.title
+                                        color: fileTab.isActive
+                                              ? theme.textPrimary
+                                              : theme.textSecondary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
+
+                                    AIconButton {
+                                        iconSource: "qrc:/icons/close.svg"
+                                        tooltip: qsTr("Close this tab")
+                                        onClicked: {
+                                            markdown.closeSession(
+                                                fileTab.modelData.docId)
+                                        }
+                                    }
+                                }
+
+                                // 点 tab：激活该会话并切到文档预设。点关闭
+                                // 按钮不该走到这里——AIconButton 自己吃点击。
+                                TapHandler {
+                                    onSingleTapped: {
+                                        markdown.activateSession(
+                                            fileTab.modelData.docId)
+                                        workbenchWindow.applyPreset("document")
+                                    }
+                                }
+                            }
                         }
 
-                        Label {
-                            text: preset === "prompt"
-                                  ? qsTr("Prompt draft")
-                                  : (markdown.fileTitle.length > 0
-                                     ? markdown.fileTitle
-                                     : qsTr("No document"))
-                            color: theme.textPrimary
-                            font.pixelSize: theme.fontSizeCaption
-                            elide: Text.ElideMiddle
-                            Layout.fillWidth: true
-                        }
-
-                        // 三态是「当前在哪」，用 variant 表达选中。提示词
-                        // 模式下草稿没有渲染面，切换器不出现（功能缺失时
-                        // 不可见，而不是放一个不响应的版本）。
+                        // 三态是「当前在哪」，用 variant 表达选中。两种预设
+                        // 都在场：文档模式对文件，提示词模式对草稿——渲染管
+                        // 线吃文本不吃文件，草稿同样有 Preview/Split。
                         RowLayout {
-                            visible: preset === "document"
+                            visible: markdown.available
                             spacing: theme.spacingXs
 
                             Repeater {
@@ -824,10 +933,10 @@ ApplicationWindow {
                         }
 
                         AIconButton {
-                            visible: preset === "document"
                             iconSource: "qrc:/icons/bullet-list.svg"
                             tooltip: qsTr("Show outline")
                             active: markdown.showOutline
+                            // 大纲对草稿同样成立（它也是一份有标题的正文）。
                             onClicked: markdown.setShowOutline(!markdown.showOutline)
                         }
 
@@ -846,7 +955,6 @@ ApplicationWindow {
                         }
 
                         AComboBox {
-                            visible: preset === "document"
                             Layout.preferredWidth: 120
                             // 标签与值同序：0 = 跟随主题的 fontSizeBody。
                             property var values: [0, 12, 13, 14, 16, 18, 20, 24]
@@ -859,7 +967,6 @@ ApplicationWindow {
                         }
 
                         AComboBox {
-                            visible: preset === "document"
                             Layout.preferredWidth: 120
                             // 0 = 内置基准。末项是「尽量满栏」。
                             property var values: [0, 640, 760, 900, 1200, 4000]
@@ -879,6 +986,10 @@ ApplicationWindow {
                             iconSource: "qrc:/icons/menu.svg"
                             tooltip: qsTr("More actions")
                             onClicked: actionsMenu.popup()
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
                         }
                     }
                 }
@@ -973,27 +1084,34 @@ ApplicationWindow {
                 }
 
                 // --- 文档主体 ----------------------------------------------
-                // 提示词模式：草稿编辑区占满（拖拽插引用、右键格式菜单都
-                // 在它身上）。文档模式：手写两栏 + 可拖分隔条（编辑区 |
-                // 渲染面），不用 SplitView 是因为三态里有两态要把一栏挤成
-                // 0 宽，而 SplitView 对 visible 的处理跨版本不一致。
+                // 一套两栏结构服务两种预设：编辑侧是草稿编辑器（草稿会话
+                // 激活）或文件源码区（文件会话激活），预览侧渲染活跃会话
+                // ——渲染管线吃文本不吃文件，草稿与文档同一条。草稿区与
+                // 两栏结构是兄弟：位置对齐到编辑槽位（splitX），预览面与
+                // 分隔条在 docArea 里。不用 SplitView 是因为三态里有两态
+                // 要把一栏挤成 0 宽，而 SplitView 对 visible 的处理跨版本
+                // 不一致。
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    // 提示词模式的草稿编辑区。
+                    // 草稿编辑区（提示词形态的源码面；objectName 是
+                    // tst_toolsui 的定位锚点）。
                     Flickable {
                         id: promptScroll
                         objectName: "promptScroll"
 
-                        anchors.fill: parent
-                        visible: workbenchWindow.preset === "prompt"
+                        x: 0
+                        y: 0
+                        width: docArea.splitX
+                        height: parent.height
+                        visible: docArea.showsEditor && markdown.draftActive
+                                 && width > 0
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         // 折行显示，宽度即视口宽度，横向永不溢出。
                         flickableDirection: Flickable.VerticalFlick
 
-                        // objectName 是 tst_toolsui 的定位锚点。
                         ScrollBar.vertical: AScrollBar {
                             objectName: "promptScrollBar"
                         }
@@ -1011,7 +1129,14 @@ ApplicationWindow {
                                 // 主题切换由 MarkdownEdit 自己跟随。
                                 MarkdownEdit.attach(promptEditor)
                             }
-                            onTextChanged: tools.draft = text
+                            // 双写：tools.draft 走门面自己的 500 ms 防抖落
+                            // tools.json；草稿会话走 200 ms 防抖——一次敲键
+                            // 要整篇重切块，逐键喂是把 CPU 花在马上会被改
+                            // 掉的中间态上。
+                            onTextChanged: {
+                                tools.draft = text
+                                draftSyncTimer.restart()
+                            }
 
                             // 拖放目标：接住来自文件树的行，把文件引用插到
                             // 落点光标处。
@@ -1058,14 +1183,22 @@ ApplicationWindow {
                         }
                     }
 
-                    // 文档模式的两栏主体。
+                    // 草稿会话的增量喂入（与 editorSyncTimer 同一条纪律）。
+                    Timer {
+                        id: draftSyncTimer
+                        interval: 200
+                        onTriggered: markdown.setDraftText(promptEditor.text)
+                    }
+
+                    // 两栏主体（编辑槽位 + 预览面 + 分隔条）。
                     Item {
                         id: docArea
                         anchors.fill: parent
-                        visible: workbenchWindow.preset === "document"
 
-                        readonly property bool showsEditor: markdown.mode !== "preview"
-                        readonly property bool showsView: markdown.mode !== "source"
+                    readonly property bool showsEditor: !markdown.available
+                                                       || markdown.mode !== "preview"
+                    readonly property bool showsView: markdown.available
+                                                     && markdown.mode !== "source"
                         readonly property bool showsBoth: showsEditor && showsView
                         // 分隔条的位置：单栏时被推到边界，于是另一栏自然
                         // 0 宽。
@@ -1073,14 +1206,15 @@ ApplicationWindow {
                                               ? Math.round(width * workbenchWindow.editorShare)
                                               : (showsEditor ? width : 0)
 
-                        // --- 编辑区（源码） ---
+                        // --- 编辑侧（文件源码区） ---
                         Flickable {
                             id: editorScroll
                             x: 0
                             y: 0
                             width: docArea.splitX
                             height: parent.height
-                            visible: docArea.showsEditor && width > 0
+                            visible: docArea.showsEditor
+                                     && !markdown.draftActive && width > 0
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             flickableDirection: Flickable.VerticalFlick
@@ -1288,13 +1422,13 @@ ApplicationWindow {
                 }
             }
 
-            // --- 右侧：大纲（文档模式的查阅面板） -------------------------
-            // 提示词模式的右区（体检/预算/历史）随各自功能落地，本版不占位。
+            // --- 右侧：大纲（活跃会话的查阅面板） -------------------------
+            // 大纲对草稿同样成立（它也是一份有标题的正文）。提示词模式的
+            // 其余右区（体检/预算/历史）随各自功能落地，本版不占位。
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 232
-                visible: workbenchWindow.preset === "document"
-                         && markdown.showOutline
+                visible: markdown.showOutline
                 color: theme.surfaceBg
 
                 ColumnLayout {
@@ -1401,9 +1535,19 @@ ApplicationWindow {
             workbenchWindow.pump()
         }
 
-        // 整篇换了（重载、接受外部改动）：编辑器文本跟着换，但要绕开
-        // debounce，否则这次写入会被算成用户的编辑、当场又变脏。
+        // 活跃会话换人：记住「上次的文件会话」（预设来回切时回到看的那份）。
+        function onActiveSessionChanged() {
+            if (!markdown.draftActive)
+                workbenchWindow.lastFileDocId = markdown.activeDocId
+        }
+
+        // 整篇换了（换 tab、重载、接受外部改动、草稿改写）：文件源码区的
+        // 文本跟着换，但要绕开 debounce，否则这次写入会被算成用户的编辑、
+        // 当场又变脏。草稿激活时跳过——草稿正文只从草稿编辑器流向会话，
+        // 不倒灌。
         function onDocumentChanged() {
+            if (markdown.draftActive)
+                return
             const current = markdown.editorText()
             if (editorArea.text !== current) {
                 applyingExternal = true
@@ -1586,7 +1730,9 @@ ApplicationWindow {
     }
 
     // 「保存 / 放弃 / 取消」三态：AConfirmDialog 只有两个按钮，所以直接基于
-    // ADialog 写（与主窗的退出确认同形，见 designs.md）。
+    // ADialog 写（与主窗的退出确认同形，见 designs.md）。守卫覆盖**所有**
+    // 脏的文件会话，不只是激活的那个——静默丢掉一个后台 tab 的改动是这个
+    // 窗口能犯的最贵的错。
     ADialog {
         id: unsavedDialog
         width: 440
@@ -1599,8 +1745,11 @@ ApplicationWindow {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Save the changes to %1 before closing?")
-                          .arg(markdown.fileTitle)
+                text: dirtyFileTabs.length === 1
+                      ? qsTr("Save the changes to %1 before closing?")
+                            .arg(dirtyFileTabs[0].title)
+                      : qsTr("%1 documents have unsaved changes. Save them before closing?")
+                            .arg(dirtyFileTabs.length)
                 color: theme.textPrimary
                 font.pixelSize: theme.fontSizeBody
                 wrapMode: Text.Wrap
@@ -1612,10 +1761,12 @@ ApplicationWindow {
                 AButton {
                     Layout.fillWidth: true
                     variant: "primary"
-                    text: qsTr("Save and close")
+                    text: dirtyFileTabs.length === 1
+                          ? qsTr("Save and close")
+                          : qsTr("Save all and close")
                     onClicked: {
                         unsavedDialog.close()
-                        if (workbenchWindow.saveDocument())
+                        if (workbenchWindow.saveAllDirtySessions())
                             workbenchWindow.approveClose()
                     }
                 }

@@ -416,7 +416,12 @@ QString MarkdownPreviewController::openDraftSession()
         m_draft->blocks = MarkdownChunker::split(QString());
         m_draft->outline = MarkdownRuntime::outlineFromBlocks(m_draft->blocks);
         m_draft->rev = 1;
-        m_draft->mode = m_defaultMode;
+        // 草稿的默认三态不是文件的默认：草稿是用来**写**的，分栏（写 +
+        // 看）是它的自然形态；preview 起步会把编辑器整个藏掉。无预览能力
+        // 的构建退到纯源码态。这个初值不落 settings——用户改模式时才
+        // 更新默认（setMode）。
+        m_draft->mode = available() ? QStringLiteral("split")
+                                    : QStringLiteral("source");
         wireSessionSignals(m_draft);
     }
     return m_draft->docId;
@@ -678,6 +683,31 @@ core::OpResult MarkdownPreviewController::saveNow()
         Q_EMIT tabsChanged();
     }
     return written;
+}
+
+/**
+ * @brief 按 id 存某个文件会话，不改变激活
+ * @param docId 会话 id
+ * @return 成功或失败原因
+ *
+ * 关窗守卫的「全部保存」走它：逐个激活再存会把渲染面来回换八遍，而且
+ * 存到一半失败时用户看到的「当前文档」已经不知道被换成了哪一个。
+ */
+core::OpResult MarkdownPreviewController::saveSession(const QString &docId)
+{
+    for (const auto &session : m_sessions) {
+        if (session->docId != docId) {
+            continue;
+        }
+        const core::OpResult written = session->document.save();
+        if (written) {
+            Q_EMIT saved();
+            Q_EMIT tabsChanged();
+        }
+        return written;
+    }
+    return core::OpResult::failure(QCoreApplication::translate(
+        "MarkdownPreviewController", "There is no file to save to."));
 }
 
 /**
