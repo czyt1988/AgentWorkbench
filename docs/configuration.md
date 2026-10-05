@@ -133,6 +133,29 @@ Missing keys take their defaults in place — there is no migration code:
   the keys are still read and preserved, but the preview-dependent ones cannot
   change. See [Markdown workbench](guide/markdown-workbench.md).
 
+## The prompt workbench's own files
+
+The prompt side of the Markdown workbench keeps two things beside
+`settings.json`:
+
+- **`tools.json`** (in the app's data directory) holds the workspace MRU
+  list, the current workspace, the prompt draft, the ribbon preferences and
+  the **favorites** — finished prompts saved for reuse, an array of
+  `{title, body, tags, createdAt}`, newest first, capped at 50 (the oldest is
+  evicted). All of it is written by the app; there is nothing here to edit by
+  hand.
+- **`prompt_templates/`** (a folder in the app's data directory) holds user
+  templates, **one file per template**. These are yours: edit them with any
+  text editor, back them up, put them in git, or copy one to a colleague. The
+  file is Markdown with a minimal header — a `---` line, `key: value` lines,
+  another `---` — supporting `id` (optional; defaults to the file name),
+  `title`, `category`, `tags` (comma-separated) and `description`. A file
+  whose header is missing or malformed still loads: the whole file becomes
+  the body and the title falls back to the file name. Giving a file the same
+  `id` as a shipped template overrides it; deleting the file restores the
+  built-in. The ten shipped skeletons live inside the executable and are
+  never written to this folder.
+
 ## Themes
 
 | Location | Purpose |

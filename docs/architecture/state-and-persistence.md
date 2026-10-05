@@ -37,7 +37,8 @@ make the "untouched root" check fail forever.
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
 | `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view and its startup behaviour | `core::Settings` — the only entry point |
-| `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, prompt draft, window interface state | `ToolsStore` via `ToolsFacade` |
+| `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, prompt draft, window interface state, and the favorites (finished prompts, max 50) | `ToolsStore` via `ToolsFacade` |
+| `prompt_templates/` | you | user prompt templates — one Markdown file each, with a minimal header; a file sharing a built-in's `id` overrides it | `PromptTemplateLibrary` (read/merge), hand-edited at will |
 | `markdown_session.json` | Markdown workbench | the workbench window's last scene: open tabs (paths + view modes), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths only, no document content** | `MarkdownSessionStore` via `WorkbenchContext` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
@@ -70,7 +71,8 @@ user chose or paid for; everything else is rebuilt from scratch.
 | Agent definitions | `agents.json` | across restarts |
 | Application settings, including the last sidebar page | `settings.json` | across restarts |
 | One-time setup completion | `agent_state.json` | across restarts |
-| Workspace memory and prompt draft | `tools.json` | across restarts |
+| Workspace memory, prompt draft and favorites | `tools.json` | across restarts |
+| User prompt templates | `prompt_templates/` | across restarts |
 | Markdown workbench view choices and startup behaviour | `settings.json` (`markdown.*`) | across restarts |
 | Markdown workbench tab group, active tab, preset and panel states | `markdown_session.json` | across restarts (until the next write) |
 

@@ -41,9 +41,10 @@ The window's actions live in a command bar across the top. In `AWB_ENABLE_RIBBON
 
 ### Tabs and what lives in them
 
-The command bar has two tabs: **Start** and **View**.
+The command bar has three tabs: **Start**, **Prompt tools** and **View**.
 
 - **Start** holds the migrated actions: **Copy Prompt** (the delivery path — a second **Copy** sits in the quick-access bar on the title row), the clipboard group **Paste / Cut / Copy Text**, **Undo / Redo**, and the formatting trio **Bold / Code / Bullets**. While a file tab is active, the tab also carries **Find** (opens the document search) and **Save** (enabled only when the document is editable). Every action forwards to the window's action layer or the existing `MarkdownEdit` static cursor operations — the command bar is an entry point only and holds no logic of its own.
+- **Prompt tools** is the window's first **context tab** — a `RibbonContextCategory` whose `active` follows the prompt preset; in the document form it is absent entirely (decision D-2: templates and favorites are draft tools, and someone else's document is not a place to insert them). It holds **Insert Template** (expands the left panel's Templates section and focuses its search — the section is the picker) and **Save as Template**, plus **Save Favorite**.
 - **View** holds the switches: the **Preview / Split / Source** three-state and the outline toggle (both for whichever session is active — the draft renders too), **Full Tools** (the preset switch: on = the prompt form, off = the document form), **Collapse** (fold the whole band to its tab row), **Style** (single / two / three rows), and **Follow Theme** (whether the band's colours track the application theme).
 
 The single row is the default style, and its consequences are worth knowing before adding buttons: panel titles are hidden, and every button renders at the small size regardless of its `proportion` — grouping and button order carry the hierarchy, and labels must stay short. `minimumMode` collapses the band to its tab row; the document-form preset starts collapsed, and clicking the tab row expands it again.
@@ -145,18 +146,84 @@ Three pieces, Windows only, none of them a lightweight viewer:
 
 Double-clicking a file in the explorer starts the **full application** — shell, sidebar, engine — not an instant viewer; that is a deliberate decision, and the honest cost is the startup time. Builds without the preview capability hide the association action entirely (registering an entry that would only ever produce an error toast is worse than not offering it).
 
+## Templates and favorites
+
+The prompt side of the window grows a library: **templates** are skeletons with placeholders to fill, **favorites** are finished prompts to reuse as-is. The distinction is enforced in the UI, not just documented — the two live in separate panels, separate storage, separate actions, because mixing them would make every click start with "which kind is this?".
+
+### Where templates come from, and the override rule
+
+`PromptTemplateLibrary` (tools domain) merges two sources:
+
+1. **Built-ins** — `config/default_prompt_templates.json`, shipped read-only inside the binary (`:/config/…`), same convention as the agent and icon defaults: data, not code, and never hardcoded in C++. Ten skeletons ship: fix-a-bug, add-a-feature, write-tests, review-code, refactor, write-documentation, explain-this-code, commit-message, reproduce-an-issue, plan-a-change. Each is structure and questions only — specifics belong to the variables.
+2. **User templates** — `<dataRoot>/prompt_templates/`, one file per template. Users can hand-edit, back up, and git the directory; a broken file is skipped with a warning rather than dragging the library down.
+
+A user file whose id matches a built-in **overrides it in place** — the same mental model as `agents.json` ("user edits win, built-ins regenerate every start"). Deleting a user template file simply returns the built-in to its shipped shape; built-ins cannot be deleted.
+
+### The one-file header format
+
+A user template is Markdown with a minimal header — a separator line, `key: value` lines, another separator. **It is not YAML**; the parser is deliberately one layer deep:
+
+```markdown
+---
+title: Fix a parser bug
+category: My templates
+tags: parser, bug
+description: My own shape for bug reports.
+---
+## Symptom
+{{symptom:What visibly goes wrong}}
+...
+```
+
+Parsing is tolerant: a file with no header is all body (title falls back to the file name), an unclosed header falls back to the whole file being body, and a bad line (no colon, unknown key) is skipped with a warning. Round-tripping through `PromptTemplateIo::serialize()` preserves every field. The header keys are `id` (optional; the file's base name is the fallback), `title`, `category`, `tags` (comma-separated), `description`.
+
+### The variable engine
+
+`PromptVariables` is pure string work — no network, no model, no template language (no loops, no conditionals; the day those are needed the feature is template composition, not a programming language).
+
+| Syntax | Meaning |
+|---|---|
+| `{{task}}` | a placeholder to fill |
+| `{{task:fallback text}}` | a placeholder with a default |
+| `{{workspace}}` / `{{date}}` | built-ins, auto-evaluated, never asked of the user |
+| `{{selection}}` | built-in, filled from the editor's selection at insert time |
+
+Rules the implementation and the tests both lock:
+
+- **Name syntax:** ASCII identifiers only (no Chinese, no leading digits). The include form `{{> name}}` and non-identifier braces are not matched.
+- **One name, one fill.** Every occurrence of `{{task}}` is replaced from a single value.
+- **Values beat defaults; defaults beat nothing.** An explicit value wins over `{{task:fallback}}`'s fallback; with neither, the placeholder **stays verbatim** — skipping is an intentional act that leaves a visible `{{task}}` to come back to, not a failure.
+- **Built-ins evaluate inside `renderTemplate()`:** `workspace` is the current workspace, `date` is today in ISO form. `selection` is passed in by the window (the facade cannot see the editor).
+
+### The UI: three sections, one picker, one context tab
+
+- **The left panel is three collapsible sections** (`ASectionHeader` + chevron): the workspace/file tree (as before), **Templates** (expanded by default: an `ASearchField` filtering live, a list capped at 30 rows, a **built-in** pill on shipped skeletons, click = insert), and **Favorites** (collapsed by default; click = insert the body, hover reveals copy and remove, an empty state that says what belongs here).
+- **Inserting always targets the draft.** A file tab is someone else's document — templates and favorites never go into it. Clicking a template while the document form is showing first switches back to the prompt preset, then inserts at the cursor.
+- **The variable form** (`variableForm`, an `ADialog`) appears only when the chosen template has variables to fill: one row per variable (name + `ATextField` pre-filled with the default), `Enter` confirms, `Esc` cancels, **empty fields are skips** — the caption says so, and the placeholders stay in the text. Tab moves between fields; the flow is keyboard-first.
+- **Save as Template** (ribbon and toolbar) opens a small dialog with title (pre-filled from the draft's first line, markdown markers stripped), category (default "My templates") and description; `saveAsTemplate()` derives the file name as a slug from the title and **suffixes on collision** — it never silently overwrites an existing file. Overriding a built-in is done by hand-editing a user file with the same id, an explicit act.
+- **The ribbon's first context tab.** **Prompt tools** is a `RibbonContextCategory` whose `active` follows `preset === "prompt"` — the first landing of decision D-2: in the document form the tab disappears entirely. Its panels hold **Insert Template** and **Save as Template** (plus **Save Favorite** in the second panel); the fallback toolbar carries the same three buttons, enabled only while the draft is active and non-empty.
+- **The left panel is the picker.** Insert Template does not open a second list — it expands the Templates section and focuses its search field. SARibbon's `RibbonGallery.groups` and `menuItems` are static `QQmlListProperty`s that cannot bind a model, so a ribbon-hosted duplicate list would be a lie about what is selected; the section is both browser and picker.
+
+### `tools.json` gains `favorites`
+
+An array of `{title, body, tags, createdAt}` — finished prompts, new first, cap 50 with the oldest evicted, same-title-and-body saves are idempotent (a re-save refreshes the timestamp and moves it to the head, it does not take a new slot), removal is by exact title **and** body. The key is purely additive: an old three-key `tools.json` loads with an empty favorites list and keeps its `draft` verbatim — covered by a compat test.
+
+One deliberate scope cut: the planning documents describe `templateVariables` *proposing* conversions when saving a template (file references → `{{file}}`, repeated proper nouns → `{{name}}`). That suggestion pass is **not implemented** — the save dialog takes the text as-is, and a user who wants variables writes them into the template by hand. Nothing else in the flow assumes the proposals exist.
+
 ## Files and classes
 
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/workbench/qml/MarkdownWorkbenchWindow.qml` | `MarkdownWorkbenchWindow` | The window: command bar slot, side panels, the file tab strip, the draft/document middle area (one split structure serving both presets), search bar, status line, dialogs, shortcuts, session save/restore (evolved from the former `MarkdownPreviewWindow.qml`; the resource alias moves from `markdown/` to `workbench/`) | `ToolsFacade`, `Markdown`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench`, `theme` |
-| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | The SARibbon command bar: two tabs, single-row default, style from `tools.ribbonStyle`, the one-way theme bridge; pure forwarding to the window's action layer | the window QML, `RibbonTheme`, `tools.*` |
-| `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | The no-ribbon fallback: a plain toolbar with the same actions, loaded when the ribbon file is absent | the window QML |
+| `src/workbench/qml/MarkdownWorkbenchWindow.qml` | `MarkdownWorkbenchWindow` | The window: command bar slot, side panels (three collapsible sections: workspace tree, templates, favorites), the file tab strip, the draft/document middle area (one split structure serving both presets), search bar, status line, dialogs (variable form, save-as-template, unsaved guard), shortcuts, session save/restore (evolved from the former `MarkdownPreviewWindow.qml`; the resource alias moves from `markdown/` to `workbench/`) | `ToolsFacade`, `Markdown`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench`, `theme` |
+| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | The SARibbon command bar: Start, **Prompt tools** (a `RibbonContextCategory`, visible only in the prompt preset) and View, single-row default, style from `tools.ribbonStyle`, the one-way theme bridge; pure forwarding to the window's action layer | the window QML, `RibbonTheme`, `tools.*` |
+| `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | The no-ribbon fallback: a plain toolbar with the same actions (including Insert Template / Save as Template / Save Favorite, enabled while the draft is active), loaded when the ribbon file is absent | the window QML |
 | `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | The preview surface (the `WebEngineView` and its wiring), loaded by resource URL only when the capability exists | `Markdown`, the window QML |
 | `src/shell/qml/MarkdownStartPage.qml` | `MarkdownStartPage` | The sidebar's **Markdown** start page: the open-workbench button plus the **Recent documents** list (top 6 of the MRU) — a thin shell, not the editor | `workbench.openMarkdownWorkbench()`, `workbench.previewMarkdown()`, `workbench.recentMarkdownDocuments()` |
 | `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | Registers the built-in pages, including the **Markdown** start page | `NavigationModel`, `WorkbenchContext` |
-| `src/tools/ToolsStore.{h,cpp}` | `ToolsStore` | `tools.json` state: MRU workspace list, current workspace, prompt draft, and the `ribbon` section (`collapsed` / `style` / `followAppTheme` / `lastTabIndex`); `kMaxWorkspaces` = 20 | `ToolsFacade`, `core::JsonStore` |
-| `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML facade: workspace properties, draft property, `addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`, the flat tree model as `model`, and the four `ribbon*` interface preferences; 500 ms draft debounce plus destructor flush | the window QML, `app/main.cpp` (`tools` alias), `FileTreeModel`, `FileTreeFlatModel` |
+| `src/tools/ToolsStore.{h,cpp}` | `ToolsStore` | `tools.json` state: MRU workspace list, current workspace, prompt draft, the `ribbon` section (`collapsed` / `style` / `followAppTheme` / `lastTabIndex`) and the `favorites` array (new first, cap 50, idempotent same-title-same-body saves); `kMaxWorkspaces` = 20 | `ToolsFacade`, `core::JsonStore` |
+| `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML facade: workspace properties, draft property, `addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`, the flat tree model as `model`, the four `ribbon*` interface preferences; the M2 surface — `templates` / `filteredTemplates` / `templateVariables` / `renderTemplate` / `saveAsTemplate` / `removeTemplate` / `templateDirectory` and `favorites` / `addFavorite` / `removeFavorite` (plus `templatesChanged` / `favoritesChanged`); 500 ms draft debounce plus destructor flush | the window QML, `app/main.cpp` (`tools` alias), `FileTreeModel`, `FileTreeFlatModel`, `PromptTemplateLibrary` |
+| `src/tools/PromptTemplate.{h,cpp}` | `PromptTemplate`, `PromptTemplateIo`, `PromptVariables` | The value type (id/title/category/tags/description/body/scope), the minimal-header parse/serialize, and the pure variable engine (extract/apply, built-ins `workspace`/`date`) | `PromptTemplateLibrary`, `ToolsFacade::renderTemplate()` |
+| `src/tools/PromptTemplateLibrary.{h,cpp}` | `PromptTemplateLibrary` | Merges shipped built-ins (`config/default_prompt_templates.json`, read-only) with `<dataRoot>/prompt_templates/*.md` (user id overrides built-in in place); search over title/description/tags/body AND tag filter; save/remove write the user directory | `ToolsFacade` (owns one), `core::JsonStore` |
 | `src/tools/FileTreeModel.{h,cpp}` | `FileTreeModel` (with private `Node`) | Lazy directory tree over one workspace root; incremental `refresh()`; `QFileSystemWatcher` | `ToolsFacade`, `FileTreeFlatModel` |
 | `src/tools/FileTreeFlatModel.{h,cpp}` | `FileTreeFlatModel` (with private `Row`) | Flattened projection for the QML `ListView`; owns the expanded-path set | the window QML, `FileTreeModel` |
 | `src/tools/FileIcons.{h,cpp}` | `FileIcons` | Three lookup tables (file names / suffixes / folder names) plus fallbacks; `forFile()`/`forFolder()` | `FileTreeModel` (`IconRole`), `core::IconResolver` |
@@ -170,7 +237,7 @@ Double-clicking a file in the explorer starts the **full application** — shell
 | `src/markdown/webengine/MarkdownPreviewProvider.{h,cpp}` | `MarkdownPreviewProvider` | Registers the scheme, owns the preview-only profile, installs the handler, and tells the controller the surface exists | `app/main.cpp`, `MarkdownRuntimeHandler` |
 | `src/markdown/webengine/MarkdownRuntimeHandler.{h,cpp}` | `MarkdownRuntimeHandler` | The single supplier for `awbmd://runtime/…`, with an in-memory cache for vendor bytes | `MarkdownPreviewController` |
 | `src/markdown/webengine/runtime/*` | `shell.html`, `bridge.js`, `renderer.js`, `markdown-config.js`, `math-rule.js`, `diagram.js`, `find.js`, `theme.css` | The page: bootstrap and command dispatch, the chunked pipeline, the markdown-it configuration, KaTeX/task/alert rules, deferred mermaid, in-document search | `MarkdownRuntime` (protocol), `third_party/markdown-runtime/` |
-| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | The cross-domain entry: `previewMarkdown()` / `canPreviewMarkdown()` for the document form, `openMarkdownWorkbench()` for the prompt form, `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()` for the session file and MRU, and `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` plus the single-instance `encodeOpenMessage()` / `decodeOpenMessage()` for file association — for domains that may not name each other | `MarkdownPreviewController`, `MarkdownSessionStore`, the window QML, the start page, `app/main.cpp` |
+| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | The cross-domain entry: `previewMarkdown()` / `canPreviewMarkdown()` for the document form, `openMarkdownWorkbench()` for the prompt form, `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()` for the session file and MRU, `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` plus the single-instance `encodeOpenMessage()` / `decodeOpenMessage()` for file association, and `openTemplateDirectory()` (creates the user template folder on demand and opens it in the file manager) — for domains that may not name each other | `MarkdownPreviewController`, `MarkdownSessionStore`, the window QML, the start page, `app/main.cpp` |
 | `src/workbench/MarkdownSessionStore.{h,cpp}` | `MarkdownSessionStore`, `MarkdownSessionState` | `markdown_session.json`: tab group (path + mode), active index, preset and panel states, the 20-entry recent-documents MRU; corrupted file = default state with a warning | `WorkbenchContext`, `core::JsonStore` |
 | `src/shell/qml/MainWindow.qml` | `MainWindow` | Hosts the window's `Loader`; writes the window's `initialPreset` from the opening intent | `Markdown`, `WorkbenchContext` |
 | `cmake/AwbOptions.cmake`, `app/CMakeLists.txt` | `AWB_ENABLE_RIBBON` wiring | SARibbon submodule build and the window's resource registration | `third_party/SARibbon` |
@@ -185,16 +252,17 @@ Outside the modules the window leans on `core::Paths::dataRoot()`, `config/defau
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │ Command bar: WorkbenchRibbon.qml (SARibbon) or the toolbar     │
-│              fallback — tabs: Start · View                      │
+│  tabs: Start · Prompt tools (prompt preset only) · View        │
 ├───────────────┬────────────────────────────────┬───────────────┤
 │ left panel    │ middle area                    │ outline panel │
 │ workspace     │ file tab strip (dirty dots)    │ (any session, │
 │ + file tree   │ Preview / Split / Source       │  behind its   │
-│               │ search bar · status line       │  toggle)      │
+│ templates     │ search bar · status line       │  toggle)      │
+│ favorites     │                                │               │
 └───────────────┴────────────────────────────────┴───────────────┘
 ```
 
-- The left panel is the migrated prompt-page tree panel: a compact header row (workspace `AComboBox` with `Layout.fillWidth`, folder-picker `AIconButton`, refresh `AIconButton`) above the tree. It collapses to a narrow, clickable edge; the document-form preset starts it collapsed. Neither the panel nor the editor takes a corner radius where they meet — flush squares at the junction.
+- The left panel is **three collapsible sections** behind `ASectionHeader`s: the workspace/file tree (the migrated prompt-page tree panel: a compact header row with workspace `AComboBox`, folder-picker and refresh `AIconButton`s above the tree; collapses to a narrow clickable edge, and the document-form preset starts it collapsed), **Templates** (search field + capped list, expanded by default in the prompt form), and **Favorites** (collapsed by default). Neither the panel nor the editor takes a corner radius where they meet — flush squares at the junction. The two list rows are `AListRow`s driven by an `ObjectModel` rebuilt from the facade — which means the row's `width` must track the list explicitly (see Pitfalls).
 - The right panel is the outline, behind the outline toggle, serving the **active session** — the draft has headings too, so it is no longer document-form-only.
 - The middle area is headed by the **file tab strip** (`Repeater` over `markdown.tabs`): one tab per file session with its title, dirty dot and close button; the strip also carries the view switcher, the outline and search buttons, the text-size and column-width pickers, and the **More actions** menu. The switcher serves both presets — the draft renders through the same pipeline as the files.
 - The middle body is **one split structure for both presets**: the editor slot holds the draft editor when the draft session is active and the file source editor otherwise, and the preview pane renders the active session. It is a hand-rolled two-pane layout, not a `SplitView`: two of the three view states squeeze one pane to zero width, and `SplitView`'s handling of `visible` panes differs across Qt versions. The divider is 4 px visually with a 12 px hit area; the split proportion (`editorShare`) is window state — dragging it should not touch the disk.
@@ -465,13 +533,17 @@ bash scripts/build.sh --test                            # tst_markdown asserts t
 - **Actions have exactly one home.** A control appears in the command bar, in a side panel or in the context menu — never in two of them.
 - **Session writes go through `saveMarkdownSession()`.** The window composes the state and hands it to `WorkbenchContext` in one call (tab group from the controller, preset from the window, MRU from the context) — writing the file from anywhere else risks losing one of the three sources.
 - **The multi-class test runner and `-o`.** `awbRunRegisteredTests()` passes `-o <file>` through to each class's `qExec`; the argument used to be eaten as a test filter, which silently skipped every class and reported success. When debugging a multi-class suite, run one case by name and check it actually ran.
+- **Dialogs are declared, not loaded.** `variableForm` and `saveTemplateDialog` are plain `ADialog` children of the window, not `Loader`-created: a Popup instantiated from a `Loader`'s `sourceComponent` takes a call into freed memory during the popup's reparenting (a real crash, `feeefeee` pattern — three workaround shapes were tried). A closed dialog costs nothing, so laziness buys nothing here.
+- **QML JavaScript has no `.trimmed()`.** `String.prototype.trim()` exists; `.trimmed()` does not. The save-dialog's title guess hand-trims after stripping markdown markers.
+- **`ObjectModel` rows need an explicit width.** The view positions those objects directly; `AListRow` has no `implicitWidth`, so an unbound width is zero and clicks land on nothing. Bind `width: theList.width` on the row.
+- **Test resources must be named uniquely per directory.** `qt_add_resources` writes a shared `.qt/rcc/<name>.qrc` for every target in one directory — `tst_tools` and `tst_toolsui` both using `test_resources` had the icon list silently winning and the template resource never shipping. Prefix the resource name with the target.
 
 ## Tests
 
 | Target | Covers |
 |---|---|
-| `tst_tools` | `ToolsStore` semantics (MRU, cap, draft debounce, ribbon section tolerance), lazy tree model (roles, fetch, incremental refresh), icon mapping, facade wiring, `MarkdownEdit` cursor operations |
-| `tst_toolsui` | The window-level interaction smoke: loads the workbench window, drives the draft editor, the file tree and the context menu through the `objectName` contracts |
+| `tst_tools` | `ToolsStore` semantics (MRU, cap, draft debounce, ribbon section tolerance, **the `favorites` lifecycle and the old-three-key-file compat line**), lazy tree model (roles, fetch, incremental refresh), icon mapping, facade wiring, `MarkdownEdit` cursor operations, and `TestPromptTemplates` — header round-trip/tolerance, variable extract/apply, library merge (override + append)/search/save/remove, and the shipped resource actually containing the ten built-ins |
+| `tst_toolsui` | The window-level interaction smoke: loads the workbench window, drives the draft editor, the file tree and the context menu through the `objectName` contracts; the M2 cases cover the built-in template list, the variable form end-to-end (including the skip semantics — an empty field leaves `{{placeholder}}` in the text), inserting a favorite from the list, and saving the draft to favorites through a real toolbar click |
 | `tst_markdown` | `MarkdownChunker` (including corpus equivalence), `MarkdownDocument` (shape-preserving save, caps, read-only sources, watcher semantics, **the virtual document**), `MarkdownRuntime` (URLs, MIME, routes, protocol tables, theme → CSS, outline), `MarkdownPreviewController` (**the session container**: open/switch/close, path dedup, the 8-tab cap, dirty isolation, doc.json-follows-active, asset resolution for live sessions, the draft session, close-keeps-sessions, save-without-switching; queue de-duplication, open/save/export, capability verdicts), and the vendor sha256 table |
 | `tst_markdownpreview` | The page pipeline against a real `WebEngineView`: a document mounts, blocks appear, incremental updates land. The large-document case runs only under `AWB_MD_PERF` |
 | `tst_markdownpreviewui` | The shipped `MarkdownWorkbenchWindow.qml` as loaded QML: the command pump runs, find/serialize round-trip, the open/close reporting contract (Qt 6 + WebEngine only) |
@@ -486,7 +558,7 @@ The gates that keep `tst_markdownpreview` and `tst_markdownpreviewui` out of Qt 
 - [ ] New `.cpp`/`.h` files are added to the owning module's `CMakeLists.txt`; if a new source uses `tr()`, add it to `cmake/AwbTranslations.cmake`.
 - [ ] New or moved `.qml` files are registered in `app/CMakeLists.txt` (the window and command bar live under the `workbench/` resource alias; the ribbon file only in `AWB_ENABLE_RIBBON` builds) and in `AWB_TS_SOURCES` if they use `qsTr()`.
 - [ ] `objectName`s used by the interaction smoke are unchanged, or the test is updated in the same commit.
-- [ ] `tools.json` key names (`workspaces`, `current`, `draft`, `ribbon` with its four inner keys) are unchanged — they are on-disk format.
+- [ ] `tools.json` key names (`workspaces`, `current`, `draft`, `ribbon` with its four inner keys, `favorites` with per-entry `title`/`body`/`tags`/`createdAt`) are unchanged — they are on-disk format. The template header keys (`id`/`title`/`category`/`tags`/`description`) are on-disk format too — renaming one loses user templates.
 - [ ] `markdown_session.json` key names (`tabs`, `activeIndex`, `preset`, `promptLeftOpen`, `documentLeftOpen`, `documentRibbonCollapsed`, `recentDocuments`, and per-tab `path`/`mode`) are unchanged — same rule.
 - [ ] The single-instance message format (`open:<JSON array>` / `raise`) stays in sync between `encodeOpenMessage()` and `decodeOpenMessage()`, and the ProgId (`AgentWorkbench.Markdown.1`) is not renamed — renaming it orphans the registry entry the user already registered.
 - [ ] `FileIcons` key names in `config/default_file_icons.json` were not renamed.

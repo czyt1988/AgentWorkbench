@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Prompt templates**: the workbench window's left panel gains a
+  **Templates** section — a searchable shelf of prompt skeletons. Ten ship
+  built in (bug report, feature request, test plan, code review, refactor,
+  documentation, explain code, commit message, reproduce an issue, plan a
+  change); **your own prompts can be saved as templates** (title, category,
+  description) and live as plain Markdown files in the app's data folder,
+  one per template — hand-editable, back-up-able, shareable, and a file
+  sharing a built-in's id overrides it. Templates carry
+  **`{{placeholders}}`**: inserting one with variables opens a small fill-in
+  form (pre-filled defaults, `Enter` inserts, `Esc` cancels); a field left
+  empty is a deliberate skip and the `{{placeholder}}` stays visible in the
+  text. Two placeholders fill themselves — the current workspace and today's
+  date — and the editor's selection, if any, is used as the `{{selection}}`
+  value. The ribbon grows its first **context tab**, **Prompt tools**
+  (visible only while the prompt is active): **Insert Template** opens the
+  library, **Save as Template** stores the draft. The no-ribbon toolbar
+  carries the same three buttons.
+- **Favorites**: finished prompts — the ones you keep reusing exactly as
+  they are — can be saved with **Save Favorite** and re-inserted with one
+  click from the **Favorites** panel under the templates (or copied straight
+  to the clipboard from the row). Kept in the app's own storage, newest
+  first, up to fifty.
 - **Markdown workbench tabs and sessions**: the workbench window now holds
   **several documents at once** — one tab per file, up to eight (the ninth is
   refused with an explanation, nothing is silently closed). Tabs carry a
