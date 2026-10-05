@@ -14,6 +14,8 @@ add_library(awb_tools STATIC
     MarkdownEdit.h
     MarkdownHighlighter.cpp
     MarkdownHighlighter.h
+    PromptChecks.cpp
+    PromptChecks.h
     PromptTemplate.cpp
     PromptTemplate.h
     PromptTemplateLibrary.cpp
