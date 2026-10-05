@@ -1,0 +1,84 @@
+{
+    "templates": [
+        {
+            "id": "fix-a-bug",
+            "title": "Fix a bug",
+            "category": "Fix",
+            "tags": ["bug", "debug"],
+            "description": "Report a misbehavior and get it fixed with a verifiable outcome.",
+            "body": "## Symptom\n\n{{symptom:What visibly goes wrong}}\n\n## Steps to reproduce\n\n1. {{step-1}}\n2. {{step-2}}\n3. {{step-3}}\n\n## Expected behavior\n\n{{expected:What should happen instead}}\n\n## Relevant files\n\n{{files:./path/to/the/file}}\n\n## Acceptance\n\nAfter the fix, {{acceptance:the failing case or test}} must pass. Run it and show the result.\n"
+        },
+        {
+            "id": "add-a-feature",
+            "title": "Add a feature",
+            "category": "Build",
+            "tags": ["feature"],
+            "description": "Add a new capability with explicit scope and acceptance criteria.",
+            "body": "## Goal\n\n{{goal:What the user should be able to do afterwards}}\n\n## Constraints\n\n- Workspace: {{workspace}}\n- {{constraints:What must not change}}\n\n## Involved modules\n\n{{modules:./paths or areas this touches}}\n\n## Out of scope\n\n{{out-of-scope:What this deliberately does not do}}\n\n## Acceptance criteria\n\n- {{criterion-1}}\n- {{criterion-2}}\n\nDo not implement anything outside the stated scope without asking first.\n"
+        },
+        {
+            "id": "write-tests",
+            "title": "Write tests",
+            "category": "Build",
+            "tags": ["tests"],
+            "description": "Cover a module with tests, framework and run command included.",
+            "body": "## Target module\n\n{{module:./path/to/module}}\n\n## Paths to cover\n\n- {{path-1:the main success path}}\n- {{path-2:an edge case}}\n- {{path-3:an error path}}\n\n## Framework and conventions\n\n{{framework:Test framework and conventions to follow}}\n\n## Run command\n\n{{run-command:How to run just these tests}}\n\nTests must not depend on the network or on tools installed on this machine.\n"
+        },
+        {
+            "id": "review-code",
+            "title": "Review code",
+            "category": "Review",
+            "tags": ["review"],
+            "description": "Review a change with named focus areas and a fixed output format.",
+            "body": "## Review scope\n\n{{scope:Files, commits or line ranges to review}}\n\n## Focus\n\n- {{focus-1:correctness}}\n- {{focus-2:boundary conditions}}\n- {{focus-3:naming and readability}}\n\n## Output format\n\nFor each finding: severity, location, what is wrong, and a suggested fix. End with a one-paragraph overall verdict.\n"
+        },
+        {
+            "id": "refactor",
+            "title": "Refactor",
+            "category": "Build",
+            "tags": ["refactor"],
+            "description": "Restructure code while pinning down the behavior that must not change.",
+            "body": "## Current problem\n\n{{problem:What hurts about the current structure}}\n\n## Desired structure\n\n{{desired:What it should look like afterwards}}\n\n## Behavior that must not change\n\n{{invariants:Observable behavior that has to stay identical}}\n\n## Verification\n\n{{verification:How to prove nothing broke}}\n\nRefactor only; do not add features in the same change.\n"
+        },
+        {
+            "id": "write-documentation",
+            "title": "Write documentation",
+            "category": "Docs",
+            "tags": ["docs"],
+            "description": "Document something for a named audience.",
+            "body": "## Audience\n\n{{audience:Who reads this}}\n\n## Questions to answer\n\n- {{question-1}}\n- {{question-2}}\n\n## Tone and depth\n\n{{tone:Casual or formal, tutorial or reference}}\n\n## Location\n\n{{location:Where the result should land}}\n"
+        },
+        {
+            "id": "explain-this-code",
+            "title": "Explain this code",
+            "category": "Understand",
+            "tags": ["explain"],
+            "description": "Build an understanding of a file or region before changing it.",
+            "body": "## Code to explain\n\n{{code:./path/to/file or region}}\n\n## Depth\n\n{{depth:Walkthrough, data flow, or line-by-line}}\n\n{{diagram:Draw the control or data flow as a diagram.}}\n\nEnd with the three things most likely to break when someone changes this code.\n"
+        },
+        {
+            "id": "commit-message",
+            "title": "Commit message",
+            "category": "Fix",
+            "tags": ["commit", "git"],
+            "description": "Turn staged changes into a conventional commit message.",
+            "body": "Write a commit message for the current staged changes.\n\n## Summary of the change\n\n{{summary:One sentence of what and why}}\n\n## Format\n\n{{format:Conventional Commits, plain, or project style}}\n\n## Language\n\n{{language:English}}\n\nSubject line under 72 characters; body explains why, not what.\n"
+        },
+        {
+            "id": "reproduce-an-issue",
+            "title": "Reproduce an issue",
+            "category": "Understand",
+            "tags": ["bug", "reproduce"],
+            "description": "Pin down an environment, input, and the exact divergence.",
+            "body": "## Environment\n\n{{environment:OS, versions, relevant tools}}\n\n## Input\n\n{{input:What was done}}\n\n## Expected\n\n{{expected}}\n\n## Actual\n\n{{actual:What happened instead}}\n\n## Logs\n\n{{logs:./path/to/log or the relevant excerpt}}\n"
+        },
+        {
+            "id": "plan-a-change",
+            "title": "Plan a change",
+            "category": "Plan",
+            "tags": ["plan"],
+            "description": "Ask for a plan first; implementation only after approval.",
+            "body": "## Goal\n\n{{goal:What this change should achieve}}\n\n## Constraints\n\n- {{constraints:Budget, style, or compatibility limits}}\n\n**Plan first, implement later.** Propose a plan with steps, risks, and files touched. Wait for approval before writing any code.\n"
+        }
+    ]
+}

@@ -18,6 +18,90 @@ namespace {
  * 逐字符写盘没有意义，500 ms 停顿后写一次足够；应用退出由析构兜底补写。
  */
 constexpr int kDraftSaveDelayMs = 500;
+
+/**
+ * @brief 模板清单 → QML 的 QVariantList
+ */
+QVariantList templateListToVariant(const QList<PromptTemplate> &templates)
+{
+    QVariantList result;
+    for (const PromptTemplate &template_ : templates) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("id"), template_.id);
+        entry.insert(QStringLiteral("title"), template_.title);
+        entry.insert(QStringLiteral("category"), template_.category);
+        entry.insert(QStringLiteral("tags"), template_.tags);
+        entry.insert(QStringLiteral("description"), template_.description);
+        entry.insert(QStringLiteral("builtin"),
+                     template_.scope == PromptTemplate::Scope::Builtin);
+        result.append(entry);
+    }
+    return result;
+}
+
+/**
+ * @brief 标题 → 文件名安全的 slug（小写、非字母数字折叠成单个连字符）
+ */
+QString sanitizeTemplateId(const QString &title)
+{
+    QString slug;
+    bool lastWasDash = true;   // 开头的连字符不要
+    for (const QChar &ch : title) {
+        const bool wordChar = ch.isLetterOrNumber();
+        if (wordChar) {
+            slug.append(ch.toLower());
+            lastWasDash = false;
+        }
+        else if (!lastWasDash) {
+            slug.append(QLatin1Char('-'));
+            lastWasDash = true;
+        }
+    }
+    while (slug.endsWith(QLatin1Char('-'))) {
+        slug.chop(1);
+    }
+    return slug.isEmpty() ? QStringLiteral("template") : slug;
+}
+
+/**
+ * @brief 给 slug 找一个不撞名的 id（fix-a-bug → fix-a-bug-2 → -3 …）
+ */
+QString uniqueTemplateId(const PromptTemplateLibrary &library,
+                         const QString &base)
+{
+    QString candidate = base;
+    int suffix = 2;
+    while (!library.byId(candidate).id.isEmpty()) {
+        candidate = base + QLatin1Char('-') + QString::number(suffix);
+        ++suffix;
+    }
+    return candidate;
+}
+
+/**
+ * @brief 正文首行当标题用（去掉 markdown 记号、截到一句以内）
+ */
+QString firstLineAsTitle(const QString &body)
+{
+    const QString firstLine =
+        body.section(QLatin1Char('\n'), 0, 0).trimmed();
+    // 去掉行首的 markdown 记号（#、-、*、>）与行内强调（*、`）。
+    QString cleaned;
+    for (const QChar &ch : firstLine) {
+        if (ch == QLatin1Char('#') || ch == QLatin1Char('-')
+            || ch == QLatin1Char('*') || ch == QLatin1Char('>')
+            || ch == QLatin1Char('`')) {
+            continue;
+        }
+        cleaned.append(ch);
+    }
+    cleaned = cleaned.trimmed();
+    if (cleaned.size() > 60) {
+        cleaned = cleaned.left(60).trimmed() + QStringLiteral("…");
+    }
+    return cleaned;
+}
+
 } // namespace
 
 /**
@@ -33,6 +117,7 @@ constexpr int kDraftSaveDelayMs = 500;
 ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
     : QObject(parent)
     , m_store(dataRoot)
+    , m_templates(dataRoot)
     , m_model(new FileTreeModel(this))
     , m_flatModel(new FileTreeFlatModel(this))
     , m_draftTimer(new QTimer(this))
@@ -349,6 +434,170 @@ void ToolsFacade::persistDraft()
     if (!m_store.setDraft(m_draft)) {
         qWarning() << "[tools] could not persist the draft";
     }
+}
+
+// --- 模板与收藏（M2） ----------------------------------------------------
+
+/**
+ * @brief 模板清单（合并视图 → QML 的 QVariantList）
+ */
+QVariantList ToolsFacade::templates() const
+{
+    return templateListToVariant(m_templates.templates());
+}
+
+/**
+ * @brief 检索模板（见 PromptTemplateLibrary::filtered 的匹配规则）
+ */
+QVariantList ToolsFacade::filteredTemplates(const QString &search,
+                                           const QString &tag) const
+{
+    return templateListToVariant(m_templates.filtered(search, tag));
+}
+
+/**
+ * @brief 模板里的待填变量（排除内置变量；内置的在 renderTemplate 里
+ *        自动求值，不进表单）
+ */
+QVariantList ToolsFacade::templateVariables(const QString &id) const
+{
+    QVariantList result;
+    const PromptTemplate template_ = m_templates.byId(id);
+    if (template_.id.isEmpty()) {
+        return result;
+    }
+    const QList<PromptVariables::Variable> variables =
+        PromptVariables::extract(template_.body);
+    for (const PromptVariables::Variable &variable : variables) {
+        if (PromptVariables::isBuiltIn(variable.name)) {
+            continue;
+        }
+        QVariantMap entry;
+        entry.insert(QStringLiteral("name"), variable.name);
+        entry.insert(QStringLiteral("defaultValue"), variable.defaultValue);
+        result.append(entry);
+    }
+    return result;
+}
+
+/**
+ * @brief 套值渲染一份模板
+ *
+ * 内置变量在此求值：workspace = 当前工作区、date = 今天、selection =
+ * 调用方带入的编辑区选区（它是界面事实，门面自己看不到）。未填的普通
+ * 变量原样保留 `{{name}}` 待办——跳过本身是一个有意的动作，不是失败。
+ */
+QString ToolsFacade::renderTemplate(const QString &id,
+                                    const QVariantMap &values,
+                                    const QString &selection) const
+{
+    const PromptTemplate template_ = m_templates.byId(id);
+    if (template_.id.isEmpty()) {
+        return QString();
+    }
+    QVariantMap effective = values;
+    effective.insert(QStringLiteral("workspace"),
+                     m_store.currentWorkspace());
+    effective.insert(QStringLiteral("date"),
+                     PromptVariables::builtInValue(
+                         QStringLiteral("date"), QString()));
+    effective.insert(QStringLiteral("selection"), selection);
+    return PromptVariables::apply(template_.body, effective);
+}
+
+/**
+ * @brief 把一段文本存为用户模板
+ *
+ * id 由标题派生成文件名安全的 slug；撞名自动加序号（不覆盖——「覆盖」
+ * 是用户在模板目录里手改同 id 文件的显式动作）。
+ */
+core::OpResult ToolsFacade::saveAsTemplate(const QString &title,
+                                          const QString &body,
+                                          const QString &category,
+                                          const QString &description)
+{
+    if (title.trimmed().isEmpty() || body.trimmed().isEmpty()) {
+        return core::OpResult::failure(tr(
+            "A template needs a title and some text."));
+    }
+    PromptTemplate template_;
+    template_.id = uniqueTemplateId(m_templates,
+                                    sanitizeTemplateId(title));
+    template_.title = title.trimmed();
+    template_.category = category.trimmed().isEmpty()
+            ? tr("My templates") : category.trimmed();
+    template_.description = description.trimmed();
+    template_.body = body.endsWith(QLatin1Char('\n')) ? body
+                                                      : body + QLatin1Char('\n');
+    template_.scope = PromptTemplate::Scope::User;
+    const core::OpResult saved = m_templates.save(template_);
+    if (saved) {
+        Q_EMIT templatesChanged();
+    }
+    return saved;
+}
+
+/**
+ * @brief 删除一份用户模板（内置的随包再生，删不掉）
+ */
+core::OpResult ToolsFacade::removeTemplate(const QString &id)
+{
+    const core::OpResult removed = m_templates.remove(id);
+    if (removed) {
+        Q_EMIT templatesChanged();
+    }
+    return removed;
+}
+
+/**
+ * @brief 用户模板目录
+ */
+QString ToolsFacade::templateDirectory() const
+{
+    return m_templates.userDirectory();
+}
+
+/**
+ * @brief 收藏夹（→ QML 的 QVariantList）
+ */
+QVariantList ToolsFacade::favorites() const
+{
+    QVariantList result;
+    const QList<FavoriteEntry> favorites = m_store.favorites();
+    for (const FavoriteEntry &entry : favorites) {
+        QVariantMap item;
+        item.insert(QStringLiteral("title"), entry.title);
+        item.insert(QStringLiteral("body"), entry.body);
+        item.insert(QStringLiteral("tags"), entry.tags);
+        item.insert(QStringLiteral("createdAt"),
+                    double(entry.createdAt));
+        result.append(item);
+    }
+    return result;
+}
+
+/**
+ * @brief 收藏一段成稿
+ */
+void ToolsFacade::addFavorite(const QString &title, const QString &body)
+{
+    const QString trimmed = title.trimmed().isEmpty()
+            ? firstLineAsTitle(body) : title.trimmed();
+    if (!m_store.addFavorite(trimmed, body, {})) {
+        qWarning() << "[tools] could not persist the favorites";
+    }
+    Q_EMIT favoritesChanged();
+}
+
+/**
+ * @brief 移除一条收藏
+ */
+void ToolsFacade::removeFavorite(const QString &title, const QString &body)
+{
+    if (!m_store.removeFavorite(title, body)) {
+        qWarning() << "[tools] could not persist the favorites";
+    }
+    Q_EMIT favoritesChanged();
 }
 
 } // namespace awb::tools

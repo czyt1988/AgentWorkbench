@@ -2,12 +2,14 @@
 #define AWB_TOOLS_TOOLSFACADE_H
 
 #include "core/OpResult.h"
+#include "tools/PromptTemplateLibrary.h"
 #include "tools/ToolsStore.h"
 
 #include <QAbstractItemModel>
 #include <QObject>
 #include <QString>
 #include <QVariantList>
+#include <QVariantMap>
 
 class QTimer;
 
@@ -16,9 +18,11 @@ namespace awb::tools {
 class FileTreeFlatModel;
 class FileTreeModel;
 
-/// Agent Tools 页的 QML 门面：工作区记忆、当前工作区、提示词草稿与文件树模型。
+/// Agent Tools 页的 QML 门面：工作区记忆、当前工作区、提示词草稿与文件
+/// 树模型，外加模板库与收藏夹（M2）。
 ///
-/// 校验与草稿防抖落盘见 ToolsFacade.cpp；持久化是 ToolsStore 的 tools.json。
+/// 校验与草稿防抖落盘见 ToolsFacade.cpp；持久化是 ToolsStore 的 tools.json
+/// 与 PromptTemplateLibrary 的用户模板目录。
 class ToolsFacade : public QObject
 {
     Q_OBJECT
@@ -31,6 +35,10 @@ class ToolsFacade : public QObject
     Q_PROPERTY(QString currentWorkspace READ currentWorkspace
                WRITE setCurrentWorkspace NOTIFY currentWorkspaceChanged)
     Q_PROPERTY(QString draft READ draft WRITE setDraft NOTIFY draftChanged)
+    /// 模板清单（合并视图）：[{id,title,category,tags,description,builtin}]
+    Q_PROPERTY(QVariantList templates READ templates NOTIFY templatesChanged)
+    /// 收藏夹（新在前）：[{title,body,tags,createdAt}]
+    Q_PROPERTY(QVariantList favorites READ favorites NOTIFY favoritesChanged)
     /// Ribbon 是否折叠（工作台窗口的界面偏好，写盘经 ToolsStore）
     Q_PROPERTY(bool ribbonCollapsed READ ribbonCollapsed WRITE setRibbonCollapsed
                NOTIFY ribbonSettingsChanged)
@@ -81,6 +89,42 @@ public:
     // 正斜杠分隔）；空路径返回空串
     Q_INVOKABLE QString fileReference(const QString &relativePath) const;
 
+    // --- 模板与收藏（M2） -----------------------------------------------
+    // 模板清单（Q_PROPERTY 的 READ 侧；合并视图见 PromptTemplateLibrary）
+    QVariantList templates() const;
+    // 检索模板：关键词匹配标题/描述/标签/正文，tag 非空时要求带该标签
+    // （与关系）。空关键词 + 空 tag = 全部。
+    Q_INVOKABLE QVariantList filteredTemplates(const QString &search,
+                                               const QString &tag) const;
+    // 模板正文里的待填变量（排除内置变量——它们插入时自动求值）：
+    // [{name, defaultValue}]，按出现顺序。
+    Q_INVOKABLE QVariantList templateVariables(const QString &id) const;
+    // 套值渲染一份模板：values 是表单给的变量值，selection 是插入瞬间
+    // 编辑区的选区（{{selection}} 用，空串 = 无）。内置变量在内部求值
+    // （workspace = 当前工作区，date = 今天）。未填的变量原样保留
+    // `{{name}}` 待办。未知 id 返回空串。
+    Q_INVOKABLE QString renderTemplate(const QString &id,
+                                       const QVariantMap &values,
+                                       const QString &selection) const;
+    // 把一段文本存为用户模板（Save as Template）。id 由标题派生（撞名
+    // 自动加序号），文件落在用户模板目录，存完列表立即可见。
+    Q_INVOKABLE awb::core::OpResult saveAsTemplate(const QString &title,
+                                                   const QString &body,
+                                                   const QString &category,
+                                                   const QString &description);
+    // 删除一份用户模板（内置的删不掉——随包再生）
+    Q_INVOKABLE awb::core::OpResult removeTemplate(const QString &id);
+    // 用户模板目录（「打开模板目录」动作用）
+    Q_INVOKABLE QString templateDirectory() const;
+
+    // 收藏夹（Q_PROPERTY 的 READ 侧）
+    QVariantList favorites() const;
+    // 收藏一段成稿（同标题同全文 = 幂等重存，不占新位）
+    Q_INVOKABLE void addFavorite(const QString &title, const QString &body);
+    // 按标题 + 全文移除一条收藏
+    Q_INVOKABLE void removeFavorite(const QString &title,
+                                    const QString &body);
+
     // Q_PROPERTY WRITE 侧
     void setCurrentWorkspace(const QString &path);
     void setDraft(const QString &text);
@@ -110,6 +154,14 @@ Q_SIGNALS:
      * @brief 一次重扫完成（手动 refresh 或 watcher 触发都会走到这里）
      */
     void refreshFinished();
+    /**
+     * @brief 模板清单变化时发射（存为模板、删除、目录被外部改动后 refresh）
+     */
+    void templatesChanged();
+    /**
+     * @brief 收藏夹变化时发射（新增、移除）
+     */
+    void favoritesChanged();
 
 private:
     // 把当前工作区设为树根；目录已不存在时不设根（树保持空）
@@ -120,6 +172,7 @@ private:
     void applyRibbon(const RibbonSettings &ribbon);
 
     ToolsStore m_store;              ///< tools.json 的工作区记忆与草稿
+    PromptTemplateLibrary m_templates;  ///< 模板库（内置 + 用户目录）
     FileTreeModel *m_model;          ///< 树本体（懒加载、watcher、增量对账）
     FileTreeFlatModel *m_flatModel;  ///< QML 消费的扁平投影
     QString m_draft;                 ///< 草稿全文（防抖写盘的缓冲）

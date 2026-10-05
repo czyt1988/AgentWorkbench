@@ -4,8 +4,13 @@
 #include "tools/ToolsStore.h"
 
 #include <QDir>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <memory>
 
 using awb::core::Paths;
 using awb::tools::ToolsStore;
@@ -136,7 +141,109 @@ private Q_SLOTS:
         QVERIFY(store.currentWorkspace().isEmpty());
     }
 
+    /// M2 兼容红线：旧版三键文件（workspaces/current/draft）读入 →
+    /// 草稿与工作区记忆完整保留；写回后旧键原样在。
+    void testOldThreeKeyFileKeepsDraft()
+    {
+        {
+            ToolsStore store(Paths::dataRoot());
+            store.load();
+            store.addWorkspace(QStringLiteral("/w/keep"));
+            QVERIFY(store.setDraft(QStringLiteral("precious draft")));
+        }
+        // 模拟旧版本写的文件：手工把 favorites/ribbon 键剥掉再读。
+        {
+            QFile file(storeJsonPath());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const QJsonObject root =
+                QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+            QJsonObject stripped;
+            stripped.insert(QStringLiteral("workspaces"),
+                            root.value(QStringLiteral("workspaces")));
+            stripped.insert(QStringLiteral("current"),
+                            root.value(QStringLiteral("current")));
+            stripped.insert(QStringLiteral("draft"),
+                            root.value(QStringLiteral("draft")));
+            QFile writer(storeJsonPath());
+            QVERIFY(writer.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            writer.write(QJsonDocument(stripped).toJson());
+            writer.close();
+        }
+        ToolsStore reloaded(Paths::dataRoot());
+        reloaded.load();
+        QCOMPARE(reloaded.draft(), QStringLiteral("precious draft"));
+        QCOMPARE(reloaded.workspaces(),
+                 QStringList{QStringLiteral("/w/keep")});
+        QVERIFY(reloaded.favorites().isEmpty());
+        // 写回（例如加一条收藏）后旧键仍在——键位是磁盘格式。
+        reloaded.addFavorite(QStringLiteral("T"), QStringLiteral("B"), {});
+        QFile file(storeJsonPath());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonObject root =
+            QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        QCOMPARE(root.value(QStringLiteral("draft")).toString(),
+                 QStringLiteral("precious draft"));
+        QVERIFY(root.contains(QStringLiteral("favorites")));
+    }
+
+    /// 收藏：新增幂等（同标题同全文重存）、上限淘汰最旧、按内容精确移除。
+    void testFavoritesLifecycle()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QVERIFY(store.favorites().isEmpty());
+
+        store.addFavorite(QStringLiteral("First"), QStringLiteral("body-1"),
+                          { QStringLiteral("a") });
+        store.addFavorite(QStringLiteral("Second"), QStringLiteral("body-2"),
+                          {});
+        QCOMPARE(store.favorites().size(), 2);
+        QCOMPARE(store.favorites().at(0).title,
+                 QStringLiteral("Second"));   // 新在前
+
+        // 同标题同全文 = 幂等重存（挪到队首，不占新位）。
+        store.addFavorite(QStringLiteral("First"), QStringLiteral("body-1"),
+                          {});
+        QCOMPARE(store.favorites().size(), 2);
+        QCOMPARE(store.favorites().at(0).title, QStringLiteral("First"));
+
+        // 同标题不同全文 = 两条（改了一个字的成稿是另一份草稿）。
+        store.addFavorite(QStringLiteral("First"), QStringLiteral("body-1b"),
+                          {});
+        QCOMPARE(store.favorites().size(), 3);
+
+        // 上限淘汰：灌满到 kMaxFavorites + 5，最先存的（body-2）被挤掉。
+        for (int i = 0; i < ToolsStore::kMaxFavorites + 5; ++i) {
+            store.addFavorite(QStringLiteral("F%1").arg(i),
+                              QStringLiteral("body-%1").arg(i), {});
+        }
+        QCOMPARE(store.favorites().size(), ToolsStore::kMaxFavorites);
+        bool sawBody2 = false;
+        for (const auto &entry : store.favorites()) {
+            if (entry.body == QStringLiteral("body-2")) {
+                sawBody2 = true;
+            }
+        }
+        QVERIFY(!sawBody2);
+        // 最新的还在队首。
+        QCOMPARE(store.favorites().at(0).title,
+                 QStringLiteral("F%1").arg(ToolsStore::kMaxFavorites + 4));
+
+        // 按标题 + 全文精确移除。
+        store.removeFavorite(
+            store.favorites().at(0).title, store.favorites().at(0).body);
+        QCOMPARE(store.favorites().size(), ToolsStore::kMaxFavorites - 1);
+    }
+
 private:
+    // <dataRoot>/tools.json 的绝对路径（与被测的 store 同一棵树）。
+    QString storeJsonPath() const
+    {
+        return Paths::dataRoot() + QStringLiteral("/tools.json");
+    }
+
     std::unique_ptr<QTemporaryDir> m_dir;  ///< 每个用例独立的临时数据根
 };
 

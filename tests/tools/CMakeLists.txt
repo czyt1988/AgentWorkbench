@@ -1,5 +1,5 @@
 # tst_tools — workspace store, lazy file tree model (tree + flat projection),
-# icon map, facade wiring, markdown editing support.
+# icon map, facade wiring, markdown editing support, prompt templates.
 add_executable(tst_tools
     tst_tools_main.cpp
     tst_toolsstore.cpp
@@ -8,22 +8,32 @@ add_executable(tst_tools
     tst_fileicons.cpp
     tst_toolsfacade.cpp
     tst_markdownedit.cpp
+    tst_prompttemplates.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
 )
 
 target_include_directories(tst_tools PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 
-# The bundled icon map is an absolute path outside this directory; the alias
-# must be declared before awb_add_resources() processes the file. FileIcons
-# reads it from the same :/config/ URL the executable uses.
+# The bundled icon map and prompt templates are absolute paths outside this
+# directory; the alias must be declared before awb_add_resources() processes
+# the files. FileIcons/PromptTemplateLibrary read them from the same
+# :/config/ URLs the executable uses.
+# The resource name must be unique per directory: qt_add_resources writes
+# .qt/rcc/<name>.qrc shared by every target in this directory, so tst_tools
+# and tst_toolsui using the same name overwrite each other (tst_toolsui's
+# icon list used to silently win; the templates would never have shipped).
 set(_tst_tools_default_icons ${CMAKE_SOURCE_DIR}/config/default_file_icons.json)
 set_source_files_properties(${_tst_tools_default_icons}
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+set(_tst_tools_default_templates ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json)
+set_source_files_properties(${_tst_tools_default_templates}
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_prompt_templates.json")
 
-awb_add_resources(tst_tools "test_resources"
+awb_add_resources(tst_tools "tools_core_test_resources"
     PREFIX "/"
     FILES
         ${_tst_tools_default_icons}
+        ${_tst_tools_default_templates}
 )
 
 target_link_libraries(tst_tools PRIVATE
@@ -124,7 +134,8 @@ foreach(_icon IN LISTS _tst_toolsui_foldertype_icons)
         PROPERTIES QT_RESOURCE_ALIAS "icons/foldertypes/${_name}")
 endforeach()
 
-awb_add_resources(tst_toolsui "test_resources"
+# Name unique per directory (see the note at tst_tools' resource above).
+awb_add_resources(tst_toolsui "toolsui_test_resources"
     PREFIX "/"
     FILES
         ${_tst_toolsui_default_icons}

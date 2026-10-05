@@ -2,6 +2,7 @@
 
 #include "core/JsonStore.h"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <utility>
@@ -21,12 +22,19 @@ constexpr auto kWorkspacesKey = "workspaces";
 constexpr auto kCurrentKey = "current";
 constexpr auto kDraftKey = "draft";
 constexpr auto kRibbonKey = "ribbon";
+constexpr auto kFavoritesKey = "favorites";
 
 // ribbon 段内的键名与样式档位的合法取值（单行 / 两行 / 三行）。
 constexpr auto kRibbonCollapsedKey = "collapsed";
 constexpr auto kRibbonStyleKey = "style";
 constexpr auto kRibbonFollowThemeKey = "followAppTheme";
 constexpr auto kRibbonLastTabKey = "lastTabIndex";
+
+// favorites 数组项的键名。
+constexpr auto kFavoriteTitleKey = "title";
+constexpr auto kFavoriteBodyKey = "body";
+constexpr auto kFavoriteTagsKey = "tags";
+constexpr auto kFavoriteCreatedAtKey = "createdAt";
 
 /**
  * @brief 从 JSON 对象还原 Ribbon 偏好，坏值一律落到默认
@@ -49,6 +57,61 @@ RibbonSettings ribbonFromJson(const QJsonObject &object)
     const int tab = object.value(QLatin1String(kRibbonLastTabKey)).toInt(0);
     ribbon.lastTabIndex = tab > 0 ? tab : 0;
     return ribbon;
+}
+
+/**
+ * @brief 从 JSON 数组还原收藏夹（读侧容错）
+ *
+ * 坏条目（无标题、无正文、类型不对）跳过；标签只收字符串。上限在读侧
+ * 就夹住——手改过的文件不该把列表撑到界面吃不下。
+ */
+QList<FavoriteEntry> favoritesFromJson(const QJsonArray &array)
+{
+    QList<FavoriteEntry> result;
+    for (const QJsonValue &value : array) {
+        if (!value.isObject()) {
+            continue;
+        }
+        const QJsonObject object = value.toObject();
+        FavoriteEntry entry;
+        entry.title =
+            object.value(QLatin1String(kFavoriteTitleKey)).toString();
+        entry.body =
+            object.value(QLatin1String(kFavoriteBodyKey)).toString();
+        if (entry.title.isEmpty() || entry.body.isEmpty()) {
+            continue;
+        }
+        const QJsonArray tags =
+            object.value(QLatin1String(kFavoriteTagsKey)).toArray();
+        for (const QJsonValue &tag : tags) {
+            if (tag.isString() && !tag.toString().isEmpty()) {
+                entry.tags.append(tag.toString());
+            }
+        }
+        entry.createdAt = static_cast<qint64>(
+            object.value(QLatin1String(kFavoriteCreatedAtKey))
+                .toDouble(0));
+        result.append(entry);
+        if (result.size() >= ToolsStore::kMaxFavorites) {
+            break;
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief 收藏条目 → JSON
+ */
+QJsonObject favoriteToJson(const FavoriteEntry &entry)
+{
+    QJsonObject object;
+    object.insert(QLatin1String(kFavoriteTitleKey), entry.title);
+    object.insert(QLatin1String(kFavoriteBodyKey), entry.body);
+    object.insert(QLatin1String(kFavoriteTagsKey),
+                  QJsonArray::fromStringList(entry.tags));
+    object.insert(QLatin1String(kFavoriteCreatedAtKey),
+                  double(entry.createdAt));
+    return object;
 }
 
 } // namespace
@@ -103,6 +166,8 @@ void ToolsStore::load()
     m_draft = root.value(QLatin1String(kDraftKey)).toString();
     m_ribbon = ribbonFromJson(
         root.value(QLatin1String(kRibbonKey)).toObject());
+    m_favorites = favoritesFromJson(
+        root.value(QLatin1String(kFavoritesKey)).toArray());
 
     // 历史数据里 current 可能指向已删除的项；容忍并保留原值，
     // 是否可用由 ToolsFacade 决定（不存在的工作区不给文件树设根）。
@@ -201,6 +266,59 @@ bool ToolsStore::setRibbon(const RibbonSettings &ribbon)
 }
 
 /**
+ * @brief 新增一条收藏（新在队首；同标题同全文 = 更新时间戳的幂等重存）
+ *
+ * @param title 显示标题
+ * @param body 全文
+ * @param tags 标签（可空）
+ * @return 落盘是否成功；超出上限时最旧（队尾）的一条被淘汰
+ */
+bool ToolsStore::addFavorite(const QString &title, const QString &body,
+                             const QStringList &tags)
+{
+    if (title.isEmpty() || body.isEmpty()) {
+        return true;
+    }
+    FavoriteEntry entry;
+    entry.title = title;
+    entry.body = body;
+    entry.tags = tags;
+    entry.createdAt = QDateTime::currentMSecsSinceEpoch();
+    // 幂等：同标题同全文视为重存（时间戳刷新、挪到队首），不占新位。
+    for (int i = 0; i < m_favorites.size(); ++i) {
+        if (m_favorites.at(i).title == title
+            && m_favorites.at(i).body == body) {
+            m_favorites.removeAt(i);
+            break;
+        }
+    }
+    m_favorites.prepend(entry);
+    while (m_favorites.size() > kMaxFavorites) {
+        m_favorites.removeLast();
+    }
+    return save();
+}
+
+/**
+ * @brief 按标题 + 全文精确匹配移除一条收藏
+ *
+ * @param title 标题
+ * @param body 全文
+ * @return 落盘是否成功（没有匹配项时同样返回 true——「没有了」就是目的）
+ */
+bool ToolsStore::removeFavorite(const QString &title, const QString &body)
+{
+    for (int i = 0; i < m_favorites.size(); ++i) {
+        if (m_favorites.at(i).title == title
+            && m_favorites.at(i).body == body) {
+            m_favorites.removeAt(i);
+            return save();
+        }
+    }
+    return true;
+}
+
+/**
  * @brief 把当前全部状态写回 tools.json
  *
  * 经 core::JsonStore 原子写（临时文件 + 替换）。
@@ -223,6 +341,11 @@ bool ToolsStore::save()
     ribbon[QLatin1String(kRibbonFollowThemeKey)] = m_ribbon.followAppTheme;
     ribbon[QLatin1String(kRibbonLastTabKey)] = m_ribbon.lastTabIndex;
     root[QLatin1String(kRibbonKey)] = ribbon;
+    QJsonArray favorites;
+    for (const FavoriteEntry &entry : std::as_const(m_favorites)) {
+        favorites.append(favoriteToJson(entry));
+    }
+    root[QLatin1String(kFavoritesKey)] = favorites;
     return core::JsonStore::writeFile(storeFilePath(), root).ok;
 }
 

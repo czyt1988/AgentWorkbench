@@ -273,6 +273,10 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_agents.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_agents.json")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_file_icons.json
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+# Built-in prompt templates (M2): data, not code — the library reads them
+# from :/config/ the same way FileIcons reads its tables.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_prompt_templates.json")
 # Old-engine JS polyfills injected into every embedded page (webengine
 # adapter reads :/web/compat-polyfills.js).
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
@@ -283,6 +287,7 @@ awb_add_resources(AgentWorkbench "app_resources"
     FILES
         ${CMAKE_SOURCE_DIR}/config/default_agents.json
         ${CMAKE_SOURCE_DIR}/config/default_file_icons.json
+        ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json
         ${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
         ${AWB_ICON_FILES}
         ${AWB_FILETYPE_ICON_FILES}
