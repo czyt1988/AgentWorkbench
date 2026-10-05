@@ -70,6 +70,7 @@ private Q_SLOTS:
     void testEditCapAllowsPreview();
     void testExternalChangeDetection();
     void testClearResetsEverything();
+    void testVirtualDocument();
 
 private:
     QString filePath(const QString &name) const
@@ -408,6 +409,58 @@ void TestMarkdownDocument::testClearResetsEverything()
     // 清空后原文件仍可再开
     QVERIFY(doc.load(path).ok);
     QCOMPARE(doc.text(), QStringLiteral("content\n"));
+}
+
+/**
+ * @brief 虚拟文档：可编辑、可显示、永不脏、存盘拒绝、上限照算
+ *
+ * 草稿的预览会话靠它把「一份没有磁盘文件的文本」喂进同一套渲染管线：
+ * 这里锁住它的全部边界语义，控制器多会话化才有地基可站。
+ */
+void TestMarkdownDocument::testVirtualDocument()
+{
+    MarkdownDocument doc;
+    doc.setVirtual(QStringLiteral("My draft"), QStringLiteral("# hi\n"));
+
+    QVERIFY(doc.isVirtual());
+    QVERIFY(!doc.hasPath());
+    QVERIFY(doc.path().isEmpty());
+    QCOMPARE(doc.fileName(), QStringLiteral("My draft"));
+    QVERIFY(doc.directory().isEmpty());   // 相对资源无从解析，本来就不该有
+    QCOMPARE(doc.text(), QStringLiteral("# hi\n"));
+    QCOMPARE(doc.byteSize(), qint64(5));
+
+    // 可编辑（与磁盘文档的「无路径不可编辑」相反），且编辑不产生脏标记。
+    QVERIFY(doc.canEdit());
+    QVERIFY(!doc.readOnly());
+    QVERIFY(doc.readOnlyReason().isEmpty());
+    doc.setText(QStringLiteral("# hello\n"));
+    QVERIFY(!doc.dirty());
+    QCOMPARE(doc.text(), QStringLiteral("# hello\n"));
+
+    // 存盘拒绝：没有落盘目标，草稿的持久化在 tools 域。
+    const OpResult saved = doc.save();
+    QVERIFY(!saved.ok);
+    QVERIFY(!saved.error.isEmpty());
+
+    // 外部改动判定恒为否：没有磁盘形态可比。
+    QVERIFY(!doc.externallyChanged());
+    QVERIFY(doc.diskSnapshotMatches());
+
+    // clear() 把虚拟形态一并放下，回到真正的「无文档」。
+    doc.clear();
+    QVERIFY(!doc.isVirtual());
+    QVERIFY(doc.fileName().isEmpty());
+    QVERIFY(!doc.canEdit());
+
+    // 虚拟之后再 load 真文件：虚拟形态必须让位给磁盘形态。
+    const QString path = filePath(QStringLiteral("real.md"));
+    writeFile(path, QByteArray("body\n"));
+    doc.setVirtual(QStringLiteral("draft"), QStringLiteral("text"));
+    QVERIFY(doc.load(path).ok);
+    QVERIFY(!doc.isVirtual());
+    QCOMPARE(doc.fileName(), QStringLiteral("real.md"));
+    QVERIFY(doc.canEdit());
 }
 
 #include "tst_markdowndocument.moc"

@@ -121,6 +121,8 @@ core::OpResult MarkdownDocument::load(const QString &path)
     }
 
     m_path = info.absoluteFilePath();
+    m_virtual = false;
+    m_virtualTitle.clear();
     m_text = text;
     m_savedText = text;
     m_textBytes = raw.size();
@@ -170,6 +172,42 @@ core::OpResult MarkdownDocument::save()
 }
 
 /**
+ * @brief 以虚拟文档形态承载一份没有磁盘文件的文本
+ *
+ * @param title 显示名（tab 与标题栏用；不参与任何路径语义）
+ * @param text 初始全文
+ *
+ * 草稿的预览会话走这里：渲染管线吃文本不吃文件，而草稿的持久化在
+ * tools 域（tools.json），本对象只做「一份可编辑、可渲染的正文」的
+ * 容器。永远不脏（没有「与磁盘一致」的基准可言），save() 由无路径
+ * 分支拒绝，编辑上限照常生效。
+ */
+void MarkdownDocument::setVirtual(const QString &title, const QString &text)
+{
+    const bool wasReadOnly = readOnly();
+    if (!m_path.isEmpty()) {
+        m_watcher->removePath(m_path);
+    }
+    m_path.clear();
+    m_virtual = true;
+    m_virtualTitle = title;
+    m_text = text;
+    m_savedText = text;
+    m_textBytes = text.toUtf8().size();
+    m_bom.clear();
+    m_crlf = false;
+    m_validUtf8 = true;
+    m_diskModified = QDateTime();
+    m_diskSize = -1;
+
+    Q_EMIT contentChanged();
+    Q_EMIT dirtyChanged();
+    if (wasReadOnly != readOnly()) {
+        Q_EMIT readOnlyChanged();
+    }
+}
+
+/**
  * @brief 清空文档并停止监视
  */
 void MarkdownDocument::clear()
@@ -181,6 +219,8 @@ void MarkdownDocument::clear()
     m_path.clear();
     m_text.clear();
     m_savedText.clear();
+    m_virtual = false;
+    m_virtualTitle.clear();
     m_textBytes = 0;
     m_bom.clear();
     m_crlf = false;
@@ -197,10 +237,13 @@ void MarkdownDocument::clear()
 
 /**
  * @brief 显示名（不含目录）
- * @return basename，无文档时为空串
+ * @return basename，无文档时为空串；虚拟文档给它的显示名
  */
 QString MarkdownDocument::fileName() const
 {
+    if (m_virtual) {
+        return m_virtualTitle;
+    }
     return m_path.isEmpty() ? QString() : QFileInfo(m_path).fileName();
 }
 
@@ -230,6 +273,11 @@ void MarkdownDocument::setText(const QString &text)
     const qint64 sizeBefore = m_textBytes;
 
     m_text = text;
+    // 虚拟文档没有「与磁盘一致」的基准，脏标记无意义：基准跟着文本走，
+    // 于是界面永远不会给它亮出「未保存」。
+    if (m_virtual) {
+        m_savedText = text;
+    }
     m_textBytes = encodeText(text).size();
 
     Q_EMIT contentChanged();
@@ -246,11 +294,14 @@ void MarkdownDocument::setText(const QString &text)
 /**
  * @brief 当前是否只读
  * @return 只读为真
+ *
+ * 虚拟文档没有磁盘侧的权限与编码问题，唯一的只读来源是编辑上限——
+ * 上限保护的是编辑与渲染管线，与文本来自哪里无关。
  */
 bool MarkdownDocument::readOnly() const
 {
     return !m_validUtf8
-        || (!m_path.isEmpty() && byteSize() > kEditCapBytes)
+        || ((!m_path.isEmpty() || m_virtual) && byteSize() > kEditCapBytes)
         || (!m_path.isEmpty()
             && !QFileInfo(m_path).isWritable());
 }
@@ -267,7 +318,7 @@ QString MarkdownDocument::readOnlyReason() const
             "The file is not valid UTF-8, so editing is disabled to keep it "
             "from being corrupted.");
     }
-    if (!m_path.isEmpty() && byteSize() > kEditCapBytes) {
+    if ((!m_path.isEmpty() || m_virtual) && byteSize() > kEditCapBytes) {
         return QCoreApplication::translate(
             "MarkdownDocument",
             "The file is larger than the 2 MB editing limit, so it is opened "
@@ -284,11 +335,14 @@ QString MarkdownDocument::readOnlyReason() const
  * @brief 文本能否进编辑器
  * @return 能编辑为真
  *
- * 比 readOnly() 多一条：没有路径就存不回盘，编辑了也是白编辑——预览窗口
- * 只针对磁盘文件，所以无文档时编辑器同样不开。
+ * 磁盘文档要求有路径（存不回盘的编辑是白编辑）；虚拟文档是这条规则的
+ * 例外——它的持久化在 tools 域，这里只看只读判定。
  */
 bool MarkdownDocument::canEdit() const
 {
+    if (m_virtual) {
+        return !readOnly();
+    }
     return !m_path.isEmpty() && !readOnly();
 }
 

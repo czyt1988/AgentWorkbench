@@ -50,6 +50,14 @@ public:
     // 关掉监视并清空全部状态（窗口关闭时调用）
     void clear();
 
+    // 以「虚拟文档」承载一份没有磁盘文件的文本（提示词草稿的预览会话）：
+    // 可编辑、可渲染、字节数照算（编码上限同样生效），save() 一律拒绝
+    // （本就没有落盘目标，草稿的持久化走 tools 域），不监视磁盘、永远不脏。
+    // title 只作显示名（fileName()）。
+    void setVirtual(const QString &title, const QString &text);
+    // 当前是否为虚拟文档
+    bool isVirtual() const { return m_virtual; }
+
     // 是否已载入一份文件
     bool hasPath() const { return !m_path.isEmpty(); }
     QString path() const { return m_path; }
@@ -103,6 +111,8 @@ private:
     QString m_path;                 ///< 绝对路径；空串表示无文档
     QString m_text;                 ///< 当前文本（不含行尾形态信息）
     QString m_savedText;            ///< 上次与磁盘一致的文本，脏标记的基准
+    bool m_virtual = false;         ///< 虚拟文档（草稿会话）：无磁盘文件
+    QString m_virtualTitle;         ///< 虚拟文档的显示名（fileName() 用）
     qint64 m_textBytes = 0;         ///< encodeText(m_text) 的字节长度（缓存）
     QByteArray m_bom;               ///< 载入时看到的 BOM，保存时原样写回
     bool m_crlf = false;            ///< 载入文件的行尾形态（全部为 CRLF 才认定）
