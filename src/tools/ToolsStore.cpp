@@ -14,11 +14,43 @@ namespace {
  * @brief tools.json 的键名
  *
  * workspaces（字符串数组，MRU 在前）、current（当前工作区绝对路径）、
- * draft（提示词草稿全文）。键名是磁盘格式的一部分，改键名等于丢用户数据。
+ * draft（提示词草稿全文）、ribbon（Ribbon 界面偏好对象）。键名是磁盘
+ * 格式的一部分，改键名等于丢用户数据。
  */
 constexpr auto kWorkspacesKey = "workspaces";
 constexpr auto kCurrentKey = "current";
 constexpr auto kDraftKey = "draft";
+constexpr auto kRibbonKey = "ribbon";
+
+// ribbon 段内的键名与样式档位的合法取值（单行 / 两行 / 三行）。
+constexpr auto kRibbonCollapsedKey = "collapsed";
+constexpr auto kRibbonStyleKey = "style";
+constexpr auto kRibbonFollowThemeKey = "followAppTheme";
+constexpr auto kRibbonLastTabKey = "lastTabIndex";
+
+/**
+ * @brief 从 JSON 对象还原 Ribbon 偏好，坏值一律落到默认
+ *
+ * 这是 ribbon 段的读侧容错：段缺失、类型不对、样式串不认识，都得到
+ * 一份合法的默认值，不报错、不写回。
+ */
+RibbonSettings ribbonFromJson(const QJsonObject &object)
+{
+    RibbonSettings ribbon;
+    ribbon.collapsed = object.value(QLatin1String(kRibbonCollapsedKey)).toBool(false);
+    const QString style =
+        object.value(QLatin1String(kRibbonStyleKey)).toString();
+    if (style == QLatin1String("single") || style == QLatin1String("two-row")
+        || style == QLatin1String("three-row")) {
+        ribbon.style = style;
+    }
+    ribbon.followAppTheme =
+        object.value(QLatin1String(kRibbonFollowThemeKey)).toBool(true);
+    const int tab = object.value(QLatin1String(kRibbonLastTabKey)).toInt(0);
+    ribbon.lastTabIndex = tab > 0 ? tab : 0;
+    return ribbon;
+}
+
 } // namespace
 
 /**
@@ -47,13 +79,14 @@ QString ToolsStore::storeFilePath() const
  * @brief 读取 tools.json 到成员
  *
  * 文件缺失或损坏（JsonStore 记警告并给空对象）一律得到空列表、空
- * current、空草稿。
+ * current、空草稿；ribbon 段缺失时取默认值（见 ribbonFromJson）。
  */
 void ToolsStore::load()
 {
     m_workspaces.clear();
     m_current.clear();
     m_draft.clear();
+    m_ribbon = RibbonSettings();
 
     const QJsonObject root = core::JsonStore::readFile(storeFilePath());
     const QJsonArray list = root.value(QLatin1String(kWorkspacesKey)).toArray();
@@ -68,6 +101,8 @@ void ToolsStore::load()
     }
     m_current = root.value(QLatin1String(kCurrentKey)).toString();
     m_draft = root.value(QLatin1String(kDraftKey)).toString();
+    m_ribbon = ribbonFromJson(
+        root.value(QLatin1String(kRibbonKey)).toObject());
 
     // 历史数据里 current 可能指向已删除的项；容忍并保留原值，
     // 是否可用由 ToolsFacade 决定（不存在的工作区不给文件树设根）。
@@ -148,6 +183,24 @@ bool ToolsStore::setDraft(const QString &text)
 }
 
 /**
+ * @brief 覆盖 Ribbon 界面偏好并立即写盘
+ *
+ * @param ribbon 新的偏好值
+ * @return 落盘是否成功；内容没变时直接返回 true（不写盘）
+ */
+bool ToolsStore::setRibbon(const RibbonSettings &ribbon)
+{
+    if (m_ribbon.collapsed == ribbon.collapsed
+        && m_ribbon.style == ribbon.style
+        && m_ribbon.followAppTheme == ribbon.followAppTheme
+        && m_ribbon.lastTabIndex == ribbon.lastTabIndex) {
+        return true;
+    }
+    m_ribbon = ribbon;
+    return save();
+}
+
+/**
  * @brief 把当前全部状态写回 tools.json
  *
  * 经 core::JsonStore 原子写（临时文件 + 替换）。
@@ -164,6 +217,12 @@ bool ToolsStore::save()
     root[QLatin1String(kWorkspacesKey)] = list;
     root[QLatin1String(kCurrentKey)] = m_current;
     root[QLatin1String(kDraftKey)] = m_draft;
+    QJsonObject ribbon;
+    ribbon[QLatin1String(kRibbonCollapsedKey)] = m_ribbon.collapsed;
+    ribbon[QLatin1String(kRibbonStyleKey)] = m_ribbon.style;
+    ribbon[QLatin1String(kRibbonFollowThemeKey)] = m_ribbon.followAppTheme;
+    ribbon[QLatin1String(kRibbonLastTabKey)] = m_ribbon.lastTabIndex;
+    root[QLatin1String(kRibbonKey)] = ribbon;
     return core::JsonStore::writeFile(storeFilePath(), root).ok;
 }
 

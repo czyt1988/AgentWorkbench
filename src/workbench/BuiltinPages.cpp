@@ -60,10 +60,10 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
 }
 
 /**
- * @brief 注册五个内置页面与侧栏的分组标签
+ * @brief 注册五个内置页面
  *
- * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径；分组标签
- * （NavKind::Header）同样经它注册——它在侧栏占一行，但不是一页。
+ * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径；「Markdown」
+ * 条目背后是启动页薄壳，编辑器本体在独立的工作台窗口里。
  */
 void BuiltinPages::registerPages()
 {
@@ -102,32 +102,22 @@ void BuiltinPages::registerPages()
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
 
-    // Agent Tools is a sidebar group reserved for a family of agent-facing
-    // tools: the prompt workbench is its first member and more are meant to
-    // join under it. The label is a NavKind::Header row - not clickable, not
-    // selectable, and absent from the Ctrl+1..9 sequence. Its order stays
-    // adjacent to the pages it heads, because adjacency is decided by order
-    // alone. The member's title carries no "Agent Tools" prefix: the group
-    // label already says it, and the row reads "Prompt Writing" on its own.
-    shell::PageDescriptor toolsGroup;
-    toolsGroup.id = QStringLiteral("tools-group");
-    toolsGroup.title = QCoreApplication::translate("BuiltinPages", "Agent Tools");
-    toolsGroup.section = QStringLiteral("main");
-    toolsGroup.order = 40;
-    toolsGroup.kind = shell::NavKind::Header;
-    m_nav->registerPage(toolsGroup);
-
-    shell::PageDescriptor toolsPage;
-    toolsPage.id = QStringLiteral("tools");
-    toolsPage.title =
-        QCoreApplication::translate("BuiltinPages", "Prompt Writing");
-    toolsPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
-    toolsPage.source = QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml");
-    toolsPage.section = QStringLiteral("main");
-    toolsPage.order = 41;
-    toolsPage.level = 1;
-    m_nav->registerPage(toolsPage);
+    // The prompt page grew into the Markdown workbench window (an independent
+    // window spanning tools + markdown domains, see
+    // src/workbench/qml/MarkdownWorkbenchWindow.qml). The sidebar keeps one
+    // entry under the same registration id the old page used, so a remembered
+    // last-page lands on the start page instead of dangling; the entry itself
+    // is the thin launcher page - the editor lives in the window, which stays
+    // alive across page switches.
+    shell::PageDescriptor markdownPage;
+    markdownPage.id = QStringLiteral("tools");
+    markdownPage.title = QCoreApplication::translate("BuiltinPages", "Markdown");
+    markdownPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
+    markdownPage.source = QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/shell/MarkdownStartPage.qml");
+    markdownPage.section = QStringLiteral("main");
+    markdownPage.order = 40;
+    m_nav->registerPage(markdownPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");

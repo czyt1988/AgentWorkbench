@@ -51,6 +51,7 @@ target_include_directories(tst_toolsui PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(tst_toolsui PRIVATE
     awb_tools
+    awb_markdown
     awb_theme
     awb_core
     Qt::Core
@@ -80,7 +81,7 @@ set(_tst_toolsui_default_icons ${CMAKE_SOURCE_DIR}/config/default_file_icons.jso
 set_source_files_properties(${_tst_toolsui_default_icons}
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
 
-# 页面与组件引用的全部图标（alias = icons/<name>，URL 与 app 一致）。
+# 窗口与组件引用的全部图标（alias = icons/<name>，URL 与 app 一致）。
 set(_tst_toolsui_icons
     ${CMAKE_SOURCE_DIR}/icons/default.svg
     ${CMAKE_SOURCE_DIR}/icons/folder.svg
@@ -96,7 +97,12 @@ set(_tst_toolsui_icons
     ${CMAKE_SOURCE_DIR}/icons/bold.svg
     ${CMAKE_SOURCE_DIR}/icons/code.svg
     ${CMAKE_SOURCE_DIR}/icons/bullet-list.svg
-    ${CMAKE_SOURCE_DIR}/icons/chevron-right.svg)
+    ${CMAKE_SOURCE_DIR}/icons/chevron-right.svg
+    ${CMAKE_SOURCE_DIR}/icons/chevron-left.svg
+    ${CMAKE_SOURCE_DIR}/icons/menu.svg
+    ${CMAKE_SOURCE_DIR}/icons/search.svg
+    ${CMAKE_SOURCE_DIR}/icons/web.svg
+    ${CMAKE_SOURCE_DIR}/icons/download.svg)
 # 文件树的类型图标（default_file_icons.json 的查表目标）。
 file(GLOB _tst_toolsui_filetype_icons
     "${CMAKE_SOURCE_DIR}/icons/filetypes/*.svg")
@@ -127,9 +133,13 @@ awb_add_resources(tst_toolsui "test_resources"
         ${_tst_toolsui_foldertype_icons}
 )
 
-# 页面 + 它引用的组件。QT_RESOURCE_ALIAS 决定 qrc URL，与 app 一致。
+# 窗口与它引用的组件。QT_RESOURCE_ALIAS 决定 qrc URL，与 app 一致。
+# 命令条刻意不嵌 WorkbenchRibbon.qml：本目标不链接 SARibbon，窗口里那个
+# Loader 装载失败后换 WorkbenchToolbar.qml——降级路径正是本套件冒烟的
+# 那一条（无 Ribbon 构建的用户看到的形态）。
 set(_tst_toolsui_qml
-    ${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
@@ -137,17 +147,24 @@ set(_tst_toolsui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextArea.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AScrollBar.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AConfirmDialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
-    PROPERTIES QT_RESOURCE_ALIAS "tools/ToolsPage.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchWindow.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
     PROPERTIES QT_RESOURCE_ALIAS "shell/PageHeader.qml")
-foreach(_comp AButton AIconButton ATextArea AEmptyState AScrollBar
+foreach(_comp AButton AIconButton ATextArea AEmptyState AScrollBar ASearchField
+             APill ADialog AConfirmDialog
              AMenu AMenuItem AMenuSeparator AComboBox)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml

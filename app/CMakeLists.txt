@@ -12,7 +12,8 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
                SettingsPage
                SettingsAppearancePage SettingsLaunchersPage
                SettingsEnvironmentPage SettingsSkillsPage SettingsWebPage
-               SettingsPluginsPage SettingsAdvancedPage)
+               SettingsPluginsPage SettingsAdvancedPage
+               MarkdownStartPage)
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
@@ -21,10 +22,20 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AComboBox AColorPicker AColorSwatch AColorField)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
-set(_tools_qml ToolsPage MarkdownContextMenu)
+set(_tools_qml MarkdownContextMenu)
+# The Markdown workbench window lives in the workbench domain: it spans the
+# tools (draft, workspace tree) and markdown (preview session) domains, so
+# only L3 may reference both. Registered in EVERY build — the prompt mode is
+# a plain QML editor and works without WebEngine (the preview pane is loaded
+# by URL only where it exists, see _markdown_pane_qml below).
+set(_workbench_qml MarkdownWorkbenchWindow WorkbenchToolbar)
+# The SARibbon command bar exists only in AWB_ENABLE_RIBBON builds. When the
+# URL is absent the window's command-bar Loader fails and falls back to
+# WorkbenchToolbar.qml, which is always registered.
+set(_workbench_ribbon_qml WorkbenchRibbon)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
-set(_markdown_qml MarkdownPreviewWindow)
+set(_markdown_pane_qml MarkdownPreviewPane)
 
 set(AWB_QML_FILES "")
 foreach(name IN LISTS _skillcatalog_qml)
@@ -69,13 +80,27 @@ foreach(name IN LISTS _tools_qml)
     set_source_files_properties(${_f} PROPERTIES
         QT_RESOURCE_ALIAS "tools/${name}.qml")
 endforeach()
-# The preview window is registered only where the feature can actually run:
+foreach(name IN LISTS _workbench_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/workbench/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "workbench/${name}.qml")
+endforeach()
+if (AWB_ENABLE_RIBBON)
+    foreach(name IN LISTS _workbench_ribbon_qml)
+        set(_f ${CMAKE_SOURCE_DIR}/src/workbench/qml/${name}.qml)
+        list(APPEND AWB_QML_FILES ${_f})
+        set_source_files_properties(${_f} PROPERTIES
+            QT_RESOURCE_ALIAS "workbench/${name}.qml")
+    endforeach()
+endif()
+# The preview pane is registered only where the feature can actually run:
 # Qt 6 + WebEngine, the same condition as the /markdown runtime embed below and
-# MarkdownRuntime::isSupportedBuild(). Elsewhere the file is not in the binary at
-# all — not a broken half of it. MainWindow.qml reaches the window by resource
-# URL (see its Loader), so an unregistered type costs nothing to compile.
+# MarkdownRuntime::isSupportedBuild(). Elsewhere the file is not in the binary
+# at all — not a broken half of it. The workbench window reaches it by resource
+# URL (see its Loader), so an unregistered pane degrades to prompt mode only.
 if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
-    foreach(name IN LISTS _markdown_qml)
+    foreach(name IN LISTS _markdown_pane_qml)
         set(_f ${CMAKE_SOURCE_DIR}/src/markdown/qml/${name}.qml)
         list(APPEND AWB_QML_FILES ${_f})
         set_source_files_properties(${_f} PROPERTIES
@@ -283,10 +308,10 @@ awb_add_resources(AgentWorkbench "theme_resources"
 # offline and a packaging machine may have no network at all.
 #
 # The guard is on purpose, and it is what keeps the Qt 5 route untouched: with
-# neither the QML window nor these ~4 MiB embedded, a Qt 5 binary does not
+# neither the preview pane nor these ~4 MiB embedded, a Qt 5 binary does not
 # contain the feature at all, rather than containing a broken version of it.
 # See src/markdown/MarkdownRuntime.cpp's isSupportedBuild() for the matching
-# compile-time gate and docs/development/markdown-preview.md for the rationale.
+# compile-time gate and docs/development/markdown-workbench.md for the rationale.
 if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
     awb_add_vendor_resources(AgentWorkbench "markdown_vendor"
         PREFIX "/markdown"

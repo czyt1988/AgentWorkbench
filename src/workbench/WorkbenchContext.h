@@ -85,12 +85,18 @@ public:
     // 文件树右键菜单据此决定「预览」这一项出不出场——没有预览能力的构建里
     // 它恒为假，条目根本不出现。
     Q_INVOKABLE bool canPreviewMarkdown(const QString &path) const;
+    // 打开（或唤醒）Markdown 工作台窗口，落在提示词模式。与 previewMarkdown()
+    // 是同一扇窗的两条入口：这里不需要预览能力，纯 QML 编辑器照常可用。
+    Q_INVOKABLE void openMarkdownWorkbench();
 
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void notify(const QString &level, const QString &title,
                             const QString &text);
     Q_INVOKABLE void openExternalUrl(const QUrl &url);
+    // 把一个本地文件路径交给系统默认处理器（file:// URL 在 C++ 侧拼，
+    // QML 没有跨版本可靠的 fromLocalFile）。
+    Q_INVOKABLE void openLocalFileExternal(const QString &path);
     Q_INVOKABLE void openFolder(const QString &path);
     Q_INVOKABLE void openConfigDir(const QString &agentId);
     Q_INVOKABLE void quit();
@@ -121,6 +127,10 @@ Q_SIGNALS:
      * @brief legacy 导入提示变化时发射
      */
     void legacyImportNoticeChanged();
+    /**
+     * @brief 请求打开 Markdown 工作台窗口（MainWindow 的 Loader 监听它）
+     */
+    void markdownWorkbenchRequested();
 
 private:
     shell::NavigationModel *m_nav;          ///< 导航（页面注册与当前页）

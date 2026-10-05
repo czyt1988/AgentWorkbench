@@ -236,6 +236,19 @@ bool WorkbenchContext::canPreviewMarkdown(const QString &path) const
 }
 
 /**
+ * @brief 打开 Markdown 工作台窗口（提示词模式）
+ *
+ * 与 previewMarkdown()（文档模式，经预览控制器开文档）互为两条入口：
+ * 这里只发 markdownWorkbenchRequested() 意图，窗口本体由 MainWindow 的
+ * Loader 按信号创建——跨域动作不经过 QML 拼接。已在开着的窗口由窗口
+ * 自己 raise（它同样监听这个信号）。
+ */
+void WorkbenchContext::openMarkdownWorkbench()
+{
+    Q_EMIT markdownWorkbenchRequested();
+}
+
+/**
  * @brief 组装层灌进预览控制器
  *
  * @param markdown Markdown 预览控制器；空指针表示本会话没有预览能力
@@ -294,6 +307,20 @@ void WorkbenchContext::openExternalUrl(const QUrl &url)
                                     "WorkbenchContext", "Cannot open link"),
                                 result.error);
     }
+}
+
+/**
+ * @brief 用系统默认程序打开一个本地文件（file:// URL 在这里拼）
+ *
+ * @param path 文件路径
+ *
+ * QML 侧没有跨 Qt 大版本可靠的 fromLocalFile（旧预览窗里的 `Url.fromLocalFile`
+ * 依赖一个不保证存在的 QML 全局名，浏览器路径因此可能一直是静默断的），
+ * 转换收进 C++。
+ */
+void WorkbenchContext::openLocalFileExternal(const QString &path)
+{
+    openExternalUrl(QUrl::fromLocalFile(path));
 }
 
 /**

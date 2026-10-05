@@ -30,11 +30,18 @@ ApplicationWindow {
     // Markdown 预览的状态门面（每个构建都在，能力位由 available 决定）。
     readonly property var markdown: Markdown
 
-    // 预览窗口的开关：唯一置真的来源是 markdown 的 windowRequested 信号，唯一
-    // 置假的来源是 markdown.active 变假（窗口自己报到关闭）。窗口活不长——关掉
-    // 即由 Loader 销毁，WebEngineView 是渲染进程与合成层的入口，常驻会让每次
-    // 启动都付这份钱，而预览是低频动作。
+    // 工作台窗口的开关。窗口本体归 workbench 域（提示词 + 预览合体后的
+    // 独立窗），装载条件不含 markdown.available——提示词模式是纯 QML
+    // 编辑器，没有 WebEngine 的构建里照常可用，预览面由窗口按能力位
+    // 自己裁剪。唯一置真的来源是两条意图信号（预览文档 / 打开工作台），
+    // 唯一置假的来源是 markdown.active 变假（窗口自己报到关闭）。窗口
+    // 活不长——关掉即由 Loader 销毁，WebEngineView 是渲染进程与合成层
+    // 的入口，常驻会让每次启动都付这份钱。
     property bool markdownWindowOpen: false
+    // 本轮开窗的意图：previewMarkdown() 给 "document"（主窗 Loader 的
+    // onLoaded 写进窗口的 initialPreset），openMarkdownWorkbench() 给
+    // "prompt"。窗口自身在提示词/文档两种预设间切换另有入口。
+    property string pendingWorkbenchMode: "prompt"
 
     visible: true
     // 恢复的窗口尺寸按可用屏幕区域钳制：在大屏上保存过的窗口换到小屏打开
@@ -188,26 +195,27 @@ ApplicationWindow {
     // toast 宿主：锚定在窗口右下角（逻辑在它自己的文件里）。
     Toasts {}
 
-    // --- Markdown 预览窗口（按需创建，关掉即销毁） -------------------------
+    // --- Markdown 工作台窗口（按需创建，关掉即销毁） -------------------------
     // 挂在这里而不是页面里：Loader 是主窗的内联对象，被它创建的窗口因此继承
-    // 主窗的 QML 上下文，窗口文件里的 `theme` / `markdown` / `workbench` 别名
-    // 才解析得到（与各页面用别名的方式一致，见 AGENTS.md 的 QML 契约）。
+    // 主窗的 QML 上下文，窗口文件里的 `theme` / `markdown` / `tools` /
+    // `workbench` 别名才解析得到（与各页面用别名的方式一致）。
     //
-    // 用 source（URL 字符串）而不是 sourceComponent（类型名）：那个 .qml 只在
-    // Qt 6 + WebEngine 的构建里登记进模块（见 app/CMakeLists.txt 的同一处守卫），
-    // 写成类型名会在其余构建里留下一个解析不到的引用；字符串的代价要到真正
-    // 加载时才付，而加载条件 `markdown.available` 与那道守卫同源。
+    // 用 source（URL 字符串）而不是 sourceComponent（类型名）：窗口里惰性
+    // 装载的预览面与命令条同理——那些 .qml 只在部分构建里登记进模块，
+    // 写成类型名会在其余构建里留下一个解析不到的引用；字符串的代价要到
+    // 真正加载时才付，由窗口按能力位自己处理装载失败。
     Loader {
         id: markdownWindowLoader
-        active: window.markdownWindowOpen && markdown.available
-        source: "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewWindow.qml"
+        active: window.markdownWindowOpen
+        source: "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml"
+        onLoaded: item.initialPreset = window.pendingWorkbenchMode
         // 与 Workspace 的页面 Loader 同一做法：加载失败要喊出来。这里失败的表现
         // 不是白屏而是什么都没弹出来——右键点了没反应，比一个错误弹窗难查得多。
         onStatusChanged: {
             if (status === Loader.Error) {
-                console.error("markdown: failed to load the preview window",
+                console.error("workbench: failed to load the workbench window",
                               source)
-                workbench.notify("error", qsTr("Preview window failed to open"),
+                workbench.notify("error", qsTr("Workbench failed to open"),
                                  String(source))
                 // 失败的 Loader 留在 active 上没有意义：它没有内容，而
                 // markdown.active 也永远不会变真，下一次请求同样不开窗。
@@ -219,8 +227,9 @@ ApplicationWindow {
     Connections {
         target: markdown
 
-        // 预览请求：开窗（已经开着则由窗口自己 raise，见 MarkdownPreviewWindow）
+        // 预览文档的请求：开窗落在文档模式（文档由控制器先行装载）。
         function onWindowRequested() {
+            window.pendingWorkbenchMode = "document"
             window.markdownWindowOpen = true
         }
 
@@ -228,6 +237,17 @@ ApplicationWindow {
         function onActiveChanged() {
             if (!markdown.active)
                 window.markdownWindowOpen = false
+        }
+    }
+
+    Connections {
+        target: workbench
+
+        // 打开工作台的请求（启动页主按钮）：开窗落在提示词模式；窗口已
+        // 开着时由窗口自己接管（raise + 切预设）。
+        function onMarkdownWorkbenchRequested() {
+            window.pendingWorkbenchMode = "prompt"
+            window.markdownWindowOpen = true
         }
     }
 

@@ -6,7 +6,18 @@
 
 namespace awb::tools {
 
-/// tools.json 的全部状态：工作区列表（MRU 序）、当前工作区、提示词草稿。
+/// Ribbon 的界面偏好（tools.json 的 `ribbon` 段）。四个小值都是窗口级
+/// 偏好：折叠位、样式档位、是否跟随应用主题、上次停留的标签页。样式取值
+/// 为 "single" / "two-row" / "three-row"，缺省单行。
+struct RibbonSettings {
+    bool collapsed = false;        ///< Ribbon 折叠位（minimumMode）
+    QString style = QStringLiteral("single"); ///< 样式档位
+    bool followAppTheme = true;    ///< Ribbon 主题跟随应用主题
+    int lastTabIndex = 0;          ///< 上次停留的标签页索引（从 0 起）
+};
+
+/// tools.json 的全部状态：工作区列表（MRU 序）、当前工作区、提示词草稿、
+/// Ribbon 界面偏好。
 ///
 /// 启动时 load() 一次，之后每次变更立即原子写回（core::JsonStore）；
 /// 列表语义（MRU 换序、上限淘汰）与键位见 ToolsStore.cpp。
@@ -28,6 +39,8 @@ public:
     QString currentWorkspace() const { return m_current; }
     // 提示词草稿全文
     QString draft() const { return m_draft; }
+    // Ribbon 界面偏好（缺键取默认值）
+    RibbonSettings ribbon() const { return m_ribbon; }
 
     // 新增（或把已有项移到队首）并设为当前；返回落盘是否成功
     bool addWorkspace(const QString &path);
@@ -41,6 +54,9 @@ public:
     // 覆盖草稿并立即写盘
     bool setDraft(const QString &text);
 
+    // 覆盖 Ribbon 界面偏好并立即写盘
+    bool setRibbon(const RibbonSettings &ribbon);
+
     // tools.json 的绝对路径
     QString storeFilePath() const;
 
@@ -52,6 +68,7 @@ private:
     QStringList m_workspaces; ///< 工作区列表，MRU 在前
     QString m_current;     ///< 当前工作区的绝对路径；空串表示无
     QString m_draft;       ///< 提示词草稿全文
+    RibbonSettings m_ribbon; ///< Ribbon 界面偏好
 };
 
 } // namespace awb::tools

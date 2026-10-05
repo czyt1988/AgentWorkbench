@@ -126,6 +126,90 @@ QString ToolsFacade::draft() const
 }
 
 /**
+ * @brief Ribbon 界面偏好的读侧与写侧
+ *
+ * 四个值都直读直写 ToolsStore（立即落盘、无防抖——开关与标签页切换
+ * 本就是低频动作）；写侧先改内存再落盘，落盘失败只记警告，界面状态
+ * 以内存为准。四个写侧共用 ribbonSettingsChanged()，QML 侧的绑定一次
+ * 重算即可。
+ */
+///@{
+bool ToolsFacade::ribbonCollapsed() const
+{
+    return m_store.ribbon().collapsed;
+}
+
+QString ToolsFacade::ribbonStyle() const
+{
+    return m_store.ribbon().style;
+}
+
+bool ToolsFacade::ribbonFollowAppTheme() const
+{
+    return m_store.ribbon().followAppTheme;
+}
+
+int ToolsFacade::ribbonLastTabIndex() const
+{
+    return m_store.ribbon().lastTabIndex;
+}
+
+void ToolsFacade::setRibbonCollapsed(bool collapsed)
+{
+    if (m_store.ribbon().collapsed == collapsed) {
+        return;
+    }
+    RibbonSettings ribbon = m_store.ribbon();
+    ribbon.collapsed = collapsed;
+    applyRibbon(ribbon);
+}
+
+void ToolsFacade::setRibbonStyle(const QString &style)
+{
+    if (m_store.ribbon().style == style) {
+        return;
+    }
+    RibbonSettings ribbon = m_store.ribbon();
+    ribbon.style = style;
+    applyRibbon(ribbon);
+}
+
+void ToolsFacade::setRibbonFollowAppTheme(bool follow)
+{
+    if (m_store.ribbon().followAppTheme == follow) {
+        return;
+    }
+    RibbonSettings ribbon = m_store.ribbon();
+    ribbon.followAppTheme = follow;
+    applyRibbon(ribbon);
+}
+
+void ToolsFacade::setRibbonLastTabIndex(int index)
+{
+    const int clamped = index > 0 ? index : 0;
+    if (m_store.ribbon().lastTabIndex == clamped) {
+        return;
+    }
+    RibbonSettings ribbon = m_store.ribbon();
+    ribbon.lastTabIndex = clamped;
+    applyRibbon(ribbon);
+}
+///@}
+
+/**
+ * @brief 把一份新的 Ribbon 偏好写进 store 并广播
+ *
+ * @param ribbon 新偏好；落盘由 ToolsStore 立即执行
+ */
+void ToolsFacade::applyRibbon(const RibbonSettings &ribbon)
+{
+    if (!m_store.setRibbon(ribbon)) {
+        qWarning() << "[tools] could not persist the ribbon settings";
+    }
+    Q_EMIT ribbonSettingsChanged();
+}
+
+/**
  * @brief 新增工作区并切换到它
  *
  * 返回类型必须写全限定名 awb::core::OpResult：Qt 5 的 moc 按头文件书写

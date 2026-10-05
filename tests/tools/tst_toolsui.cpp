@@ -11,46 +11,54 @@
 #include <QTemporaryDir>
 
 #include "core/Settings.h"
+#include "markdown/MarkdownPreviewController.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
 #include "tools/FileTreeModel.h"
 #include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
-// tst_toolsui — Agent Tools 页的交互级冒烟：真实鼠标点击与键盘输入驱动。
-// 按页面加载的冒烟从不点击、从不开窗口，抓不到「handler 抛错整段中止」
-// 这类缺陷；本套件补上交互层（tst_webengine 加载真实 QML 的同款做法：
-// 页面与组件以与 app 相同的模块 URL/别名嵌进本二进制）。
+// tst_toolsui — Markdown 工作台窗口（提示词模式那条面）的交互级冒烟：
+// 真实鼠标点击与键盘输入驱动。按页面加载的冒烟从不点击、从不开窗口，
+// 抓不到「handler 抛错整段中止」这类缺陷；本套件补上交互层
+// （tst_webengine 加载真实 QML 的同款做法：窗口与组件以与 app 相同的
+// 模块 URL/别名嵌进本二进制）。
 //
 // 五个回归锚点：
 // 1. 打字 + Ctrl+Z / Ctrl+Y：编辑器 undo/redo（TextControl 标准键链路）；
 // 2. 单击目录行展开文件树：Qt 5.15 里 delegate 声明 required property 后
 //    裸 index 抛 ReferenceError、toggleExpanded 从未执行——树无法展开
 //    （Qt 6 无此坑，只有真实点击能在任一版本拦住回归）；
-// 3. 右键弹菜单：统一菜单组件（AMenu/AMenuItem）经 ToolsPage 的
-//    MarkdownContextMenu 真实弹出；
+// 3. 右键弹菜单：统一菜单组件（AMenu/AMenuItem）经 MarkdownContextMenu
+//    真实弹出；
 // 4. 长文可滚动：编辑区若是裸 TextArea，内容撑出高度后既看不到也翻不到
 //    （没有滚动条、滚轮与拖拽皆无效）。
 // 5. 文件树右键的 Markdown 预览条目：可见性跟着 workbench 的结论走，
 //    点击交出的是这一行的绝对路径。
 //
-// ToolsFacade 用 QTemporaryDir 数据根，不碰真实数据目录；窗口尺寸给足
-// 让 SplitView 两栏都有非零宽度。
+// ToolsFacade 用 QTemporaryDir 数据根，不碰真实数据目录；Markdown 预览
+// 控制器也是真的（纯层，available 恒为假——没有 provider 点亮它，窗口
+// 因此停在提示词模式，正合本套件的焦点）。
+//
+// 命令条走降级路径：本目标不链接 SARibbon，窗口里那个 Loader 装载
+// WorkbenchRibbon.qml 失败后换 WorkbenchToolbar.qml——工具栏形态正是
+// 无 Ribbon 构建的用户看到的那个，顺带被这里冒烟。
 
 using awb::core::Settings;
+using awb::markdown::MarkdownPreviewController;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
 using awb::tools::FileTreeModel;
 using awb::tools::MarkdownEdit;
 using awb::tools::ToolsFacade;
 
-// workbench/ui 桩：页面加载与交互路径只用 notify/copyText/pickFolder
+// workbench/ui 桩：窗口加载与交互路径只用 notify/copyText/pickFolder
 // 这几个名字，行为不在断言范围内。
 //
 // 预览那两条是例外：文件树右键的「Preview Markdown」条目出不出场、点下去
 // 交出的是哪条路径，全靠 canPreviewMarkdown/previewMarkdown 这两个名字接
-// 得上——名字拼错一个字母，绑定抛 TypeError、条目停在默认值上，页面加载的
-// 冒烟照样全绿。所以桩把结论交给用例（previewCapable 由 loadPage 灌，
+// 得上——名字拼错一个字母，绑定抛 TypeError、条目停在默认值上，窗口加载
+// 的冒烟照样全绿。所以桩把结论交给用例（previewCapable 由 loadPage 灌，
 // askedAbout/previewed 是来路记录）。「哪些后缀归预览管」的真判定在纯层，
 // 由 tst_markdown 覆盖，这里不重复实现一遍。
 class WorkbenchStub : public QObject
@@ -72,6 +80,11 @@ public:
     {
         previewed.append(path);
     }
+
+Q_SIGNALS:
+    // 真身（WorkbenchContext）有这条信号，窗口的 Connections 监听它；
+    // 桩跟着声明，免得 Connections 报「找不到信号」的噪声。
+    void markdownWorkbenchRequested();
 };
 
 class UiStub : public QObject
@@ -93,9 +106,12 @@ private Q_SLOTS:
 
     // 页面装配 + 真实窗口。每个用例独立一份（引擎/对象图互不串扰），
     // 返回 false 表示装配失败——错误串在 QVERIFY2 的输出里可见。
-    // 出参：window/page 归 harness 所有，用例结束自动销毁。
+    // 出参：window 是窗口本体（ApplicationWindow 根），objectName 查找
+    // 一律从它出发——ApplicationWindow 的声明子项挂在窗口的 QObject 树
+    // 上，而不是 contentItem 的子树里。window 归 harness 所有，用例结束
+    // 自动销毁。
     bool loadPage(QString *errorOut, QQuickWindow **windowOut,
-                  QQuickItem **pageOut, ToolsFacade **toolsOut)
+                  ToolsFacade **toolsOut)
     {
         m_dataRoot = std::make_unique<QTemporaryDir>();
         m_settings = std::make_unique<Settings>();
@@ -103,6 +119,9 @@ private Q_SLOTS:
         m_theme = std::make_unique<Theme>(m_settings.get(), m_registry.get());
         m_tools = std::make_unique<ToolsFacade>(m_dataRoot->path());
         m_markdownEdit = std::make_unique<MarkdownEdit>(m_theme.get());
+        // 纯层控制器：没有 provider 点亮 available，窗口停在提示词模式。
+        m_markdown = std::make_unique<MarkdownPreviewController>(
+            m_settings.get(), m_theme.get());
         m_workbench = std::make_unique<WorkbenchStub>();
         // 能力开关在页面装配前定死：菜单条目的可见性是一条方法调用绑定，
         // 建好之后不会因桩的成员变量变化重算（QML 追不到 C++ 方法内部的
@@ -116,7 +135,7 @@ private Q_SLOTS:
         // qrc:/qt/qml 下）。
         m_engine->addImportPath(QStringLiteral("qrc:/qt/qml"));
 #endif
-        // main.cpp 同款单例注册：页面经 import AgentWorkbench.App 引用的名字。
+        // main.cpp 同款单例注册：窗口经 import AgentWorkbench.App 引用的名字。
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
                                      m_theme.get());
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
@@ -124,36 +143,36 @@ private Q_SLOTS:
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownEdit",
                                      m_markdownEdit.get());
 
-        // 小写别名（theme/tools/workbench/ui）在 app 里是 MainWindow 根部
-        // 属性，经作用域链对页面可见；单独创建组件时用上下文属性提供
-        // 同名解析（对象就是上面的单例）。这是测试工具的做法，不是 app
-        // 的设计（app 禁用 setContextProperty）。
+        // 小写别名（theme/tools/workbench/ui/markdown）在 app 里是
+        // MainWindow 根部属性，经作用域链对窗口可见；单独创建组件时用
+        // 上下文属性提供同名解析（对象就是上面的单例）。这是测试工具的
+        // 做法，不是 app 的设计（app 禁用 setContextProperty）。
         m_context = std::make_unique<QQmlContext>(m_engine->rootContext());
         m_context->setContextProperty(QStringLiteral("theme"), m_theme.get());
         m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
         m_context->setContextProperty(QStringLiteral("workbench"),
                                        m_workbench.get());
         m_context->setContextProperty(QStringLiteral("ui"), m_ui.get());
+        m_context->setContextProperty(QStringLiteral("markdown"),
+                                       m_markdown.get());
 
         QQmlComponent component(m_engine.get(), QUrl(QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml")));
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml")));
         if (component.status() == QQmlComponent::Error) {
             *errorOut = component.errorString();
             return false;
         }
-        m_page = qobject_cast<QQuickItem *>(component.create(m_context.get()));
-        if (!m_page) {
-            *errorOut = QStringLiteral("ToolsPage root is not an Item: ")
+        // 窗口根是 ApplicationWindow（QQuickWindow 子类），不再是页面 Item。
+        m_window.reset(qobject_cast<QQuickWindow *>(
+            component.create(m_context.get())));
+        if (!m_window) {
+            *errorOut = QStringLiteral(
+                "the workbench window root is not a QQuickWindow: ")
                 + component.errorString();
             return false;
         }
-
-        m_window = std::make_unique<QQuickWindow>();
         m_window->resize(1200, 800);
         m_window->setTitle(QStringLiteral("tst_toolsui"));
-        m_page->setParentItem(m_window->contentItem());
-        m_page->setWidth(1200);
-        m_page->setHeight(800);
         m_window->show();
         if (!QTest::qWaitForWindowExposed(m_window.get())) {
             *errorOut = QStringLiteral("window never became exposed");
@@ -163,19 +182,18 @@ private Q_SLOTS:
         QTest::qWait(100);
 
         *windowOut = m_window.get();
-        *pageOut = m_page;
         *toolsOut = m_tools.get();
         return true;
     }
 
     void cleanup()
     {
-        // 先销毁窗口再销毁对象图：页面还在渲染时拆掉 C++ 单例会让
+        // 先销毁窗口再销毁对象图：窗口还在渲染时拆掉 C++ 单例会让
         // 渲染帧解引用悬挂指针。
         m_window.reset();
-        m_page = nullptr;
         m_engine.reset();
         m_context.reset();
+        m_markdown.reset();
         m_markdownEdit.reset();
         m_tools.reset();
         m_theme.reset();
@@ -202,13 +220,12 @@ private Q_SLOTS:
     {
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
         Q_UNUSED(tools);
-        QVERIFY2(loadPage(&error, &window, &page, &tools),
+        QVERIFY2(loadPage(&error, &window, &tools),
                  qPrintable(error));
 
-        QQuickItem *const editor = page->findChild<QQuickItem *>(
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
         QVERIFY2(editor, "promptEditor not found by objectName");
 
@@ -245,18 +262,17 @@ private Q_SLOTS:
     {
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
         Q_UNUSED(tools);
-        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
-        QQuickItem *const editor = page->findChild<QQuickItem *>(
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
         QVERIFY2(editor, "promptEditor not found by objectName");
-        QQuickItem *const scroll = page->findChild<QQuickItem *>(
+        QQuickItem *const scroll = window->findChild<QQuickItem *>(
             QStringLiteral("promptScroll"));
         QVERIFY2(scroll, "promptScroll not found by objectName");
-        QObject *const bar = page->findChild<QObject *>(
+        QObject *const bar = window->findChild<QObject *>(
             QStringLiteral("promptScrollBar"));
         QVERIFY2(bar, "promptScrollBar not found by objectName");
 
@@ -298,9 +314,8 @@ private Q_SLOTS:
     {
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
-        QVERIFY2(loadPage(&error, &window, &page, &tools),
+        QVERIFY2(loadPage(&error, &window, &tools),
                  qPrintable(error));
 
         // 造一棵两层树：subdir/（内含 a.txt）+ top.md（目录排序在前）。
@@ -316,7 +331,7 @@ private Q_SLOTS:
         top.close();
         QVERIFY(tools->addWorkspace(root).ok);
 
-        QQuickItem *const tree = page->findChild<QQuickItem *>(
+        QQuickItem *const tree = window->findChild<QQuickItem *>(
             QStringLiteral("fileTree"));
         QVERIFY2(tree, "fileTree not found by objectName");
         QCOMPARE(tools->model()->rowCount(), 2); // subdir + top.md
@@ -348,17 +363,16 @@ private Q_SLOTS:
     {
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
         Q_UNUSED(tools);
-        QVERIFY2(loadPage(&error, &window, &page, &tools),
+        QVERIFY2(loadPage(&error, &window, &tools),
                  qPrintable(error));
 
-        QQuickItem *const editor = page->findChild<QQuickItem *>(
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
         QVERIFY(editor != nullptr);
         // Menu 是 Popup（QObject，非 Item），查找类型用 QObject。
-        QObject *const menu = page->findChild<QObject *>(
+        QObject *const menu = window->findChild<QObject *>(
             QStringLiteral("editorMenu"));
         QVERIFY2(menu, "editorMenu not found by objectName");
 
@@ -400,10 +414,9 @@ private Q_SLOTS:
         m_previewCapable = true;
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
-        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
-        runRowMenuCase(window, page, tools, true);
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+        runRowMenuCase(window, tools, true);
     }
 
     // 同一个菜单在没有预览能力的构建里（workbench 恒答否）：条目不出场，
@@ -413,14 +426,13 @@ private Q_SLOTS:
         m_previewCapable = false;
         QString error;
         QQuickWindow *window = nullptr;
-        QQuickItem *page = nullptr;
         ToolsFacade *tools = nullptr;
-        QVERIFY2(loadPage(&error, &window, &page, &tools), qPrintable(error));
-        runRowMenuCase(window, page, tools, false);
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+        runRowMenuCase(window, tools, false);
     }
 
 private:
-    // 文件树那一行的右键菜单。找它不能靠 page->findChild：ListView 的行
+    // 文件树那一行的右键菜单。找它不能靠 window->findChild：ListView 的行
     // delegate 的 QObject 父项是视图内部的复用器，不在页面那条 QObject 链上
     // （从页面递归找不到），只能顺可视树走到行，再从行的 QObject 子项里取
     // ——菜单本身不是可视子项，它是那一行的普通 QObject 子项。
@@ -443,7 +455,7 @@ private:
     // 造一个只含 note.md 的工作区，右键那一行让菜单弹出，按 expectPreview
     // 断言「Preview Markdown」条目的出场；期望出场时再真实点一次，断言交出
     // 去的是这一行的绝对路径。两个用例共用它，只在装配前换一个开关。
-    void runRowMenuCase(QQuickWindow *window, QQuickItem *page,
+    void runRowMenuCase(QQuickWindow *window,
                         ToolsFacade *tools, bool expectPreview)
     {
         const QString root = m_dataRoot->path() + QStringLiteral("/menuws");
@@ -455,7 +467,7 @@ private:
         doc.close();
         QVERIFY(tools->addWorkspace(root).ok);
 
-        QQuickItem *const tree = page->findChild<QQuickItem *>(
+        QQuickItem *const tree = window->findChild<QQuickItem *>(
             QStringLiteral("fileTree"));
         QVERIFY(tree);
         QTRY_VERIFY2(tree->width() > 10 && tree->height() > 10,
@@ -530,11 +542,11 @@ private:
     std::unique_ptr<Theme> m_theme;
     std::unique_ptr<ToolsFacade> m_tools;
     std::unique_ptr<MarkdownEdit> m_markdownEdit;
+    std::unique_ptr<MarkdownPreviewController> m_markdown;
     std::unique_ptr<WorkbenchStub> m_workbench;
     std::unique_ptr<UiStub> m_ui;
     std::unique_ptr<QQmlEngine> m_engine;
     std::unique_ptr<QQmlContext> m_context;
-    QQuickItem *m_page = nullptr;
     std::unique_ptr<QQuickWindow> m_window;
 };
 

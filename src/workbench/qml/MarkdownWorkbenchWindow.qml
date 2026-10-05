@@ -1,0 +1,1638 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Window
+import AgentWorkbench
+import AgentWorkbench.App
+
+// Markdown 工作台窗口：提示词撰写与文档预览合体后的那扇独立窗。
+//
+// 两种「预设」是同一套代码的两份界面配置，不是两个应用：
+//   提示词模式（prompt）——左侧工作区文件树全开、草稿编辑区为主体，
+//     Ribbon 展开；这是从提示词页（原 ToolsPage）整体迁进来的形态。
+//   文档模式（document）——侧栏收起、Ribbon 折叠，中间区渲染磁盘上
+//     那份 .md（预览窗 MarkdownPreviewWindow 演化来的形态）。
+// 用户视角里没有「模式」概念，只有「工具多一点少一点」；切预设的入口
+// 是视图区的「完整工具」开关。
+//
+// 这里只有「窗口」的知识：布局、快捷键、怎么问用户。文档状态与命令队列
+// 在 `markdown` 单例（MarkdownPreviewController）里，草稿与工作区在
+// `tools` 单例（ToolsFacade）里，渲染面在 MarkdownPreviewPane.qml（按
+// 资源 URL 惰性装载——本窗口要在没有 WebEngine 的构建里照常加载）。
+//
+// 与 Web 页的表面有意不共用组件，理由见 MarkdownPreviewPane.qml 的头注释。
+// 与主窗同型用 ApplicationWindow（根部那行 font.family 需要 ApplicationWindow
+// 才有），字体挂在窗口级才覆盖菜单与对话框。
+ApplicationWindow {
+    id: workbenchWindow
+
+    // --- 开窗意图与预设 -----------------------------------------------------
+    // 主窗的 Loader 在 onLoaded 里写这个属性：previewMarkdown() 的流程给
+    // "document"，openMarkdownWorkbench() 给 "prompt"。onCompleted 与
+    // onInitialPresetChanged 都走 applyPreset（幂等），装载完成前的默认
+    // 值与装载后的写入发生在同一轮事件里，窗口上屏前就定形。
+    property string initialPreset: "prompt"
+    // 当前预设：prompt | document。文档模式要求控制器里有一份能渲染的
+    // 文档，拿不到时 applyPreset 会退回提示词模式。
+    property string preset: "prompt"
+
+    // 两套预设的界面状态各自独立、互不污染（窗口存活期内）：
+    // 提示词模式两侧全开；文档模式两侧收起（窄边可展开）。
+    property bool promptLeftOpen: true
+    property bool documentLeftOpen: false
+    // 文档模式的 Ribbon 折叠位（提示词模式的折叠位持久化在
+    // tools.ribbonCollapsed 里）。
+    property bool documentRibbonCollapsed: true
+
+    readonly property bool leftOpen: preset === "prompt"
+                                    ? promptLeftOpen : documentLeftOpen
+    readonly property bool ribbonCollapsed: preset === "prompt"
+                                            ? tools.ribbonCollapsed
+                                            : documentRibbonCollapsed
+
+    // --- 窗口自己的状态（活不过一次开窗） ---------------------------------
+    // 搜索条状态。命中数由页面经信标报回（findResult），这边只镜像。
+    property bool searchOpen: false
+    property bool searchForward: true
+    property bool caseSensitive: false
+    property int findTotal: 0
+    property int findActive: 0
+    // 两栏布局里编辑区占的比例。窗口内状态，不进设置：拖一下不该落盘。
+    property real editorShare: 0.45
+    // 关窗批准位：有未保存改动时 onClosing 会挡一道，只有经
+    // approveClose() 才放行。
+    property bool closeApproved: false
+    // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
+    property string pendingLanding: ""
+    property int landingPolls: 0
+    // 渲染失败的 toast 只报第一次：一份坏 mermaid 图能让页面报几十条
+    property bool renderNoticeShown: false
+    // 把磁盘那份写回编辑器时的护栏：否则这次写入会被算成用户的编辑，
+    // 于是「重载」当场又变成「脏」。
+    property bool applyingExternal: false
+
+    // 命令泵的闸门：预览面装载完成且页面就绪。
+    readonly property bool previewReady: previewPaneLoader.item
+                                         && previewPaneLoader.item.pageReady
+
+    // 当前激活的编辑器：提示词模式是草稿区；文档模式是源码区（只读文档
+    // 没有可编辑目标，格式动作自然禁用）。
+    readonly property var activeEditor: preset === "prompt"
+                                        ? promptEditor
+                                        : (markdown.canEdit ? editorArea : null)
+
+    width: 1180
+    height: 820
+    minimumWidth: 720
+    minimumHeight: 460
+    visible: true
+    color: theme.windowBg
+    // 文档名在前：任务栏与窗口切换器里认的是文件名。分隔符单列一处，
+    // 别和 qsTr 挤在同一物理行——i18n 门禁按行检查 ASCII。
+    readonly property string titleDash: " — "
+    title: (preset === "document" && markdown.fileTitle.length > 0
+            ? markdown.fileTitle + workbenchWindow.titleDash : "")
+           + qsTr("Markdown workbench")
+    // 全局字体与主窗一致（Controls2 的字体继承链的根在窗口上）
+    font.family: theme.family.length > 0 ? theme.family : undefined
+
+    // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
+    function applyPreset(requested) {
+        const documentUsable = markdown.available
+                               && markdown.fileTitle.length > 0
+        preset = (requested === "document" && documentUsable)
+                 ? "document" : "prompt"
+    }
+
+    onInitialPresetChanged: applyPreset(initialPreset)
+
+    // --- 动作层（Ribbon 与降级工具栏转发的就是这一批） ---------------------
+    function copyPrompt() {
+        if (tools.draft.length === 0) {
+            workbench.notify("info", qsTr("Nothing to copy"),
+                             qsTr("The editor is empty."))
+            return
+        }
+        workbench.copyText(tools.draft)
+        workbench.notify("success", qsTr("Copied"),
+                         qsTr("The prompt is on the clipboard."))
+    }
+
+    // 选目录走 ui.pickFolder（C++ 的原生 IFileOpenDialog，Qt 5/Qt 6 同一实
+    // 现与同一行为；QML FolderDialog 是 Qt 6 QuickDialogs2 独有）。
+    function addWorkspaceViaDialog() {
+        const path = ui.pickFolder(qsTr("Choose a workspace folder"))
+        if (path.length === 0)
+            return
+        const result = tools.addWorkspace(path)
+        if (!result.ok)
+            workbench.notify("error", qsTr("Could not add the workspace"),
+                             result.error)
+    }
+
+    // 格式三件套与剪贴板动作都作用在当前编辑器上；焦点先归还，输入与
+    // 选区写入才落在它身上（与 MarkdownContextMenu.run 同一条纪律）。
+    function applyFormat(kind) {
+        const editor = activeEditor
+        if (!editor)
+            return
+        editor.forceActiveFocus()
+        if (kind === "bold")
+            MarkdownEdit.applyBold(editor)
+        else if (kind === "code")
+            MarkdownEdit.applyCode(editor)
+        else if (kind === "bullet")
+            MarkdownEdit.applyBullet(editor)
+    }
+
+    function editorAction(action) {
+        const editor = activeEditor
+        if (!editor)
+            return
+        editor.forceActiveFocus()
+        if (action === "undo")
+            editor.undo()
+        else if (action === "redo")
+            editor.redo()
+        else if (action === "cut")
+            editor.cut()
+        else if (action === "copy")
+            editor.copy()
+        else if (action === "paste")
+            editor.paste()
+    }
+
+    function saveDocument() {
+        const result = markdown.saveNow()
+        if (!result.ok)
+            workbench.notify("error", qsTr("Could not save"), result.error)
+        // 成功那条 toast 在 onSaved 里发：存盘的路径不止这一条（菜单、快捷键），
+        // 而「存下了」这件事只由控制器的 saved 信号定义。
+        return result.ok
+    }
+
+    function toggleFullTools() {
+        if (preset === "prompt") {
+            // 收起 = 切到文档模式预设；没有可看的文档时这个开关根本
+            // 不会亮（enabled 绑在 documentUsable 上）。
+            applyPreset("document")
+        }
+        else {
+            applyPreset("prompt")
+        }
+    }
+
+    function toggleRibbonCollapsed() {
+        setRibbonCollapsed(!ribbonCollapsed)
+    }
+
+    // Ribbon 的折叠位写回（用户在 ribbon 上直接展开/折叠时由它的
+    // onMinimumModeChanged 调到这里）。
+    function setRibbonCollapsed(collapsed) {
+        if (preset === "prompt")
+            tools.ribbonCollapsed = collapsed
+        else
+            documentRibbonCollapsed = collapsed
+    }
+
+    // 命令泵：控制器排队的命令逐条交给页面。顺序由队列保证（同类命令只
+    // 留最新一条），而 runJavaScript 的调用顺序就是页面里的执行顺序。
+    // 唯一的例外是 serialize：它的返回值本身就是导出件，必须从回调里取。
+    function pump() {
+        if (!previewReady)
+            return
+        while (markdown.hasPendingCommand()) {
+            const json = markdown.takeCommand()
+            // 命令名从 JSON 里解出来，而不是在字符串里找子串：命令体是
+            // MarkdownRuntime 紧凑序列化的产物，spacing 一变这里就会静默
+            // 不再认出 serialize，于是导出永远不落地、也没有任何报错。
+            let cmd = ""
+            try {
+                cmd = JSON.parse(json).cmd
+            } catch (e) {
+                console.error("markdown: undecodable command from the queue")
+                continue
+            }
+            previewPaneLoader.item.dispatch(
+                        json,
+                        cmd !== "serialize" ? null : function (reply) {
+                            markdown.reportMarkup(
+                                        typeof reply === "string" ? reply : "")
+                        })
+        }
+    }
+
+    // 导出 / 外部打开前的补渲染：屏外块与懒画图表都是异步的，直接序列化
+    // 会得到一堆占位符。轮询页面自己的 AWB.idle() 而不是猜一个固定延时。
+    function requestLanding(purpose) {
+        pendingLanding = purpose
+        landingPolls = 0
+        markdown.requestFullRender()
+        idlePoll.restart()
+    }
+
+    // 数一次轮询并回报当前次数：到预算就照样序列化，宁可不完美也不永远不落地。
+    function spentIdlePoll() {
+        landingPolls += 1
+        return landingPolls
+    }
+
+    // 选区在 Chromium 里，只能把文本取回来交给剪贴板（QML 不碰系统能力，
+    // 一律经 workbench）。
+    function copySelection() {
+        previewPaneLoader.item.evalJs(
+                    "window.getSelection ? String(window.getSelection()) : ''",
+                    function (text) {
+                        const picked = typeof text === "string" ? text : ""
+                        if (picked.length === 0) {
+                            workbench.notify("info", qsTr("Nothing selected"),
+                                             qsTr("Select some text in the preview first."))
+                            return
+                        }
+                        workbench.copyText(picked)
+                    })
+    }
+
+    function copySource() {
+        if (markdown.editorText().length === 0) {
+            workbench.notify("info", qsTr("Nothing to copy"),
+                             qsTr("The document is empty."))
+            return
+        }
+        workbench.copyText(markdown.editorText())
+    }
+
+    // --- 搜索 --------------------------------------------------------------
+    // 空关键词也要发出去：页面在 find() 开头就把上一次的高亮拆掉，不发就
+    // 留着一屏黄底。
+    function runSearch(restart) {
+        markdown.requestFind(searchField.text, searchForward,
+                             caseSensitive, restart)
+        if (searchField.text.length === 0) {
+            findTotal = 0
+            findActive = 0
+        }
+    }
+
+    function openSearch() {
+        searchOpen = true
+        searchField.forceActiveFocus()
+    }
+
+    function closeSearch() {
+        searchOpen = false
+        searchField.text = ""
+    }
+
+    function approveClose() {
+        // 只放行，报到交给 onClosing：两条关闭路径（点 × 与这里的对话框）都
+        // 从那里过，状态放一次就够。
+        closeApproved = true
+        workbenchWindow.close()
+    }
+
+    // 开窗即向控制器报到：从此它才往外排命令（窗口不在时命令一律不排）。
+    Component.onCompleted: {
+        markdown.notifyWindowOpened()
+        applyPreset(initialPreset)
+        if (!markdown.canEdit && markdown.mode === "source")
+            markdown.setMode("preview")
+    }
+
+    // 没有关闭事件也要把状态位放下来：主窗退出、Loader 被直接关掉都会跳过
+    // onClosing。控制器里的 m_windowOpen 有幂等守卫。
+    Component.onDestruction: markdown.notifyWindowClosed()
+
+    // --- 关闭语义 ----------------------------------------------------------
+    onClosing: function (close) {
+        if (closeApproved || !markdown.dirty) {
+            closeApproved = false
+            // 关窗必须报到：QML 的 Window 关掉只是藏起来，对象还活着。不报
+            // 的话 `markdown.active` 永远为真，主窗那个 Loader 的 active 不会
+            // 翻转，第二次请求就只剩一次 raise 打在一扇已经隐藏的窗上。
+            // 顺序要紧：先让控制器把文档与状态放下，窗口随后才销毁。
+            markdown.notifyWindowClosed()
+            return
+        }
+        // 有未保存的改动时不静默丢弃：这扇窗的存盘键是 Ctrl+S，用户完全
+        // 可能改完直接点 ×。
+        close.accepted = false
+        unsavedDialog.open()
+    }
+
+    // --- 快捷键 ------------------------------------------------------------
+    // context 用 ApplicationShortcut + enabled 绑本窗激活：Chromium 会吃掉
+    // 普通窗口作用域的按键，而限定 active 又保证不会在用户回到主窗时抢下
+    // Ctrl+S / Ctrl+F。
+    Shortcut {
+        sequence: "Ctrl+S"
+        context: Qt.ApplicationShortcut
+        enabled: workbenchWindow.active && preset === "document"
+                 && markdown.canEdit
+        onActivated: workbenchWindow.saveDocument()
+    }
+    Shortcut {
+        sequence: "Ctrl+F"
+        context: Qt.ApplicationShortcut
+        enabled: workbenchWindow.active && preset === "document"
+                 && !searchOpen
+        onActivated: workbenchWindow.openSearch()
+    }
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.ApplicationShortcut
+        enabled: workbenchWindow.active && searchOpen
+        onActivated: workbenchWindow.closeSearch()
+    }
+    // F5 是「重读磁盘」而不是「重载页面」：内容本来就在本地，重载视图只会
+    // 把已经挂好的 DOM 丢掉重来一遍。
+    Shortcut {
+        sequence: "F5"
+        context: Qt.ApplicationShortcut
+        enabled: workbenchWindow.active && preset === "document"
+        onActivated: {
+            if (markdown.dirty)
+                diskChangedDialog.open()
+            else
+                markdown.reloadFromDisk()
+        }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        // --- 顶部命令条：Ribbon 构建里是 RibbonBar，其余走工具栏降级 ----
+        // Ribbon 的 QML 只在 AWB_ENABLE_RIBBON 的构建里登记进资源清单；
+        // 未登记（开关关闭）或当前进程没注册 SARibbon 类型（单测引擎）时
+        // Loader 报错，就地换装载降级工具栏——能力按编译内容裁剪，与
+        // 预览面的装载同一条路线。
+        Loader {
+            id: commandBarLoader
+
+            Layout.fillWidth: true
+            source: "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchRibbon.qml"
+
+            onStatusChanged: {
+                if (status === Loader.Ready) {
+                    item.win = workbenchWindow
+                    return
+                }
+                if (status === Loader.Error) {
+                    console.warn("workbench: ribbon unavailable, "
+                                 + "falling back to the toolbar")
+                    source = "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchToolbar.qml"
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 1
+            color: theme.separator
+        }
+
+        // --- 主体：左侧属性区 | 中间文档区 | 右侧属性区 -------------------
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+
+            // --- 左侧：工作区文件树（可折叠为窄边） -----------------------
+            // 树是「拿什么素材」的浏览器，不是动作区；折叠后留一条可点击
+            // 的窄边。提示词预设默认展开，文档预设默认收起。
+            Rectangle {
+                id: leftPanel
+
+                readonly property bool stripMode: !leftOpen
+
+                Layout.fillHeight: true
+                Layout.preferredWidth: stripMode ? 26 : 320
+                Layout.minimumWidth: stripMode ? 26 : 220
+                color: stripMode ? theme.chromeBg : theme.surfaceBg
+                border.color: stripMode ? "transparent" : theme.borderSubtle
+                border.width: 1
+                clip: true
+
+                // 窄边：一条竖排的展开按钮。
+                Item {
+                    anchors.fill: parent
+                    visible: leftPanel.stripMode
+
+                    AIconButton {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: theme.spacingXs
+                        iconSource: "qrc:/icons/chevron-right.svg"
+                        tooltip: qsTr("Show the workspace tree")
+                        onClicked: {
+                            if (preset === "prompt")
+                                promptLeftOpen = true
+                            else
+                                documentLeftOpen = true
+                        }
+                    }
+                }
+
+                // 展开态：头部一排（工作区切换 + 选文件夹 + 刷新）+ 文件树。
+                // 与原提示词页同一套结构，objectName 契约不变。
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+                    visible: !leftPanel.stripMode
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.margins: theme.spacingXs
+                        spacing: theme.spacingXs
+
+                        AIconButton {
+                            iconSource: "qrc:/icons/chevron-left.svg"
+                            tooltip: qsTr("Hide the workspace tree")
+                            onClicked: {
+                                if (preset === "prompt")
+                                    promptLeftOpen = false
+                                else
+                                    documentLeftOpen = false
+                            }
+                        }
+
+                        AComboBox {
+                            id: workspaceCombo
+
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 110
+                            model: tools.workspaces
+                            currentIndex: {
+                                for (let i = 0; i < tools.workspaces.length; ++i) {
+                                    if (tools.workspaces[i] === tools.currentWorkspace)
+                                        return i
+                                }
+                                return -1
+                            }
+                            enabled: tools.workspaces.length > 0
+
+                            // 路径可能很长，中部省略让盘符与末段同时可见。
+                            contentItem: Text {
+                                text: workspaceCombo.displayText
+                                font.pixelSize: theme.fontSizeCaption
+                                color: workspaceCombo.enabled ? theme.textPrimary
+                                                              : theme.textDisabled
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideMiddle
+                                leftPadding: 10
+                                rightPadding: 34
+                            }
+
+                            onActivated: function(index) {
+                                tools.currentWorkspace = tools.workspaces[index]
+                            }
+
+                            delegate: ItemDelegate {
+                                id: workspaceChoice
+
+                                required property var modelData
+                                required property int index
+
+                                width: workspaceCombo.width
+                                highlighted: workspaceCombo.highlightedIndex === index
+                                // 弹层底色随 AComboBox 主题化后，条目悬停态也要跟令
+                                // 牌走（默认 ItemDelegate 背景是硬编码浅色系）。
+                                background: Rectangle {
+                                    color: workspaceChoice.hovered
+                                           || workspaceChoice.highlighted
+                                           ? theme.surfaceHoverBg : "transparent"
+                                }
+
+                                contentItem: RowLayout {
+                                    spacing: theme.spacingS
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: workspaceChoice.modelData
+                                        color: theme.textPrimary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
+
+                                    AIconButton {
+                                        iconSource: "qrc:/icons/close.svg"
+                                        tooltip: qsTr("Remove this workspace")
+                                        onClicked: {
+                                            const result =
+                                                    tools.removeWorkspace(workspaceChoice.modelData)
+                                            if (!result.ok)
+                                                workbench.notify("error",
+                                                                 qsTr("Could not remove the workspace"),
+                                                                 result.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 选工作区文件夹：只放图标，说明走 tooltip。
+                        AIconButton {
+                            iconSource: "qrc:/icons/folder.svg"
+                            tooltip: qsTr("Choose a workspace folder")
+                            onClicked: workbenchWindow.addWorkspaceViaDialog()
+                        }
+
+                        AIconButton {
+                            iconSource: "qrc:/icons/refresh.svg"
+                            tooltip: qsTr("Refresh the file tree")
+                            enabled: tools.currentWorkspace.length > 0
+                            onClicked: tools.refresh()
+                        }
+                    }
+
+                    // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
+                    // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
+                    // 统一用 ListView + depth/expanded role 渲染同一份数据。
+                    // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
+                    ListView {
+                        id: fileTree
+                        objectName: "fileTree"
+
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: tools.currentWorkspace.length > 0
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: tools.model
+
+                        ScrollBar.vertical: AScrollBar {}
+
+                        delegate: Item {
+                            id: treeRow
+
+                            width: fileTree.width
+                            height: 28
+
+                            // DropArea 据此识别拖拽来源（见草稿区的 onDropped）。
+                            readonly property bool isFileReferenceDrag: true
+                            // 行被回收进池子到再次被复用之间为真。模型 reset
+                            // 期间 role 会短暂换值，动画要闭嘴。
+                            property bool rebinding: false
+
+                            // role 一律经 required property 声明；index 同理：
+                            // Qt 5.15 里声明了任何 required property 后
+                            // contextObject 即被清空，裸 index 会抛
+                            // ReferenceError。
+                            required property string name
+                            required property string path
+                            required property string relativePath
+                            required property bool isDir
+                            required property string iconSource
+                            required property int depth
+                            required property bool expanded
+                            required property bool hasChildren
+                            required property int index
+
+                            Connections {
+                                target: tools.model
+                                function onModelReset() {
+                                    treeRow.rebinding = true
+                                }
+                            }
+                            Component.onCompleted: treeRow.rebinding = false
+
+                            // 拖出文件引用：Automatic 型拖拽，Drag.active 置真
+                            // 即开始（mimeData 在会话开始时求值）。
+                            Drag.dragType: Drag.Automatic
+                            Drag.supportedActions: Qt.CopyAction
+                            Drag.mimeData: {
+                                "text/plain": tools.fileReference(treeRow.relativePath)
+                            }
+                            Drag.active: rowDragHandler.active
+
+                            DragHandler {
+                                id: rowDragHandler
+                                target: null
+                            }
+
+                            // 悬停高亮：读树时逐行反馈落点。
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: theme.radiusControl
+                                color: theme.surfaceHoverBg
+                                visible: rowHover.hovered
+                            }
+
+                            HoverHandler {
+                                id: rowHover
+                            }
+
+                            // 单击目录：切换展开（fetch 兜底在模型的
+                            // toggleExpanded 内部完成）。
+                            TapHandler {
+                                onSingleTapped: {
+                                    if (treeRow.isDir)
+                                        tools.model.toggleExpanded(index)
+                                }
+                            }
+
+                            // 双击文件：在草稿光标处插入引用（目录的双击被
+                            // 两次单击的展开/收起抵消）。
+                            TapHandler {
+                                onDoubleTapped: {
+                                    if (!treeRow.isDir) {
+                                        promptEditor.insert(
+                                                    promptEditor.cursorPosition,
+                                                    tools.fileReference(
+                                                        treeRow.relativePath))
+                                    }
+                                }
+                            }
+
+                            // 右键复制路径：只吃右键，左键留给上面的 TapHandler。
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                onClicked: function(mouse) {
+                                    pathMenu.popup(mouse.x, mouse.y)
+                                }
+                            }
+
+                            // 右键：Markdown 文件多一条预览，其余仍是复制路径。
+                            // 条目出不出场交给 workbench.canPreviewMarkdown()——
+                            // 哪些后缀归预览管是纯层的事实，QML 不写后缀判断。
+                            AMenu {
+                                id: pathMenu
+                                // tst_toolsui 的锚点：右键弹出后按名字找到这份
+                                // 菜单，再断言「Preview Markdown」条目的出场。
+                                objectName: "treeRowMenu"
+
+                                AMenuItem {
+                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                    icon.source: "qrc:/icons/file.svg"
+                                    text: qsTr("Preview Markdown")
+                                    onTriggered: workbench.previewMarkdown(treeRow.path)
+                                }
+                                AMenuSeparator {
+                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                }
+                                AMenuItem {
+                                    icon.source: "qrc:/icons/copy.svg"
+                                    text: qsTr("Copy relative path")
+                                    onTriggered: workbench.copyText(treeRow.relativePath)
+                                }
+                                AMenuItem {
+                                    icon.source: "qrc:/icons/copy.svg"
+                                    text: qsTr("Copy absolute path")
+                                    onTriggered: workbench.copyText(treeRow.path)
+                                }
+                            }
+
+                            // 展开箭头：收起朝右，展开转 90 度朝下。
+                            Image {
+                                x: 4 + treeRow.depth * 16
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 14
+                                height: 14
+                                source: "qrc:/icons/chevron-right.svg"
+                                // sourceSize 与显示尺寸一致：SVG 不设时按
+                                // 24px 自然尺寸栅格再缩小绘制，箭头会发糊。
+                                sourceSize: Qt.size(14, 14)
+                                visible: treeRow.hasChildren
+                                rotation: treeRow.expanded ? 90 : 0
+
+                                Behavior on rotation {
+                                    enabled: !treeRow.rebinding
+                                    NumberAnimation {
+                                        duration: theme.durationFast
+                                    }
+                                }
+                            }
+
+                            // 图标由模型按文件名/后缀查表给出（见 FileIcons）。
+                            Image {
+                                x: 4 + treeRow.depth * 16 + 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 16
+                                height: 16
+                                source: treeRow.iconSource
+                                sourceSize: Qt.size(16, 16)
+                            }
+
+                            Label {
+                                x: 4 + treeRow.depth * 16 + 40
+                                width: parent.width - x - 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: treeRow.name
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeCaption
+                                elide: Text.ElideMiddle
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: tools.currentWorkspace.length > 0
+                                 && tools.model.visibleCount === 0
+                        Layout.margins: theme.spacingM
+                        text: qsTr("The workspace folder is empty or unavailable.")
+                        color: theme.textMuted
+                        font.pixelSize: theme.fontSizeCaption
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    AEmptyState {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: tools.currentWorkspace.length === 0
+                        iconSource: "qrc:/icons/folder.svg"
+                        title: qsTr("No workspace selected")
+                        description: qsTr("Add a folder to browse its files and insert references into the prompt.")
+                        actionText: qsTr("Add Folder...")
+                        onActionClicked: workbenchWindow.addWorkspaceViaDialog()
+                    }
+                }
+            }
+
+            // --- 中间：文档区 ----------------------------------------------
+            // 单隐式草稿 tab + 三态 + 状态条。tab 条上的标签随预设切换
+            // （草稿 / 文件名），统一 tab 模型的多 tab 化是后续里程碑的事。
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                // tab 条：一条贴顶的窄条，单个 tab。
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    color: theme.chromeBg
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: theme.spacingS
+                        anchors.rightMargin: theme.spacingS
+                        spacing: theme.spacingS
+
+                        // 徽标区分来源：草稿 tab 与文件 tab 不靠记忆。
+                        APill {
+                            text: preset === "prompt" ? qsTr("Draft")
+                                                      : qsTr("File")
+                        }
+
+                        Label {
+                            text: preset === "prompt"
+                                  ? qsTr("Prompt draft")
+                                  : (markdown.fileTitle.length > 0
+                                     ? markdown.fileTitle
+                                     : qsTr("No document"))
+                            color: theme.textPrimary
+                            font.pixelSize: theme.fontSizeCaption
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
+
+                        // 三态是「当前在哪」，用 variant 表达选中。提示词
+                        // 模式下草稿没有渲染面，切换器不出现（功能缺失时
+                        // 不可见，而不是放一个不响应的版本）。
+                        RowLayout {
+                            visible: preset === "document"
+                            spacing: theme.spacingXs
+
+                            Repeater {
+                                model: [
+                                    { key: "preview", label: qsTr("Preview") },
+                                    { key: "split", label: qsTr("Split") },
+                                    { key: "source", label: qsTr("Source") }
+                                ]
+                                delegate: AButton {
+                                    required property var modelData
+                                    required property int index
+
+                                    text: modelData.label
+                                    Layout.preferredWidth: 72
+                                    variant: markdown.mode === modelData.key
+                                             ? "primary" : "ghost"
+                                    // 只读文档没有源码可编：Split / Source
+                                    // 直接禁用，而不是让人切到一个只能看
+                                    // 的编辑框。
+                                    enabled: modelData.key === "preview"
+                                             || markdown.splitAvailable
+                                    onClicked: markdown.setMode(modelData.key)
+                                }
+                            }
+                        }
+
+                        AIconButton {
+                            visible: preset === "document"
+                            iconSource: "qrc:/icons/bullet-list.svg"
+                            tooltip: qsTr("Show outline")
+                            active: markdown.showOutline
+                            onClicked: markdown.setShowOutline(!markdown.showOutline)
+                        }
+
+                        AIconButton {
+                            visible: preset === "document"
+                            iconSource: "qrc:/icons/search.svg"
+                            tooltip: qsTr("Search in document")
+                            active: searchOpen
+                            onClicked: {
+                                if (searchOpen) {
+                                    workbenchWindow.closeSearch()
+                                    return
+                                }
+                                workbenchWindow.openSearch()
+                            }
+                        }
+
+                        AComboBox {
+                            visible: preset === "document"
+                            Layout.preferredWidth: 120
+                            // 标签与值同序：0 = 跟随主题的 fontSizeBody。
+                            property var values: [0, 12, 13, 14, 16, 18, 20, 24]
+                            model: [qsTr("Theme size"), "12 px", "13 px",
+                                    "14 px", "16 px", "18 px", "20 px", "24 px"]
+                            currentIndex: values.indexOf(markdown.fontSizePx)
+                            onActivated: function (index) {
+                                markdown.setFontSizePx(values[index])
+                            }
+                        }
+
+                        AComboBox {
+                            visible: preset === "document"
+                            Layout.preferredWidth: 120
+                            // 0 = 内置基准。末项是「尽量满栏」。
+                            property var values: [0, 640, 760, 900, 1200, 4000]
+                            model: [qsTr("Default width"), "640 px", "760 px",
+                                    "900 px", "1200 px", qsTr("Full width")]
+                            currentIndex: values.indexOf(markdown.contentWidthPx)
+                            onActivated: function (index) {
+                                markdown.setContentWidthPx(values[index])
+                            }
+                        }
+
+                        // 更多动作（复制选区/源码、导出、重载）收进菜单；
+                        // Ribbon 构建里这些动作在「开始」页，工具栏构建里
+                        // 也经这里触达。
+                        AIconButton {
+                            visible: preset === "document"
+                            iconSource: "qrc:/icons/menu.svg"
+                            tooltip: qsTr("More actions")
+                            onClicked: actionsMenu.popup()
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: theme.separator
+                }
+
+                // --- 搜索条（Ctrl+F 展开，仅文档模式） ---------------------
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: theme.spacingM
+                    Layout.rightMargin: theme.spacingM
+                    Layout.topMargin: theme.spacingS
+                    Layout.bottomMargin: theme.spacingS
+                    visible: preset === "document" && searchOpen
+                    spacing: theme.spacingS
+
+                    ASearchField {
+                        id: searchField
+                        Layout.preferredWidth: 280
+                        placeholderText: qsTr("Find in document")
+                        onTextChanged: searchDebounce.restart()
+                        onAccepted: {
+                            workbenchWindow.searchForward = true
+                            workbenchWindow.runSearch(true)
+                        }
+                    }
+
+                    // 逐键搜索在 2 MB 文档上就是每键扫一遍全篇 DOM：停
+                    // 200 ms 再问。
+                    Timer {
+                        id: searchDebounce
+                        interval: 200
+                        onTriggered: workbenchWindow.runSearch(true)
+                    }
+
+                    AButton {
+                        text: qsTr("Aa")
+                        Layout.preferredWidth: 44
+                        variant: workbenchWindow.caseSensitive ? "primary" : "ghost"
+                        ToolTip.delay: 300
+                        ToolTip.timeout: 10000
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Match case")
+                        onClicked: {
+                            workbenchWindow.caseSensitive =
+                                    !workbenchWindow.caseSensitive
+                            workbenchWindow.runSearch(true)
+                        }
+                    }
+
+                    AButton {
+                        text: qsTr("Previous")
+                        variant: "ghost"
+                        onClicked: {
+                            workbenchWindow.searchForward = false
+                            workbenchWindow.runSearch(false)
+                        }
+                    }
+                    AButton {
+                        text: qsTr("Next")
+                        variant: "ghost"
+                        onClicked: {
+                            workbenchWindow.searchForward = true
+                            workbenchWindow.runSearch(false)
+                        }
+                    }
+
+                    Label {
+                        text: searchField.text.length === 0
+                              ? ""
+                              : (workbenchWindow.findTotal === 0
+                                 ? qsTr("No matches")
+                                 : qsTr("%1 of %2").arg(workbenchWindow.findActive)
+                                       .arg(workbenchWindow.findTotal))
+                        color: theme.textMuted
+                        font.pixelSize: theme.fontSizeCaption
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    AIconButton {
+                        iconSource: "qrc:/icons/close.svg"
+                        tooltip: qsTr("Close search")
+                        onClicked: workbenchWindow.closeSearch()
+                    }
+                }
+
+                // --- 文档主体 ----------------------------------------------
+                // 提示词模式：草稿编辑区占满（拖拽插引用、右键格式菜单都
+                // 在它身上）。文档模式：手写两栏 + 可拖分隔条（编辑区 |
+                // 渲染面），不用 SplitView 是因为三态里有两态要把一栏挤成
+                // 0 宽，而 SplitView 对 visible 的处理跨版本不一致。
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    // 提示词模式的草稿编辑区。
+                    Flickable {
+                        id: promptScroll
+                        objectName: "promptScroll"
+
+                        anchors.fill: parent
+                        visible: workbenchWindow.preset === "prompt"
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        // 折行显示，宽度即视口宽度，横向永不溢出。
+                        flickableDirection: Flickable.VerticalFlick
+
+                        // objectName 是 tst_toolsui 的定位锚点。
+                        ScrollBar.vertical: AScrollBar {
+                            objectName: "promptScrollBar"
+                        }
+
+                        TextArea.flickable: ATextArea {
+                            id: promptEditor
+                            objectName: "promptEditor"
+
+                            placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this window.")
+                            // 只在初始化时从门面取草稿：常驻双向绑定会与
+                            // 用户输入互相打架。
+                            Component.onCompleted: {
+                                text = tools.draft
+                                // markdown 语法高亮在此时挂到 textDocument 上；
+                                // 主题切换由 MarkdownEdit 自己跟随。
+                                MarkdownEdit.attach(promptEditor)
+                            }
+                            onTextChanged: tools.draft = text
+
+                            // 拖放目标：接住来自文件树的行，把文件引用插到
+                            // 落点光标处。
+                            DropArea {
+                                anchors.fill: parent
+
+                                onEntered: function(drag) {
+                                    drag.accept(Qt.CopyAction)
+                                }
+                                onDropped: function(drop) {
+                                    // 只接受文件树来的行：编辑区自身的选区
+                                    // 拖动（source 为空）不在此列。
+                                    if (!drop.source
+                                            || !drop.source.isFileReferenceDrag)
+                                        return
+                                    // 落点坐标即文档坐标：滚动是 Flickable
+                                    // 整体平移编辑器，positionAt 直接用本地
+                                    // 坐标即可。
+                                    promptEditor.insert(
+                                                promptEditor.positionAt(drop.x, drop.y),
+                                                drop.text)
+                                    drop.acceptProposedAction()
+                                }
+                            }
+
+                            // 右键弹 markdown 异型菜单（顶部格式化工具栏 +
+                            // 复制/粘贴）。TextEdit 只吃左/中键，右键不触碰
+                            // 编辑器选区；MouseArea 只接受右键，鼠标处给
+                            // I-beam 光标。
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                cursorShape: Qt.IBeamCursor
+                                onClicked: function(mouse) {
+                                    editorMenu.editor = promptEditor
+                                    editorMenu.popup(mouse.x, mouse.y)
+                                }
+                            }
+
+                            MarkdownContextMenu {
+                                id: editorMenu
+                                objectName: "editorMenu"
+                            }
+                        }
+                    }
+
+                    // 文档模式的两栏主体。
+                    Item {
+                        id: docArea
+                        anchors.fill: parent
+                        visible: workbenchWindow.preset === "document"
+
+                        readonly property bool showsEditor: markdown.mode !== "preview"
+                        readonly property bool showsView: markdown.mode !== "source"
+                        readonly property bool showsBoth: showsEditor && showsView
+                        // 分隔条的位置：单栏时被推到边界，于是另一栏自然
+                        // 0 宽。
+                        property real splitX: showsBoth
+                                              ? Math.round(width * workbenchWindow.editorShare)
+                                              : (showsEditor ? width : 0)
+
+                        // --- 编辑区（源码） ---
+                        Flickable {
+                            id: editorScroll
+                            x: 0
+                            y: 0
+                            width: docArea.splitX
+                            height: parent.height
+                            visible: docArea.showsEditor && width > 0
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            flickableDirection: Flickable.VerticalFlick
+
+                            ScrollBar.vertical: AScrollBar {}
+
+                            // 与草稿区同一套做法：TextArea 自己不会滚动，
+                            // TextArea.flickable 附加属性接管增高与光标可见。
+                            TextArea.flickable: ATextArea {
+                                id: editorArea
+
+                                // 只在初始化与「磁盘那份进来了」时写 text：
+                                // 常驻双向绑定会与用户输入互相打架。
+                                Component.onCompleted: {
+                                    text = markdown.editorText()
+                                    // 高亮与草稿区同一套（统一编辑器）：
+                                    // 只读文档也高亮，读源码同样受益。
+                                    MarkdownEdit.attach(editorArea)
+                                }
+                                placeholderText: qsTr("Nothing to edit")
+                                readOnly: !markdown.canEdit
+                                // 源码用等宽：表格与代码块的对齐依赖它。
+                                font.family: theme.monoFamily.length > 0
+                                             ? theme.monoFamily : theme.family
+                                // 停手再交出去：一次敲键要把整篇重切块并算
+                                // 差异，2 MB 文档上每键一次就是把 CPU 花在
+                                // 马上会被改掉的中间态。
+                                onTextChanged: {
+                                    if (workbenchWindow.applyingExternal)
+                                        return
+                                    editorSyncTimer.restart()
+                                }
+                            }
+                        }
+
+                        Timer {
+                            id: editorSyncTimer
+                            interval: 200
+                            onTriggered: markdown.setEditorText(editorArea.text)
+                        }
+
+                        // --- 预览区（Chromium 渲染面，按能力惰性装载） ---
+                        Loader {
+                            id: previewPaneLoader
+
+                            x: docArea.splitX + (docArea.showsBoth ? handle.width : 0)
+                            y: 0
+                            width: parent.width - x
+                            height: parent.height
+                            visible: docArea.showsView && width > 0
+                            // 预览面只在真有预览能力的构建里存在（资源
+                            // 清单按同一条件登记），没有它文档模式整个
+                            // 不成立——applyPreset 会退回提示词模式。
+                            active: markdown.available
+                            source: "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewPane.qml"
+
+                            onStatusChanged: {
+                                if (status === Loader.Error) {
+                                    console.error(
+                                        "markdown: failed to load the preview pane",
+                                        source)
+                                    workbench.notify(
+                                        "error",
+                                        qsTr("Preview failed"),
+                                        qsTr("The preview page could not be loaded."))
+                                }
+                            }
+                        }
+
+                        // --- 分隔条：视觉 4px，命中 12px -------------------
+                        Rectangle {
+                            id: handle
+                            x: docArea.splitX
+                            y: 0
+                            width: docArea.showsBoth ? theme.spacingXs : 0
+                            height: parent.height
+                            visible: width > 0
+                            color: splitDrag.containsMouse ? theme.borderStrong
+                                                           : theme.separator
+
+                            MouseArea {
+                                id: splitDrag
+                                width: 12
+                                height: parent.height
+                                x: (parent.width - width) / 2
+                                enabled: docArea.showsBoth
+                                cursorShape: Qt.SplitHCursor
+                                // 用绝对坐标算比例：相对增量要在 docArea
+                                // 坐标系里折，而 x / width 本来就是这里唯一
+                                // 需要的两个数。
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed || !docArea.showsBoth)
+                                        return
+                                    const at = mapToItem(docArea, mouse.x, 0)
+                                    workbenchWindow.editorShare = Math.max(
+                                                0.15,
+                                                Math.min(0.75,
+                                                         at.x / docArea.width))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- 状态行 -------------------------------------------------
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: statusRow.implicitHeight + theme.spacingXs * 2
+                    color: theme.chromeBg
+
+                    RowLayout {
+                        id: statusRow
+                        anchors.fill: parent
+                        anchors.leftMargin: theme.spacingM
+                        anchors.rightMargin: theme.spacingM
+                        anchors.topMargin: theme.spacingXs
+                        anchors.bottomMargin: theme.spacingXs
+                        spacing: theme.spacingM
+
+                        // 提示词模式：字符与行数（草稿的体量感）。
+                        Label {
+                            visible: workbenchWindow.preset === "prompt"
+                            text: qsTr("%1 chars").arg(tools.draft.length)
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+                        Label {
+                            visible: workbenchWindow.preset === "prompt"
+                            text: qsTr("%1 lines").arg(
+                                      tools.draft.length === 0
+                                      ? 0 : tools.draft.split("\n").length)
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+
+                        // 文档模式：路径 + 脏/只读 + 体量 + 渲染栈版本。
+                        Label {
+                            id: statusPath
+                            visible: workbenchWindow.preset === "document"
+                            Layout.maximumWidth: 460
+                            text: markdown.filePath
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                            font.family: theme.monoFamily
+                            elide: Text.ElideMiddle
+                            ToolTip.delay: 300
+                            ToolTip.timeout: 10000
+                            ToolTip.visible: statusPathHover.hovered
+                            ToolTip.text: markdown.filePath
+
+                            HoverHandler {
+                                id: statusPathHover
+                            }
+                        }
+
+                        // 状态不只靠颜色：脏与只读都写成字。
+                        Label {
+                            visible: workbenchWindow.preset === "document"
+                                     && markdown.dirty
+                            text: qsTr("Unsaved changes")
+                            color: theme.textSecondary
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+
+                        Label {
+                            visible: workbenchWindow.preset === "document"
+                                     && markdown.readOnly
+                                     && markdown.readOnlyReason.length > 0
+                            text: markdown.readOnlyReason
+                            color: theme.warning
+                            font.pixelSize: theme.fontSizeCaption
+                            elide: Text.ElideRight
+                            Layout.maximumWidth: 380
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            visible: workbenchWindow.preset === "document"
+                                     && markdown.byteSize > 0
+                            text: qsTr("%1 KB").arg(
+                                      Math.round(markdown.byteSize / 1024))
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+                        Label {
+                            id: statusVersion
+                            visible: workbenchWindow.preset === "document"
+                                     && markdown.rendererVersion.length > 0
+                            text: markdown.rendererVersion
+                            color: theme.textDisabled
+                            font.pixelSize: theme.fontSizeCaption
+                            ToolTip.delay: 300
+                            ToolTip.timeout: 10000
+                            ToolTip.visible: versionHover.hovered
+                            ToolTip.text: markdown.rendererVersion
+
+                            HoverHandler {
+                                id: versionHover
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 右侧：大纲（文档模式的查阅面板） -------------------------
+            // 提示词模式的右区（体检/预算/历史）随各自功能落地，本版不占位。
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 232
+                visible: workbenchWindow.preset === "document"
+                         && markdown.showOutline
+                color: theme.surfaceBg
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: theme.spacingS
+                    spacing: theme.spacingXs
+
+                    Label {
+                        text: qsTr("Outline")
+                        color: theme.textMuted
+                        font.pixelSize: theme.fontSizeCaption
+                        font.bold: true
+                    }
+
+                    // 大纲：数据是控制器算好的（level / text / anchor /
+                    // blockIndex），这里只画。点一条走 scrollToAnchor——页面
+                    // 会把那一块的解析插队到分片队列前面。
+                    ListView {
+                        id: outlineList
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: markdown.outline
+
+                        ScrollBar.vertical: AScrollBar {}
+
+                        delegate: Item {
+                            id: outlineRow
+
+                            required property var modelData
+                            required property int index
+
+                            width: outlineList.width
+                            height: 26
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: theme.radiusControl
+                                color: theme.surfaceHoverBg
+                                visible: outlineHover.hovered
+                            }
+
+                            HoverHandler {
+                                id: outlineHover
+                            }
+
+                            TapHandler {
+                                onSingleTapped: markdown.scrollToAnchor(
+                                    outlineRow.modelData.anchor,
+                                    outlineRow.modelData.blockIndex)
+                            }
+
+                            Label {
+                                anchors.verticalCenter: parent.verticalCenter
+                                // 缩进按标题级别：level 1 不缩进。
+                                x: theme.spacingS
+                                   + Math.max(0, outlineRow.modelData.level - 1)
+                                     * theme.spacingM
+                                width: parent.width - x - theme.spacingS
+                                text: outlineRow.modelData.text
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeBody
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        Label {
+                            anchors.centerIn: parent
+                            visible: outlineList.count === 0
+                            text: qsTr("No headings")
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+                    }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 1
+                    color: theme.separator
+                }
+            }
+        }
+    }
+
+    // --- 与控制器、工作台意图之间的全部信号 --------------------------------
+    Connections {
+        target: markdown
+
+        // 窗口已经活着时再次右键预览：控制器只会再发一次 windowRequested
+        // 信号，主窗那边的 Loader 状态不变，把窗口抬起来并切到文档预设
+        // 这两件事只有这里能做。
+        function onWindowRequested() {
+            workbenchWindow.raise()
+            workbenchWindow.requestActivate()
+            workbenchWindow.applyPreset("document")
+        }
+
+        // 队列里进了新命令（编辑、换主题、搜索…）
+        function onCommandQueued() {
+            workbenchWindow.pump()
+        }
+
+        // 整篇换了（重载、接受外部改动）：编辑器文本跟着换，但要绕开
+        // debounce，否则这次写入会被算成用户的编辑、当场又变脏。
+        function onDocumentChanged() {
+            const current = markdown.editorText()
+            if (editorArea.text !== current) {
+                applyingExternal = true
+                editorArea.text = current
+                applyingExternal = false
+            }
+            // 换了一篇文档 = 页面重挂 DOM：旧的命中序号与「报过一次」的
+            // 闸门都不再成立，搜索条开着就立刻按新内容重跑一次。
+            renderNoticeShown = false
+            if (searchOpen)
+                workbenchWindow.runSearch(true)
+            else {
+                findTotal = 0
+                findActive = 0
+            }
+        }
+
+        function onSaved() {
+            workbench.notify("success", qsTr("Saved"), markdown.filePath)
+        }
+
+        function onChangedOnDiskChanged() {
+            if (!markdown.changedOnDisk)
+                return
+            if (workbenchWindow.preset !== "document")
+                return
+            if (!markdown.dirty) {
+                // 没有可丢的东西就直接跟上磁盘那份；留着提示只会让用户
+                // 去处理一个不需要决定的决定。
+                markdown.reloadFromDisk()
+                return
+            }
+            diskChangedDialog.open()
+        }
+
+        function onFindResult(total, active) {
+            findTotal = total
+            findActive = active
+        }
+
+        function onRenderFailed(message) {
+            console.warn("markdown: page reported", message)
+            if (renderNoticeShown)
+                return
+            renderNoticeShown = true
+            workbench.notify("error", qsTr("Something did not render"),
+                             qsTr("A part of the document failed to render. "
+                                  + "See the log for details."))
+        }
+
+        function onMarkupWritten(path, purpose) {
+            if (purpose === "browser") {
+                workbench.openLocalFileExternal(path)
+                return
+            }
+            workbench.notify("success", qsTr("Exported"), path)
+            ui.revealFile(path)
+        }
+
+        function onMarkupWriteFailed(purpose, message) {
+            workbench.notify("error", qsTr("Could not write the file"), message)
+        }
+    }
+
+    Connections {
+        target: workbench
+
+        // 工作台意图（侧栏启动页的主按钮）：已开着的窗口抬起来并回到
+        // 提示词预设；没开时这个信号由主窗的 Loader 消费。
+        function onMarkdownWorkbenchRequested() {
+            workbenchWindow.raise()
+            workbenchWindow.requestActivate()
+            workbenchWindow.applyPreset("prompt")
+        }
+    }
+
+    // 外部改动的窗口激活期复查：QFileSystemWatcher 在 Windows 上会静默丢掉
+    // 「删除后重建」的文件，光靠监视器有漏报，回到窗口时再问一次。
+    onActiveChanged: {
+        if (active && preset === "document")
+            markdown.refreshDiskState()
+    }
+
+    // --- 更多动作菜单（文档模式） ------------------------------------------
+    AMenu {
+        id: actionsMenu
+
+        AMenuItem {
+            icon.source: "qrc:/icons/copy.svg"
+            text: qsTr("Copy selection")
+            onTriggered: workbenchWindow.copySelection()
+        }
+        AMenuItem {
+            icon.source: "qrc:/icons/code.svg"
+            text: qsTr("Copy Markdown source")
+            onTriggered: workbenchWindow.copySource()
+        }
+        AMenuSeparator {}
+        AMenuItem {
+            icon.source: "qrc:/icons/external-link.svg"
+            text: qsTr("Open in browser")
+            onTriggered: workbenchWindow.requestLanding("browser")
+        }
+        AMenuItem {
+            icon.source: "qrc:/icons/download.svg"
+            text: qsTr("Export HTML next to the document")
+            // 导出件里的图片是相对引用，落在文档旁边才显示得出来。
+            onTriggered: {
+                markdown.setExportDirectory("")
+                workbenchWindow.requestLanding("export")
+            }
+        }
+        AMenuItem {
+            icon.source: "qrc:/icons/folder.svg"
+            text: qsTr("Export HTML to a folder...")
+            onTriggered: {
+                const folder = ui.pickFolder(
+                            qsTr("Choose a folder for the exported HTML"))
+                if (folder.length === 0)
+                    return
+                markdown.setExportDirectory(folder)
+                workbenchWindow.requestLanding("export")
+            }
+        }
+        AMenuSeparator {}
+        AMenuItem {
+            icon.source: "qrc:/icons/refresh.svg"
+            text: qsTr("Reload from disk")
+            enabled: !markdown.dirty
+            onTriggered: markdown.reloadFromDisk()
+        }
+    }
+
+    // --- 补渲染轮询（导出 / 外部打开的前置） --------------------------------
+    // 判据一律取「还在忙吗」：AWB 没定义、回读形状不对、pending 非零，全都
+    // 是「还没闲下来」。把「读不到状态」当成闲，会在页面没加载完时导出
+    // 一份空文件。
+    Timer {
+        id: idlePoll
+        interval: 250
+        repeat: true
+        onTriggered: {
+            // 预览面不在（能力缺失或尚未装载）就没有「等它闲下来」可言：
+            // 直接停表，别让下一次 tick 再撞一次空引用。
+            if (!previewPaneLoader.item) {
+                idlePoll.stop()
+                return
+            }
+            previewPaneLoader.item.evalJs(
+                        "(typeof AWB === 'undefined' ? null : AWB.idle())",
+                        function (state) {
+                            const busy = !state
+                                    || state.pendingBlocks === undefined
+                                    || Number(state.pendingBlocks)
+                                       + Number(state.pendingDiagrams) > 0
+                            // 40 次 × 250 ms = 10 s 上限。
+                            if (busy && workbenchWindow.spentIdlePoll() < 40)
+                                return
+                            idlePoll.stop()
+                            markdown.requestMarkup(pendingLanding)
+                        })
+        }
+    }
+
+    // --- 两个问用户的地方 ---------------------------------------------------
+    AConfirmDialog {
+        id: diskChangedDialog
+        width: 460
+        titleText: qsTr("File changed on disk")
+        message: qsTr("The file was changed outside this window while you have unsaved changes.")
+        confirmText: qsTr("Reload from disk")
+        cancelText: qsTr("Keep my changes")
+
+        onConfirmed: {
+            const result = markdown.reloadFromDisk()
+            if (!result.ok)
+                workbench.notify("error", qsTr("Could not reload"), result.error)
+        }
+        onCancelled: markdown.dismissDiskNotice()
+    }
+
+    // 「保存 / 放弃 / 取消」三态：AConfirmDialog 只有两个按钮，所以直接基于
+    // ADialog 写（与主窗的退出确认同形，见 designs.md）。
+    ADialog {
+        id: unsavedDialog
+        width: 440
+        closePolicy: Popup.NoAutoClose
+        titleText: qsTr("Unsaved changes")
+
+        ColumnLayout {
+            width: unsavedDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Save the changes to %1 before closing?")
+                          .arg(markdown.fileTitle)
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Save and close")
+                    onClicked: {
+                        unsavedDialog.close()
+                        if (workbenchWindow.saveDocument())
+                            workbenchWindow.approveClose()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Discard changes")
+                    onClicked: {
+                        unsavedDialog.close()
+                        workbenchWindow.approveClose()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: unsavedDialog.close()
+                }
+            }
+        }
+    }
+}

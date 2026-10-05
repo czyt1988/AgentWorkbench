@@ -68,16 +68,20 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillDetailFlyout.qml
     # tools
     ${CMAKE_SOURCE_DIR}/src/tools/ToolsFacade.cpp
-    ${CMAKE_SOURCE_DIR}/src/tools/qml/ToolsPage.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     # markdown preview (the page's JS strings come from MarkdownRuntime's
     # dictionary instead: lupdate does not see .js/.css files)
     ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownDocument.cpp
     ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownPreviewController.cpp
     ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownRuntime.cpp
+    # markdown workbench window + its command bars (workbench domain QML).
     # Listed unconditionally: lupdate only extracts strings, it does not care
-    # that the window is embedded into the binary only on Qt 6 + WebEngine (see
-    # app/CMakeLists.txt). Leaving it out would mean the window's labels can
-    # never be translated in the one build where users can actually open it.
-    ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewWindow.qml
+    # that the preview pane / the ribbon are embedded into the binary only on
+    # some builds (see app/CMakeLists.txt). Leaving them out would mean their
+    # labels can never be translated in the builds where users see them.
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+    ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/MarkdownStartPage.qml
 )

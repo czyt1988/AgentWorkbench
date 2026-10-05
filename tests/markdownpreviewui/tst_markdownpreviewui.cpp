@@ -1,9 +1,10 @@
-// tst_markdownpreviewui — 预览窗口那份 QML 的真实加载与往返。
+// tst_markdownpreviewui — Markdown 工作台窗口（文档模式那条面）那份 QML 的
+// 真实加载与往返。
 //
-// 这个目标存在的理由：MarkdownPreviewWindow.qml 是「窗口」那一层的代码，它同时
-// 引用主题令牌、A* 组件、C++ 单例与 WebEngine 视图，而这四样在纯层测试里都不存在。
-// tst_markdown 证明控制器算得出块与命令，tst_markdownpreview 证明页面渲染得对，
-// 两者都碰不到这一段：
+// 这个目标存在的理由：MarkdownWorkbenchWindow.qml 是「窗口」那一层的代码，它
+// 同时引用主题令牌、A* 组件、C++ 单例（含 tools 域）与经 Loader 惰性装载的
+// WebEngine 预览面，而这四样在纯层测试里都不存在。tst_markdown 证明控制器算
+// 得出块与命令，tst_markdownpreview 证明页面渲染得对，两者都碰不到这一段：
 //   1. 文件本身能不能编译——引用不存在的组件属性、跨 Qt 版本不存在的信号名，
 //      在这里会以 QQmlComponent 的加载错误当场暴露（这类错误在生产里表现为
 //      「右键点了没反应」，页面冒烟从不点击，抓不到）；
@@ -49,6 +50,8 @@
 #include "markdown/webengine/MarkdownPreviewProvider.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "tools/MarkdownEdit.h"
+#include "tools/ToolsFacade.h"
 
 #include <QtWebEngineQuick>
 
@@ -73,14 +76,15 @@ The distinct needle word lives in this paragraph.
 - [x] a checked task
 )MD";
 
-// 与 MainWindow.qml 同构的宿主：Loader 按需创建预览窗，开关只由控制器的
-// windowRequested / activeChanged 两个信号驱动。
+// 与 MainWindow.qml 同构的宿主：Loader 按需创建工作台窗口，开关由控制器
+// 的 windowRequested / activeChanged 两个信号驱动，开窗意图（文档模式）
+// 经 onLoaded 写进窗口的 initialPreset——与产品那条链一致。
 //
-// 这份内联 QML 存在的理由是：产品里预览窗从来不是直接 createObject 出来的，
-// 而是被主窗内容项里的 Loader 创建——窗口因此是一个「有父项的 Window」，布局
-// 与生命周期都走的是另一条路。只用 createObject 的用例看不见这两条路上的任何
-// 缺陷（内容区塌成 0 高、关掉之后第二次打不开都在这一层），所以这里连宿主
-// 一起复刻，让被测的时序与真实入口一致。
+// 这份内联 QML 存在的理由是：产品里工作台窗从来不是直接 createObject
+// 出来的，而是被主窗内容项里的 Loader 创建——窗口因此是一个「有父项的
+// Window」，布局与生命周期都走的是另一条路。只用 createObject 的用例
+// 看不见这两条路上的任何缺陷（内容区塌成 0 高、关掉之后第二次打不开都
+// 在这一层），所以这里连宿主一起复刻，让被测的时序与真实入口一致。
 const char *kHostQml = R"QML(
 import QtQuick
 import QtQuick.Controls
@@ -91,18 +95,21 @@ ApplicationWindow {
     height: 600
     visible: true
     property bool markdownWindowOpen: false
+    property string pendingWorkbenchMode: "prompt"
 
     Loader {
         id: markdownWindowLoader
         objectName: "markdownWindowLoader"
-        active: host.markdownWindowOpen && markdown.available
-        source: "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewWindow.qml"
+        active: host.markdownWindowOpen
+        source: "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml"
+        onLoaded: item.initialPreset = host.pendingWorkbenchMode
     }
 
     Connections {
         target: markdown
 
         function onWindowRequested() {
+            host.pendingWorkbenchMode = "document"
             host.markdownWindowOpen = true
         }
 
@@ -139,7 +146,22 @@ public:
     {
         external = url;
     }
+    Q_INVOKABLE void openLocalFileExternal(const QString &path)
+    {
+        external = QUrl::fromLocalFile(path);
+    }
+    // 文件树右键菜单的可见性绑定会问这两个名字（树在窗口里常驻装配）。
+    Q_INVOKABLE bool canPreviewMarkdown(const QString &)
+    {
+        return false;
+    }
+    Q_INVOKABLE void previewMarkdown(const QString &) {}
 
+    Q_SIGNALS:
+    // 真身（WorkbenchContext）有这条信号，窗口的 Connections 监听它。
+    void markdownWorkbenchRequested();
+
+public:
     QStringList notices;    ///< 每次 notify 的 level|title|text
     QString copied;         ///< 最后一次复制的文本
     QUrl external;          ///< 最后一次交给外部浏览器的地址
@@ -245,15 +267,20 @@ private:
         m_context->setContextProperty(QStringLiteral("markdown"), m_controller.get());
         m_context->setContextProperty(QStringLiteral("workbench"), &m_workbench);
         m_context->setContextProperty(QStringLiteral("ui"), &m_ui);
+        m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
 
         QQmlComponent component(m_engine.get());
         component.loadUrl(QUrl(QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/markdown/MarkdownPreviewWindow.qml")));
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml")));
         if (component.isError()) {
             *error = component.errorString();
             return false;
         }
-        QObject *created = component.create(m_context.get());
+        // 开窗意图随创建写入（产品里由主窗 Loader 的 onLoaded 在同一轮
+        // 事件里完成）：这里走文档模式，预览面与三态都在场。
+        QObject *created = component.createWithInitialProperties(
+            {{QStringLiteral("initialPreset"), QStringLiteral("document")}},
+            m_context.get());
         if (!created) {
             *error = component.errorString();
             return false;
@@ -300,6 +327,7 @@ private:
                                       m_controller.get());
         m_context->setContextProperty(QStringLiteral("workbench"), &m_workbench);
         m_context->setContextProperty(QStringLiteral("ui"), &m_ui);
+        m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
 
         QQmlComponent component(m_engine.get());
         component.setData(QByteArray(kHostQml), QUrl());
@@ -400,7 +428,7 @@ private:
         QElapsedTimer clock;
         clock.start();
         while (clock.elapsed() < kBootTimeoutMs) {
-            if (m_window->property("pageReady").toBool()) {
+            if (m_window->property("previewReady").toBool()) {
                 return true;
             }
             QTest::qWait(100);
@@ -460,6 +488,10 @@ private:
     std::unique_ptr<MarkdownPreviewController> m_controller;
     std::unique_ptr<MarkdownPreviewProvider> m_provider;
     std::unique_ptr<QQmlEngine> m_engine;
+    // 窗口还引用 tools 域（草稿、工作区树）与 MarkdownEdit（高亮），这里
+    // 给真的：窗口是跨域的 L3 装配，替身只留给 workbench/ui 那几个动作。
+    std::unique_ptr<awb::tools::ToolsFacade> m_tools;
+    std::unique_ptr<awb::tools::MarkdownEdit> m_markdownEdit;
     WorkbenchStub m_workbench;
     UiStub m_ui;
     std::unique_ptr<QQmlContext> m_context;
@@ -484,19 +516,27 @@ void TestMarkdownPreviewUi::init()
     // 提供者构造时就把 available 点亮（scheme 已在 main() 里注册）；它的 handler
     // 存的是控制器的裸指针，所以两者必须成对创建、成对销毁。
     m_provider.reset(new MarkdownPreviewProvider(m_controller.get()));
+    // 工作区树与草稿走真的 ToolsFacade（独立数据根，不碰真实目录）。
+    m_tools.reset(new awb::tools::ToolsFacade(m_dir->path()));
+    m_markdownEdit.reset(new awb::tools::MarkdownEdit(&m_theme));
     m_engine.reset(new QQmlEngine());
 
     QVERIFY2(m_controller->blocks().isEmpty(),
              "the controller carried a document over from the previous case");
 
     // 单例名与 app/main.cpp 一致：窗口里那些大写名字（Theme / Markdown /
-    // MarkdownPreview）就是这么解析到的。引擎也是每用例新建，所以这里注册的
-    // 一定是本用例那份实例——复用引擎时旧实例会留在类型缓存里。
+    // MarkdownPreview / Tools / MarkdownEdit）就是这么解析到的。引擎也是
+    // 每用例新建，所以这里注册的一定是本用例那份实例——复用引擎时旧实例
+    // 会留在类型缓存里。
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &m_theme);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Markdown",
                                  m_controller.get());
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownPreview",
                                  m_provider.get());
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                 m_tools.get());
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownEdit",
+                                 m_markdownEdit.get());
 }
 
 /**
@@ -517,6 +557,10 @@ void TestMarkdownPreviewUi::cleanup()
     m_context.reset();
     m_windowRequested.reset();
     m_engine.reset();
+    // 引擎之后才轮到注册成单例的 tools/markdownEdit（渲染帧先停、注册再拆），
+    // provider 先于控制器（handler 持有它的裸指针）。
+    m_markdownEdit.reset();
+    m_tools.reset();
     m_provider.reset();
     m_controller.reset();
     m_dir.reset();

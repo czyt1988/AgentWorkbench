@@ -8,6 +8,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Markdown workbench window**: prompt writing and the Markdown preview are
+  now **one standalone window** with two presets. The **prompt form** (opened
+  from the sidebar's new **Markdown** start page) carries the whole former
+  prompt page: the workspace file tree on the left, the draft editor with
+  highlighting, drag-and-drop file references and the formatting context menu.
+  The **document form** (right-click **Preview Markdown** on a tree file) is
+  the former preview window — outline, in-document search,
+  Preview/Split/Source, byte-faithful saving, export — living in the same
+  shell with its side panels collapsed. A **Full Tools** toggle switches
+  presets; the two presets' interface state stays independent while the window
+  lives. The window itself now opens in **every** build (Qt 5, no WebEngine):
+  the prompt form is a plain editor there, while the document form and the
+  preview pane simply do not exist. Still no send path — the window delivers
+  by copy only. The window's QML lives in the workbench domain
+  (`src/workbench/qml/`), which is the only layer allowed to span the tools
+  and markdown domains; the preview surface is split into
+  `MarkdownPreviewPane.qml`, loaded by resource URL only in builds that
+  registered it.
+- **Ribbon command bar**: the workbench window's top band is a SARibbon
+  `RibbonBar` in single-row mode (built via the new `AWB_ENABLE_RIBBON`
+  option; see the previous entry). **Start** holds the migrated actions —
+  **Copy Prompt**, Cut/Copy/Paste on the selection, Undo/Redo, Bold/Code/
+  Bulleted list, Find and Save; **View** holds the three view states, the
+  outline toggle, the Full Tools preset switch, the collapse toggle, the
+  ribbon style (single/two/three rows) and **Follow Theme**. The application
+  button shows the current document's name. The ribbon's colours follow the
+  app theme through a one-way bridge. With `AWB_ENABLE_RIBBON=OFF` — or in
+  test processes that did not register SARibbon — the window falls back to a
+  plain toolbar with the same actions. New `tools.json` `ribbon` section
+  (collapsed, style, followAppTheme, lastTabIndex) remembers the bar's state;
+  missing keys default, no migration.
+- **Ribbon smoke test**: `tst_ribbonui` (only built with
+  `AWB_ENABLE_RIBBON=ON`) loads the shipped `WorkbenchRibbon.qml` into a real
+  engine after `saRibbonRegisterQmlTypes()`, asserting the bar lays out and
+  no SARibbon warning (static-qrc init, registration order, leaf creation)
+  escapes.
+
 - **SARibbon integration (build only)**: the ribbon toolkit that will power
   the Markdown workbench window is now a git submodule
   (`third_party/SARibbon`, https://gitee.com/czyt1988/SARibbon, MIT — the

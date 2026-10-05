@@ -16,6 +16,7 @@ target_include_directories(tst_markdownpreviewui PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_link_libraries(tst_markdownpreviewui PRIVATE
     awb_markdown
     awb_markdown_webengine
+    awb_tools
     awb_core
     awb_theme
     Qt::Core
@@ -62,23 +63,53 @@ foreach(_icon IN LISTS _tst_markdownpreviewui_icons)
     set_source_files_properties(${_icon}
         PROPERTIES QT_RESOURCE_ALIAS "icons/${_name}")
 endforeach()
+# 工作区文件树的类型图标表（窗口带着左侧树，FileIcons 查表用的数据与
+# 图标都要在场，与 tst_toolsui 同款）。
+set(_tst_markdownpreviewui_default_icons
+    ${CMAKE_SOURCE_DIR}/config/default_file_icons.json)
+set_source_files_properties(${_tst_markdownpreviewui_default_icons}
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+file(GLOB _tst_markdownpreviewui_filetype_icons
+    "${CMAKE_SOURCE_DIR}/icons/filetypes/*.svg")
+file(GLOB _tst_markdownpreviewui_foldertype_icons
+    "${CMAKE_SOURCE_DIR}/icons/foldertypes/*.svg")
+foreach(_icon IN LISTS _tst_markdownpreviewui_filetype_icons)
+    get_filename_component(_name ${_icon} NAME)
+    set_source_files_properties(${_icon}
+        PROPERTIES QT_RESOURCE_ALIAS "icons/filetypes/${_name}")
+endforeach()
+foreach(_icon IN LISTS _tst_markdownpreviewui_foldertype_icons)
+    get_filename_component(_name ${_icon} NAME)
+    set_source_files_properties(${_icon}
+        PROPERTIES QT_RESOURCE_ALIAS "icons/foldertypes/${_name}")
+endforeach()
 awb_add_resources(tst_markdownpreviewui "previewui_icons"
     PREFIX "/"
     FILES
         ${_tst_markdownpreviewui_icons}
+        ${_tst_markdownpreviewui_default_icons}
+        ${_tst_markdownpreviewui_filetype_icons}
+        ${_tst_markdownpreviewui_foldertype_icons}
 )
 
-# 窗口 + 它引用的共享组件（QT_RESOURCE_ALIAS 与 app 一致，URL 才能对上）。
+# 窗口 + 预览面 + 降级命令条 + 它们引用的共享组件（QT_RESOURCE_ALIAS 与
+# app 一致，URL 才能对上）。命令条只嵌工具栏形态——本目标不链接 SARibbon，
+# 窗口里那个 Loader 装载 Ribbon 失败后换装载它，与产品降级路径同一条。
 # 新引用一个组件就把它加进下面两处：漏嵌时本目标以「unknown type」失败，
-# 而那正是产品在运行时打不开预览窗的原因。
+# 而那正是产品在运行时打不开窗口的原因。
 set(_tst_markdownpreviewui_qml
-    ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+    ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextArea.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AScrollBar.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AConfirmDialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASpotlight.qml
@@ -86,11 +117,17 @@ set(_tst_markdownpreviewui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewWindow.qml
-    PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownPreviewWindow.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchWindow.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
+    PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownPreviewPane.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
 foreach(_comp AButton AIconButton ASearchField ATextField ATextArea AScrollBar
-             ADialog AConfirmDialog ASpotlight AMenu AMenuItem AMenuSeparator
-             AComboBox)
+             AEmptyState APill ADialog AConfirmDialog ASpotlight AMenu AMenuItem
+             AMenuSeparator AComboBox)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
         PROPERTIES QT_RESOURCE_ALIAS "components/${_comp}.qml")

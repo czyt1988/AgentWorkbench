@@ -31,6 +31,18 @@ class ToolsFacade : public QObject
     Q_PROPERTY(QString currentWorkspace READ currentWorkspace
                WRITE setCurrentWorkspace NOTIFY currentWorkspaceChanged)
     Q_PROPERTY(QString draft READ draft WRITE setDraft NOTIFY draftChanged)
+    /// Ribbon 是否折叠（工作台窗口的界面偏好，写盘经 ToolsStore）
+    Q_PROPERTY(bool ribbonCollapsed READ ribbonCollapsed WRITE setRibbonCollapsed
+               NOTIFY ribbonSettingsChanged)
+    /// Ribbon 样式档位："single" / "two-row" / "three-row"
+    Q_PROPERTY(QString ribbonStyle READ ribbonStyle WRITE setRibbonStyle
+               NOTIFY ribbonSettingsChanged)
+    /// Ribbon 主题是否跟随应用主题
+    Q_PROPERTY(bool ribbonFollowAppTheme READ ribbonFollowAppTheme
+               WRITE setRibbonFollowAppTheme NOTIFY ribbonSettingsChanged)
+    /// Ribbon 上次停留的标签页索引（从 0 起）
+    Q_PROPERTY(int ribbonLastTabIndex READ ribbonLastTabIndex
+               WRITE setRibbonLastTabIndex NOTIFY ribbonSettingsChanged)
 
 public:
     // 构造后立即可用：加载 tools.json、建好树模型并把当前工作区设为树根
@@ -49,6 +61,12 @@ public:
     // 提示词草稿全文
     QString draft() const;
 
+    // Ribbon 界面偏好（Q_PROPERTY 的 READ 侧；写盘立即，见 ToolsStore）
+    bool ribbonCollapsed() const;
+    QString ribbonStyle() const;
+    bool ribbonFollowAppTheme() const;
+    int ribbonLastTabIndex() const;
+
     // 新增工作区：校验目录存在后交给 ToolsStore（MRU + 上限淘汰），并把树根
     // 切到新工作区；失败带可展示的原因。返回类型写全限定名的原因见 .cpp
     Q_INVOKABLE awb::core::OpResult addWorkspace(const QString &path);
@@ -66,6 +84,10 @@ public:
     // Q_PROPERTY WRITE 侧
     void setCurrentWorkspace(const QString &path);
     void setDraft(const QString &text);
+    void setRibbonCollapsed(bool collapsed);
+    void setRibbonStyle(const QString &style);
+    void setRibbonFollowAppTheme(bool follow);
+    void setRibbonLastTabIndex(int index);
 
 Q_SIGNALS:
     /**
@@ -81,6 +103,10 @@ Q_SIGNALS:
      */
     void draftChanged();
     /**
+     * @brief 任一 Ribbon 界面偏好变化时发射（四个值共用一条信号）
+     */
+    void ribbonSettingsChanged();
+    /**
      * @brief 一次重扫完成（手动 refresh 或 watcher 触发都会走到这里）
      */
     void refreshFinished();
@@ -90,6 +116,8 @@ private:
     void applyCurrentToModel();
     // 草稿防抖到期/析构时的落盘动作
     void persistDraft();
+    // 落盘一份新的 Ribbon 偏好并广播 ribbonSettingsChanged()
+    void applyRibbon(const RibbonSettings &ribbon);
 
     ToolsStore m_store;              ///< tools.json 的工作区记忆与草稿
     FileTreeModel *m_model;          ///< 树本体（懒加载、watcher、增量对账）
