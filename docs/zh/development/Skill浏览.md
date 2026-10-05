@@ -333,8 +333,8 @@ GUI 线程协调者（`SkillScanner`）与纯静态 worker（`SkillScanTask::run
 
 ## 相关
 
-- [Agent Tools](AgentTools.md) —— 另一个扫描用户目录的页面，也是共享 `A*` 组件的
-  第二个消费者。
+- [Markdown 工作台](Markdown工作台.md) —— 工作台窗口，它的文件树同样扫描用户
+  目录，也是共享 `A*` 组件的第二个消费者。
 - [Shell 与导航](外壳与导航.md) —— `SkillGridPage.qml` 如何注册与装载。
 - [设置](设置.md) —— 设置页的 Skills 分区与 `skills.*` 键。
 - [Skills（使用）](../guide/技能.md) —— 面向用户的描述。

@@ -27,18 +27,18 @@ AgentWorkbench 是一个只有一件事要做的桌面外壳：**启动外部的
 | `src/shell` | L2 | 窗口骨架、导航、窗口/通知/剪贴板服务、`A*` 组件货架 | [开发：外壳与导航](../development/外壳与导航.md) |
 | `src/agentcatalog` | L2 | agent 目录：定义、持久化、进程生命周期、健康检查、一次性命令 | [开发：Agent 启动器](../development/Agent启动器.md) |
 | `src/skillcatalog` | L2 | 本机 skill 的发现与呈现 | [开发：Skill 浏览](../development/Skill浏览.md) |
-| `src/tools` | L2 | Agent Tools 页：工作区记忆、懒加载文件树、提示词草稿、Markdown 支持 | [开发：Agent Tools](../development/AgentTools.md) |
+| `src/tools` | L2 | 提示词撰写域：工作区记忆、懒加载文件树、提示词草稿、Markdown 编辑支持 | [开发：Markdown 工作台](../development/Markdown工作台.md) |
 | `src/web` | L2 | 标签模型、表面选择、内存策略（不含 WebEngine） | [开发：Web 标签页](../development/Web标签页.md) |
 | `src/web/webengine` | L2 适配器 | 内嵌 web 表面；两个链接 Qt WebEngine 的目标之一 | [开发：WebEngine 适配层](../development/WebEngine适配层.md) |
-| `src/markdown` | L2 | Markdown 预览窗口：保字节的读盘与存盘、顶层块切分、`awbmd://` 的 URL/MIME/主题字符串层、预览控制器（不含 WebEngine） | [开发：Markdown 预览](../development/Markdown预览.md) |
-| `src/markdown/webengine` | L2 适配器 | `awbmd://` 的 scheme 供体与只服务预览的 profile；仅 Qt 6 | [开发：Markdown 预览](../development/Markdown预览.md) |
+| `src/markdown` | L2 | Markdown 文档管线：保字节的读盘与存盘、顶层块切分、`awbmd://` 的 URL/MIME/主题字符串层、预览控制器（不含 WebEngine） | [开发：Markdown 工作台](../development/Markdown工作台.md) |
+| `src/markdown/webengine` | L2 适配器 | `awbmd://` 的 scheme 供体与只服务预览的 profile；仅 Qt 6 | [开发：Markdown 工作台](../development/Markdown工作台.md) |
 | `src/theme` | L1 | JSON 主题 → 语义令牌 → QML 可绑定属性 | [开发：主题引擎](../development/主题引擎.md) |
 | `src/core` | L0 | 路径、JSON 读写、设置、日志、进程、脚本、HTTP 探测、插件宿主、旧数据导入 | [开发：core 基础设施](../development/core基础设施.md) |
 | `src/plugin_api` | L0 | 只有头文件的插件 ABI，供外部仓库链接 | [扩展点](扩展点.md) |
 
 有两个模块带有很容易被无意破坏的规则：
 
-- `src/shell` **不认识** agent、skill、web 标签、tools。它只负责渲染被交给它的页面，并回答「我现在在哪」。业务页面是从 `src/workbench` **注册进**它的。这一模式之外只有一处：它承载了 Markdown 预览窗口，用 `Loader` 按资源 URL 加载——原因见[分层与依赖](分层与依赖.md)。
+- `src/shell` **不认识** agent、skill、web 标签、tools。它只负责渲染被交给它的页面，并回答「我现在在哪」。业务页面是从 `src/workbench` **注册进**它的。这一模式之外只有一处：它承载了 Markdown 工作台窗口，用 `Loader` 按资源 URL 加载——原因见[分层与依赖](分层与依赖.md)。
 - `src/workbench` 是**全工程唯一允许同时认识多个领域的地方**。任何跨域动作（打开这个 agent 的网页界面、打开它的配置目录、弹一条通知）都是 `WorkbenchContext` 上的方法，而不是某个领域门面上的方法。
 
 ## 系统全景

@@ -36,8 +36,8 @@ make the "untouched root" check fail forever.
 |---|---|---|---|
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
-| `settings.json` | Settings page, Markdown preview | all application settings, including the preview window's remembered view | `core::Settings` — the only entry point |
-| `tools.json` | Agent Tools page | workspace MRU list (max 20), current workspace, prompt draft | `ToolsStore` via `ToolsFacade` |
+| `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view | `core::Settings` — the only entry point |
+| `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, prompt draft, window interface state | `ToolsStore` via `ToolsFacade` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
 | `file_icons.json` | you | icon-table overrides / additions | `FileIcons` (via `FileTreeModel`) |

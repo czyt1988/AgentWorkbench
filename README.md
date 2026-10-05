@@ -37,15 +37,12 @@ editing a JSON file, no code changes required.
 - **Themes**: colors/metrics come from JSON theme files; two Catppuccin
   variants ship built-in, custom themes hot-reload on save, and a ctest
   gate (`check_architecture`) rejects literal colors in QML.
-- **Prompt Writing page**: compose prompts at your own pace (Enter never
-  sends), drag file references in from the workspace tree, and copy the
-  result — with a draggable divider between the tree and the editor.
-- **Markdown preview window** (Qt 6 + WebEngine builds): right-click a `.md`
-  file in the Prompt Writing file tree and it opens in a window of its own —
-  rendering happens chunk by chunk, so a document of several hundred
-  kilobytes shows its first screen quickly while the rest keeps being laid
-  out in the background. KaTeX formulas, mermaid diagrams, highlighted code,
-  source editing with save, an outline, in-document search and HTML export.
+- **Markdown workbench window**: one window for composing prompts — Enter never
+  sends, drag file references in from the workspace tree, copy the result — and
+  for reading and editing a Markdown file in place: a ribbon toolbar, chunked
+  rendering (KaTeX formulas, mermaid diagrams, highlighted code), source editing
+  with shape-preserving save, an outline, in-document search and HTML export.
+  Document rendering needs the Qt 6 + WebEngine build.
 - **Config-driven**: all agents, commands, URLs and config directories live
   in `agents.json`; app settings live in `settings.json`.
 - **Experimental plugins**: an ABI-stable header + example plugin; disabled

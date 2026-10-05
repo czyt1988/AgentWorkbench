@@ -3,7 +3,7 @@
 适配层是隔离内嵌浏览器引擎的那一层。它注册 `embedded` Web 表面、为每个 agent 持有一个持久浏览器
 profile、桥接 Qt 5 / Qt 6 的 WebEngine API 差异、为旧引擎注入 JavaScript polyfill，并用覆盖层兜底
 渲染每个标签。它也是链接 Qt WebEngine 的两个 CMake 目标之一——另一个是 `awb_markdown_webengine`，
-Markdown 预览的适配器（见 [Markdown 预览](Markdown预览.md)）。
+Markdown 预览的适配器（见 [Markdown 工作台](Markdown工作台.md)）。
 
 用户视角见 [Agent Web UI](../guide/网页界面.md)。
 架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与

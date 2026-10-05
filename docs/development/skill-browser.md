@@ -395,8 +395,9 @@ label appended to `skippedRoots`. One bad root never fails the whole scan;
 
 ## Related
 
-- [Agent Tools](agent-tools.md) — the other page that scans a user directory,
-  and the second consumer of the shared `A*` components.
+- [Markdown workbench](markdown-workbench.md) — the workbench window, whose file
+  tree scans a user directory the same way, and the second consumer of the
+  shared `A*` components.
 - [Shell and navigation](shell-and-navigation.md) — how `SkillGridPage.qml` is
   registered and loaded.
 - [Settings](settings.md) — the settings page's Skills section and the

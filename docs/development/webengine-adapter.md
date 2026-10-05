@@ -4,7 +4,7 @@ The adapter is the layer that isolates the embedded browser engine. It registers
 web surface, owns one persistent browser profile per agent, bridges the Qt 5 / Qt 6 WebEngine API
 differences, injects JavaScript polyfills for older engines, and renders each tab with overlay
 fallbacks. It is also one of the two CMake targets that link Qt WebEngine — the other is
-`awb_markdown_webengine`, the Markdown preview's adapter ([Markdown preview](markdown-preview.md)).
+`awb_markdown_webengine`, the Markdown preview's adapter ([Markdown workbench](markdown-workbench.md)).
 
 User view: see [Agent Web UI](../guide/web-ui.md).
 Architecture context: [Layers and dependencies](../architecture/layers-and-dependencies.md) and

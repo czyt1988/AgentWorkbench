@@ -29,7 +29,7 @@ Boundaries:
 | `src/shell/ShellController.h` | `ShellController` | Window-level state persisted to `settings.json`: title, size, sidebar width/collapse, `lastPageId`, Web surface and Chromium flags, tray/remembered-close/single-instance switches | `MainWindow.qml`, `Sidebar.qml`, `SettingsWebPage.qml`, `SettingsLaunchersPage.qml`, `core::Settings` |
 | `src/shell/ShellController.cpp` | `ShellController` | Getters/setters, `saveWindowSize()`, `valueChanged` re-broadcast | `core::Settings` |
 | `src/shell/TrayController.h` / `.cpp` | `TrayController` | System-tray icon (`QSystemTrayIcon` + `QMenu`) with a minimal Show/Hide + Quit menu; hide-to-tray, raise-from-tray, `quitRequested` | `MainWindow.qml` (onClosing, quit flow), `core::Settings` |
-| `src/shell/UiServices.h` | `UiServices` | Clipboard, external URL/file-manager, native folder/colour dialogs, recent-colour memory; colour-picker support data | `ToolsPage.qml`, `AgentEditDialog.qml`, `AColorPicker.qml`, `WorkbenchContext` |
+| `src/shell/UiServices.h` | `UiServices` | Clipboard, external URL/file-manager, native folder/colour dialogs, recent-colour memory; colour-picker support data | `MarkdownWorkbenchWindow.qml`, `AgentEditDialog.qml`, `AColorPicker.qml`, `WorkbenchContext` |
 | `src/shell/UiServices.cpp` | `UiServices` | Native Win32 `IFileDialog` / `ChooseColor` implementations, `OpResult` errors | `core::OpResult` |
 | `src/shell/Notifications.h` | `Notifications` | Non-blocking toast queue model: `IdRole`/`LevelRole`/`TitleRole`/`TextRole`, `notify()`, `dismiss()`, `durationFor()`, `maxVisible()` | `AToastStack.qml`, `Toasts.qml`, `WorkbenchContext`, `BuiltinPages` |
 | `src/shell/Notifications.cpp` | `Notifications` | Append/remove only; all timing lives in QML | `AToastStack.qml` |
@@ -512,8 +512,8 @@ commit.
 ## Related
 
 - [Skills browser](skill-browser.md) — a page registered through the same path.
-- [Agent Tools](agent-tools.md) — another page and a heavy consumer of the `A*`
-  shelf.
+- [Markdown workbench](markdown-workbench.md) — the window the shell hosts
+  rather than a registered page, and a heavy consumer of the `A*` shelf.
 - [Settings](settings.md) — the `system`-section page and its sections.
 - [Interface (guide)](../guide/index.md) — the user-facing description.
 - [Frontend design](../architecture/frontend-design.md) — the visual recipes and

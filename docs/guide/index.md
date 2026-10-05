@@ -18,7 +18,7 @@ side.
   for you.
 - **Browser tab overload.** Each agent's web interface opens in a tab inside the
   app, so you do not have to hunt through browser windows.
-- **Prompts that get sent too early.** The built-in prompt editor gives you a
+- **Prompts that get sent too early.** The Markdown workbench gives you a
   scratchpad where pressing Enter only starts a new line.
 
 ## Installing and starting
@@ -43,10 +43,9 @@ The window has three parts.
   app.
 - **Skills** - a searchable list of the "skill" instruction files found on your
   computer, with their locations.
-- **Prompt Writing** - the prompt-composing scratchpad with a file tree beside
-  it. It sits under an **Agent Tools** heading, which is a group name rather
-  than a page: clicking it does nothing, and it is hidden while the sidebar is
-  collapsed.
+- **Markdown** - the start page that opens the Markdown workbench window: a
+  prompt-composing scratchpad with a file tree beside it, and the window where
+  you read and tidy Markdown files.
 - **Settings** - pinned at the very bottom as an icon. Themes, launchers,
   environment checks, skill folders, browser options, plugins and reset
   actions.
@@ -89,14 +88,12 @@ These work while the **Agent Web UI** page is open:
 | `F12` | Open the developer tools (debug builds only) |
 | `Esc` | Leave full screen |
 
-In the **Prompt Writing** editor, the usual text shortcuts apply: `Ctrl+Z`
-to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and
-paste.
-
-In a **Markdown preview** window: `Ctrl+S` saves, `Ctrl+F` opens the in-document
-search, `Esc` closes that search bar, and `F5` re-reads the file from disk. These
-only apply while the preview window itself is in front, so they cannot steal a
-`Ctrl+S` from the main window.
+In the **Markdown workbench** window: the usual text shortcuts apply in the
+editor (`Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to
+cut, copy and paste); `Ctrl+S` saves the open document, `Ctrl+F` opens the
+in-document search, `Esc` closes that search bar, and `F5` re-reads the file
+from disk. These only apply while the workbench window itself is in front, so
+they cannot steal a `Ctrl+S` from the main window.
 
 ## Where your data lives
 
@@ -123,8 +120,7 @@ folder**.
 | [Agent launcher](agent-launcher.md) | Starting and stopping agents, adding your own |
 | [Embedded web interface](web-ui.md) | Tabs, full screen, downloads, saved logins |
 | [Skills](skills.md) | Finding skill files and choosing where to look |
-| [Agent Tools](agent-tools.md) | The prompt scratchpad and its file tree |
-| [Markdown preview](markdown-preview.md) | Reading and tidying a Markdown file in its own window |
+| [Markdown workbench](markdown-workbench.md) | Writing prompts safely, and reading or tidying a Markdown file in its own window |
 | [Appearance](appearance.md) | Themes and fonts |
 | [Settings](settings.md) | Every settings section explained |
 | [Plugins](plugins.md) | Third-party extensions, in plain language |

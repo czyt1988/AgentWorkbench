@@ -118,14 +118,14 @@ Missing keys take their defaults in place — there is no migration code:
 - `plugins.enabled` is the master switch; `disabledIds` lists per-plugin
   opt-outs. Plugins load at startup, so toggles take effect after a
   restart. See [Plugins](plugins.md).
-- `markdown.*` is the Markdown preview window's remembered view: `mode` is
-  `preview`, `split` or `source`; `fontSizePx` `0` follows the theme's body
-  size and `contentWidthPx` `0` uses the built-in column width (both clamp to
-  `[0, 48]` and `[0, 4000]`); `showOutline` decides whether the outline panel
+- `markdown.*` is the Markdown workbench window's remembered document view:
+  `mode` is `preview`, `split` or `source`; `fontSizePx` `0` follows the theme's
+  body size and `contentWidthPx` `0` uses the built-in column width (both clamp
+  to `[0, 48]` and `[0, 4000]`); `showOutline` decides whether the outline panel
   starts open. The window writes these as you use its pickers — there is no
-  Settings page for the group. Only Qt 6 + WebEngine builds contain the preview
-  window; elsewhere the keys are still read and preserved, but nothing in the
-  app can change them. See [Markdown preview](guide/markdown-preview.md).
+  Settings page for the group. Only Qt 6 + WebEngine builds contain the document
+  preview; elsewhere the keys are still read and preserved, but nothing in the
+  app can change them. See [Markdown workbench](guide/markdown-workbench.md).
 
 ## Themes
 

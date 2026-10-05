@@ -45,7 +45,7 @@ Cross-domain intents:
 - `openWebExternal(agentId)` — bypasses the surface policy and hands the URL to the system browser. Same URL priority, no tab.
 - `closeWeb(agentId)` / `reloadWeb(agentId)` — find the agent's tab and close or reload it; silently return when there is no tab.
 - `launchAgent(agentId)` — forwards to `AgentsFacade::launch()`; the outcome arrives through the facade's own signals.
-- `previewMarkdown(path)` — opens one file from the Agent Tools file tree in the preview window. It calls `MarkdownPreviewController::openFile(path)` and, when that returns a failed `OpResult`, raises the error toast with the controller's reason — the reason is explained once, here, rather than by the menu item, the controller and the workbench each in their own words. When no controller is wired in, it still shows one error toast instead of doing nothing.
+- `previewMarkdown(path)` — opens one file from the workbench window's file tree in the window's document form. It calls `MarkdownPreviewController::openFile(path)` and, when that returns a failed `OpResult`, raises the error toast with the controller's reason — the reason is explained once, here, rather than by the menu item, the controller and the workbench each in their own words. When no controller is wired in, it still shows one error toast instead of doing nothing.
 - `canPreviewMarkdown(path)` — whether that menu entry should exist for this path: true only when a controller is wired in *and* the controller recognises the extension. The extension list lives in the preview domain, shared with `openFile()`'s rejection, so the entry and the refusal cannot drift apart.
 
 General actions:
@@ -60,7 +60,7 @@ Plugin API (read-only list plus toggles; behaviours are in [Plugin host](plugin-
 
 ## BuiltinPages
 
-`BuiltinPages` registers the built-in sidebar rows — five pages plus one static group label — into the shell's `NavigationModel`, and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
+`BuiltinPages` registers the built-in sidebar rows — five pages — into the shell's `NavigationModel`, and then wires three groups of rules. The constructor order is `registerPages()`, `wireBadges()`, `wirePagePersistence()`, `wireWebRules()`.
 
 The complete page registry:
 
@@ -69,11 +69,12 @@ The complete page registry:
 | `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | `Page` | 0 | false |
 | `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
 | `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
-| `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
-| `tools` | Prompt Writing | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `tools` | Markdown | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/shell/MarkdownStartPage.qml` | `main` | 40 | `Page` | 0 | false |
 | `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` decides which part of the sidebar a row lands in and is the only mechanism for that: `system` rows are pinned to the bottom. Inside a section, `order` alone decides the row order — which is what makes grouping work: `tools-group` is a `NavKind::Header` row (a caption-size, muted, bold label with no icon), and `tools` sits under it indented by `level = 1`, so the two must keep adjacent `order` values or the page falls under some other label. The group is reserved for a family of agent-facing tools — the prompt workbench is its first member, and the member's title deliberately carries no "Agent Tools" prefix: the label already says it, so the row reads just **Prompt Writing**. A header row is **not** a page: `pageIdsInOrder()` skips it (so `Ctrl+1…9` numbering does not shift), `badges()` has no key for it and `setBadge()` ignores it, and `setCurrentPageId()` rejects it with a `qWarning` because it is not a destination. It still needs an `id`, since `NavigationModel` keys and de-duplicates every row by it. `countInSection()` and `rowOfFirstInSection()` do count header rows, because dividers are placed per model row. `level` is currently only an indent — there is no chevron or collapse interaction, by design, until a group actually has sub-pages (`designs.md`, sidebar rules).
+The `tools` row is the Markdown workbench's start page — a thin launcher; the editor itself is the independent `MarkdownWorkbenchWindow` (see [Markdown workbench](markdown-workbench.md)). It deliberately keeps the registration id the old prompt page used, so a remembered last-page lands on the start page instead of dangling.
+
+`section` decides which part of the sidebar a row lands in and is the only mechanism for that: `system` rows are pinned to the bottom. Inside a section, `order` alone decides the row order. Group labels (`NavKind::Header` rows — caption-size, muted, bold, no icon) are still supported by the model for plugins that want one: a header row is **not** a page — `pageIdsInOrder()` skips it (so `Ctrl+1…9` numbering does not shift), `badges()` has no key for it and `setBadge()` ignores it, and `setCurrentPageId()` rejects it with a `qWarning` because it is not a destination. It still needs an `id`, since `NavigationModel` keys and de-duplicates every row by it. `countInSection()` and `rowOfFirstInSection()` do count header rows, because dividers are placed per model row. `level` is currently only an indent — there is no chevron or collapse interaction, by design, until a group actually has sub-pages (`designs.md`, sidebar rules). No built-in page uses a group label today: the former "Agent Tools" group went away when its only member grew into the workbench window, and `designs.md` says a group label is only worth having once there is a family to head.
 
 The header row is also invisible in the collapsed sidebar (`Sidebar.qml` hides it and drops the indent there), and the footer's `system` section never carries one: those rows render as icon buttons whose stacking position is computed from the model row number.
 
@@ -249,7 +250,7 @@ For a **new cross-domain action**:
 - [Core infrastructure](core-infrastructure.md) — `Settings`, `Paths` and the objects assembled at startup.
 - [Theme engine](theme-engine.md) — the `Theme` singleton registered by `main.cpp`.
 - [Plugin host](plugin-host.md) — the plugin side of page registration and the services bridge.
-- [Markdown preview](markdown-preview.md) — a cross-domain intent (`previewMarkdown`) and a window the shell hosts rather than registers as a page.
+- [Markdown workbench](markdown-workbench.md) — a cross-domain intent (`previewMarkdown`) and a window the shell hosts rather than registers as a page.
 - [C++ library design](../architecture/cpp-design.md) — the facade and `Q_INVOKABLE` contracts.
 - [Layers and dependencies](../architecture/layers-and-dependencies.md) — why `workbench` is the only multi-domain layer.
 - [Guide index](../guide/index.md) — the pages, navigation and shortcuts as the user sees them.

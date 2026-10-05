@@ -45,7 +45,7 @@
 - `openWebExternal(agentId)` —— 绕过表面策略，把 URL 交给系统浏览器。URL 优先级同上，不建标签页。
 - `closeWeb(agentId)` / `reloadWeb(agentId)` —— 找到该 agent 的标签页并关闭或重载；没有标签页时静默返回。
 - `launchAgent(agentId)` —— 转发给 `AgentsFacade::launch()`；结果经门面自己的信号回报。
-- `previewMarkdown(path)` —— 把 Agent Tools 文件树里的一个文件开成预览窗口。它调 `MarkdownPreviewController::openFile(path)`，失败时用控制器给的理由发一条 error toast——同一个原因只在这里解释一次，若在菜单项、控制器和这里各说一遍，就会变成三个互相漂移的版本。没有接进控制器时它照样发一条 error toast，而不是点了没反应。
+- `previewMarkdown(path)` —— 把工作台窗口文件树里的一个文件开成窗口的文档形态。它调 `MarkdownPreviewController::openFile(path)`，失败时用控制器给的理由发一条 error toast——同一个原因只在这里解释一次，若在菜单项、控制器和这里各说一遍，就会变成三个互相漂移的版本。没有接进控制器时它照样发一条 error toast，而不是点了没反应。
 - `canPreviewMarkdown(path)` —— 这条菜单项在该路径上要不要出现：只有接进了控制器**并且**控制器认这个后缀才为真。后缀清单住在预览域里，与 `openFile()` 的拒绝共用一处，所以「菜单项出现」和「打开被拒」不会各说一套。
 
 通用动作：
@@ -60,7 +60,7 @@
 
 ## BuiltinPages
 
-`BuiltinPages` 把内置的侧栏行——五个页面加一个静态分组标签——注册进 shell 的 `NavigationModel`，随后布三组规则。构造函数里的顺序是 `registerPages()`、`wireBadges()`、`wirePagePersistence()`、`wireWebRules()`。
+`BuiltinPages` 把内置的侧栏行——五个页面——注册进 shell 的 `NavigationModel`，随后布三组规则。构造函数里的顺序是 `registerPages()`、`wireBadges()`、`wirePagePersistence()`、`wireWebRules()`。
 
 完整的内置页面注册表：
 
@@ -69,11 +69,12 @@
 | `agents` | Agent Launcher | `qrc:/icons/terminal.svg` | `qrc:/qt/qml/AgentWorkbench/agentcatalog/AgentGridPage.qml` | `main` | 10 | `Page` | 0 | false |
 | `web` | Agent Web UI | `qrc:/icons/web.svg` | `qrc:/qt/qml/AgentWorkbench/web/WebTabsPage.qml` | `main` | 20 | `Page` | 0 | **true** |
 | `skills` | Skills | `qrc:/icons/skills.svg` | `qrc:/qt/qml/AgentWorkbench/skillcatalog/SkillGridPage.qml` | `main` | 30 | `Page` | 0 | false |
-| `tools-group` | Agent Tools | — | — | `main` | 40 | **`Header`** | 0 | — |
-| `tools` | Prompt Writing | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/tools/ToolsPage.qml` | `main` | 41 | `Page` | 1 | false |
+| `tools` | Markdown | `qrc:/icons/tools.svg` | `qrc:/qt/qml/AgentWorkbench/shell/MarkdownStartPage.qml` | `main` | 40 | `Page` | 0 | false |
 | `settings` | Settings | `qrc:/icons/gear.svg` | `qrc:/qt/qml/AgentWorkbench/shell/SettingsPage.qml` | `system` | 100 | `Page` | 0 | false |
 
-`section` 决定一行落在侧栏的哪个区域，而且是这一点的唯一机制：`system` 行钉底。节内的先后顺序则完全由 `order` 决定——分组就是靠这一点生效的：`tools-group` 是一条 `NavKind::Header` 行（caption 档字号、弱化色、加粗，没有图标的小字标签），`tools` 以 `level = 1` 缩进挂在它下面，因此两者的 `order` 必须相邻，否则这一行会跑到别的分组底下去。这个分组是为将来的一族 agent 工具预留的——提示词编写台是它的第一个成员；成员的标题刻意不带「Agent Tools」前缀：标签已经说了，这一行自己只读作 **Prompt Writing**（提示词撰写）。分组标签行**不是页面**：`pageIdsInOrder()` 会跳过它（`Ctrl+1…9` 的序号不会因此移位），`badges()` 里没有它的键、`setBadge()` 静默忽略它，`setCurrentPageId()` 会记一条 `qWarning` 并拒绝——因为它不是一个目的地。它仍然必须有 `id`，因为 `NavigationModel` 对每一行都按 id 查重与检索。`countInSection()` 与 `rowOfFirstInSection()` 则照分组标签行计数，因为分割线是按模型行画的。`level` 目前只表达缩进——刻意还没有 chevron 与展开收起交互，等真有子页时再加（见 `designs.md` 的侧栏规则）。
+`tools` 这一行是 Markdown 工作台的启动页——一个薄壳，编辑器本体是独立的 `MarkdownWorkbenchWindow`（见[Markdown 工作台](Markdown工作台.md)）。它刻意沿用了旧提示词页的注册 id：记住的「上次页面」因此落在启动页上，而不是悬空。
+
+`section` 决定一行落在侧栏的哪个区域，而且是这一点的唯一机制：`system` 行钉底。节内的先后顺序则完全由 `order` 决定。分组标签（`NavKind::Header` 行——caption 档字号、弱化色、加粗、没有图标）模型仍然支持，留给需要它的插件：分组标签行**不是页面**——`pageIdsInOrder()` 会跳过它（`Ctrl+1…9` 的序号不会因此移位），`badges()` 里没有它的键、`setBadge()` 静默忽略它，`setCurrentPageId()` 会记一条 `qWarning` 并拒绝——因为它不是一个目的地。它仍然必须有 `id`，因为 `NavigationModel` 对每一行都按 id 查重与检索。`countInSection()` 与 `rowOfFirstInSection()` 则照分组标签行计数，因为分割线是按模型行画的。`level` 目前只表达缩进——刻意还没有 chevron 与展开收起交互，等真有子页时再加（见 `designs.md` 的侧栏规则）。今天的内置页面没有用到分组标签：原先的「Agent Tools」分组在它唯一的成员长成工作台窗口后随之取消——`designs.md` 说好了一个分组标签只在真有一族页面可统领时才值得存在。
 
 分组标签行在折叠态的侧栏里还会整行隐藏（`Sidebar.qml` 里收起时既不显示标签也取消缩进），`system` 区也永远不放分组标签：那一区的行是纯图标按钮，堆叠位置按行号算。
 
@@ -249,7 +250,7 @@ QML 资源只编译进**可执行文件**，绝不进静态库，因为链接器
 - [core 基础设施](core基础设施.md)——启动时装配的 `Settings`、`Paths` 与各对象。
 - [主题引擎](主题引擎.md)——`main.cpp` 注册的 `Theme` 单例。
 - [插件宿主](插件宿主.md)——页面注册与宿主服务桥的插件侧。
-- [Markdown 预览](Markdown预览.md)——一个跨域意图（`previewMarkdown`），以及一扇由外壳宿主、而非注册成页面的窗口。
+- [Markdown 工作台](Markdown工作台.md)——一个跨域意图（`previewMarkdown`），以及一扇由外壳宿主、而非注册成页面的窗口。
 - [C++ 库设计](../architecture/C++库设计.md)——门面与 `Q_INVOKABLE` 契约。
 - [分层与依赖](../architecture/分层与依赖.md)——workbench 为何是唯一的多领域层。
 - [使用指引](../guide/index.md)——用户看到的页面、导航与快捷键。

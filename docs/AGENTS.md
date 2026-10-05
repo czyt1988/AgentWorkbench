@@ -41,8 +41,7 @@ docs/
   | `development/web-tabs.md` | `development/Web标签页.md` |
   | `development/webengine-adapter.md` | `development/WebEngine适配层.md` |
   | `development/skill-browser.md` | `development/Skill浏览.md` |
-  | `development/agent-tools.md` | `development/AgentTools.md` |
-  | `development/markdown-preview.md` | `development/Markdown预览.md` |
+  | `development/markdown-workbench.md` | `development/Markdown工作台.md` |
   | `development/shell-and-navigation.md` | `development/外壳与导航.md` |
   | `development/settings.md` | `development/设置.md` |
   | `development/theme-engine.md` | `development/主题引擎.md` |
@@ -53,8 +52,7 @@ docs/
   | `guide/agent-launcher.md` | `guide/Agent启动器.md` |
   | `guide/web-ui.md` | `guide/网页界面.md` |
   | `guide/skills.md` | `guide/技能.md` |
-  | `guide/agent-tools.md` | `guide/提示词编写台.md` |
-  | `guide/markdown-preview.md` | `guide/Markdown预览.md` |
+  | `guide/markdown-workbench.md` | `guide/Markdown工作台.md` |
   | `guide/appearance.md` | `guide/外观.md` |
   | `guide/settings.md` | `guide/设置.md` |
   | `guide/plugins.md` | `guide/插件.md` |
@@ -127,7 +125,7 @@ MkDocs 的 i18n 插件是**按「剥掉语言目录后的路径」给两种语�
 
 ## 5. 链接与导航
 
-- **站内链接用相对路径且带 `.md`**：英文侧同板块内写 `agent-tools.md`、跨板块写 `../development/agent-launcher.md`；中文侧写的是**中文文件名**（`AgentTools.md`、`../development/Agent启动器.md`），同一板块内两边只有文件名不同。不要用绝对站点路径（`/development/...`）。
+- **站内链接用相对路径且带 `.md`**：英文侧同板块内写 `markdown-workbench.md`、跨板块写 `../development/agent-launcher.md`；中文侧写的是**中文文件名**（`Markdown工作台.md`、`../development/Agent启动器.md`），同一板块内两边只有文件名不同。不要用绝对站点路径（`/development/...`）。
 - 跨板块链接是**必须的**：`architecture/` 说「详见 `development/` 的某功能」，`development/` 头部给出「用户视角见 `guide/` 对应页面」，`guide/` 末尾给 `development/` 的链接（方便好奇的用户/维护者）。
 - 每个板块必须有 `index.md`，作为该板块的目录 + 阅读顺序建议；板块首页要能回答「我该按什么顺序读」。
 - 新增页面必须登记进 `mkdocs.yml` 的两个 `nav`；漏登记的表现是页面能访问但导航里找不到。**单语页（`research/`、`standards/` 里只写一种语言的记录）只登记在它自己那一份 `nav` 里**——在另一个语言的 `nav` 里留下路径，`mkdocs build --strict` 会报「nav 引用了不存在的文件」，而中文页面对它的相对链接也会断链；单语页被另一语言的文档提到时，**用文字说明并给出仓库内路径**，不写成站内链接。

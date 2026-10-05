@@ -6,7 +6,7 @@ The Settings page is the single graphical entry point for application
 configuration. It reads and writes **only through `core::Settings`**, which is
 the typed access layer for `settings.json`. Data that lives in other files has
 its own facade: agent definitions are handled by `AgentsFacade` (from
-`agents.json`), the Agent Tools workspace memory by `ToolsFacade` (from
+`agents.json`), the Markdown workbench's workspace memory by `ToolsFacade` (from
 `tools.json`), skill roots by `SkillsFacade` (persisting into `settings.json`'s
 `skills.roots` through the same `core::Settings` setters), and the workspace
 memory of the launcher page by its own store.
@@ -305,6 +305,6 @@ ones (`window.width`/`height` are written by `saveWindowSize()` at close).
 - [Shell and navigation](shell-and-navigation.md) — the `ShellController` behind
   the window keys and the `system`-section registration of the page.
 - [Skills browser](skill-browser.md) — the consumer of `skills.*`.
-- [Agent Tools](agent-tools.md) — a consumer of the shared `A*` form controls.
+- [Markdown workbench](markdown-workbench.md) — a consumer of the shared `A*` form controls.
 - [Layers and dependencies](../architecture/layers-and-dependencies.md) — why
   `core::Settings` is the sole access layer.

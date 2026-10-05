@@ -19,8 +19,7 @@
   ![内嵌 Web 标签页](docs/pic/screenshot-web-tabs.png)
 - **Skill 浏览**：扫描常见 `SKILL.md` 目录（`~/.agents`、`~/.claude`、`~/.codex`、ZCode 插件缓存、项目目录），支持搜索、来源分面、排序、悬停详情与点击复制路径。
 - **主题**：颜色与度量来自 JSON 主题文件；内置两套 Catppuccin 变体，自定义主题保存即热重载；ctest 中的 `check_architecture` 会拒绝 QML 里的字面颜色。
-- **提示词撰写页**：从容地写提示词（回车从不发送），从工作区文件树拖入文件引用，写完一键复制——树与编辑区之间的分割条可拖动。
-- **Markdown 预览窗口**（仅 Qt 6 + WebEngine 构建）：在提示词撰写页的文件树里右键一个 `.md` 文件，它就会在自己的窗口里打开——渲染按块分批进行，几百 KB 的文档先出首屏、其余在后台继续排版；公式由 KaTeX 排、图表由 mermaid 画、代码带高亮，另可编辑源码并存盘、大纲导航、文档内搜索与导出 HTML。
+- **Markdown 工作台窗口**：一个窗口既写提示词——回车从不发送、从工作区文件树拖入文件引用、写完一键复制——也读、也改 Markdown 文件：一条 Ribbon 功能带、分块渲染（KaTeX 公式、mermaid 图表、代码高亮）、保形态的源码编辑与存盘、大纲、文档内搜索与导出 HTML。文档渲染需要 Qt 6 + WebEngine 构建。
 - **配置化驱动**：所有 agent、命令、URL、配置目录写在 `agents.json`，应用设置写在 `settings.json`。
 - **实验性插件**：ABI 稳定的头文件接口 + 示例插件；默认禁用，设置页有总开关与进程内运行的信任警示（[文档](https://agentlauncher.dev/zh/plugins/)）。
 

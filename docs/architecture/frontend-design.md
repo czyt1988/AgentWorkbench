@@ -19,7 +19,8 @@ flowchart TB
         AgentGridPage
         WebTabsPage
         SkillGridPage
-        ToolsPage
+        MarkdownStartPage
+        MarkdownWorkbenchWindow
         SettingsPage
     end
     subgraph facade["Facades and models (C++)"]
@@ -44,7 +45,9 @@ flowchart TB
     AgentGridPage --> AgentsFacade
     WebTabsPage --> WebTabsFacade
     SkillGridPage --> SkillsFacade
-    ToolsPage --> ToolsFacade
+    MarkdownStartPage --> WorkbenchContext
+    MarkdownWorkbenchWindow --> ToolsFacade
+    MarkdownWorkbenchWindow --> WorkbenchContext
     SettingsPage --> WorkbenchContext
     AgentsFacade --> agentcatalog
     WebTabsFacade --> web
@@ -100,7 +103,7 @@ Before writing any new UI element, look through the shelf. The components under 
 | `AButton` | Text button | Every text button. Variants are `primary`, `secondary`, `ghost` and `danger`; `primary` accepts an `accentColor` for runtime colouring (an agent's own colour). |
 | `AIconButton` | Icon button | Every icon button. The tooltip is mandatory. In navigation contexts use `active` to fill the current destination. |
 | `ATextField` | Single-line input | Every text input, including the `invalid` red border and the 2px focus ring. Its height (32) aligns with `AButton`. |
-| `ATextArea` | Multi-line editor | Every multi-line text input. It uses the `surface` background — deliberately different from `ATextField`'s `surfaceAlt`, because a long editing area needs a whiter base in the light theme. A `TextArea` never scrolls its own text, so an input that must scroll (a long prompt) attaches it to a `Flickable` through the `TextArea.flickable` attached property; that keeps the frame and the focus ring pinned to the viewport and scrolls the caret into view (see the Prompt Writing page). The `cornerRadius` property defaults to `radiusControl` and is overridden to `0` where the editor must meet a splitter flush (the Prompt Writing editor's left edge). |
+| `ATextArea` | Multi-line editor | Every multi-line text input. It uses the `surface` background — deliberately different from `ATextField`'s `surfaceAlt`, because a long editing area needs a whiter base in the light theme. A `TextArea` never scrolls its own text, so an input that must scroll (a long prompt) attaches it to a `Flickable` through the `TextArea.flickable` attached property; that keeps the frame and the focus ring pinned to the viewport and scrolls the caret into view (see the Markdown workbench window). The `cornerRadius` property defaults to `radiusControl` and is overridden to `0` where the editor must meet a splitter flush (the workbench editor's left edge). |
 | `AFormLabel` | Form label row | Field labels, with a required asterisk and an info tooltip. |
 | `ASearchField` | Search box | List filtering input, with icon and clear key. |
 | `AComboBox` | Dropdown select | Every dropdown. The `Default`/`Basic` style's palette is hardcoded light and unreadable in the dark theme, so the themed one is required. Override `contentItem` or `delegate` at the use site to customise the popup. |
@@ -168,7 +171,7 @@ The historical `fontSizeSmall` and `fontSizeCardTitle` tokens were removed (2026
 
 A blurry icon means the rasterised size differs from the displayed size: an SVG's `sourceSize` is the rasterisation target in logical pixels (Qt multiplies it by the DPR for SVGs), and a mismatch between it and the Image's displayed size goes through a scaling path — upscaling is always blurry, downscaling soft. Three rules follow:
 
-- The displayed size must equal `sourceSize`. Without `sourceSize`, an SVG rasterises at its natural 24px, so any smaller display is a downscale and also blurs (the file-tree arrows in `ToolsPage.qml` did).
+- The displayed size must equal `sourceSize`. Without `sourceSize`, an SVG rasterises at its natural 24px, so any smaller display is a downscale and also blurs (the workbench file tree's arrows did).
 - An icon must not be a Control's `contentItem` directly: the Control forces the contentItem to its own available size (`AIconButton` is 28×28), and `PreserveAspectFit` then upscales the 16px raster — every icon button was simultaneously too large and too blurry for this reason. Wrap the icon in an `Item` and centre it, letting the `Image` render at its implicit size (see `AIconButton`).
 - A larger icon inside a bigger button (the 22px icon in a 44px button) follows the same rule: give `sourceSize` the actual raster size.
 
