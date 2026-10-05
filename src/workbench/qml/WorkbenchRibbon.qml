@@ -147,14 +147,73 @@ Item {
                 RibbonToolButton {
                     text: qsTr("Bold")
                     iconSource: "qrc:/icons/bold.svg"
+                    checkable: true
+                    // checkable 的真实状态源：MarkdownEdit 的光标查询
+                    //（没有查询侧的动作不许设 checkable——否则按钮骗人）。
+                    checked: win && win.activeEditor
+                             && MarkdownEdit.isBoldAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("bold")
                 }
                 RibbonToolButton {
+                    text: qsTr("Italic")
+                    iconSource: "qrc:/icons/bold.svg"
+                    checkable: true
+                    checked: win && win.activeEditor
+                             && MarkdownEdit.isItalicAt(win.activeEditor)
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("italic")
+                }
+                RibbonToolButton {
+                    text: qsTr("Strike")
+                    iconSource: "qrc:/icons/bold.svg"
+                    checkable: true
+                    checked: win && win.activeEditor
+                             && MarkdownEdit.isStrikeAt(win.activeEditor)
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("strike")
+                }
+                RibbonToolButton {
                     text: qsTr("Code")
                     iconSource: "qrc:/icons/code.svg"
+                    checkable: true
+                    checked: win && win.activeEditor
+                             && MarkdownEdit.isCodeAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("code")
+                }
+                RibbonToolButton {
+                    text: qsTr("Link")
+                    iconSource: "qrc:/icons/web.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("link")
+                }
+            }
+
+            RibbonPanel {
+                RibbonToolButton {
+                    text: qsTr("Heading")
+                    iconSource: "qrc:/icons/bold.svg"
+                    popupMode: Ribbon.MenuButtonPopup
+                    // 三级 + 文本判定：同级再点 = 去标题（菜单里独立条目）。
+                    menuItems: [
+                        RibbonMenuItem {
+                            text: qsTr("Heading 1")
+                            onTriggered: if (win) win.applyFormat("heading1")
+                        },
+                        RibbonMenuItem {
+                            text: qsTr("Heading 2")
+                            onTriggered: if (win) win.applyFormat("heading2")
+                        },
+                        RibbonMenuItem {
+                            text: qsTr("Heading 3")
+                            onTriggered: if (win) win.applyFormat("heading3")
+                        },
+                        RibbonMenuItem {
+                            text: qsTr("Remove heading")
+                            onTriggered: if (win) win.applyFormat("heading0")
+                        }
+                    ]
                 }
                 RibbonToolButton {
                     text: qsTr("Bullets")
@@ -162,14 +221,88 @@ Item {
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("bullet")
                 }
+                RibbonToolButton {
+                    text: qsTr("Numbered")
+                    iconSource: "qrc:/icons/bullet-list.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("numbered")
+                }
+                RibbonToolButton {
+                    text: qsTr("Task List")
+                    iconSource: "qrc:/icons/bullet-list.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("task")
+                }
+                RibbonToolButton {
+                    text: qsTr("Quote")
+                    iconSource: "qrc:/icons/bold.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("quote")
+                }
+                RibbonToolButton {
+                    text: qsTr("Divider")
+                    iconSource: "qrc:/icons/bold.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("divider")
+                }
+            }
+
+            RibbonPanel {
+                RibbonToolButton {
+                    // 围栏代码块 + 语言：菜单给常见语言与「无语言」。
+                    text: qsTr("Fence")
+                    iconSource: "qrc:/icons/code.svg"
+                    popupMode: Ribbon.MenuButtonPopup
+                    menuItems: [
+                        RibbonMenuItem {
+                            text: qsTr("No language")
+                            onTriggered: if (win) win.applyFence("")
+                        },
+                        RibbonMenuItem {
+                            text: "C++"
+                            onTriggered: if (win) win.applyFence("cpp")
+                        },
+                        RibbonMenuItem {
+                            text: "Python"
+                            onTriggered: if (win) win.applyFence("python")
+                        },
+                        RibbonMenuItem {
+                            text: "JavaScript"
+                            onTriggered: if (win) win.applyFence("javascript")
+                        },
+                        RibbonMenuItem {
+                            text: "QML"
+                            onTriggered: if (win) win.applyFence("qml")
+                        },
+                        RibbonMenuItem {
+                            text: "Bash"
+                            onTriggered: if (win) win.applyFence("bash")
+                        }
+                    ]
+                }
+                RibbonToolButton {
+                    text: qsTr("Table")
+                    iconSource: "qrc:/icons/code.svg"
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("table")
+                }
             }
 
             RibbonPanel {
                 RibbonToolButton {
                     text: qsTr("Find")
                     iconSource: "qrc:/icons/search.svg"
-                    enabled: win && win.preset === "document"
-                    onClicked: if (win) win.openSearch()
+                    // 文档模式查预览渲染区（既有搜索条），提示词模式查
+                    // 草稿源码（B2 的编辑区查找条）。
+                    enabled: win
+                    onClicked: {
+                        if (!win)
+                            return
+                        if (win.preset === "document")
+                            win.openSearch()
+                        else
+                            win.openDraftFind()
+                    }
                 }
                 RibbonToolButton {
                     text: qsTr("Save")
@@ -177,6 +310,14 @@ Item {
                     enabled: win && win.preset === "document"
                              && markdown.canEdit
                     onClicked: if (win) win.saveDocument()
+                }
+                RibbonToolButton {
+                    // B3 清空草稿：确认 + 可撤销（规划 03 §四）。
+                    text: qsTr("Clear")
+                    iconSource: "qrc:/icons/close.svg"
+                    enabled: win && win.preset === "prompt"
+                             && tools.draft.length > 0
+                    onClicked: if (win) win.confirmClearDraft()
                 }
             }
         }
@@ -218,6 +359,16 @@ Item {
                         iconSource: "qrc:/icons/copy.svg"
                         enabled: win && win.preset === "prompt"
                         onClicked: if (win) win.saveCurrentToFavorites()
+                    }
+                }
+
+                RibbonPanel {
+                    // B9 体检入口：触发 + 规则开关（清单在右栏体检段）。
+                    RibbonToolButton {
+                        text: qsTr("Check Prompt")
+                        iconSource: "qrc:/icons/search.svg"
+                        enabled: win && win.preset === "prompt"
+                        onClicked: if (win) win.runDraftChecks()
                     }
                 }
             }

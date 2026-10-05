@@ -34,16 +34,72 @@ Rectangle {
             onClicked: if (win) win.applyFormat("bold")
         }
         AIconButton {
+            iconSource: "qrc:/icons/bold.svg"
+            tooltip: qsTr("Italic")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("italic")
+        }
+        AIconButton {
+            iconSource: "qrc:/icons/bold.svg"
+            tooltip: qsTr("Strikethrough")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("strike")
+        }
+        AIconButton {
             iconSource: "qrc:/icons/code.svg"
             tooltip: qsTr("Code")
             enabled: win && win.activeEditor
             onClicked: if (win) win.applyFormat("code")
         }
+
+        Rectangle {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.leftMargin: theme.spacingXs
+            Layout.rightMargin: theme.spacingXs
+            implicitWidth: 1
+            implicitHeight: 24
+            color: theme.separator
+        }
+
+        // 段落与块（B1）：标题/编号/任务/引用/表格/分隔线。工具栏一条
+        // 放不下全部菜单形态，收最高频的；完整清单在 Ribbon（或右键
+        // 菜单）里，这里与它们共用同一批 win.* 动作。
+        AIconButton {
+            iconSource: "qrc:/icons/bold.svg"
+            tooltip: qsTr("Heading")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("heading2")
+        }
+        AIconButton {
+            objectName: "numberedButton"
+            iconSource: "qrc:/icons/bullet-list.svg"
+            tooltip: qsTr("Numbered list")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("numbered")
+        }
         AIconButton {
             iconSource: "qrc:/icons/bullet-list.svg"
-            tooltip: qsTr("Bulleted list")
+            tooltip: qsTr("Task list")
             enabled: win && win.activeEditor
-            onClicked: if (win) win.applyFormat("bullet")
+            onClicked: if (win) win.applyFormat("task")
+        }
+        AIconButton {
+            iconSource: "qrc:/icons/code.svg"
+            tooltip: qsTr("Quote")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("quote")
+        }
+        AIconButton {
+            iconSource: "qrc:/icons/code.svg"
+            tooltip: qsTr("Table")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("table")
+        }
+        AIconButton {
+            iconSource: "qrc:/icons/close.svg"
+            tooltip: qsTr("Divider")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("divider")
         }
 
         Rectangle {
@@ -130,10 +186,36 @@ Rectangle {
         }
 
         AIconButton {
+            objectName: "checkPromptToolbarButton"
             iconSource: "qrc:/icons/search.svg"
-            tooltip: qsTr("Search in document")
-            enabled: win && win.preset === "document"
-            onClicked: if (win) win.openSearch()
+            tooltip: qsTr("Check the prompt")
+            enabled: win && win.preset === "prompt"
+            onClicked: if (win) win.runDraftChecks()
+        }
+
+        // 查找：文档模式查预览区（既有搜索条），提示词模式开草稿
+        // 查找条（B2）——与 Ribbon 的 Find 按钮同一分流。
+        AIconButton {
+            objectName: "findButton"
+            iconSource: "qrc:/icons/search.svg"
+            tooltip: qsTr("Find")
+            enabled: win
+            onClicked: {
+                if (!win)
+                    return
+                if (win.preset === "document")
+                    win.openSearch()
+                else
+                    win.openDraftFind()
+            }
+        }
+        AIconButton {
+            objectName: "clearDraftButton"
+            iconSource: "qrc:/icons/close.svg"
+            tooltip: qsTr("Clear the draft")
+            enabled: win && win.preset === "prompt"
+                     && tools.draft.length > 0
+            onClicked: if (win) win.confirmClearDraft()
         }
         AIconButton {
             iconSource: "qrc:/icons/download.svg"

@@ -3,6 +3,7 @@
 #include "tools/FileTreeFlatModel.h"
 #include "tools/FileTreeModel.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QFileInfo>
 #include <QDir>
@@ -685,6 +686,72 @@ void ToolsFacade::removeFavorite(const QString &title, const QString &body)
         qWarning() << "[tools] could not persist the favorites";
     }
     Q_EMIT favoritesChanged();
+}
+
+// --- 体检与预算的 QML 入口（M3） ------------------------------------------
+
+/**
+ * @brief 跑体检（已按开关过滤）
+ *
+ * @param text 草稿正文
+ * @return [{ruleId, severity, start, length, message}]
+ */
+QVariantList ToolsFacade::runChecks(const QString &text) const
+{
+    QVariantList result;
+    const QStringList disabled = m_store.disabledCheckIds();
+    const QList<PromptCheck> hits = PromptChecks::run(text);
+    for (const PromptCheck &check : hits) {
+        if (disabled.contains(check.ruleId)) {
+            continue;
+        }
+        QVariantMap entry;
+        entry.insert(QStringLiteral("ruleId"), check.ruleId);
+        entry.insert(QStringLiteral("severity"), check.severity);
+        entry.insert(QStringLiteral("start"), check.start);
+        entry.insert(QStringLiteral("length"), check.length);
+        // 建议文案在纯层以 QT_TRANSLATE_NOOP 登记、这里按同一上下文
+        // 求值——QML 拿到的已是当前语言（纯数据没法 qsTr）。
+        entry.insert(QStringLiteral("message"),
+                     QCoreApplication::translate(
+                         "PromptChecks",
+                         check.message.toUtf8().constData()));
+        result.append(entry);
+    }
+    return result;
+}
+
+/**
+ * @brief 规则显示名
+ */
+QString ToolsFacade::checkRuleTitle(const QString &ruleId) const
+{
+    return PromptChecks::ruleTitle(ruleId);
+}
+
+/**
+ * @brief 全部规则 id（稳定顺序）
+ */
+QStringList ToolsFacade::checkRuleIds() const
+{
+    return PromptChecks::ruleIds();
+}
+
+/**
+ * @brief 估算 token 数
+ */
+int ToolsFacade::estimateTokens(const QString &text) const
+{
+    return ContextBudget::estimateTokens(text);
+}
+
+/**
+ * @brief 预算分级（0/1/2，窗口基数取本门面的 contextWindowTokens）
+ */
+int ToolsFacade::budgetLevel(int tokens) const
+{
+    return ContextBudget::level(tokens,
+                                m_store.editor().contextWindowTokens);
 }
 
 } // namespace awb::tools

@@ -118,6 +118,12 @@ int lineCount(const QString &text)
 
 } // namespace
 
+// 体检建议文案：英文源串 + QT_TRANSLATE_NOOP 标记（lupdate 从这里抽取；
+// 门面显示时按 "PromptChecks" 上下文翻译——纯层不持有 QObject 上下文，
+// 这是「纯函数返回可翻译文案」的标准 Qt 形态）。
+#define checkMessage(source) \
+    QString::fromUtf8(QT_TRANSLATE_NOOP("PromptChecks", source))
+
 /**
  * @brief 全部规则 id（稳定顺序）
  */
@@ -172,7 +178,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
                 check.severity = 0;
                 check.start = index;
                 check.length = word.length();
-                check.message = QStringLiteral(
+                check.message = checkMessage(
                     "Vague wording here: replace with something verifiable.");
                 result.append(check);
                 break;
@@ -213,7 +219,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.ruleId = QStringLiteral("question-only");
             check.severity = 0;
             check.start = -1;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Most sentences ask questions. Agents follow instructions "
                 "better than answers.");
             result.append(check);
@@ -234,7 +240,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.ruleId = QStringLiteral("no-acceptance");
             check.severity = 1;
             check.start = -1;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "No acceptance criteria: state what to run and what the "
                 "expected result is.");
             result.append(check);
@@ -254,7 +260,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.severity = 1;
             check.start = match.capturedStart();
             check.length = match.capturedLength();
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Windows-style path: use `./forward/slashes` so the agent "
                 "does not trip on escaping.");
             result.append(check);
@@ -275,7 +281,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.ruleId = QStringLiteral("no-context");
             check.severity = 1;
             check.start = -1;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "The agent does not know the stack: name the language, "
                 "framework or files involved.");
             result.append(check);
@@ -288,7 +294,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
         check.ruleId = QStringLiteral("token-risk");
         check.severity = 1;
         check.start = -1;
-        check.message = QStringLiteral(
+        check.message = checkMessage(
             "This prompt is long: prefer file references over inlined "
             "content.");
         result.append(check);
@@ -306,7 +312,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.ruleId = QStringLiteral("flat-structure");
             check.severity = 0;
             check.start = -1;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Over 40 lines with no headings or lists: structure helps "
                 "the agent find the point.");
             result.append(check);
@@ -325,7 +331,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.severity = 0;
             check.start = match.capturedStart();
             check.length = match.capturedLength();
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Unfilled placeholders remain: fill them or remove them "
                 "before copying.");
             result.append(check);
@@ -342,7 +348,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.severity = 0;
             check.start = lines.constFirst().first;
             check.length = lines.constFirst().second;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Trailing whitespace: clean it up to keep diffs tidy.");
             result.append(check);
         } else if (text.contains(QStringLiteral("\n\n\n\n"))) {
@@ -353,7 +359,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.severity = 0;
             check.start = index;
             check.length = 4;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Blank-run over three lines: collapse it to two.");
             result.append(check);
         }
@@ -369,7 +375,7 @@ QList<PromptCheck> PromptChecks::run(const QString &text)
             check.severity = 0;
             check.start = lines.constFirst().first;
             check.length = lines.constFirst().second;
-            check.message = QStringLiteral(
+            check.message = checkMessage(
                 "Smart quotes or long dashes: agents' shells prefer the "
                 "plain ASCII forms.");
             result.append(check);

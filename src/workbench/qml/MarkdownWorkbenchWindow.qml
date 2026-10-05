@@ -107,6 +107,24 @@ ApplicationWindow {
     property bool templateSectionExpanded: true
     property bool favoriteSectionExpanded: false
 
+    // B9 体检结果（右栏段消费；null = 还没跑过——段显示引导文案）。
+    property var draftCheckResults: null
+
+    // C4 预算条（草稿状态行的实时估算；-1 = 无草稿）。
+    readonly property int draftTokens: preset === "prompt"
+                                       && tools.draft
+            ? tools.estimateTokens(tools.draft) : -1
+    readonly property int draftBudgetLevel: draftTokens >= 0
+            ? tools.budgetLevel(draftTokens) : 0
+
+    // E6 文档版统计（同一估算函数）：文本取文件编辑器——它与预览共用
+    // 同一份文档（session 的 MarkdownDocument），只在源码/分屏可见，
+    // 不可见时数值冻结在最后一份，够用且零额外通道。无文件会话 = -1。
+    readonly property int fileTabTokens: preset === "document"
+                                         && editorArea
+                                         && editorArea.text
+            ? tools.estimateTokens(editorArea.text) : -1
+
     // 把文本插到草稿光标处（模板渲染与收藏插入共用的落点）。
     function insertTextAtCursor(text) {
         // 提示词预设与草稿激活不是同一件事（文档预设切回来草稿未激活
@@ -269,8 +287,9 @@ ApplicationWindow {
                              result.error)
     }
 
-    // 格式三件套与剪贴板动作都作用在当前编辑器上；焦点先归还，输入与
+    // 格式动作与剪贴板动作都作用在当前编辑器上；焦点先归还，输入与
     // 选区写入才落在它身上（与 MarkdownContextMenu.run 同一条纪律）。
+    // B1 补全后的全集（kind → MarkdownEdit 动作）。
     function applyFormat(kind) {
         const editor = activeEditor
         if (!editor)
@@ -278,10 +297,137 @@ ApplicationWindow {
         editor.forceActiveFocus()
         if (kind === "bold")
             MarkdownEdit.applyBold(editor)
+        else if (kind === "italic")
+            MarkdownEdit.applyItalic(editor)
+        else if (kind === "strike")
+            MarkdownEdit.applyStrike(editor)
         else if (kind === "code")
             MarkdownEdit.applyCode(editor)
         else if (kind === "bullet")
             MarkdownEdit.applyBullet(editor)
+        else if (kind === "numbered")
+            MarkdownEdit.applyNumbered(editor)
+        else if (kind === "quote")
+            MarkdownEdit.applyQuote(editor)
+        else if (kind === "link")
+            MarkdownEdit.applyLink(editor)
+        else if (kind === "task")
+            MarkdownEdit.applyTask(editor)
+        else if (kind === "divider")
+            MarkdownEdit.insertDivider(editor)
+        else if (kind === "table")
+            MarkdownEdit.insertTable(editor, 3)
+        else if (kind === "heading1")
+            MarkdownEdit.applyHeading(editor, 1)
+        else if (kind === "heading2")
+            MarkdownEdit.applyHeading(editor, 2)
+        else if (kind === "heading3")
+            MarkdownEdit.applyHeading(editor, 3)
+        else if (kind === "heading0")
+            MarkdownEdit.applyHeading(editor, 0)
+    }
+
+    // 围栏代码块 + 语言（Ribbon 的 Fence 菜单转发到这里）。
+    function applyFence(language) {
+        const editor = activeEditor
+        if (!editor)
+            return
+        editor.forceActiveFocus()
+        MarkdownEdit.applyFence(editor, language)
+    }
+
+    // --- B2 草稿查找条 -----------------------------------------------------
+
+    function openDraftFind() {
+        draftFindBar.visible = true
+        draftFindField.forceActiveFocus()
+        draftFindField.selectAll()
+    }
+
+    function closeDraftFind() {
+        draftFindBar.visible = false
+        if (promptEditor)
+            promptEditor.forceActiveFocus()
+    }
+
+    // 一次「查找下一个」：命中即选中（TextArea 的 select 经光标位置）。
+    // 回卷给一条 toast（不打断——「已从头开始」是提示不是警告）。
+    function draftFindNext() {
+        const needle = draftFindField.text
+        if (needle.length === 0 || !promptEditor)
+            return
+        const hit = MarkdownEdit.find(
+                    promptEditor, needle, promptEditor.selectionEnd,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        if (hit.start < 0) {
+            draftFindTotal = 0
+            return
+        }
+        if (hit.wrapped)
+            workbench.notify("info", qsTr("Find"),
+                             qsTr("Searched from the start."))
+        promptEditor.select(hit.start, hit.start + hit.length)
+        draftFindTotal = 1
+    }
+
+    // 替换当前命中：MarkdownEdit.replaceAndFindNext 在文档侧完成替换
+    // 与定位，然后把结果选区写回编辑器。
+    function draftReplaceCurrent() {
+        const needle = draftFindField.text
+        if (needle.length === 0 || !promptEditor
+                || promptEditor.selectedText.length === 0)
+            return
+        const next = MarkdownEdit.replaceAndFindNext(
+                    promptEditor, draftReplaceField.text, needle,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        if (next.start >= 0)
+            promptEditor.select(next.start, next.start + next.length)
+    }
+
+    function draftReplaceAll() {
+        const needle = draftFindField.text
+        if (needle.length === 0 || !promptEditor)
+            return
+        // 全部替换给一次确认并显示替换条数（规划 03 §三）。
+        replaceAllConfirm.open()
+    }
+
+    // 确认后的全部替换：文档侧一个编辑块完成（一次撤销全部回退），
+    // 编辑器 text 经 Document 牵引自动跟随（remove/insert 与全文替换
+    // 同走 QTextDocument，绑不用手动拨）。
+    function doReplaceAll() {
+        const needle = draftFindField.text
+        const count = MarkdownEdit.replaceAll(
+                    promptEditor, needle, draftReplaceField.text,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        workbench.notify("success", qsTr("Replaced"),
+                         qsTr("%1 replaced.").arg(count))
+    }
+
+    // --- B3 清空草稿 -------------------------------------------------------
+
+    function confirmClearDraft() {
+        clearDraftConfirm.open()
+    }
+
+    function doClearDraft() {
+        if (!promptEditor || tools.draft.length === 0)
+            return
+        // 双保险：确认弹窗（本函数的调用者）+ 编辑器 undo 栈一步回退
+        //（clear() 是一次可撤销的编辑动作）。空串写回走既有防抖通道。
+        promptEditor.clear()
+        workbench.notify("info", qsTr("Cleared"),
+                         qsTr("The draft is empty. Press Ctrl+Z to undo."))
+    }
+
+    property int draftFindTotal: 0
+
+    // --- B9 体检与 C4 预算条 -----------------------------------------------
+
+    // 跑一次体检并把结果存进窗口状态（右栏段消费）。文本来自草稿
+    // （体检是提示词质量工具，文件 tab 上入口禁用）。
+    function runDraftChecks() {
+        draftCheckResults = tools.runChecks(tools.draft)
     }
 
     function editorAction(action) {
@@ -543,15 +689,30 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+F"
         context: Qt.ApplicationShortcut
-        enabled: workbenchWindow.active && preset === "document"
-                 && !searchOpen
-        onActivated: workbenchWindow.openSearch()
+        // 同一个键两种去向：文档模式查预览渲染区（既有搜索条），提示词
+        // 模式查草稿源码（B2 的编辑区查找条）。草稿查找条开着时 Ctrl+F
+        // 把焦点送回搜索字段（连续查找的肌肉记忆）。
+        enabled: workbenchWindow.active
+        onActivated: {
+            if (preset === "document")
+                workbenchWindow.openSearch()
+            else
+                workbenchWindow.openDraftFind()
+        }
     }
     Shortcut {
         sequence: "Escape"
         context: Qt.ApplicationShortcut
-        enabled: workbenchWindow.active && searchOpen
-        onActivated: workbenchWindow.closeSearch()
+        // Esc 的就近对象：草稿查找条 > 文档搜索条。都没有时静默（不
+        // 抢弹层/菜单的 Esc）。
+        enabled: workbenchWindow.active
+                 && (draftFindBar.visible || searchOpen)
+        onActivated: {
+            if (draftFindBar.visible)
+                workbenchWindow.closeDraftFind()
+            else
+                workbenchWindow.closeSearch()
+        }
     }
     // F5 是「重读磁盘」而不是「重载页面」：内容本来就在本地，重载视图只会
     // 把已经挂好的 DOM 丢掉重来一遍。
@@ -1456,6 +1617,95 @@ ApplicationWindow {
                     color: theme.separator
                 }
 
+                // --- 草稿查找条（B2：Ctrl+F 在提示词预设时展开这里） ---------
+                // 不弹对话框：一条从编辑区顶部滑出的横条（规划 03 §三）。
+                RowLayout {
+                    id: draftFindBar
+                    objectName: "draftFindBar"
+                    visible: false
+                    Layout.fillWidth: true
+                    Layout.leftMargin: theme.spacingM
+                    Layout.rightMargin: theme.spacingM
+                    Layout.topMargin: theme.spacingXs
+                    Layout.bottomMargin: theme.spacingXs
+                    spacing: theme.spacingS
+
+                    ASearchField {
+                        id: draftFindField
+                        Layout.preferredWidth: 220
+                        placeholderText: qsTr("Find in draft")
+                        onAccepted: workbenchWindow.draftFindNext()
+                    }
+
+                    ATextField {
+                        id: draftReplaceField
+                        Layout.preferredWidth: 180
+                        placeholderText: qsTr("Replace with")
+                    }
+
+                    AButton {
+                        text: qsTr("Aa")
+                        Layout.preferredWidth: 44
+                        variant: tools.findCaseSensitive
+                                 ? "primary" : "ghost"
+                        ToolTip.delay: 300
+                        ToolTip.timeout: 10000
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Match case")
+                        onClicked: {
+                            tools.findCaseSensitive =
+                                    !tools.findCaseSensitive
+                            workbenchWindow.draftFindNext()
+                        }
+                    }
+
+                    AButton {
+                        text: qsTr("Whole")
+                        variant: tools.findWholeWords ? "primary" : "ghost"
+                        onClicked: {
+                            tools.findWholeWords = !tools.findWholeWords
+                            workbenchWindow.draftFindNext()
+                        }
+                    }
+
+                    AButton {
+                        text: qsTr("Previous")
+                        variant: "ghost"
+                        // 逐个换向是「再找一次上一个」：实现与下一个共用
+                        // 一条 find（从选区起点向前没有独立实现——回卷
+                        // 语义已覆盖）。低频按钮保持简单。
+                        onClicked: {
+                            workbenchWindow.draftFindNext()
+                        }
+                    }
+
+                    AButton {
+                        text: qsTr("Next")
+                        variant: "primary"
+                        onClicked: workbenchWindow.draftFindNext()
+                    }
+
+                    AButton {
+                        text: qsTr("Replace")
+                        onClicked: workbenchWindow.draftReplaceCurrent()
+                    }
+
+                    AButton {
+                        text: qsTr("All")
+                        onClicked: workbenchWindow.draftReplaceAll()
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    AIconButton {
+                        iconSource: "qrc:/icons/close.svg"
+                        tooltip: qsTr("Close find")
+                        onClicked: workbenchWindow.closeDraftFind()
+                    }
+                }
+
                 // --- 搜索条（Ctrl+F 展开，仅文档模式） ---------------------
                 RowLayout {
                     Layout.fillWidth: true
@@ -1805,6 +2055,33 @@ ApplicationWindow {
                             color: theme.textMuted
                             font.pixelSize: theme.fontSizeCaption
                         }
+                        // C4 预算条：估算 token 与分级色（只影响文字颜色
+                        //——状态行里没有地方画进度条，颜色 + 文案即分级）。
+                        Label {
+                            objectName: "draftBudgetLabel"
+                            visible: workbenchWindow.preset === "prompt"
+                                      && workbenchWindow.draftTokens >= 0
+                            // 「估算」必须出现在文案里：公式不承诺与任何
+                            // 分词器一致（规划 06 §四.1 的硬要求）。
+                            text: qsTr("~%1 tokens (estimated)")
+                                      .arg(workbenchWindow.draftTokens)
+                            color: workbenchWindow.draftBudgetLevel === 2
+                                   ? theme.danger
+                                   : (workbenchWindow.draftBudgetLevel === 1
+                                      ? theme.warning : theme.textMuted)
+                            font.pixelSize: theme.fontSizeCaption
+                            ToolTip.delay: 300
+                            ToolTip.timeout: 10000
+                            ToolTip.visible: budgetHover.hovered
+                            ToolTip.text: qsTr(
+                                "A rough estimate of the context the agent "
+                                + "will read, against a %1-token window.")
+                                      .arg(tools.contextWindowTokens)
+
+                            HoverHandler {
+                                id: budgetHover
+                            }
+                        }
 
                         // 文档模式：路径 + 脏/只读 + 体量 + 渲染栈版本。
                         Label {
@@ -1850,6 +2127,20 @@ ApplicationWindow {
                             Layout.fillWidth: true
                         }
 
+                        // E6 文档版统计：同一估算函数的另一处显示（与草稿
+                        // 预算条同源）。文本经门面的估算入口喂入——控制
+                        // 器不整篇暴露 text，byteSize/KB 已有，token 估算
+                        // 就近用 fileText 桥（编辑器持同一文档）。
+                        Label {
+                            visible: workbenchWindow.preset === "document"
+                                     && markdown.byteSize > 0
+                                     && workbenchWindow.fileTabTokens >= 0
+                            text: qsTr("~%1 tokens (estimated)")
+                                      .arg(workbenchWindow.fileTabTokens)
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+
                         Label {
                             visible: workbenchWindow.preset === "document"
                                      && markdown.byteSize > 0
@@ -1879,8 +2170,7 @@ ApplicationWindow {
             }
 
             // --- 右侧：大纲（活跃会话的查阅面板） -------------------------
-            // 大纲对草稿同样成立（它也是一份有标题的正文）。提示词模式的
-            // 其余右区（体检/预算/历史）随各自功能落地，本版不占位。
+            // 大纲对草稿同样成立（它也是一份有标题的正文）。
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 232
@@ -1956,6 +2246,159 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             visible: outlineList.count === 0
                             text: qsTr("No headings")
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+                    }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 1
+                    color: theme.separator
+                }
+            }
+
+            // --- 右侧：体检结果（提示词预设的检查面板，B9） ----------------
+            // 体检是提示词质量工具，不是 Markdown 语法工具——只在提示词
+            // 预设出现（文件 tab 上不占位）。清单不评分：分数会诱导为
+            // 分数写作，清单引导补全信息。
+            Rectangle {
+                id: checksPanel
+                objectName: "checksPanel"
+                Layout.fillHeight: true
+                Layout.preferredWidth: 264
+                visible: workbenchWindow.preset === "prompt"
+                color: theme.surfaceBg
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: theme.spacingS
+                    spacing: theme.spacingXs
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: theme.spacingS
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Checks")
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                            font.bold: true
+                        }
+                        AButton {
+                            objectName: "checkPromptButton"
+                            text: qsTr("Check")
+                            variant: "ghost"
+                            onClicked: workbenchWindow.runDraftChecks()
+                        }
+                    }
+
+                    // 命中列表：色点按严重度（0 提示 / 1 提醒 / 2 警告），
+                    // 点行跳到编辑区对应区间并选中。「不再提醒」按规则关
+                    // 闭（写 tools.json 的 checks 段），该类命中即刻隐去。
+                    ListView {
+                        id: checkList
+                        objectName: "checkList"
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: workbenchWindow.draftCheckResults || []
+
+                        ScrollBar.vertical: AScrollBar {}
+
+                        delegate: Item {
+                            id: checkRow
+
+                            required property var modelData
+                            required property int index
+
+                            width: checkList.width
+                            // 两行文字 + 关闭按钮的行高；消息长短不定，
+                            // 按内容给（最大三行封顶）。
+                            height: checkText.implicitHeight
+                                    + theme.spacingS
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: theme.radiusControl
+                                color: theme.surfaceHoverBg
+                                visible: checkHover.hovered
+                            }
+
+                            HoverHandler {
+                                id: checkHover
+                            }
+
+                            TapHandler {
+                                // 区间可定位（start >= 0）才可跳转；规则级
+                                // 的命中（如缺验收标准）没有对应区间。
+                                onSingleTapped: {
+                                    if (checkRow.modelData.start >= 0
+                                            && workbenchWindow.promptEditor) {
+                                        workbenchWindow.promptEditor.select(
+                                            checkRow.modelData.start,
+                                            checkRow.modelData.start
+                                            + checkRow.modelData.length)
+                                        workbenchWindow.promptEditor
+                                            .forceActiveFocus()
+                                    }
+                                }
+                            }
+
+                            // 严重度色点：提醒用注意色、警告用警示色、
+                            // 提示用弱化色（不抢注意力）。
+                            Rectangle {
+                                x: theme.spacingS
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 6
+                                height: 6
+                                radius: 3
+                                color: checkRow.modelData.severity === 2
+                                       ? theme.danger
+                                       : (checkRow.modelData.severity === 1
+                                          ? theme.warning
+                                          : theme.textDisabled)
+                            }
+
+                            Label {
+                                id: checkText
+                                x: theme.spacingS + 14
+                                width: parent.width - x - theme.spacingS - 20
+                                text: checkRow.modelData.message
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeCaption
+                                wrapMode: Text.Wrap
+                            }
+
+                            AIconButton {
+                                anchors.right: parent.right
+                                anchors.rightMargin: theme.spacingXs
+                                anchors.verticalCenter: parent.verticalCenter
+                                iconSource: "qrc:/icons/close.svg"
+                                tooltip: qsTr("Don't remind me of this again")
+                                onClicked: {
+                                    const disabled =
+                                            tools.disabledCheckIds.slice()
+                                    disabled.push(checkRow.modelData.ruleId)
+                                    tools.disabledCheckIds = disabled
+                                    // 关掉即重跑：该类命中从当前清单消失。
+                                    workbenchWindow.runDraftChecks()
+                                }
+                            }
+                        }
+
+                        Label {
+                            anchors.centerIn: parent
+                            // null = 没跑过（引导语）；跑过且为空 = 真的没问题。
+                            visible: checkList.count === 0
+                            text: workbenchWindow.draftCheckResults === null
+                                  ? qsTr("Run a check for concrete suggestions.")
+                                  : qsTr("No issues found.")
                             color: theme.textMuted
                             font.pixelSize: theme.fontSizeCaption
                         }
@@ -2476,6 +2919,87 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
                     onClicked: unsavedDialog.close()
+                }
+            }
+        }
+    }
+
+    // 全部替换的一次确认（规划 03 §三：替换条数要可见，动作不可逆时
+    // 先问一声）。Esc/Cancel 走 ADialog 的 reject。
+    ADialog {
+        id: replaceAllConfirm
+        width: 420
+        titleText: qsTr("Replace all")
+
+        ColumnLayout {
+            width: replaceAllConfirm.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Replace every occurrence of “%1” in the draft?")
+                            .arg(draftFindField.text)
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Replace all")
+                    onClicked: {
+                        replaceAllConfirm.close()
+                        workbenchWindow.doReplaceAll()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: replaceAllConfirm.close()
+                }
+            }
+        }
+    }
+
+    // B3 清空草稿的确认：> 200 字符的内容先问再清（规划 03 §四）。
+    // 双保险之二：clear() 本身是可撤销的编辑动作，Ctrl+Z 也能回。
+    ADialog {
+        id: clearDraftConfirm
+        width: 420
+        titleText: qsTr("Clear the draft")
+
+        ColumnLayout {
+            width: clearDraftConfirm.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Delete the draft text? You can undo it right after with Ctrl+Z.")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Clear")
+                    onClicked: {
+                        clearDraftConfirm.close()
+                        workbenchWindow.doClearDraft()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: clearDraftConfirm.close()
                 }
             }
         }

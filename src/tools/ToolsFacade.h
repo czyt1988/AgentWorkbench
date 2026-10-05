@@ -2,6 +2,7 @@
 #define AWB_TOOLS_TOOLSFACADE_H
 
 #include "core/OpResult.h"
+#include "tools/PromptChecks.h"
 #include "tools/PromptTemplateLibrary.h"
 #include "tools/ToolsStore.h"
 
@@ -97,6 +98,19 @@ public:
     int contextWindowTokens() const;
     // 体检规则开关（Q_PROPERTY 的 READ 侧）
     QStringList disabledCheckIds() const;
+
+    // --- 体检与预算的 QML 入口（M3：纯层经门面供 QML 消费） -----------
+    /// 跑体检（已按 disabledCheckIds 过滤）：[{ruleId, severity, start,
+    /// length, message}]。空文本得到空列表。
+    Q_INVOKABLE QVariantList runChecks(const QString &text) const;
+    /// 一条规则的显示名（英文源串；清单标题用）。
+    Q_INVOKABLE QString checkRuleTitle(const QString &ruleId) const;
+    /// 全部规则 id（稳定顺序——清单顺序用）。
+    Q_INVOKABLE QStringList checkRuleIds() const;
+    /// 估算 token 数（草稿与文件 tab 的状态条共用，E6 同源）。
+    Q_INVOKABLE int estimateTokens(const QString &text) const;
+    /// 预算分级：0 安全 / 1 提醒 / 2 超限（窗口基数取 contextWindowTokens）。
+    Q_INVOKABLE int budgetLevel(int tokens) const;
 
     // 新增工作区：校验目录存在后交给 ToolsStore（MRU + 上限淘汰），并把树根
     // 切到新工作区；失败带可展示的原因。返回类型写全限定名的原因见 .cpp

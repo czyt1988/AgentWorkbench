@@ -639,6 +639,119 @@ private Q_SLOTS:
             QStringLiteral("saveTemplateButton")));
     }
 
+    // --- M3 冒烟 ------------------------------------------------------------
+
+    /// B2：Ctrl+F 在提示词预设开草稿查找条（不是文档搜索条），Esc 关闭。
+    void testDraftFindBarOpensWithCtrlF()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 提示词预设是默认态（loadPage 不开文档）；Ctrl+F。
+        QTest::keyClick(window, Qt::Key_F, Qt::ControlModifier);
+        QQuickItem *const bar = window->findChild<QQuickItem *>(
+            QStringLiteral("draftFindBar"));
+        QVERIFY2(bar, "draftFindBar not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(bar->property("visible").toBool(),
+                                  "Ctrl+F did not reveal the draft find bar",
+                                  4000);
+
+        // Esc 收起。
+        QTest::keyClick(window, Qt::Key_Escape);
+        QTRY_VERIFY2_WITH_TIMEOUT(!bar->property("visible").toBool(),
+                                  "Escape did not close the draft find bar",
+                                  4000);
+    }
+
+    /// B1：一个新格式动作（编号列表）经工具栏真实点击后草稿文本变化。
+    void testNumberedListButtonFormatsDraft()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("step one"));
+
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("numberedButton"));
+        QVERIFY2(button, "numberedButton not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(button->property("enabled").toBool(),
+                                  "numbered-list button never enabled",
+                                  4000);
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("text").toString()
+                .contains(QStringLiteral("1. ")),
+            "numbered-list button did not prefix the line",
+            4000);
+    }
+
+    /// B9 + C4：体检面板在场可触发；预算估算出现在状态条。
+    void testChecksPanelAndBudgetRun()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 草稿打一段「会命中 no-acceptance」的文本（没有任何验收词）。
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("please improve it somehow"));
+
+        // 体检面板与按钮在场（右栏，提示词预设默认可见）。
+        QQuickItem *const panel = window->findChild<QQuickItem *>(
+            QStringLiteral("checksPanel"));
+        QVERIFY2(panel, "checksPanel not found by objectName");
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("checkPromptButton"));
+        QVERIFY2(button, "checkPromptButton not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(panel->property("visible").toBool(),
+                                  "checks panel not visible in prompt preset",
+                                  4000);
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+
+        // 结果列表出现且至少一条命中（这段文本同时命中 vague-wording
+        // 与 no-acceptance）。
+        QObject *const list = window->findChild<QObject *>(
+            QStringLiteral("checkList"));
+        QVERIFY2(list, "checkList not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() > 0,
+                                  "no check findings appeared after a click",
+                                  4000);
+
+        // 预算估算：状态条上的 Label（objectName: draftBudgetLabel）。
+        QQuickItem *const budget = window->findChild<QQuickItem *>(
+            QStringLiteral("draftBudgetLabel"));
+        QVERIFY2(budget, "draftBudgetLabel not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            budget->property("text").toString()
+                .contains(QStringLiteral("token")),
+            "the budget label does not show a token estimate",
+            4000);
+    }
+
 private:
     // 模板列表/收藏列表的第一行视觉行（ObjectModel 驱动的 ListView，
     // 行是模型子项：从列表的可视子项容器里下钻）。
