@@ -80,6 +80,15 @@ public:
     {
         previewed.append(path);
     }
+    // 会话恢复/落盘：窗口 onCompleted 与关窗会调；桩给「无可恢复」的空
+    // 现场，saveMarkdownSession 只吞掉（本套件不测持久化）。
+    Q_INVOKABLE QVariantMap restoreMarkdownSession()
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("restored"), false);
+        return result;
+    }
+    Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
 
 Q_SIGNALS:
     // 真身（WorkbenchContext）有这条信号，窗口的 Connections 监听它；

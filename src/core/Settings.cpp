@@ -209,7 +209,8 @@ const QSet<QString> kPluginsKeys = { QStringLiteral("enabled"),
                                      QStringLiteral("disabledIds") };
 const QSet<QString> kMarkdownKeys = {
     QStringLiteral("mode"), QStringLiteral("fontSizePx"),
-    QStringLiteral("contentWidthPx"), QStringLiteral("showOutline") };
+    QStringLiteral("contentWidthPx"), QStringLiteral("showOutline"),
+    QStringLiteral("autoOpenWorkbench") };
 const QSet<QString> kRootKeys = {
     QStringLiteral("window"), QStringLiteral("appearance"),
     QStringLiteral("locale"), QStringLiteral("launcher"),
@@ -444,6 +445,9 @@ void Settings::load()
     m_markdown.showOutline = readBool(markdown, QStringLiteral("showOutline"),
                                       m_markdown.showOutline,
                                       QStringLiteral("markdown"));
+    m_markdown.autoOpenWorkbench = readBool(
+        markdown, QStringLiteral("autoOpenWorkbench"),
+        m_markdown.autoOpenWorkbench, QStringLiteral("markdown"));
 }
 
 /**
@@ -711,6 +715,17 @@ void Settings::setMarkdownShowOutline(bool show)
 }
 
 /**
+ * @brief 写「启动时自动打开工作台」开关
+ *
+ * @param open true = 启动即开窗（恢复上次的 tab 组）
+ */
+void Settings::setMarkdownAutoOpenWorkbench(bool open)
+{
+    m_markdown.autoOpenWorkbench = open;
+    Q_EMIT valueChanged(QStringLiteral("markdown.autoOpenWorkbench"));
+}
+
+/**
  * @brief 把全部设置写回 settings.json
  *
  * 原子写入（经 JsonStore::writeFile），写入失败记一条警告并把失败
@@ -779,6 +794,8 @@ OpResult Settings::save()
     markdown[QStringLiteral("fontSizePx")] = m_markdown.fontSizePx;
     markdown[QStringLiteral("contentWidthPx")] = m_markdown.contentWidthPx;
     markdown[QStringLiteral("showOutline")] = m_markdown.showOutline;
+    markdown[QStringLiteral("autoOpenWorkbench")] =
+        m_markdown.autoOpenWorkbench;
 
     QJsonObject root;
     root[QStringLiteral("window")] = window;

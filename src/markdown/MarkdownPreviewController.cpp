@@ -444,7 +444,10 @@ void MarkdownPreviewController::setDraftText(const QString &text)
 
 /**
  * @brief 文件会话的 tab 清单
- * @return [{docId, title, dirty, active}]，按打开顺序
+ * @return [{docId, title, path, mode, dirty, active}]，按打开顺序
+ *
+ * path 与 mode 供 workbench 域的会话文件按路径恢复 tab 组（docId 是进程
+ * 内的，跨启动不作数）；界面只读 title/dirty/active 也够了。
  */
 QVariantList MarkdownPreviewController::tabs() const
 {
@@ -453,6 +456,8 @@ QVariantList MarkdownPreviewController::tabs() const
         QVariantMap entry;
         entry.insert(QStringLiteral("docId"), session->docId);
         entry.insert(QStringLiteral("title"), session->document.fileName());
+        entry.insert(QStringLiteral("path"), session->document.path());
+        entry.insert(QStringLiteral("mode"), session->mode);
         entry.insert(QStringLiteral("dirty"), session->document.dirty());
         entry.insert(QStringLiteral("active"), session == m_active);
         result.append(entry);
@@ -903,6 +908,25 @@ void MarkdownPreviewController::setShowOutline(bool show)
 }
 
 /**
+ * @brief 「启动时自动打开工作台」开关
+ * @param open 启动即开窗为真
+ *
+ * 只是设置项的搬运（页面开关 ↔ settings.json），与会话状态无关。
+ */
+void MarkdownPreviewController::setAutoOpenWorkbench(bool open)
+{
+    if (m_autoOpenWorkbench == open) {
+        return;
+    }
+    m_autoOpenWorkbench = open;
+    if (m_settings) {
+        m_settings->setMarkdownAutoOpenWorkbench(open);
+        m_settings->save();
+    }
+    Q_EMIT viewChanged();
+}
+
+/**
  * @brief 让每个会话的 doc.json 载荷缓存失效
  *
  * 字号/栏宽/大纲开关进**每一份**载荷：改了它们，任何会话切回来时页面
@@ -1302,11 +1326,12 @@ void MarkdownPreviewController::persistView(const QString &mode)
     m_settings->setMarkdownFontSizePx(m_fontSizePx);
     m_settings->setMarkdownContentWidthPx(m_contentWidthPx);
     m_settings->setMarkdownShowOutline(m_showOutline);
+    m_settings->setMarkdownAutoOpenWorkbench(m_autoOpenWorkbench);
     m_settings->save();
 }
 
 /**
- * @brief 从设置恢复视图偏好（新会话的三态默认值 + 三项全局偏好）
+ * @brief 从设置恢复视图偏好（新会话的三态默认值 + 全局偏好 + 自动开窗）
  */
 void MarkdownPreviewController::loadView()
 {
@@ -1318,6 +1343,7 @@ void MarkdownPreviewController::loadView()
     m_fontSizePx = markdown.fontSizePx;
     m_contentWidthPx = markdown.contentWidthPx;
     m_showOutline = markdown.showOutline;
+    m_autoOpenWorkbench = markdown.autoOpenWorkbench;
 }
 
 } // namespace awb::markdown

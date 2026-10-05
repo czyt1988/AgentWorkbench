@@ -3,8 +3,10 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QVariantList>
+#include <QVariantMap>
 
 namespace awb::core {
 class Settings;
@@ -25,6 +27,8 @@ class MarkdownPreviewController;
 } // namespace awb::markdown
 
 namespace awb::workbench {
+
+class MarkdownSessionStore;
 
 /// QML 全局 `workbench`：跨域意图与通用动作的唯一入口。
 ///
@@ -89,6 +93,18 @@ public:
     // 是同一扇窗的两条入口：这里不需要预览能力，纯 QML 编辑器照常可用。
     Q_INVOKABLE void openMarkdownWorkbench();
 
+    // --- 会话（E3：关窗重开找回上次的 tab 组） ----------------------------
+    // 恢复上次的现场（tab 组/激活位/每 tab 三态/预设开合）。窗口在本轮应用
+    // 第一次创建时调用一次；返回 {restored, preset, promptLeftOpen,
+    // documentLeftOpen, documentRibbonCollapsed}，restored 为假时窗口按自己
+    // 的初值走。
+    Q_INVOKABLE QVariantMap restoreMarkdownSession();
+    // 把窗口现场写进会话文件（tab 结构/预设/开合变化时调用；tab 组与激活位
+    // 从控制器取，MRU 由本类在每次打开文档时维护）。
+    Q_INVOKABLE void saveMarkdownSession(const QVariantMap &windowState);
+    // 最近文档 MRU（新在前；启动页的「最近文档」列表）。
+    Q_INVOKABLE QStringList recentMarkdownDocuments() const;
+
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void notify(const QString &level, const QString &title,
@@ -117,6 +133,9 @@ public:
     /// 组装层灌进来的预览控制器（main.cpp 在构造后设一次）。没设过 = 本构建
     /// 没有预览能力，previewMarkdown 只报原因、不开窗。
     void setMarkdownPreview(markdown::MarkdownPreviewController *markdown);
+    /// 组装层灌进来的会话存储（main.cpp 在构造后设一次）。没设过 = 不做
+    /// 会话持久化（单测里就是这条路径）。
+    void setMarkdownSessionStore(MarkdownSessionStore *store);
 
 Q_SIGNALS:
     /**
@@ -141,8 +160,15 @@ private:
     core::Settings *m_settings;             ///< 设置（插件开关等）
     markdown::MarkdownPreviewController
         *m_markdown = nullptr;   ///< Markdown 预览（可空：本构建可能没有）
+    MarkdownSessionStore
+        *m_sessionStore = nullptr;  ///< 会话文件读写（可空：单测不持久化）
+    QStringList m_recentDocuments;          ///< 最近文档 MRU（新在前）
     QString m_legacyImportNotice;           ///< 一次性导入提示；正常启动为空串
     QVariantList m_discoveredPlugins;       ///< 发现的插件快照（设置页列表）
+
+    // 把一个路径触进 MRU（打开文档的两条路共用；不落盘，saveMarkdownSession
+    // 时随现场一起写）。
+    void touchRecentDocument(const QString &path);
 };
 
 } // namespace awb::workbench

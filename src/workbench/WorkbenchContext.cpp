@@ -9,8 +9,10 @@
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"
 #include "web/WebTabsFacade.h"
+#include "workbench/MarkdownSessionStore.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 
 namespace awb::workbench {
 
@@ -219,7 +221,10 @@ void WorkbenchContext::previewMarkdown(const QString &path)
             QCoreApplication::translate("WorkbenchContext",
                                         "Cannot preview this file"),
             opened.error);
+        return;
     }
+    // 打开成功即触 MRU：会话文件里「最近文档」的唯一来源。
+    touchRecentDocument(path);
 }
 
 /**
@@ -233,6 +238,142 @@ void WorkbenchContext::previewMarkdown(const QString &path)
 bool WorkbenchContext::canPreviewMarkdown(const QString &path) const
 {
     return m_markdown && m_markdown->canPreviewPath(path);
+}
+
+/**
+ * @brief 恢复上次的 Markdown 工作台现场
+ * @return {restored, preset, promptLeftOpen, documentLeftOpen,
+ *          documentRibbonCollapsed, recent}
+ *
+ * 工作台窗口在本轮应用第一次创建时调用（之后窗口的销毁重建走控制器
+ * 内存里的会话，不需要这里）。逐条按路径重开 tab：文件已不存在的跳过
+ * （记一条日志，不惊动用户——「找回上次开着的」不该因为一个文件被删
+ * 而整组失败）；每条恢复它自己的三态，最后激活记录的激活位。控制器
+ * 的命令队列对 setDocument 只留最新一条，逐个激活的中间命令不会
+ * 到达页面。
+ *
+ * 返回的 preset/开合状态给窗口套用；一个 tab 都没恢复时 restored 为
+ * 假，窗口按自己的初值走。
+ */
+QVariantMap WorkbenchContext::restoreMarkdownSession()
+{
+    QVariantMap result;
+    result.insert(QStringLiteral("restored"), false);
+    if (!m_markdown || !m_sessionStore) {
+        return result;
+    }
+    const MarkdownSessionState state = m_sessionStore->load();
+    if (state.tabs.isEmpty()) {
+        return result;
+    }
+
+    int restoredCount = 0;
+    QString lastDocId;
+    for (const MarkdownSessionState::Tab &tab : state.tabs) {
+        if (!m_markdown->openFile(tab.path)) {
+            qWarning() << "[workbench] session tab skipped (cannot open):"
+                       << tab.path;
+            continue;
+        }
+        ++restoredCount;
+        lastDocId = m_markdown->activeDocId();
+        m_markdown->setMode(tab.mode);
+        // 触 MRU：恢复的也是「打开过的文档」。
+        touchRecentDocument(tab.path);
+    }
+    if (restoredCount == 0) {
+        return result;
+    }
+
+    // 激活位：按恢复后的 tab 顺序找第 activeIndex 个还活着的会话。
+    const QVariantList tabs = m_markdown->tabs();
+    if (state.activeIndex >= 0 && state.activeIndex < tabs.size()) {
+        const QString target = tabs.at(state.activeIndex).toMap()
+                .value(QStringLiteral("docId")).toString();
+        if (!target.isEmpty()) {
+            m_markdown->activateSession(target);
+            lastDocId = target;
+        }
+    }
+    else if (!lastDocId.isEmpty()) {
+        m_markdown->activateSession(lastDocId);
+    }
+
+    result.insert(QStringLiteral("restored"), true);
+    result.insert(QStringLiteral("preset"), state.preset);
+    result.insert(QStringLiteral("promptLeftOpen"), state.promptLeftOpen);
+    result.insert(QStringLiteral("documentLeftOpen"), state.documentLeftOpen);
+    result.insert(QStringLiteral("documentRibbonCollapsed"),
+                  state.documentRibbonCollapsed);
+    result.insert(QStringLiteral("recent"), state.recentDocuments);
+    return result;
+}
+
+/**
+ * @brief 把窗口现场写进会话文件
+ * @param windowState 窗口侧的界面状态（preset、左右栏开合、Ribbon 折叠位）
+ *
+ * tab 组、激活位与三态从控制器取（它的 tabs() 带路径与模式）；MRU 是
+ * 本类在每次打开时维护的内存态。窗口在 tab 结构/预设变化时调用——
+ * 结构类变更立即写盘（E3 的节奏约定）。
+ */
+void WorkbenchContext::saveMarkdownSession(const QVariantMap &windowState)
+{
+    if (!m_sessionStore || !m_markdown) {
+        return;
+    }
+    MarkdownSessionState state;
+    const QVariantList tabs = m_markdown->tabs();
+    int activeIndex = -1;
+    for (int i = 0; i < tabs.size(); ++i) {
+        const QVariantMap tab = tabs.at(i).toMap();
+        MarkdownSessionState::Tab entry;
+        entry.path = tab.value(QStringLiteral("path")).toString();
+        entry.mode = tab.value(QStringLiteral("mode")).toString();
+        if (entry.path.isEmpty()) {
+            continue;
+        }
+        if (tab.value(QStringLiteral("active")).toBool()) {
+            activeIndex = state.tabs.size();
+        }
+        state.tabs.append(entry);
+    }
+    state.activeIndex = activeIndex;
+    state.preset = windowState.value(
+        QStringLiteral("preset"), QStringLiteral("prompt")).toString();
+    if (state.preset != QLatin1String("document")) {
+        state.preset = QStringLiteral("prompt");
+    }
+    state.promptLeftOpen = windowState.value(
+        QStringLiteral("promptLeftOpen"), true).toBool();
+    state.documentLeftOpen = windowState.value(
+        QStringLiteral("documentLeftOpen"), false).toBool();
+    state.documentRibbonCollapsed = windowState.value(
+        QStringLiteral("documentRibbonCollapsed"), true).toBool();
+    state.recentDocuments = m_recentDocuments;
+    m_sessionStore->save(state);
+}
+
+/**
+ * @brief 最近文档列表（启动页用）
+ * @return MRU 路径（新在前；无记录时为空）
+ */
+QStringList WorkbenchContext::recentMarkdownDocuments() const
+{
+    return m_recentDocuments;
+}
+
+/**
+ * @brief 把一个路径触进 MRU 并落一次会话文件
+ * @param path 刚打开的文档路径
+ */
+void WorkbenchContext::touchRecentDocument(const QString &path)
+{
+    if (path.isEmpty()) {
+        return;
+    }
+    m_recentDocuments = MarkdownSessionStore::touchRecent(
+        m_recentDocuments, path);
 }
 
 /**
@@ -257,6 +398,16 @@ void WorkbenchContext::setMarkdownPreview(
     markdown::MarkdownPreviewController *markdown)
 {
     m_markdown = markdown;
+}
+
+/**
+ * @brief 组装层灌进会话存储
+ *
+ * @param store 会话文件读写器；空指针表示本会话不做持久化（测试）
+ */
+void WorkbenchContext::setMarkdownSessionStore(MarkdownSessionStore *store)
+{
+    m_sessionStore = store;
 }
 
 /**

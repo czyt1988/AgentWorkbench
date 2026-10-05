@@ -88,9 +88,8 @@ struct PluginsSettings
     QStringList disabledIds;
 };
 
-/// Markdown 预览窗口的视图偏好。四个键都是「显示」而不是「行为」——窗口
-/// 本身只在 Qt 6 + WebEngine 的构建里存在，这里不放开关，因为一个用户改
-/// 不动、也解释不了为什么改不动的开关不如不给。
+/// Markdown 工作台的视图偏好与会话行为。视图键是「显示」偏好；autoOpen 是
+/// 给重度用户的开关（默认关：启动不为 WebEngine 交税，决策 D-10）。
 struct MarkdownSettings
 {
     /// preview | split | source；非法取值回落 preview
@@ -100,6 +99,8 @@ struct MarkdownSettings
     /// 正文栏宽（像素）；0 = 用内置基准
     int contentWidthPx = 0;
     bool showOutline = true;
+    /// 启动时自动打开工作台窗口（恢复上次的 tab 组）；默认关
+    bool autoOpenWorkbench = false;
 };
 
 /// settings.json 的类型化访问层：应用的其它部分不许直接读这个文件。
@@ -154,6 +155,8 @@ public:
     void setMarkdownFontSizePx(int pixels);
     void setMarkdownContentWidthPx(int pixels);
     void setMarkdownShowOutline(bool show);
+    // 「启动时自动打开工作台」开关（默认关，决策 D-10）
+    void setMarkdownAutoOpenWorkbench(bool open);
 
     // 把整个设置对象持久化（原子写）
     OpResult save();

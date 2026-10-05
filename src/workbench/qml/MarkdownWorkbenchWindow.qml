@@ -337,12 +337,54 @@ ApplicationWindow {
         return allOk
     }
 
+    // 会话落盘：把窗口现场（预设/开合）交给 workbench 合成（tab 组与激活位
+    // 从控制器取）。结构变化立即的「立即」是防抖 800 ms——脏标记翻转也会
+    // 触发 tabsChanged，逐键落盘没必要；关窗走 flushSession() 的不加防抖版。
+    function scheduleSessionSave() {
+        sessionSaveTimer.restart()
+    }
+
+    function flushSession() {
+        sessionSaveTimer.stop()
+        workbench.saveMarkdownSession({
+            "preset": preset,
+            "promptLeftOpen": promptLeftOpen,
+            "documentLeftOpen": documentLeftOpen,
+            "documentRibbonCollapsed": documentRibbonCollapsed
+        })
+    }
+
+    onPresetChanged: scheduleSessionSave()
+    onPromptLeftOpenChanged: scheduleSessionSave()
+    onDocumentLeftOpenChanged: scheduleSessionSave()
+    onDocumentRibbonCollapsedChanged: scheduleSessionSave()
+
+    Timer {
+        id: sessionSaveTimer
+        interval: 800
+        onTriggered: workbenchWindow.flushSession()
+    }
+
     // 开窗即向控制器报到：从此它才往外排命令（窗口不在时命令一律不排）。
     // 草稿会话在这里灌进初始正文——之后每敲一键经防抖器增量喂给它。
+    // 本轮应用的第一次开窗顺带恢复上次的 tab 组（E3）：之后窗口的销毁
+    // 重建走控制器内存里的会话，不需要再恢复。
     Component.onCompleted: {
         markdown.notifyWindowOpened()
         markdown.setDraftText(tools.draft)
-        applyPreset(initialPreset)
+        var restored = null
+        if (markdown.tabs.length === 0)
+            restored = workbench.restoreMarkdownSession()
+        if (restored && restored.restored) {
+            promptLeftOpen = restored.promptLeftOpen
+            documentLeftOpen = restored.documentLeftOpen
+            documentRibbonCollapsed = restored.documentRibbonCollapsed
+            applyPreset(restored.preset === "document" ? "document"
+                                                       : "prompt")
+        }
+        else {
+            applyPreset(initialPreset)
+        }
         if (!markdown.canEdit && markdown.mode === "source")
             markdown.setMode("preview")
     }
@@ -361,6 +403,8 @@ ApplicationWindow {
     onClosing: function (close) {
         if (closeApproved || dirtyFileTabs.length === 0) {
             closeApproved = false
+            // 最后一次现场落盘（不加防抖：进程可能马上就没了）。
+            flushSession()
             // 关窗必须报到：QML 的 Window 关掉只是藏起来，对象还活着。不报
             // 的话 `markdown.active` 永远为真，主窗那个 Loader 的 active 不会
             // 翻转，第二次请求就只剩一次 raise 打在一扇已经隐藏的窗上。
@@ -1539,6 +1583,14 @@ ApplicationWindow {
         function onActiveSessionChanged() {
             if (!markdown.draftActive)
                 workbenchWindow.lastFileDocId = markdown.activeDocId
+            // 激活位是会话文件的一部分，切换即排队落盘。
+            workbenchWindow.scheduleSessionSave()
+        }
+
+        // tab 结构/脏标记/标题变化：统一走防抖落盘（脏标记的逐键翻转被
+        // 800 ms 收敛成编辑间歇的一次写）。
+        function onTabsChanged() {
+            workbenchWindow.scheduleSessionSave()
         }
 
         // 整篇换了（换 tab、重载、接受外部改动、草稿改写）：文件源码区的

@@ -83,6 +83,9 @@ class MarkdownPreviewController : public QObject
                    NOTIFY viewChanged)
     Q_PROPERTY(bool showOutline READ showOutline WRITE setShowOutline
                    NOTIFY viewChanged)
+    /// 启动时自动打开工作台窗口（重度用户开关，默认关）
+    Q_PROPERTY(bool autoOpenWorkbench READ autoOpenWorkbench
+                   WRITE setAutoOpenWorkbench NOTIFY viewChanged)
     Q_PROPERTY(QVariantList outline READ outline NOTIFY outlineChanged)
     /// 文档字节数（状态栏显示）
     Q_PROPERTY(qint64 byteSize READ byteSize NOTIFY documentChanged)
@@ -139,6 +142,8 @@ public:
     Q_INVOKABLE void setFontSizePx(int pixels);
     Q_INVOKABLE void setContentWidthPx(int pixels);
     Q_INVOKABLE void setShowOutline(bool show);
+    Q_INVOKABLE void setAutoOpenWorkbench(bool open);
+    bool autoOpenWorkbench() const { return m_autoOpenWorkbench; }
 
     /// 预览页面的地址（awbmd://runtime/app/shell.html）。视图只经它拿 URL：
     /// scheme 名、host、资源前缀三处拼一次的地方多了，就会有一处拼错而页面
@@ -322,6 +327,7 @@ private:
     int m_fontSizePx = 0;          ///< 0 = 用主题基准
     int m_contentWidthPx = 0;      ///< 0 = 用主题基准
     bool m_showOutline = true;     ///< 大纲侧栏开关
+    bool m_autoOpenWorkbench = false;  ///< 启动即开工作台（settings 那份）
 };
 
 } // namespace awb::markdown

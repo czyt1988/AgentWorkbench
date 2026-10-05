@@ -21,6 +21,7 @@
 #include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/BuiltinPages.h"
+#include "workbench/MarkdownSessionStore.h"
 #include "workbench/PluginServices.h"
 #include "workbench/EnvironmentService.h"
 #include "workbench/WorkbenchContext.h"
@@ -241,6 +242,12 @@ int main(int argc, char *argv[])
     // 所以这里无条件设；能力有没有由它的 available 决定（provider 没构造时
     // 恒为假），不在接线处再判一次编译期开关。
     workbench.setMarkdownPreview(&markdownPreview);
+    // 会话文件（markdown_session.json）：E3 的关窗重开恢复。与控制器同一条
+    // 纪律——每个构建都接，窗口在提示词模式下照样恢复（tab 条只在没有
+    // 预览能力的构建里点不开，那一条路在控制器里被拒并有 toast）。
+    awb::workbench::MarkdownSessionStore markdownSessionStore(
+        awb::core::Paths::dataRoot());
+    workbench.setMarkdownSessionStore(&markdownSessionStore);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
     // 插件：manifest 总是发现（设置页列表要用），库只在用户开启总开关后
@@ -398,6 +405,13 @@ int main(int argc, char *argv[])
                          app.setQuitOnLastWindowClosed(!tray.available());
                      });
     app.setQuitOnLastWindowClosed(!tray.available());
+
+    // 「启动时自动打开工作台」（默认关，决策 D-10）：重度的写手开应用就
+    // 是要写。放在引擎装载成功之后发意图——MainWindow 的 Connections
+    // 已经在场，窗口的创建/恢复走的是用户点击的同一条路。
+    if (settings.markdownOptions().autoOpenWorkbench) {
+        Q_EMIT workbench.markdownWorkbenchRequested();
+    }
 
     // 单实例的另一半：第二实例 sendMessage 后从这里把窗口唤回前台——
     // 窗口正收在托盘里时也一并解除隐藏。

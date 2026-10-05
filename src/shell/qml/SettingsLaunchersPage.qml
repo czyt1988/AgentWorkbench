@@ -175,6 +175,25 @@ Item {
                     onToggled: shell.singleInstance = checked
                 }
             }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingM
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Open the Markdown workbench on startup")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeBody
+                }
+                Switch {
+                    checked: markdown.autoOpenWorkbench
+                    onToggled: markdown.autoOpenWorkbench = checked
+                }
+            }
+
             // singleInstance 只在启动时被读一次（实例守卫在界面装配之前
             // 就已经判定），改完要到下次启动才生效。
             Label {
