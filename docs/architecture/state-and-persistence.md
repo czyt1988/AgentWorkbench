@@ -37,9 +37,9 @@ make the "untouched root" check fail forever.
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
 | `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view and its startup behaviour | `core::Settings` — the only entry point |
-| `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, prompt draft, window interface state, and the favorites (finished prompts, max 50) | `ToolsStore` via `ToolsFacade` |
+| `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, the drafts (up to 20, refused beyond — never silently dropped), each draft's version snapshots, the crash recovery copy, window interface state, and the favorites (finished prompts, max 50) | `ToolsStore` via `ToolsFacade` |
 | `prompt_templates/` | you | user prompt templates — one Markdown file each, with a minimal header; a file sharing a built-in's `id` overrides it | `PromptTemplateLibrary` (read/merge), hand-edited at will |
-| `markdown_session.json` | Markdown workbench | the workbench window's last scene: open tabs (paths + view modes), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths only, no document content** | `MarkdownSessionStore` via `WorkbenchContext` |
+| `markdown_session.json` | Markdown workbench | the workbench window's last scene: open tabs (file paths or draft ids, each with its view mode), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths and draft ids only, no content** | `MarkdownSessionStore` via `WorkbenchContext` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
 | `file_icons.json` | you | icon-table overrides / additions | `FileIcons` (via `FileTreeModel`) |
@@ -65,13 +65,13 @@ user chose or paid for; everything else is rebuilt from scratch.
 | Captured session URL (`m_sessionUrls`) | memory | dropped when the process stops |
 | Agent running / installed / version / console output (`AgentState`) | memory (except `setupDone`) | until app exit or the next health check |
 | `WebTab` state, load progress, zoom, LRU timestamp | memory | until the tab is closed or the app exits |
-| Markdown workbench sessions — open documents, per-tab modes, dirty flags, block hash tables, asset cache (`MarkdownPreviewController`) | memory | until the tab is closed or the app exits; **closing the window keeps them** (reopening restores from memory, unsaved edits included) |
+| Markdown workbench sessions — open documents and drafts, per-tab modes, dirty flags, block hash tables, asset cache (`MarkdownPreviewController`) | memory | until the tab is closed or the app exits; **closing the window keeps them** (reopening restores from memory, unsaved edits included); **closing a draft's tab does not delete the draft** — only deleting a draft does |
 | The recent-documents MRU | memory (`WorkbenchContext`), persisted through the session file | across restarts |
 | Purely visual state (expanded rows, current filter …) | memory | until the view is destroyed |
 | Agent definitions | `agents.json` | across restarts |
 | Application settings, including the last sidebar page | `settings.json` | across restarts |
 | One-time setup completion | `agent_state.json` | across restarts |
-| Workspace memory, prompt draft and favorites | `tools.json` | across restarts |
+| Workspace memory, drafts (with their version snapshots), favorites and the crash recovery copy | `tools.json` | across restarts |
 | User prompt templates | `prompt_templates/` | across restarts |
 | Markdown workbench view choices and startup behaviour | `settings.json` (`markdown.*`) | across restarts |
 | Markdown workbench tab group, active tab, preset and panel states | `markdown_session.json` | across restarts (until the next write) |

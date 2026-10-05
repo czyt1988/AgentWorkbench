@@ -24,17 +24,18 @@ While the window is open, each shape remembers its own settings — collapse som
 
 ## Tabs: several documents at once
 
-The strip above the middle area holds one tab per open document, with a small dot on any tab that has **unsaved changes**. Click a tab to switch to it; click its × to close it — **closing a tab closes the view, never the file**: the document stays on disk, and opening it again is one click (or one double-click in the file tree).
+The strip above the middle area holds one tab per open document **and one per draft**, with a small dot on any tab that has **unsaved changes**. Click a tab to switch to it; click its × to close it — **closing a tab closes the view, never the content**: the document stays on disk and the draft stays in the app's storage, and opening either again is one click.
 
 - Up to eight documents can be open at once. Opening a ninth tells you to close a tab first — nothing is closed behind your back.
 - Opening the same file twice does not open a second tab; it activates the one already there, edits included.
 - Each tab remembers its own **Preview / Split / Source** setting; switching tabs switches you to that tab's view.
+- Draft tabs mix in with document tabs; see [Drafts: several at once](#drafts-several-at-once).
 
 ## The ribbon
 
 The ribbon is the band of buttons across the top of the window. Its tabs are:
 
-- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the window — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, and the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
+- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the window — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
 - **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote, **Check Prompt** reviews the draft (see [Prompt checks](#prompt-checks)). See the next two sections.
 - **View** — what you see and how: the **Preview / Split / Source** switch and the outline toggle, **Full Tools** (flip between the two shapes), **Collapse** (fold the whole band away), **Style** (one, two or three button rows), and **Follow Theme** (whether the band's colours track the app's theme).
 
@@ -49,11 +50,30 @@ The ribbon is the band of buttons across the top of the window. Its tabs are:
 3. Bring in files from the tree: **drag a file row into the editor**, or **double-click a file row**. This inserts a reference to that file, written as `` `./relative/path` ``, at the cursor.
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
-**Your draft is saved automatically.** Close the app, reopen it, and your text is still there.
+**Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there.
 
 The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions.
 
 The draft has a rendered view too, like any document — use the **Preview / Split / Source** buttons above it. **Split** is the natural way to write a long prompt: the text on the left, the rendered result on the right.
+
+## Drafts: several at once
+
+You are not limited to one prompt-in-progress. **New Draft** (the **Start** tab of the ribbon, or the toolbar's plus button) starts a fresh draft in a new tab; the previous one stays in its own tab, text and all. Switch drafts by clicking their tabs — each draft keeps its own undo history, so undo never reaches into a draft you were writing before.
+
+- **Rename** a draft from the **Start** tab; the title shows in the tab.
+- **Duplicate** copies the current draft and switches to the copy — a "keep this version" move.
+- **Delete** asks first and cannot be undone: the draft's text, its saved versions and its crash-recovery copy all go together.
+- **Closing a draft's tab is not deleting it**: the draft lives in the app's own storage and comes back when you open it again.
+
+**From a document:** **From Document** (the **Start** tab, enabled while a document tab is open) takes the document's text as a new draft and switches you to the prompt form. It is one-way — the draft is yours to edit, and saving it never writes back into the original file.
+
+## Versions and recovery
+
+While you write, the app quietly keeps versions of each draft — when you copy it, clear it, replace it, or switch to another draft. **Save version** (the **Start** tab) marks one by hand.
+
+The **History** panel on the right lists the current draft's versions, newest first, with the reason each was taken. **Click a version to roll back to it.** A confirmation dialog explains that your current text is saved as a version first, so rolling back never loses anything.
+
+If the app closes unexpectedly, the next start asks once whether to **Restore** the draft text from that session (it becomes a new draft) or **Discard** it.
 
 ## Templates: starting from a skeleton
 
@@ -160,7 +180,7 @@ A file can be read-only for three reasons, and the status line names the one tha
 
 Close the window and open it again later **in the same app run**, and everything is as you left it: the same tabs, the same active one, unsaved edits included. Only closing a tab or restarting the app clears anything.
 
-**Restarting brings the tabs back.** The app remembers which documents were open, which tab was active, and each tab's view setting; reopening the workbench window after a restart restores them. A document whose file has since been moved or deleted is simply skipped — the rest still come back. The remembered shapes (full or compact, panels folded or not) come back too.
+**Restarting brings the tabs back.** The app remembers which documents and drafts were open, which tab was active, and each tab's view setting; reopening the workbench window after a restart restores them. A document whose file has since been moved or deleted — or a draft that was deleted — is simply skipped; the rest still come back. The remembered shapes (full or compact, panels folded or not) come back too.
 
 **The app does not open this window by itself at startup** — the start of the app stays fast and quiet. If you want the workbench (with its last tabs) already open when the app starts, turn on **Open the Markdown workbench on startup** in [Settings → Launchers](settings.md).
 

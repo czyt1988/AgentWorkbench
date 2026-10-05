@@ -98,14 +98,19 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 Markdown 工作台的提示词一侧，除了 `settings.json` 还有两样东西：
 
 - **`tools.json`**（在应用的数据目录里）装着工作区 MRU 列表、当前工作区、
-  提示词草稿、Ribbon 偏好和**收藏夹**——为复用而存的成稿提示词，一个
-  `{title, body, tags, createdAt}` 的数组，新在前，上限 50 条（超出淘汰
-  最旧）——外加两段值得手工认识的：**`editor`**（`findCaseSensitive`，
-  默认 `false`；`findWholeWords`，默认 `false`；`contextWindowTokens`，
-  默认 `32000`，夹在 1000–1000000——状态行里 token 估算对着的大
-  小基准）与 **`checks`**（`disabled`，被体检面板要求不再显示的规则 id
-  列表；把某条 id 从列表里删掉，那类建议就回来）。文件里其余内容都由
-  应用写入。
+  **草稿集**——一个 `{id, title, body, workspace, createdAt, updatedAt}`
+  的数组，上限 20 条（第 21 条会被拒绝，绝不悄悄丢）；`id` 是 tab 条与
+  会话文件指向的地址，**不要手改**——**快照集**（版本历史：一个
+  `{draftId, body, reason, createdAt}` 的数组，每草稿新在前、超上限从
+  最旧淘汰）、崩溃恢复副本 **`recovery`**（`{draftId, body}`，编辑期
+  写、正常退出清、崩溃后问一次）、Ribbon 偏好和**收藏夹**——为复用
+  而存的成稿提示词，一个 `{title, body, tags, createdAt}` 的数组，
+  新在前，上限 50 条（超出淘汰最旧）——以及两段值得手工认识的：
+  **`editor`**（`findCaseSensitive`，默认 `false`；`findWholeWords`，
+  默认 `false`；`contextWindowTokens`，默认 `32000`，夹在 1000–1000000
+  ——状态行里 token 估算对着的大小基准）与 **`checks`**（`disabled`，
+  被体检面板要求不再显示的规则 id 列表；把某条 id 从列表里删掉，那类
+  建议就回来）。文件里其余内容都由应用写入。
 - **`prompt_templates/`**（应用数据目录下的一个文件夹）装着用户模板，
   **一模板一文件**。这些是你的：用任何文本编辑器改、备份、进 git、或直接
   拷给同事。文件是带一个最小头部的 Markdown——一行 `---`、几行

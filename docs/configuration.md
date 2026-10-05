@@ -139,16 +139,25 @@ The prompt side of the Markdown workbench keeps two things beside
 `settings.json`:
 
 - **`tools.json`** (in the app's data directory) holds the workspace MRU
-  list, the current workspace, the prompt draft, the ribbon preferences,
-  the **favorites** — finished prompts saved for reuse, an array of
-  `{title, body, tags, createdAt}`, newest first, capped at 50 (the oldest
-  is evicted) — and two sections worth knowing by hand: **`editor`**
-  (`findCaseSensitive`, default `false`; `findWholeWords`, default `false`;
-  `contextWindowTokens`, default `32000`, clamped to 1000–1000000 — the
-  base the token estimate in the status line is measured against) and
-  **`checks`** (`disabled`, a list of rule ids the checks panel has been
-  told to stop showing; remove a rule's id to bring its advice back).
-  Everything else in the file is written by the app.
+  list, the current workspace, the **drafts** — an array of
+  `{id, title, body, workspace, createdAt, updatedAt}`, capped at 20
+  (a twenty-first is refused, never silently dropped); the `id` values
+  are addresses the tab strip and the session file point at, so do not
+  edit them — plus the **snapshots** (version history: an array of
+  `{draftId, body, reason, createdAt}`, kept newest-first per draft,
+  with the oldest evicted past the per-draft cap) and the crash
+  **`recovery`** copy (`{draftId, body}`, written while you edit, cleared
+  on a clean exit, asked about once after a crash), the ribbon
+  preferences, the **favorites** — finished prompts saved for reuse, an
+  array of `{title, body, tags, createdAt}`, newest first, capped at 50
+  (the oldest is evicted) — and two sections worth knowing by hand:
+  **`editor`** (`findCaseSensitive`, default `false`; `findWholeWords`,
+  default `false`; `contextWindowTokens`, default `32000`, clamped to
+  1000–1000000 — the base the token estimate in the status line is
+  measured against) and **`checks`** (`disabled`, a list of rule ids the
+  checks panel has been told to stop showing; remove a rule's id to
+  bring its advice back). Everything else in the file is written by the
+  app.
 - **`prompt_templates/`** (a folder in the app's data directory) holds user
   templates, **one file per template**. These are yours: edit them with any
   text editor, back them up, put them in git, or copy one to a colleague. The

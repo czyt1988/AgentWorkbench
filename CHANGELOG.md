@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Multiple drafts**: the prompt side of the workbench now holds **a set of
+  drafts, not one** — each in its own tab (draft tabs mix with document
+  tabs), each with its own undo history, all auto-saved. **New Draft**,
+  **Rename**, **Duplicate** and confirmed, not-undoable **Delete** live on
+  the Start tab; closing a draft's tab keeps the draft (only Delete
+  deletes). Up to twenty; a twenty-first is refused, never silently
+  dropped. **From Document** turns the open document's text into a new
+  draft — one-way, the draft never writes back into the file.
+- **Draft versions and rollback**: the app quietly snapshots each draft
+  when you copy, clear, replace or switch away from it; **Save version**
+  marks one by hand. The **History** panel lists them (with the reason
+  each was taken) and clicking one rolls back — your current text is
+  saved as a version first, so rolling back never loses anything.
+- **Crash recovery**: if the app closes unexpectedly, the next start
+  offers to restore the draft text from that session as a new draft, or
+  discard it. Asked once, then the copy is gone.
 - **Formatting tools**: the workbench window's **Start** tab grows the full
   Markdown toolbar — **Bold**, **Italic**, **Strike** and **Code** (each
   showing what is true at the cursor), **Link**, headings 1–3, bullet,

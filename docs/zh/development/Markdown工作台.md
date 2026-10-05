@@ -118,20 +118,20 @@ sequenceDiagram
 
 ## 文件 tab 条
 
-中间区顶部那条渲染 `markdown.tabs`：一个文件会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则）。右侧依次是视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单——按当前能力出场，而切换器如今**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线。
+中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则）。右侧依次是视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单——按当前能力出场，而切换器如今**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线。
 
-窗口把预设与会话耦合：提示词预设激活草稿会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
+草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。窗口把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
 
 ## 会话持久化（跨启动）
 
 `markdown_session.json`（`MarkdownSessionStore`，workbench 域——会话状态横跨 tools 与 markdown 两个域，只有 L3 可以拥有它）跨启动记住现场：
 
-- tab 组：每个 tab 的**路径**与**三态**（不含正文——文件从磁盘重读）；
+- tab 组：每个 tab 的**路径**（文件 tab）或 **draftId**（草稿 tab），各带自己的**三态**（不含正文——文件从磁盘重读、草稿从 `tools.json` 重读）；
 - 激活 tab 下标；
 - 预设与每预设的面板/Ribbon 折叠状态；
 - 最近文档 MRU（20 条），每次成功打开都会触碰。
 
-恢复只发生一次：本轮应用第一次创建窗口时（之后的销毁重建走控制器内存里的会话）——`WorkbenchContext::restoreMarkdownSession()` 按顺序逐条重开路径（已不存在的文件跳过并记一条日志，绝不让整组恢复失败），套用每个 tab 记录的三态，最后激活记录的激活位。写盘在 tab/激活/预设/面板变化后防抖 800 ms（脏标记的翻转搭同一趟防抖；逐键持久化买不到任何东西），关窗时再加一次不防抖的 flush。损坏的文件整体作废、记一条警告：布局状态不值得抢救。隐私口径是刻意的——只有本地路径、无正文、不加密、不清理：「找回上次开着的」就是全部语义。
+恢复只发生一次：本轮应用第一次创建窗口时（之后的销毁重建走控制器内存里的会话）——`WorkbenchContext::restoreMarkdownSession()` 按顺序逐条重开（已不存在的文件、或已删除的草稿跳过并记一条日志，绝不让整组恢复失败），套用每个 tab 记录的三态，最后激活记录的激活位。草稿 tab 的标题与正文来自 tools 域，`WorkbenchContext::setToolsFacade()` 就是那条缝（装配层是唯一同时看得见两个域的层——域模块互不 include；单测里门面缺席，草稿 tab 干脆跳过）。写盘在 tab/激活/预设/面板变化后防抖 800 ms（脏标记的翻转搭同一趟防抖；逐键持久化买不到任何东西），关窗时再加一次不防抖的 flush。损坏的文件整体作废、记一条警告：布局状态不值得抢救。隐私口径是刻意的——只有本地路径与草稿 id、无正文、不加密、不清理：「找回上次开着的」就是全部语义。
 
 **启动页**显示 MRU 的前 6 条（文件名 + 父目录，点一下开成 tab），`WorkbenchContext::recentMarkdownDocuments()` 是它唯一的数据源。
 
@@ -144,6 +144,24 @@ sequenceDiagram
 3. **设置页动作。** **关联 .md 文件**（启动器分区）只写 HKCU：ProgId `AgentWorkbench.Markdown.1` 的 `shell\open\command` 指向当前可执行文件，并在 `.md` 与 `.markdown` 的 `OpenWithProgids` 里登记。**绝不碰 UserChoice**——Win10+ 的默认应用选择有签名保护，静默抢默认既不可靠也不礼貌；目标是出现在「打开方式」列表里，默认应用由用户在系统设置里选，界面文案说的就是这句话。注册表被策略挡住时如实报错。卸载不清理这些键（残留无害，Windows 惯例）。
 
 在资源管理器里双击文件启动的是**完整应用**——外壳、侧栏、引擎——不是秒开的查看器；这是刻意的决策，诚实的代价就是启动时间。无预览能力的构建整个隐藏关联入口（登记一个只会报错的条目，比不提供更糟）。
+
+## 草稿：多条并行
+
+M4 把单草稿变成一组。`tools.json` 多出三个键（全部纯增量——旧 `draft` 键照旧可读：M3 时代的文件升级成一条草稿、正文原封不动，这就是兼容红线）：
+
+- **`drafts`**——`[{id, title, body, workspace, createdAt, updatedAt}]`，上限 20。满了**拒绝**而不是静默淘汰：草稿是用户资产，砍谁的轮不到程序决定。id 形如 `d%1` 且**不许手改**——它是会话文件与 tab 条的寻址地址。
+- **`snapshots`**——`[{draftId, body, reason, createdAt, charCount}]`，每草稿新在前、有上限（超限从最旧开始淘汰）。六种 reason：`copy`、`clear`、`replace`、`switch`、`manual`、`rollback`。
+- **`recovery`**——`{draftId, body}`：崩溃恢复副本。编辑期降频写、正常退出清、下次启动问一次（「恢复成新草稿 / 丢弃」）。
+
+控制器**每草稿一个会话**（`openDraftSession(draftId, title, body)` 幂等；`closeDraftSession`、`setDraftTitle`、`setDraftText(draftId, …)`），于是草稿走与文件同一条渲染管线，草稿 tab 在条上的行为与文件 tab 完全一致。关草稿 tab 的顺位：最近的草稿 → 最后打开的文件会话 → 空态。
+
+**docId 命名空间。** 文件会话是 `f%1`，草稿沿用 tools 域的 `d%1`。两个域各自数各自的序号，同前缀必然撞名——M4 装配时真的撞了：文件 `d1` 与草稿 `d1` 并存，`isDraftId()` 按字符串判定，文件会话被误判成草稿、预设切换把草稿顶回活跃位。id 是 tab、激活与 asset 路由的公共地址；撞名就是串会话。
+
+**回滚。** `rollbackToSnapshot(id, createdAt)` 返回 `{ok, body, error}`——不是 `OpResult`，它的 `Q_GADGET` 属性表只有 `ok`/`error`。QML 侧需要 body 来换编辑器正文；gadget 带不了它，`result.body` 是 undefined、编辑器静默不动。当前版在替换**之前**先存成 `rollback` 快照——两头都有退路。
+
+**切换在边界冲缓冲。** 500 ms 编辑防抖缓冲在 `m_draft` 里；任何替换活跃草稿的路径（`createDraft`、`duplicateDraft`、`recoverToNewDraft`）都要先把缓冲冲进**旧**草稿、再把 id 缓存挪过去——顺序反了会把新草稿的空体写进旧草稿的 id。撤销栈不共享：切换时编辑器 text 重置，undo 历史各自为政。
+
+窗口层补动作：`newDraft`、`newDraftFromDocument`（E4——文档文本成稿，单向；草稿永不写回文件）、`rename` / `duplicate` / `delete`（delete 要确认且不可撤销——历史与恢复副本一起走）、`closeCurrentDraftTab`、`switchDraftTo`（切走前给源草稿存一版）、`saveDraftVersion`，以及确认弹窗后的 `rollbackDraftVersion`。Ribbon 的草稿 Panel 放**开始**页——E4 只在文档预设下有意义，而开始页两种预设都在场。右栏「历史」面板列出当前草稿的快照并提供回滚。
 
 ## 模板与收藏
 
