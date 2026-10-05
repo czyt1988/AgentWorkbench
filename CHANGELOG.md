@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Formatting tools**: the workbench window's **Start** tab grows the full
+  Markdown toolbar — **Bold**, **Italic**, **Strike** and **Code** (each
+  showing what is true at the cursor), **Link**, headings 1–3, bullet,
+  numbered and task lists, quote, divider, fenced code blocks with a
+  language menu, and table skeletons. Every action is one undo step, and
+  the buttons work in document tabs' source editor too, not just prompts.
+- **Find and replace in the prompt**: `Ctrl+F` (or **Find** on the Start
+  tab) slides a find bar in above the draft editor — next / previous,
+  replace one and move on, replace all (with a count and one undo step),
+  plus case-sensitive and whole-word toggles that stick between sessions.
+  In document tabs `Ctrl+F` keeps opening the page search, as before.
+- **Prompt checks**: the new **Checks** panel reviews the draft against
+  ten common-prompt rules — vague wording, missing acceptance criteria,
+  Windows-style paths, unfilled `{{placeholders}}`, smart quotes and more —
+  and lists the findings as clickable suggestions that jump to the right
+  place in the editor. No score, just a list. Any rule can be turned off
+  from its finding's × and stays off.
+- **Token estimate**: the status line shows `~N tokens (estimated)` for
+  the draft (and the same kind of number for an open document) with a
+  colour that shifts at a quarter and three fifths of the context window —
+  an explicitly rough estimate, never a tokenizer promise. The window size
+  base is 32000 tokens by default, editable in the app's `tools.json`.
 - **Prompt templates**: the workbench window's left panel gains a
   **Templates** section — a searchable shelf of prompt skeletons. Ten ship
   built in (bug report, feature request, test plan, code review, refactor,

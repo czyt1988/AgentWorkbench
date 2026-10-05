@@ -100,7 +100,12 @@ Markdown 工作台的提示词一侧，除了 `settings.json` 还有两样东西
 - **`tools.json`**（在应用的数据目录里）装着工作区 MRU 列表、当前工作区、
   提示词草稿、Ribbon 偏好和**收藏夹**——为复用而存的成稿提示词，一个
   `{title, body, tags, createdAt}` 的数组，新在前，上限 50 条（超出淘汰
-  最旧）。这些全由应用写入；这里没有需要你手工编辑的东西。
+  最旧）——外加两段值得手工认识的：**`editor`**（`findCaseSensitive`，
+  默认 `false`；`findWholeWords`，默认 `false`；`contextWindowTokens`，
+  默认 `32000`，夹在 1000–1000000——状态行里 token 估算对着的大
+  小基准）与 **`checks`**（`disabled`，被体检面板要求不再显示的规则 id
+  列表；把某条 id 从列表里删掉，那类建议就回来）。文件里其余内容都由
+  应用写入。
 - **`prompt_templates/`**（应用数据目录下的一个文件夹）装着用户模板，
   **一模板一文件**。这些是你的：用任何文本编辑器改、备份、进 git、或直接
   拷给同事。文件是带一个最小头部的 Markdown——一行 `---`、几行

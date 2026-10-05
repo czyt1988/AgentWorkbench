@@ -34,8 +34,8 @@ The strip above the middle area holds one tab per open document, with a small do
 
 The ribbon is the band of buttons across the top of the window. Its tabs are:
 
-- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the window — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, and the formatting buttons **Bold**, **Code** and **Bullets**. While a document tab is active, this tab also has **Find** and **Save**.
-- **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote. See the next two sections.
+- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the window — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, and the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
+- **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote, **Check Prompt** reviews the draft (see [Prompt checks](#prompt-checks)). See the next two sections.
 - **View** — what you see and how: the **Preview / Split / Source** switch and the outline toggle, **Full Tools** (flip between the two shapes), **Collapse** (fold the whole band away), **Style** (one, two or three button rows), and **Follow Theme** (whether the band's colours track the app's theme).
 
 - **Folding.** The ribbon can be folded down to its row of tab names to give the document more room — click the row to unfold it again. The compact shape starts folded.
@@ -45,7 +45,7 @@ The ribbon is the band of buttons across the top of the window. Its tabs are:
 ## Writing a prompt
 
 1. Pick a folder from the workspace menu at the top of the file tree, or click the **folder button** (tooltip **Choose a workspace folder**) beside it to add one.
-2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom of the window keeps count of your characters and lines.
+2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom of the window keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
 3. Bring in files from the tree: **drag a file row into the editor**, or **double-click a file row**. This inserts a reference to that file, written as `` `./relative/path` ``, at the cursor.
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
@@ -77,6 +77,44 @@ Templates are skeletons with holes to fill; **favorites** are complete prompts y
 
 **Which one is which?** If you find yourself deleting the placeholders every time, it is a favorite pretending to be a template. If you fill in the blanks every time, it is a template. The two panels keep them apart so the click does the right thing without asking.
 
+## Formatting tools
+
+The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Strike** and **Code** (these four light up to show what is already true at the cursor — click to toggle), **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** (a code block, with a menu of common languages) and **Table**.
+
+- Everything is **one undo step**: press `Ctrl+Z` right after any of them and the whole change reverts.
+- Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`.
+- In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
+
+The only keyboard shortcuts the window adds are `Ctrl+F` (find — see the next section) and `Esc` (close the find bar). Everything else is a button.
+
+## Finding and replacing
+
+**In the prompt**, press `Ctrl+F` or click **Find** on the **Start** tab: a find bar slides in above the editor. Type what you are looking for; **Next** jumps to a match and selects it (a toast tells you when the search has wrapped back to the start), **Replace** swaps the current match and moves to the next one, **All** asks once and then swaps every match, telling you how many it replaced.
+
+- **Aa** makes the search case-sensitive; **Whole** matches whole words only. The two settings stick between sessions.
+- One undo step reverts an entire **All** sweep.
+- `Esc` closes the bar.
+- **In a document tab**, `Ctrl+F` finds in the rendered page instead (see [Finding text in the document](#finding-text-in-the-document)). The two are different searches for different things: the prompt one searches your draft text, the document one searches the rendered page.
+
+## Prompt checks
+
+The **Checks** panel on the right (while the prompt is showing) reviews the draft and returns a list of suggestions — never a score. Click **Check** (or **Check Prompt** on the **Prompt tools** tab) to run it.
+
+- Every finding is one line with a coloured dot: grey for a hint, yellow for a caution, red for a warning.
+- **Click a finding** and the editor jumps to the place it is about, selecting the relevant text (findings about the whole prompt, like a missing acceptance line, have nowhere to jump).
+- **Tired of one kind of advice?** The × on a finding's row turns that rule off, everywhere, permanently — the list re-runs and that class of suggestion disappears. (There is no settings screen for turning rules back on yet: the list lives in the app's `tools.json` file, in the `checks` section.)
+- What it looks for: vague wording, a prompt that only asks questions, no acceptance criteria, Windows-style paths that should be `./like/this`, no tech stack or files named, a context budget risk, no structure in a long prompt, `{{placeholders}}` left unfilled, trailing whitespace, and smart quotes that break command lines.
+
+## The token estimate
+
+The status line at the bottom shows `~1,240 tokens (estimated)` for the draft (and the same kind of number for an open document). **This is an estimate** — a rough measure of how much context the agent will read, not a promise that matches any model's exact tokenizer. Treat it as a magnitude: a few hundred is small, tens of thousands is a lot.
+
+- The colour follows the size: neutral when small, warning-coloured at a quarter of the context window, danger-coloured above three fifths.
+- The window size the estimate is measured against is 32000 tokens by default. It can be changed in the app's `tools.json` file, in the `editor` section (the `contextWindowTokens` value) — there is no settings screen for it yet.
+- Hovering the number in the draft explains what it is measured against.
+
+**Clearing the whole draft** (the **Clear** button on the **Start** tab, prompt shape only) always asks first, and `Ctrl+Z` brings the text back even after you confirm.
+
 ## The three views
 
 The buttons on the strip above the middle switch what it shows — for the draft or for the active document tab:
@@ -94,7 +132,7 @@ The strip above the middle carries the reading controls: the **Preview / Split /
 - **Outline.** The panel on the right lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**.
 - **Text size.** Pick the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
 - **Width.** Pick how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole window.
-- **Status line.** It shows the file's path, its size, the rendering engine's version numbers, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
+- **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
 
 ## Finding text in the document
 
@@ -171,6 +209,8 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 - Compose a reusable instruction here once, copy it, and paste it into several agents.
 - A good bug report is mostly structure — start from the bug-report template and fill the fields; save your own shape as a template once you have tuned it.
 - Prompts you keep re-typing belong in **Favorites**; prompts whose shape you keep re-typing belong in **Templates**.
+- Long prompt? Run **Check Prompt** before copying — the findings usually name the one thing missing.
+- The find bar's **Aa** and **Whole** settings stick: set them once for your case habits and forget them.
 
 ## Troubleshooting
 
@@ -201,5 +241,11 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 **My saved template is not in the list.** The list caps at thirty rows after a search; narrow the search, or check the template folder (the files are plain text — a file whose header is broken still loads, with the title falling back to the file name).
 
 **The formula or diagram area stays empty while the text is fine.** That usually means the page could not load its resources. Reopen the file; if it keeps happening, this build's preview components are not installed correctly, and the message explains it.
+
+**I turned a check off and want it back.** The off-switch list lives in the app's `tools.json` file (the `checks` section, under `disabled`): remove the rule's name from that list and the advice returns. There is no settings screen for it yet.
+
+**`Ctrl+F` found nothing in my prompt but the text is right there.** The prompt's find bar searches the draft's source text; the document tab's `Ctrl+F` searches the rendered page. Make sure the right one is open for what you are looking for — and check the **Aa** and **Whole** toggles.
+
+**The token estimate looks wrong.** It is an estimate — see [The token estimate](#the-token-estimate). If the magnitude is consistently off for how you work, the window size it is measured against can be changed in `tools.json` (`editor` → `contextWindowTokens`).
 
 Curious how it works inside? See [Markdown workbench](../development/markdown-workbench.md).
