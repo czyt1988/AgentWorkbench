@@ -67,6 +67,9 @@ class MarkdownPreviewController : public QObject
     Q_PROPERTY(QString activeDocId READ activeDocId NOTIFY activeSessionChanged)
     /// 活跃会话是否是草稿（提示词形态的渲染镜像）
     Q_PROPERTY(bool draftActive READ isDraftActive NOTIFY activeSessionChanged)
+    /// 活跃草稿的 id（draftActive 为假时空串）
+    Q_PROPERTY(QString activeDraftId READ activeDraftId
+                   NOTIFY activeSessionChanged)
     Q_PROPERTY(QString filePath READ filePath NOTIFY documentChanged)
     Q_PROPERTY(QString fileTitle READ fileTitle NOTIFY documentChanged)
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
@@ -128,12 +131,16 @@ public:
     bool changedOnDisk() const;
     qint64 byteSize() const;
 
-    // 文件会话的 tab 清单（打开顺序）；草稿会话不占 tab（M1 的隐式草稿）
+    // tab 清单（M4 起草稿 tab 与文件 tab 混排，草稿排最前按创建序）：
+    // [{docId,title,path,mode,dirty,active,draft}]，draft 为真表示草稿
+    // tab（path 为空串）。
     QVariantList tabs() const;
     // 活跃会话的 docId；无活跃会话时为空串
     QString activeDocId() const;
     // 活跃会话是否是草稿会话
     bool isDraftActive() const;
+    // 活跃草稿的 id（tools.json 的键）；非草稿活跃时空串
+    QString activeDraftId() const;
 
     // 视图设置的四组读写（WRITE 入口即 Q_INVOKABLE 的等价物）。
     // 模式是每会话一份；字号/栏宽/大纲是全局偏好（settings.json）。
@@ -167,12 +174,27 @@ public:
     /// 顺位激活最后打开的文件会话，没有文件会话则退到草稿。
     Q_INVOKABLE void closeSession(const QString &docId);
 
-    /// 建草稿会话（幂等，返回 docId，固定 "draft"）：虚拟文档承载草稿正文，
-    /// 渲染管线与文件会话同一条。
-    Q_INVOKABLE QString openDraftSession();
+    // --- 多草稿会话（M4） --------------------------------------------------
+    /// 建一个草稿会话（幂等）：draftId 是 tools.json 里那条草稿的 id，
+    /// docId 与之相同（资源寻址共用一个键，不需要第二套名字）。正文与
+    /// 标题由 tools 域持有，这里只做渲染镜像。返回 docId；draftId 空时
+    /// 返回空串。
+    Q_INVOKABLE QString openDraftSession(const QString &draftId,
+                                         const QString &title,
+                                         const QString &body);
+
+    /// 草稿标题变了（重命名后刷新 tab 与渲染标题）。不存在则忽略。
+    Q_INVOKABLE void setDraftTitle(const QString &draftId,
+                                   const QString &title);
+
+    /// 关掉一个草稿会话（关 tab ≠ 删草稿：tools.json 的记录不动——
+    /// 「关标签 ≠ 删草稿」与文件 tab 同一语义）。关的是活跃会话时顺位。
+    Q_INVOKABLE void closeDraftSession(const QString &draftId);
 
     /// 草稿正文回写（窗口的草稿编辑器每敲一键调一次；持久化在 tools 域）。
-    Q_INVOKABLE void setDraftText(const QString &text);
+    /// draftId 空时忽略。
+    Q_INVOKABLE void setDraftText(const QString &draftId,
+                                  const QString &text);
 
     // ------------------------------------------------------------------
     /// 这个路径是否归预览管（后缀判定与 openFile() 同一处，见 .cpp）。
@@ -286,6 +308,8 @@ private:
 
     // 按 docId 找会话（文件会话 + 草稿）；找不到返回空 shared_ptr
     std::shared_ptr<Session> sessionById(const QString &docId) const;
+    // 这个 docId 是否某个草稿会话
+    bool isDraftId(const QString &docId) const;
     // 活跃会话的裸指针；无活跃会话时为空（读侧各属性自带兜底）
     Session *activeSession() const;
     // 建一个新文件会话并接好它的信号线（读盘失败时不入列）
@@ -316,7 +340,7 @@ private:
 
     // --- 会话状态 -------------------------------------------------------
     QList<std::shared_ptr<Session>> m_sessions;  ///< 文件会话（打开顺序）
-    std::shared_ptr<Session> m_draft;            ///< 草稿会话（至多一个）
+    QList<std::shared_ptr<Session>> m_drafts;    ///< 草稿会话（多草稿，创建序）
     std::shared_ptr<Session> m_active;           ///< 活跃会话（可空）
     int m_docSeq = 0;             ///< docId 的自增序号
 

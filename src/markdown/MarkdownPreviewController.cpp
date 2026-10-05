@@ -187,15 +187,30 @@ QString MarkdownPreviewController::rendererVersion() const
 std::shared_ptr<MarkdownPreviewController::Session>
 MarkdownPreviewController::sessionById(const QString &docId) const
 {
+    for (const auto &session : m_drafts) {
+        if (session->docId == docId) {
+            return session;
+        }
+    }
     for (const auto &session : m_sessions) {
         if (session->docId == docId) {
             return session;
         }
     }
-    if (m_draft && m_draft->docId == docId) {
-        return m_draft;
-    }
     return nullptr;
+}
+
+/**
+ * @brief 这个 docId 是否某个草稿会话
+ */
+bool MarkdownPreviewController::isDraftId(const QString &docId) const
+{
+    for (const auto &session : m_drafts) {
+        if (session->docId == docId) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -372,8 +387,8 @@ bool MarkdownPreviewController::activateSession(
  * @param docId 会话 id
  *
  * 关 tab ≠ 删文档：磁盘文件不动，只是视图收起来。关的是活跃会话时顺位
- * 激活最后打开的文件会话，没有文件会话则退到草稿。草稿会话（docId 为
- * "draft"）不在此列——它是提示词形态的本体，不由 tab 关闭。
+ * 激活最后打开的文件会话，没有文件会话则退到最近创建的草稿。草稿会话
+ * 由 closeDraftSession() 负责（关标签 ≠ 删草稿，同一语义的两半）。
  */
 void MarkdownPreviewController::closeSession(const QString &docId)
 {
@@ -387,8 +402,8 @@ void MarkdownPreviewController::closeSession(const QString &docId)
             m_active.reset();
             if (!m_sessions.isEmpty()) {
                 activateSession(m_sessions.constLast());
-            } else if (m_draft) {
-                activateSession(m_draft);
+            } else if (!m_drafts.isEmpty()) {
+                activateSession(m_drafts.constLast());
             } else {
                 // 一个会话都不剩：把「无文档」的空态广播出去
                 Q_EMIT activeSessionChanged();
@@ -406,57 +421,145 @@ void MarkdownPreviewController::closeSession(const QString &docId)
 }
 
 /**
- * @brief 建草稿会话（幂等）
- * @return 草稿会话的 docId，固定 "draft"
+ * @brief 关掉一个草稿会话
+ * @param draftId 草稿 id（即 docId）
+ *
+ * 关 tab ≠ 删草稿：tools.json 的记录不动，只是视图收起来。关的是活跃
+ * 会话时顺位：最近的草稿 → 最后打开的文件会话 → 空态。
+ */
+void MarkdownPreviewController::closeDraftSession(const QString &draftId)
+{
+    for (int i = 0; i < m_drafts.size(); ++i) {
+        if (m_drafts.at(i)->docId != draftId) {
+            continue;
+        }
+        const bool wasActive = m_drafts.at(i) == m_active;
+        m_drafts.removeAt(i);
+        if (wasActive) {
+            m_active.reset();
+            if (i < m_drafts.size()) {
+                activateSession(m_drafts.at(i));
+            } else if (!m_drafts.isEmpty()) {
+                activateSession(m_drafts.constLast());
+            } else if (!m_sessions.isEmpty()) {
+                activateSession(m_sessions.constLast());
+            } else {
+                Q_EMIT activeSessionChanged();
+                Q_EMIT documentChanged();
+                Q_EMIT outlineChanged();
+                Q_EMIT dirtyChanged();
+                Q_EMIT readOnlyChanged();
+                Q_EMIT changedOnDiskChanged();
+                Q_EMIT viewChanged();
+            }
+        }
+        Q_EMIT tabsChanged();
+        return;
+    }
+}
+
+/**
+ * @brief 建一个草稿会话（幂等）
+ * @param draftId tools.json 里那条草稿的 id（docId 与之相同）
+ * @param title 草稿标题（tab 与渲染标题用）
+ * @param body 草稿正文
+ * @return docId（= draftId）；draftId 空时返回空串
  *
  * 草稿是虚拟文档：编辑面在 tools 域的草稿编辑器（tools.json 持久化），
  * 这里只做渲染镜像。没有预览能力的构建里也可以建（窗口的预览面不存在，
  * 会话只是闲置状态，不给任何路径添麻烦）。
  */
-QString MarkdownPreviewController::openDraftSession()
+QString MarkdownPreviewController::openDraftSession(const QString &draftId,
+                                                    const QString &title,
+                                                    const QString &body)
 {
-    if (!m_draft) {
-        m_draft = std::make_shared<Session>(QStringLiteral("draft"));
-        m_draft->document.setVirtual(QStringLiteral("Draft"), QString());
-        m_draft->blocks = MarkdownChunker::split(QString());
-        m_draft->outline = MarkdownRuntime::outlineFromBlocks(m_draft->blocks);
-        m_draft->rev = 1;
-        // 草稿的默认三态不是文件的默认：草稿是用来**写**的，分栏（写 +
-        // 看）是它的自然形态；preview 起步会把编辑器整个藏掉。无预览能力
-        // 的构建退到纯源码态。这个初值不落 settings——用户改模式时才
-        // 更新默认（setMode）。
-        m_draft->mode = available() ? QStringLiteral("split")
-                                    : QStringLiteral("source");
-        wireSessionSignals(m_draft);
+    if (draftId.isEmpty()) {
+        return QString();
     }
-    return m_draft->docId;
+    for (const auto &existing : m_drafts) {
+        if (existing->docId == draftId) {
+            return existing->docId;   // 幂等
+        }
+    }
+    auto session = std::make_shared<Session>(draftId);
+    session->document.setVirtual(title, body);
+    session->blocks = MarkdownChunker::split(body);
+    session->outline = MarkdownRuntime::outlineFromBlocks(session->blocks);
+    session->rev = 1;
+    // 草稿的默认三态不是文件的默认：草稿是用来**写**的，分栏（写 +
+    // 看）是它的自然形态；preview 起步会把编辑器整个藏掉。无预览能力
+    // 的构建退到纯源码态。这个初值不落 settings——用户改模式时才
+    // 更新默认（setMode）。
+    session->mode = available() ? QStringLiteral("split")
+                                : QStringLiteral("source");
+    wireSessionSignals(session);
+    m_drafts.append(session);
+    Q_EMIT tabsChanged();
+    return session->docId;
+}
+
+/**
+ * @brief 草稿标题变了（重命名后刷新 tab 与渲染标题）
+ */
+void MarkdownPreviewController::setDraftTitle(const QString &draftId,
+                                              const QString &title)
+{
+    for (const auto &session : m_drafts) {
+        if (session->docId == draftId) {
+            if (session->document.fileName() != title) {
+                session->document.setVirtual(title,
+                                              session->document.text());
+                Q_EMIT tabsChanged();
+                if (m_active == session) {
+                    Q_EMIT documentChanged();
+                }
+            }
+            return;
+        }
+    }
 }
 
 /**
  * @brief 草稿正文回写
+ * @param draftId 草稿 id
  * @param text 草稿全文
  *
  * 与文件会话的 setEditorText 同一条路（重切块 + 差异增量）；区别只在
- * 虚拟文档永不脏、永不存盘。窗口的草稿编辑器每敲一键调一次。
+ * 虚拟文档永不脏、永不存盘。窗口的草稿编辑器每敲一键调一次。会话不
+ * 存在时忽略（窗口动作层先 openDraftSession 建好再喂文本）。
  */
-void MarkdownPreviewController::setDraftText(const QString &text)
+void MarkdownPreviewController::setDraftText(const QString &draftId,
+                                             const QString &text)
 {
-    if (!m_draft) {
-        openDraftSession();
+    const auto session = sessionById(draftId);
+    if (!session || !isDraftId(draftId)) {
+        return;
     }
-    applySessionText(m_draft.get(), text);
+    applySessionText(session.get(), text);
 }
 
 /**
  * @brief 文件会话的 tab 清单
- * @return [{docId, title, path, mode, dirty, active}]，按打开顺序
+ * @return [{docId, title, path, mode, dirty, active, draft}]
  *
- * path 与 mode 供 workbench 域的会话文件按路径恢复 tab 组（docId 是进程
- * 内的，跨启动不作数）；界面只读 title/dirty/active 也够了。
+ * 草稿 tab 排在文件 tab 之前（创建序）；文件 tab 按打开顺序。path 与
+ * mode 供 workbench 域的会话文件恢复 tab 组（草稿按 id、文件按路径）；
+ * draft 为真表示草稿 tab（path 为空串）——界面用它画来源徽标。
  */
 QVariantList MarkdownPreviewController::tabs() const
 {
     QVariantList result;
+    for (const auto &session : m_drafts) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("docId"), session->docId);
+        entry.insert(QStringLiteral("title"), session->document.fileName());
+        entry.insert(QStringLiteral("path"), QString());
+        entry.insert(QStringLiteral("mode"), session->mode);
+        entry.insert(QStringLiteral("dirty"), false);
+        entry.insert(QStringLiteral("active"), session == m_active);
+        entry.insert(QStringLiteral("draft"), true);
+        result.append(entry);
+    }
     for (const auto &session : m_sessions) {
         QVariantMap entry;
         entry.insert(QStringLiteral("docId"), session->docId);
@@ -465,6 +568,7 @@ QVariantList MarkdownPreviewController::tabs() const
         entry.insert(QStringLiteral("mode"), session->mode);
         entry.insert(QStringLiteral("dirty"), session->document.dirty());
         entry.insert(QStringLiteral("active"), session == m_active);
+        entry.insert(QStringLiteral("draft"), false);
         result.append(entry);
     }
     return result;
@@ -484,7 +588,18 @@ QString MarkdownPreviewController::activeDocId() const
  */
 bool MarkdownPreviewController::isDraftActive() const
 {
-    return m_draft && m_active == m_draft;
+    return m_active && isDraftId(m_active->docId);
+}
+
+/**
+ * @brief 活跃草稿的 id（docId 即草稿 id）；非草稿活跃时空串
+ */
+QString MarkdownPreviewController::activeDraftId() const
+{
+    if (!m_active || !isDraftId(m_active->docId)) {
+        return QString();
+    }
+    return m_active->docId;
 }
 
 // --- 反映活跃会话的属性读侧 ---------------------------------------------
@@ -942,8 +1057,8 @@ void MarkdownPreviewController::invalidateAllSessionBodies()
     for (const auto &session : m_sessions) {
         session->cachedRev = -1;
     }
-    if (m_draft) {
-        m_draft->cachedRev = -1;
+    for (const auto &session : m_drafts) {
+        session->cachedRev = -1;
     }
 }
 

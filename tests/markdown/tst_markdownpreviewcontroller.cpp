@@ -873,38 +873,73 @@ void TestMarkdownPreviewController::testSessionsOpenSwitchCloseAndDraft()
     controller.closeSession(idB);
     QCOMPARE(controller.tabs().size(), 1);
 
-    // 草稿会话：幂等、虚拟文档、可编辑、永不脏、不占 tab
-    const QString draftId = controller.openDraftSession();
-    QCOMPARE(draftId, QStringLiteral("draft"));
-    QCOMPARE(controller.openDraftSession(), draftId);
-    controller.setDraftText(QStringLiteral("# draft body\n"));
+    // 草稿会话（M4 多草稿）：幂等、虚拟文档、可编辑、永不脏、**占 tab**
+    //（draft 徽标区分来源）、按 id 寻址、标题与正文由 tools 域喂进来
+    const QString draftId = controller.openDraftSession(
+        QStringLiteral("d1"), QStringLiteral("My Draft"),
+        QStringLiteral("# draft body\n"));
+    QCOMPARE(draftId, QStringLiteral("d1"));
+    QCOMPARE(controller.openDraftSession(QStringLiteral("d1"),
+                                         QStringLiteral("My Draft"),
+                                         QString()),
+             draftId);   // 幂等：重复开不建第二个
+    controller.setDraftText(draftId, QStringLiteral("# draft body\n"));
     controller.activateSession(draftId);
     QVERIFY(controller.isDraftActive());
-    QCOMPARE(controller.fileTitle(), QStringLiteral("Draft"));
+    QCOMPARE(controller.activeDraftId(), QStringLiteral("d1"));
+    QCOMPARE(controller.fileTitle(), QStringLiteral("My Draft"));
     QVERIFY(controller.canEdit());
     QVERIFY(!controller.dirty());
     QVERIFY(controller.documentBodyJson().contains(QStringLiteral("draft body")));
-    QCOMPARE(controller.tabs().size(), 1);
+    // 草稿 tab 排在文件 tab 之前，带 draft 徽标
+    QCOMPARE(controller.tabs().size(), 2);
+    QCOMPARE(controller.tabs().at(0).toMap()
+                 .value(QStringLiteral("docId")).toString(), draftId);
+    QVERIFY(controller.tabs().at(0).toMap()
+                .value(QStringLiteral("draft")).toBool());
+    QVERIFY(!controller.tabs().at(1).toMap()
+                .value(QStringLiteral("draft")).toBool());
     QVERIFY(controller.assetRootFor(draftId).isEmpty());   // 无相对资源
-    // 关草稿是无效操作：它是提示词形态的本体，不由 tab 关闭
-    controller.closeSession(draftId);
-    QVERIFY(controller.isDraftActive());
+    // 重命名：标题刷新 tab 与文档标题
+    controller.setDraftTitle(draftId, QStringLiteral("Renamed"));
+    QCOMPARE(controller.tabs().at(0).toMap()
+                 .value(QStringLiteral("title")).toString(),
+             QStringLiteral("Renamed"));
+    // 关草稿 tab：关视图不删会话记录——不对，M4 语义是「关 tab ≠ 删草稿」
+    // 但**会话**收起来了：isDraftActive 翻转、顺位激活文件会话
+    controller.closeDraftSession(draftId);
+    QCOMPARE(controller.activeDocId(), idA);
+    QVERIFY(!controller.isDraftActive());
+    QCOMPARE(controller.tabs().size(), 1);
+    // 第二条草稿：互不干扰，各自的正文隔离
+    const QString draft2 = controller.openDraftSession(
+        QStringLiteral("d2"), QStringLiteral("Two"), QString());
+    controller.setDraftText(draft2, QStringLiteral("second body\n"));
+    QVERIFY(controller.openDraftSession(QStringLiteral("d1"),
+                                        QStringLiteral("Renamed"),
+                                        QStringLiteral("# draft body\n"))
+            == draftId);
+    controller.activateSession(draft2);
+    QVERIFY(controller.documentBodyJson().contains(QStringLiteral("second body")));
+    QCOMPARE(controller.tabs().at(0).toMap()
+                 .value(QStringLiteral("docId")).toString(), draft2);
 
-    // 文件会话上限：满 8 拒绝第 9 份，不静默淘汰
+    // 文件会话上限：满 8 拒绝第 9 份，不静默淘汰（草稿不占文件会话名额）
     for (int i = 0; i < MarkdownPreviewController::kMaxFileSessions - 1; ++i) {
         const QString p = writeDoc(
             m_dir.path(),
             QStringLiteral("cap%1.md").arg(i), QStringLiteral("# c\n"));
         QVERIFY2(controller.openFile(p).ok, qPrintable(p));
     }
-    QCOMPARE(controller.tabs().size(), MarkdownPreviewController::kMaxFileSessions);
+    QCOMPARE(controller.tabs().size(),
+             2 + MarkdownPreviewController::kMaxFileSessions);   // 2 草稿 + 8 文件
     const QString ninth = writeDoc(m_dir.path(), QStringLiteral("ninth.md"),
                                    QStringLiteral("# 9\n"));
     const OpResult capped = controller.openFile(ninth);
     QVERIFY(!capped.ok);
     QVERIFY(capped.error.contains(QStringLiteral("Too many")));
     QCOMPARE(controller.tabs().size(),
-             MarkdownPreviewController::kMaxFileSessions);
+             2 + MarkdownPreviewController::kMaxFileSessions);
 }
 
 /**
