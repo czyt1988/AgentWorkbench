@@ -116,7 +116,8 @@ private Q_SLOTS:
     void testFindAndScrollCommands();
     void testReportsAndSignals();
     void testDiskNoticeAndReload();
-    void testWindowCloseClearsState();
+    void testWindowCloseKeepsSessions();
+    void testSessionsOpenSwitchCloseAndDraft();
     void testPageUrlAndPreviewEligibility();
     void testExportLandingWritesFiles();
     void testQmlCallableMethodsAreInvokable();
@@ -744,9 +745,12 @@ void TestMarkdownPreviewController::testDiskNoticeAndReload()
 }
 
 /**
- * @brief 关窗把状态与在飞命令一起放下，下次打开是新会话
+ * @brief 关窗放下命令与会话的「窗口态」，会话本身全部保留
+ *
+ * 会话是应用运行期的记忆：重开窗口直接取回（含未保存改动）——「关窗重开
+ * 找回上次的 tab 组」在运行期内因此是免费的。真正清掉一个会话的是关 tab。
  */
-void TestMarkdownPreviewController::testWindowCloseClearsState()
+void TestMarkdownPreviewController::testWindowCloseKeepsSessions()
 {
     AWB_SKIP_IF_NO_PREVIEW();
     MarkdownPreviewController controller(m_settings, nullptr);
@@ -759,17 +763,19 @@ void TestMarkdownPreviewController::testWindowCloseClearsState()
     drain(controller);
     controller.setEditorText(QStringLiteral("# c\n\ndirtyer\n"));
     QVERIFY(controller.hasPendingCommand());
+    const QString docId = controller.activeDocId();
+    const QString title = controller.fileTitle();
 
     controller.notifyWindowClosed();
     QVERIFY(!controller.active());
-    QVERIFY(controller.filePath().isEmpty());
-    QVERIFY(controller.blocks().isEmpty());
-    QVERIFY(controller.outline().isEmpty());
+    // 会话保留：docId、标题、未保存改动与 tab 都还在
+    QCOMPARE(controller.activeDocId(), docId);
+    QCOMPARE(controller.fileTitle(), title);
+    QVERIFY(controller.dirty());
+    QCOMPARE(controller.tabs().size(), 1);
+    // 在飞命令放下：窗口没了就没有接收方
     QVERIFY(!controller.hasPendingCommand());
     QVERIFY(controller.takeCommand().isEmpty());
-    // 没有文档时的存盘与重载都是失败而不是崩溃
-    QVERIFY(!controller.saveNow().ok);
-    QVERIFY(!controller.reloadFromDisk().ok);
 
     // 重复调用不产生第二次状态变化
     int changes = 0;
@@ -779,6 +785,126 @@ void TestMarkdownPreviewController::testWindowCloseClearsState()
     QCOMPARE(changes, 0);
     controller.notifyWindowOpened();
     QCOMPARE(changes, 1);
+    // 开合窗口没有把会话状态弄丢
+    QVERIFY(controller.dirty());
+
+    // 真正清掉会话的是关 tab：之后是无文档的空态
+    controller.closeSession(docId);
+    QVERIFY(controller.activeDocId().isEmpty());
+    QVERIFY(controller.filePath().isEmpty());
+    QVERIFY(controller.blocks().isEmpty());
+    QVERIFY(controller.outline().isEmpty());
+    QVERIFY(controller.tabs().isEmpty());
+    // 没有会话时的存盘与重载都是失败而不是崩溃
+    QVERIFY(!controller.saveNow().ok);
+    QVERIFY(!controller.reloadFromDisk().ok);
+}
+
+/**
+ * @brief 多会话：开/切/关、同路径去重、脏隔离、草稿会话与上限
+ *
+ * M1 的主轴。逐条锁住：tab 清单的形状、切换时 doc.json 跟着活跃会话走、
+ * 旧会话的资源目录仍可解析、脏标记互不污染、关活跃会话的顺位激活、
+ * 草稿（虚拟文档）不占 tab、文件会话满 8 拒绝第 9 份。
+ */
+void TestMarkdownPreviewController::testSessionsOpenSwitchCloseAndDraft()
+{
+    AWB_SKIP_IF_NO_PREVIEW();
+    MarkdownPreviewController controller(m_settings, nullptr);
+    controller.setSurfaceReady(true);
+    controller.notifyWindowOpened();
+
+    const QString a = writeDoc(m_dir.path(), QStringLiteral("one.md"),
+                               QStringLiteral("# one\n"));
+    const QString b = writeDoc(m_dir.path(), QStringLiteral("two.md"),
+                               QStringLiteral("# two\n"));
+    QVERIFY(controller.openFile(a).ok);
+    const QString idA = controller.activeDocId();
+    QVERIFY(controller.openFile(b).ok);
+    const QString idB = controller.activeDocId();
+    QVERIFY(idA != idB);
+
+    // tab 清单：按打开顺序，认得出标题与激活位
+    const QVariantList tabs = controller.tabs();
+    QCOMPARE(tabs.size(), 2);
+    QCOMPARE(tabs.at(0).toMap().value(QStringLiteral("docId")).toString(),
+             idA);
+    QCOMPARE(tabs.at(1).toMap().value(QStringLiteral("docId")).toString(),
+             idB);
+    QCOMPARE(tabs.at(1).toMap().value(QStringLiteral("title")).toString(),
+             QStringLiteral("two.md"));
+    QVERIFY(!tabs.at(0).toMap().value(QStringLiteral("active")).toBool());
+    QVERIFY(tabs.at(1).toMap().value(QStringLiteral("active")).toBool());
+
+    // 同路径再开 = 激活既有会话，不新增 tab
+    QVERIFY(controller.openFile(a).ok);
+    QCOMPARE(controller.activeDocId(), idA);
+    QCOMPARE(controller.tabs().size(), 2);
+
+    // 切换：doc.json 跟着活跃会话走；两个会话的资源目录都还能解析
+    drain(controller);
+    controller.activateSession(idB);
+    QCOMPARE(controller.activeDocId(), idB);
+    QCOMPARE(controller.filePath(), QFileInfo(b).absoluteFilePath());
+    QVERIFY(controller.documentBodyJson().contains(QStringLiteral("two.md")));
+    QVERIFY(!controller.assetRootFor(idA).isEmpty());
+    QVERIFY(!controller.assetRootFor(idB).isEmpty());
+    QVERIFY(controller.assetRootFor(QStringLiteral("ghost")).isEmpty());
+    // 切会话发的是整篇重建
+    const QStringList switched = drain(controller);
+    QVERIFY2(switched.contains(QStringLiteral("setDocument")),
+             qPrintable(switched.join(QLatin1Char(','))));
+
+    // 脏隔离：只有被编辑的那个会话脏，tab 徽标跟着它
+    controller.setEditorText(QStringLiteral("# two edited\n"));
+    QVERIFY(controller.dirty());
+    controller.activateSession(idA);
+    QVERIFY(!controller.dirty());
+    const QVariantList afterEdit = controller.tabs();
+    QVERIFY(!afterEdit.at(0).toMap().value(QStringLiteral("dirty")).toBool());
+    QVERIFY(afterEdit.at(1).toMap().value(QStringLiteral("dirty")).toBool());
+    controller.activateSession(idB);
+    QVERIFY(controller.dirty());
+
+    // 关掉活跃会话：顺位激活最后打开的那个；关不存在的 id 是无效操作
+    controller.closeSession(idB);
+    QCOMPARE(controller.activeDocId(), idA);
+    QCOMPARE(controller.tabs().size(), 1);
+    controller.closeSession(idB);
+    QCOMPARE(controller.tabs().size(), 1);
+
+    // 草稿会话：幂等、虚拟文档、可编辑、永不脏、不占 tab
+    const QString draftId = controller.openDraftSession();
+    QCOMPARE(draftId, QStringLiteral("draft"));
+    QCOMPARE(controller.openDraftSession(), draftId);
+    controller.setDraftText(QStringLiteral("# draft body\n"));
+    controller.activateSession(draftId);
+    QVERIFY(controller.isDraftActive());
+    QCOMPARE(controller.fileTitle(), QStringLiteral("Draft"));
+    QVERIFY(controller.canEdit());
+    QVERIFY(!controller.dirty());
+    QVERIFY(controller.documentBodyJson().contains(QStringLiteral("draft body")));
+    QCOMPARE(controller.tabs().size(), 1);
+    QVERIFY(controller.assetRootFor(draftId).isEmpty());   // 无相对资源
+    // 关草稿是无效操作：它是提示词形态的本体，不由 tab 关闭
+    controller.closeSession(draftId);
+    QVERIFY(controller.isDraftActive());
+
+    // 文件会话上限：满 8 拒绝第 9 份，不静默淘汰
+    for (int i = 0; i < MarkdownPreviewController::kMaxFileSessions - 1; ++i) {
+        const QString p = writeDoc(
+            m_dir.path(),
+            QStringLiteral("cap%1.md").arg(i), QStringLiteral("# c\n"));
+        QVERIFY2(controller.openFile(p).ok, qPrintable(p));
+    }
+    QCOMPARE(controller.tabs().size(), MarkdownPreviewController::kMaxFileSessions);
+    const QString ninth = writeDoc(m_dir.path(), QStringLiteral("ninth.md"),
+                                   QStringLiteral("# 9\n"));
+    const OpResult capped = controller.openFile(ninth);
+    QVERIFY(!capped.ok);
+    QVERIFY(capped.error.contains(QStringLiteral("Too many")));
+    QCOMPARE(controller.tabs().size(),
+             MarkdownPreviewController::kMaxFileSessions);
 }
 
 /**
@@ -907,8 +1033,9 @@ void TestMarkdownPreviewController::testExportLandingWritesFiles()
     // 没有新增落盘：计数的还是上面 browser 那一次
     QCOMPARE(written.count(), 1);
 
-    // 关窗把目录选择放下：留着它，下一份 README 会被导出到别的项目里
-    controller.notifyWindowClosed();
+    // 关掉这个 tab：导出目录跟着会话放下——留着它，下一份 README 会被
+    // 导出到别的项目里
+    controller.closeSession(controller.activeDocId());
     QVERIFY(controller.exportDirectory().isEmpty());
     QCOMPARE(controller.exportFileName(), QStringLiteral("Markdown.html"));
 }
@@ -941,6 +1068,9 @@ void TestMarkdownPreviewController::testQmlCallableMethodsAreInvokable()
         QStringLiteral("setShowOutline"),
         // 窗口那两份接线新用的：视图的 url 绑 pageUrl()，导出前设落点
         QStringLiteral("pageUrl"), QStringLiteral("setExportDirectory"),
+        // 会话管理（M1）：tab 条、草稿会话
+        QStringLiteral("activateSession"), QStringLiteral("closeSession"),
+        QStringLiteral("openDraftSession"), QStringLiteral("setDraftText"),
     };
     // 表里的普通方法（Method 型、公开）即 Q_INVOKABLE；信号另算
     const QMetaObject *meta = controller.metaObject();

@@ -74,6 +74,14 @@ int awbRunRegisteredTests(int argc, char *argv[])
         if (arg.startsWith(QLatin1Char('-'))) {
             optionArgs.append(arg);
         }
+        else if (i > 1
+                 && QString::fromLocal8Bit(argv[i - 1])
+                        == QStringLiteral("-o")) {
+            // -o 的文件参数跟在选项后面：透传给 qExec 自己解析。落进
+            // 用例过滤器的话，它匹配不到任何用例 → 所有类被跳过，套件
+            // 「全绿」却什么都没跑（本套件排障时踩过的真坑）。
+            optionArgs.append(arg);
+        }
         else {
             functionFilters.append(arg.contains(QStringLiteral("::"))
                                        ? arg.section(QStringLiteral("::"), 1)

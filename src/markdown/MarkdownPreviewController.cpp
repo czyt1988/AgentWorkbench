@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
@@ -19,7 +20,8 @@ namespace awb::markdown {
 namespace {
 
 /// 认作 Markdown 的后缀（小写）。判定放在这一层而不是 QML：菜单项的可用态、
-/// openFile() 的拒绝、以及将来 agent 报告的批量预览都要同一个答案。
+/// openFile() 的拒绝、命令行参数的文件关联、以及将来 agent 报告的批量预览
+/// 都要同一个答案。
 bool isMarkdownPath(const QString &path)
 {
     static const QRegularExpression re(
@@ -56,7 +58,33 @@ QJsonArray blocksJson(const QVector<MarkdownBlock> &blocks)
 } // namespace
 
 /**
- * @brief 构造门面：接好主题与文档的两条通知线，并从设置里恢复视图偏好
+ * @brief 一个预览会话的全部状态
+ *
+ * 会话 = 一份文档（磁盘文件或虚拟的草稿文本）+ 它的块序列、大纲、rev、
+ * 三态模式与导出落点。docId 是资源寻址键：doc.json 的载荷、asset/<docId>/
+ * 的相对资源都按它对上。载荷缓存跟着会话走——切走再切回来，同 rev 的
+ * doc.json 不必重新序列化。
+ */
+struct MarkdownPreviewController::Session {
+    explicit Session(const QString &id)
+        : docId(id)
+    {
+    }
+
+    QString docId;                  ///< 资源寻址 id（文件会话 dN，草稿固定 "draft"）
+    MarkdownDocument document;      ///< 文档本体（含 watcher 与字节形态）
+    QVector<MarkdownBlock> blocks;  ///< 块序列（增量渲染的依据）
+    QVariantList outline;           ///< 由块序列派生的大纲
+    int rev = 0;                    ///< 会话内容版本，进 doc.json 的 query
+    QString mode;                   ///< 三态模式（每会话一份）
+    bool changedOnDisk = false;     ///< 外部改动提示的当前状态
+    QString exportDirectory;        ///< 导出目录；空 = 文档所在目录
+    mutable int cachedRev = -1;     ///< 载荷缓存对应的 rev
+    mutable QString cachedBody;     ///< doc.json 载荷缓存（按 rev 失效）
+};
+
+/**
+ * @brief 构造门面：接好主题通知线，并从设置里恢复视图偏好
  *
  * @param settings 视图偏好的落点（不拥有）
  * @param theme CSS 变量的来源（不拥有）
@@ -71,7 +99,8 @@ MarkdownPreviewController::MarkdownPreviewController(core::Settings *settings,
 {
     loadView();
 
-    // 主题换色不能重建文档：只把新的 CSS 变量送进页面。
+    // 主题换色不能重建文档：只把新的 CSS 变量送进页面。这条线与会话无关
+    //（页面只有一个，主题是全局的）。
     if (m_theme) {
         connect(m_theme, &theme::Theme::changed, this, [this]() {
             QVariantMap args;
@@ -81,16 +110,9 @@ MarkdownPreviewController::MarkdownPreviewController(core::Settings *settings,
             enqueue(QStringLiteral("setTheme"), args);
         });
     }
-
-    // 外部改动只记一个状态位，怎么问用户是窗口的事。监视器与轮询复查共用
-    // 同一个入口，两条路的结论必须一致。
-    connect(&m_document, &MarkdownDocument::externallyChangedByOther,
-            this, &MarkdownPreviewController::refreshDiskState);
-    connect(&m_document, &MarkdownDocument::dirtyChanged,
-            this, &MarkdownPreviewController::dirtyChanged);
-    connect(&m_document, &MarkdownDocument::readOnlyChanged,
-            this, &MarkdownPreviewController::readOnlyChanged);
 }
+
+MarkdownPreviewController::~MarkdownPreviewController() = default;
 
 /**
  * @brief 本构建有没有预览能力
@@ -150,12 +172,109 @@ QString MarkdownPreviewController::rendererVersion() const
     return MarkdownRuntime::rendererVersionText();
 }
 
+// --- 会话管理 ------------------------------------------------------------
+
+/**
+ * @brief 按 docId 找会话
+ * @param docId 资源寻址 id
+ * @return 文件会话或草稿会话；找不到为空
+ */
+std::shared_ptr<MarkdownPreviewController::Session>
+MarkdownPreviewController::sessionById(const QString &docId) const
+{
+    for (const auto &session : m_sessions) {
+        if (session->docId == docId) {
+            return session;
+        }
+    }
+    if (m_draft && m_draft->docId == docId) {
+        return m_draft;
+    }
+    return nullptr;
+}
+
+/**
+ * @brief 活跃会话的裸指针（读侧专用）
+ * @return 活跃会话；无会话时为空
+ */
+MarkdownPreviewController::Session *
+MarkdownPreviewController::activeSession() const
+{
+    return m_active.get();
+}
+
+/**
+ * @brief 接好一个会话的文档信号线
+ * @param session 新建的会话
+ *
+ * 每条线都先问「它是不是活跃会话」再往外广播：非活跃会话的翻转只落在
+ * 会话自己的状态里（切回来时属性自然是对的），不发全局信号——否则关一个
+ * 无关 tab 的脏标记会把正在看的文档状态搅一遍。
+ * 捕获裸指针是安全的：信号线以会话的文档为 sender，会话销毁（sender 析构）
+ * 连接随之断开，lambda 没有机会带着悬垂指针被调到。
+ */
+void MarkdownPreviewController::wireSessionSignals(
+    const std::shared_ptr<Session> &session)
+{
+    Session *const raw = session.get();
+    connect(&raw->document, &MarkdownDocument::dirtyChanged, this,
+            [this, raw]() {
+                if (m_active.get() == raw) {
+                    Q_EMIT dirtyChanged();
+                    Q_EMIT tabsChanged();
+                }
+            });
+    connect(&raw->document, &MarkdownDocument::readOnlyChanged, this,
+            [this, raw]() {
+                if (m_active.get() == raw) {
+                    Q_EMIT readOnlyChanged();
+                }
+            });
+    // 外部改动只记会话状态，怎么问用户是窗口的事。监视器与轮询复查共用
+    // 同一个入口，两条路的结论必须一致。
+    connect(&raw->document, &MarkdownDocument::externallyChangedByOther,
+            this, [this, raw]() { refreshDiskStateFor(raw); });
+}
+
+/**
+ * @brief 建一个新文件会话（读盘 + 切块 + 接信号线）
+ * @param path 磁盘路径
+ * @param failure 输出：读盘失败的原因（成功时不清空）
+ * @return 新会话；读盘失败为空（此时**不**入列，既有会话不受影响）
+ */
+std::shared_ptr<MarkdownPreviewController::Session>
+MarkdownPreviewController::createFileSession(const QString &path,
+                                             core::OpResult *failure)
+{
+    auto session = std::make_shared<Session>(
+        QStringLiteral("d%1").arg(++m_docSeq));
+    const core::OpResult loaded = session->document.load(path);
+    if (!loaded) {
+        if (failure) {
+            *failure = loaded;
+        }
+        return nullptr;
+    }
+    session->blocks = MarkdownChunker::split(session->document.text());
+    session->outline = MarkdownRuntime::outlineFromBlocks(session->blocks);
+    session->rev = 1;
+    session->mode = m_defaultMode;
+    wireSessionSignals(session);
+
+    AWB_PERF << "markdown: opened" << session->document.fileName()
+             << session->document.byteSize() << "bytes ->"
+             << session->blocks.size() << "blocks";
+    return session;
+}
+
 /**
  * @brief 打开一份 Markdown 文档
  * @param path 磁盘路径
  * @return 成功，或带原因的失败
  *
- * 失败一律不开窗、不清空既有文档：菜单点错了不该把用户正在看的那份弄没。
+ * 同一路径已有会话时只激活它（tab 已在条上，未保存的改动也还在）；否则
+ * 建新会话并激活。失败一律不开窗、不动既有会话：菜单点错了不该把用户
+ * 正在看的那份弄没。
  */
 core::OpResult MarkdownPreviewController::openFile(const QString &path)
 {
@@ -164,29 +283,260 @@ core::OpResult MarkdownPreviewController::openFile(const QString &path)
     }
     if (!isMarkdownPath(path)) {
         return core::OpResult::failure(QCoreApplication::translate(
-            "MarkdownPreviewController", "Only Markdown files can be previewed here."));
+            "MarkdownPreviewController",
+            "Only Markdown files can be previewed here."));
     }
-    const core::OpResult loaded = m_document.load(path);
-    if (!loaded) {
-        return loaded;
+    // 文件会话上限（小决策 13）：满了就明说，而不是静默挤掉最久没看的
+    // tab——用户正在改的东西不该因为开了第 9 份文档而消失。
+    if (m_sessions.size() >= kMaxFileSessions) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "MarkdownPreviewController",
+            "Too many documents are open. Close a tab before opening "
+            "another one."));
     }
 
-    m_docId = QStringLiteral("d%1").arg(++m_docSeq);
-    m_blocks = MarkdownChunker::split(m_document.text());
-    m_outline = MarkdownRuntime::outlineFromBlocks(m_blocks);
-    ++m_rev;
-    m_changedOnDisk = false;
+    // 同路径去重：QFileInfo 两侧都取绝对路径，`.`/`..`/大小写盘符的写法
+    // 差异不该开出第二个 tab。
+    const QString absolute = QFileInfo(path).absoluteFilePath();
+    for (const auto &session : m_sessions) {
+        if (session->document.path() == absolute) {
+            activateSession(session);
+            Q_EMIT windowRequested();
+            return core::OpResult::success();
+        }
+    }
 
-    AWB_PERF << "markdown: opened" << m_document.fileName()
-             << m_document.byteSize() << "bytes ->" << m_blocks.size()
-             << "blocks";
+    core::OpResult failure;
+    std::shared_ptr<Session> session = createFileSession(path, &failure);
+    if (!session) {
+        return failure;
+    }
+    m_sessions.append(session);
+    activateSession(session);
+    Q_EMIT windowRequested();
+    return core::OpResult::success();
+}
 
+/**
+ * @brief 激活一个会话（QML 入口）
+ * @param docId 会话 id
+ */
+void MarkdownPreviewController::activateSession(const QString &docId)
+{
+    const std::shared_ptr<Session> session = sessionById(docId);
+    if (!session) {
+        return;
+    }
+    activateSession(session);
+}
+
+/**
+ * @brief 激活切换的公共路径
+ * @param session 目标会话
+ * @return 真的换人了为真（已是活跃会话或空会话时为假）
+ *
+ * 换会话 = 渲染面整篇重建。窗口开着时发一条 setDocument（页面据此重新
+ * fetch doc.json）；窗口没开就不必发——将来窗口的装载流程本来就会取活跃
+ * 会话的那份。
+ */
+bool MarkdownPreviewController::activateSession(
+    const std::shared_ptr<Session> &session)
+{
+    if (!session || session == m_active) {
+        return false;
+    }
+    m_active = session;
+    if (m_windowOpen) {
+        QVariantMap args;
+        args.insert(QStringLiteral("rev"), session->rev);
+        enqueue(QStringLiteral("setDocument"), args);
+    }
+    Q_EMIT activeSessionChanged();
     Q_EMIT documentChanged();
     Q_EMIT outlineChanged();
     Q_EMIT dirtyChanged();
+    Q_EMIT readOnlyChanged();
     Q_EMIT changedOnDiskChanged();
-    Q_EMIT windowRequested();
-    return core::OpResult::success();
+    Q_EMIT viewChanged();
+    Q_EMIT tabsChanged();
+    return true;
+}
+
+/**
+ * @brief 关掉一个文件会话
+ * @param docId 会话 id
+ *
+ * 关 tab ≠ 删文档：磁盘文件不动，只是视图收起来。关的是活跃会话时顺位
+ * 激活最后打开的文件会话，没有文件会话则退到草稿。草稿会话（docId 为
+ * "draft"）不在此列——它是提示词形态的本体，不由 tab 关闭。
+ */
+void MarkdownPreviewController::closeSession(const QString &docId)
+{
+    for (int i = 0; i < m_sessions.size(); ++i) {
+        if (m_sessions.at(i)->docId != docId) {
+            continue;
+        }
+        const bool wasActive = m_sessions.at(i) == m_active;
+        m_sessions.removeAt(i);
+        if (wasActive) {
+            m_active.reset();
+            if (!m_sessions.isEmpty()) {
+                activateSession(m_sessions.constLast());
+            } else if (m_draft) {
+                activateSession(m_draft);
+            } else {
+                // 一个会话都不剩：把「无文档」的空态广播出去
+                Q_EMIT activeSessionChanged();
+                Q_EMIT documentChanged();
+                Q_EMIT outlineChanged();
+                Q_EMIT dirtyChanged();
+                Q_EMIT readOnlyChanged();
+                Q_EMIT changedOnDiskChanged();
+                Q_EMIT viewChanged();
+            }
+        }
+        Q_EMIT tabsChanged();
+        return;
+    }
+}
+
+/**
+ * @brief 建草稿会话（幂等）
+ * @return 草稿会话的 docId，固定 "draft"
+ *
+ * 草稿是虚拟文档：编辑面在 tools 域的草稿编辑器（tools.json 持久化），
+ * 这里只做渲染镜像。没有预览能力的构建里也可以建（窗口的预览面不存在，
+ * 会话只是闲置状态，不给任何路径添麻烦）。
+ */
+QString MarkdownPreviewController::openDraftSession()
+{
+    if (!m_draft) {
+        m_draft = std::make_shared<Session>(QStringLiteral("draft"));
+        m_draft->document.setVirtual(QStringLiteral("Draft"), QString());
+        m_draft->blocks = MarkdownChunker::split(QString());
+        m_draft->outline = MarkdownRuntime::outlineFromBlocks(m_draft->blocks);
+        m_draft->rev = 1;
+        m_draft->mode = m_defaultMode;
+        wireSessionSignals(m_draft);
+    }
+    return m_draft->docId;
+}
+
+/**
+ * @brief 草稿正文回写
+ * @param text 草稿全文
+ *
+ * 与文件会话的 setEditorText 同一条路（重切块 + 差异增量）；区别只在
+ * 虚拟文档永不脏、永不存盘。窗口的草稿编辑器每敲一键调一次。
+ */
+void MarkdownPreviewController::setDraftText(const QString &text)
+{
+    if (!m_draft) {
+        openDraftSession();
+    }
+    applySessionText(m_draft.get(), text);
+}
+
+/**
+ * @brief 文件会话的 tab 清单
+ * @return [{docId, title, dirty, active}]，按打开顺序
+ */
+QVariantList MarkdownPreviewController::tabs() const
+{
+    QVariantList result;
+    for (const auto &session : m_sessions) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("docId"), session->docId);
+        entry.insert(QStringLiteral("title"), session->document.fileName());
+        entry.insert(QStringLiteral("dirty"), session->document.dirty());
+        entry.insert(QStringLiteral("active"), session == m_active);
+        result.append(entry);
+    }
+    return result;
+}
+
+/**
+ * @brief 活跃会话的 docId
+ * @return 会话 id；无活跃会话时为空串
+ */
+QString MarkdownPreviewController::activeDocId() const
+{
+    return m_active ? m_active->docId : QString();
+}
+
+/**
+ * @brief 活跃会话是否是草稿
+ */
+bool MarkdownPreviewController::isDraftActive() const
+{
+    return m_draft && m_active == m_draft;
+}
+
+// --- 反映活跃会话的属性读侧 ---------------------------------------------
+
+QString MarkdownPreviewController::filePath() const
+{
+    return activeSession() ? activeSession()->document.path() : QString();
+}
+
+QString MarkdownPreviewController::fileTitle() const
+{
+    return activeSession() ? activeSession()->document.fileName() : QString();
+}
+
+bool MarkdownPreviewController::dirty() const
+{
+    return activeSession() ? activeSession()->document.dirty() : false;
+}
+
+bool MarkdownPreviewController::readOnly() const
+{
+    return activeSession() ? activeSession()->document.readOnly() : false;
+}
+
+QString MarkdownPreviewController::readOnlyReason() const
+{
+    return activeSession() ? activeSession()->document.readOnlyReason()
+                           : QString();
+}
+
+bool MarkdownPreviewController::canEdit() const
+{
+    return activeSession() ? activeSession()->document.canEdit() : false;
+}
+
+bool MarkdownPreviewController::splitAvailable() const
+{
+    return canEdit();
+}
+
+bool MarkdownPreviewController::changedOnDisk() const
+{
+    return activeSession() ? activeSession()->changedOnDisk : false;
+}
+
+qint64 MarkdownPreviewController::byteSize() const
+{
+    return activeSession() ? activeSession()->document.byteSize() : 0;
+}
+
+QString MarkdownPreviewController::mode() const
+{
+    return activeSession() ? activeSession()->mode : m_defaultMode;
+}
+
+QVariantList MarkdownPreviewController::outline() const
+{
+    return activeSession() ? activeSession()->outline : QVariantList();
+}
+
+const QVector<MarkdownBlock> &MarkdownPreviewController::blocks() const
+{
+    if (activeSession()) {
+        return activeSession()->blocks;
+    }
+    static const QVector<MarkdownBlock> empty;
+    return empty;
 }
 
 /**
@@ -227,7 +577,12 @@ void MarkdownPreviewController::notifyWindowOpened()
 }
 
 /**
- * @brief 窗口关闭：清状态，磁盘状态与文档对象一起放下
+ * @brief 窗口关闭：放下在飞命令，**会话全部保留**
+ *
+ * 会话是应用运行期的记忆：重开窗口时 doc.json 直接取回活跃会话，各 tab 的
+ * 状态（含未保存改动）原样还在——「关窗重开找回上次的 tab 组」在运行期内
+ * 因此是免费的。跨启动的恢复由 workbench 域的会话文件负责（那里只有路径
+ * 与 tab 结构，没有正文）。
  */
 void MarkdownPreviewController::notifyWindowClosed()
 {
@@ -236,24 +591,13 @@ void MarkdownPreviewController::notifyWindowClosed()
     }
     m_windowOpen = false;
     m_queue.clear();
-    m_document.clear();
-    m_blocks.clear();
-    m_outline.clear();
-    m_changedOnDisk = false;
-    // 用户为上一份文档挑的导出目录不属于下一份：留着它会把 README 导出到
-    // 别的项目里去。
-    m_exportDirectory.clear();
-    ++m_rev;
-
     Q_EMIT activeChanged();
-    Q_EMIT documentChanged();
-    Q_EMIT outlineChanged();
-    Q_EMIT dirtyChanged();
-    Q_EMIT changedOnDiskChanged();
 }
 
+// --- 编辑与存盘（活跃会话） ----------------------------------------------
+
 /**
- * @brief 编辑器回写正文
+ * @brief 编辑器回写正文（活跃会话）
  * @param text 新的全文
  *
  * 走「重切块 + 差异」而不是整篇重建：一次编辑通常只碰一两个块，把整篇
@@ -261,27 +605,55 @@ void MarkdownPreviewController::notifyWindowClosed()
  */
 void MarkdownPreviewController::setEditorText(const QString &text)
 {
-    if (m_document.text() == text) {
+    Session *const session = activeSession();
+    if (!session) {
         return;
     }
-    m_document.setText(text);
-    const QVector<MarkdownBlock> next = MarkdownChunker::split(text);
-    const MarkdownChunker::Diff change = MarkdownChunker::diff(m_blocks, next);
-    m_blocks = next;
-    const QVariantList nextOutline =
-        MarkdownRuntime::outlineFromBlocks(m_blocks);
-    const bool outlineDiffers = (nextOutline != m_outline);
-    m_outline = nextOutline;
-    ++m_rev;
+    applySessionText(session, text);
+}
 
-    Q_EMIT documentChanged();
-    if (outlineDiffers) {
-        Q_EMIT outlineChanged();
+/**
+ * @brief 活跃会话的正文
+ * @return 全文；无会话时为空串
+ */
+QString MarkdownPreviewController::editorText() const
+{
+    return activeSession() ? activeSession()->document.text() : QString();
+}
+
+/**
+ * @brief 把一段编辑回写进会话状态（文件与草稿共用）
+ * @param session 目标会话
+ * @param text 新的全文
+ */
+void MarkdownPreviewController::applySessionText(Session *session,
+                                                 const QString &text)
+{
+    if (!session || session->document.text() == text) {
+        return;
     }
+    session->document.setText(text);
+    const QVector<MarkdownBlock> next = MarkdownChunker::split(text);
+    const MarkdownChunker::Diff change =
+        MarkdownChunker::diff(session->blocks, next);
+    session->blocks = next;
+    const QVariantList nextOutline =
+        MarkdownRuntime::outlineFromBlocks(session->blocks);
+    const bool outlineDiffers = (nextOutline != session->outline);
+    session->outline = nextOutline;
+    ++session->rev;
+    session->cachedRev = -1;
 
-    if (m_windowOpen && !change.isNull()) {
+    const bool isActive = (m_active.get() == session);
+    if (isActive) {
+        Q_EMIT documentChanged();
+        if (outlineDiffers) {
+            Q_EMIT outlineChanged();
+        }
+    }
+    if (isActive && m_windowOpen && !change.isNull()) {
         QJsonObject args;
-        args.insert(QStringLiteral("rev"), m_rev);
+        args.insert(QStringLiteral("rev"), session->rev);
         args.insert(QStringLiteral("startIndex"), change.startIndex);
         args.insert(QStringLiteral("removeCount"), change.removeCount);
         args.insert(QStringLiteral("blocks"), blocksJson(change.inserted));
@@ -290,83 +662,128 @@ void MarkdownPreviewController::setEditorText(const QString &text)
 }
 
 /**
- * @brief 存盘
+ * @brief 存盘（活跃会话）
  * @return 成功或失败原因
  */
 core::OpResult MarkdownPreviewController::saveNow()
 {
-    const core::OpResult written = m_document.save();
+    Session *const session = activeSession();
+    if (!session) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "MarkdownPreviewController", "There is no file to save to."));
+    }
+    const core::OpResult written = session->document.save();
     if (written) {
         Q_EMIT saved();
+        Q_EMIT tabsChanged();
     }
     return written;
 }
 
 /**
- * @brief 放弃本地改动，重新读盘
+ * @brief 放弃本地改动，重新读盘（活跃会话）
  * @return 成功或失败原因
  */
 core::OpResult MarkdownPreviewController::reloadFromDisk()
 {
-    if (m_document.path().isEmpty()) {
+    Session *const session = activeSession();
+    if (!session || session->document.path().isEmpty()) {
         return core::OpResult::failure(QCoreApplication::translate(
             "MarkdownPreviewController", "There is no file to reload."));
     }
-    const core::OpResult loaded = m_document.load(m_document.path());
+    const QString path = session->document.path();
+    const core::OpResult loaded = session->document.load(path);
     if (!loaded) {
         return loaded;
     }
-    m_blocks = MarkdownChunker::split(m_document.text());
-    m_outline = MarkdownRuntime::outlineFromBlocks(m_blocks);
-    ++m_rev;
-    m_changedOnDisk = false;
+    rebuildSession(session);
+    return core::OpResult::success();
+}
 
+/**
+ * @brief 会话整体重算（块 + 大纲 + rev），并广播状态
+ * @param session 目标会话（重载后调用）
+ */
+void MarkdownPreviewController::rebuildSession(Session *session)
+{
+    if (!session) {
+        return;
+    }
+    session->blocks = MarkdownChunker::split(session->document.text());
+    session->outline = MarkdownRuntime::outlineFromBlocks(session->blocks);
+    ++session->rev;
+    session->changedOnDisk = false;
+    session->cachedRev = -1;
+
+    if (m_active.get() != session) {
+        return;
+    }
     Q_EMIT documentChanged();
     Q_EMIT outlineChanged();
     Q_EMIT dirtyChanged();
     Q_EMIT changedOnDiskChanged();
     if (m_windowOpen) {
         QVariantMap args;
-        args.insert(QStringLiteral("rev"), m_rev);
+        args.insert(QStringLiteral("rev"), session->rev);
         enqueue(QStringLiteral("setDocument"), args);
     }
-    return core::OpResult::success();
 }
 
 /**
- * @brief 用户选择保留自己的改动，提示消失
+ * @brief 用户选择保留自己的改动，提示消失（活跃会话）
  *
  * 必须同时把磁盘那份认作基线：只清状态位的话，下一次 refreshDiskState()
  * 会算出同样的差异、把提示再弹一遍，用户关不掉它。
  */
 void MarkdownPreviewController::dismissDiskNotice()
 {
-    if (!m_changedOnDisk) {
+    Session *const session = activeSession();
+    if (!session || !session->changedOnDisk) {
         return;
     }
-    m_document.acceptDiskState();
-    m_changedOnDisk = false;
+    session->document.acceptDiskState();
+    session->changedOnDisk = false;
     Q_EMIT changedOnDiskChanged();
 }
 
 /**
- * @brief 重新比对磁盘形态，刷新 changedOnDisk
- *
- * 无文档时差异一律为假：没有基线可比。
+ * @brief 重新比对磁盘形态，刷新 changedOnDisk（活跃会话）
  */
 void MarkdownPreviewController::refreshDiskState()
 {
-    const bool changed = m_document.hasPath() && m_document.externallyChanged();
-    if (changed == m_changedOnDisk) {
-        return;
-    }
-    m_changedOnDisk = changed;
-    Q_EMIT changedOnDiskChanged();
+    refreshDiskStateFor(activeSession());
 }
 
 /**
- * @brief 视图模式
+ * @brief 某个会话的磁盘差异复查
+ * @param session 目标会话
+ *
+ * watcher 回调与窗口激活轮询两条路都汇到这里。无文档时差异一律为假：
+ * 没有基线可比。
+ */
+void MarkdownPreviewController::refreshDiskStateFor(Session *session)
+{
+    if (!session) {
+        return;
+    }
+    const bool changed =
+        session->document.hasPath() && session->document.externallyChanged();
+    if (changed == session->changedOnDisk) {
+        return;
+    }
+    session->changedOnDisk = changed;
+    if (m_active.get() == session) {
+        Q_EMIT changedOnDiskChanged();
+    }
+}
+
+// --- 视图设置 -----------------------------------------------------------
+
+/**
+ * @brief 三态模式（每会话一份）
  * @param mode preview / split / source；其它取值忽略
+ *
+ * 会话自己的模式当场换；settings 里的那份同步成「新会话的默认值」。
  */
 void MarkdownPreviewController::setMode(const QString &mode)
 {
@@ -374,12 +791,25 @@ void MarkdownPreviewController::setMode(const QString &mode)
         && mode != QStringLiteral("source")) {
         return;
     }
-    if (m_mode == mode) {
-        return;
+    Session *const session = activeSession();
+    if (!session) {
+        if (m_defaultMode == mode) {
+            return;
+        }
+        m_defaultMode = mode;
+        persistView(mode);
+        Q_EMIT viewChanged();
     }
-    m_mode = mode;
-    persistView();
-    Q_EMIT viewChanged();
+    else {
+        if (session->mode == mode) {
+            return;
+        }
+        session->mode = mode;
+        session->cachedRev = -1;
+        m_defaultMode = mode;
+        persistView(mode);
+        Q_EMIT viewChanged();
+    }
     QVariantMap args;
     args.insert(QStringLiteral("mode"), mode);
     args.insert(QStringLiteral("canEdit"), canEdit());
@@ -397,7 +827,8 @@ void MarkdownPreviewController::setFontSizePx(int pixels)
         return;
     }
     m_fontSizePx = clamped;
-    persistView();
+    persistView(mode());
+    invalidateAllSessionBodies();
     Q_EMIT viewChanged();
     QVariantMap args;
     args.insert(QStringLiteral("fontSizePx"), clamped);
@@ -415,7 +846,8 @@ void MarkdownPreviewController::setContentWidthPx(int pixels)
         return;
     }
     m_contentWidthPx = clamped;
-    persistView();
+    persistView(mode());
+    invalidateAllSessionBodies();
     Q_EMIT viewChanged();
     QVariantMap args;
     args.insert(QStringLiteral("contentWidthPx"), clamped);
@@ -432,7 +864,8 @@ void MarkdownPreviewController::setShowOutline(bool show)
         return;
     }
     m_showOutline = show;
-    persistView();
+    persistView(mode());
+    invalidateAllSessionBodies();
     Q_EMIT viewChanged();
     QVariantMap args;
     args.insert(QStringLiteral("showOutline"), show);
@@ -440,51 +873,111 @@ void MarkdownPreviewController::setShowOutline(bool show)
 }
 
 /**
- * @brief 页面 fetch('doc.json') 的响应体
+ * @brief 让每个会话的 doc.json 载荷缓存失效
+ *
+ * 字号/栏宽/大纲开关进**每一份**载荷：改了它们，任何会话切回来时页面
+ * 重新 fetch 都必须拿到新值，缓存只按会话自己的 rev 失效就不够了。
+ */
+void MarkdownPreviewController::invalidateAllSessionBodies()
+{
+    for (const auto &session : m_sessions) {
+        session->cachedRev = -1;
+    }
+    if (m_draft) {
+        m_draft->cachedRev = -1;
+    }
+}
+
+// --- doc.json 载荷与资源寻址 --------------------------------------------
+
+/**
+ * @brief 页面 fetch('doc.json') 的响应体（活跃会话）
  * @return 整篇文档 + 块 + 视图 + 主题 + 文案的 JSON
  *
- * 按 rev 缓存：一次渲染周期里页面可能取多次（首屏、字体切换后的重取），
- * 每次重新序列化 2 MB 文本是白干。缓存只在 rev 变化时失效。
+ * 按 rev 缓存在会话上：一次渲染周期里页面可能取多次（首屏、字体切换后的
+ * 重取），每次重新序列化 2 MB 文本是白干。缓存只在会话自己的 rev 变化或
+ * 全局视图偏好变化时失效。
  */
 QString MarkdownPreviewController::documentBodyJson() const
 {
-    if (m_cachedRev == m_rev && !m_cachedBody.isEmpty()) {
-        return m_cachedBody;
+    const Session *const session = activeSession();
+    if (!session) {
+        return QStringLiteral("{}");
+    }
+    if (session->cachedRev == session->rev && !session->cachedBody.isEmpty()) {
+        return session->cachedBody;
     }
 
     QJsonObject view;
-    view.insert(QStringLiteral("mode"), m_mode);
+    view.insert(QStringLiteral("mode"), session->mode);
     view.insert(QStringLiteral("fontSizePx"), m_fontSizePx);
     view.insert(QStringLiteral("contentWidthPx"), m_contentWidthPx);
     view.insert(QStringLiteral("showOutline"), m_showOutline);
     view.insert(QStringLiteral("canEdit"), canEdit());
 
     QJsonObject root;
-    root.insert(QStringLiteral("rev"), m_rev);
-    root.insert(QStringLiteral("docId"), m_docId);
-    root.insert(QStringLiteral("path"), m_document.path());
-    root.insert(QStringLiteral("title"), m_document.fileName());
-    root.insert(QStringLiteral("directory"), m_document.directory());
-    root.insert(QStringLiteral("bytes"), double(m_document.byteSize()));
+    root.insert(QStringLiteral("rev"), session->rev);
+    root.insert(QStringLiteral("docId"), session->docId);
+    root.insert(QStringLiteral("path"), session->document.path());
+    root.insert(QStringLiteral("title"), session->document.fileName());
+    root.insert(QStringLiteral("directory"), session->document.directory());
+    root.insert(QStringLiteral("bytes"),
+                double(session->document.byteSize()));
     root.insert(QStringLiteral("readOnly"), readOnly());
-    root.insert(QStringLiteral("readOnlyReason"), m_document.readOnlyReason());
+    root.insert(QStringLiteral("readOnlyReason"),
+                session->document.readOnlyReason());
     root.insert(QStringLiteral("assetBase"),
-                MarkdownRuntime::assetUrl(m_docId, QStringLiteral("")).toString());
+                MarkdownRuntime::assetUrl(session->docId,
+                                          QStringLiteral("")).toString());
     root.insert(QStringLiteral("view"), view);
     root.insert(QStringLiteral("vars"),
                 QJsonObject::fromVariantMap(
                     MarkdownRuntime::cssVariables(m_theme)));
     root.insert(QStringLiteral("strings"), MarkdownRuntime::pageStrings());
-    root.insert(QStringLiteral("blocks"), blocksJson(m_blocks));
-    root.insert(QStringLiteral("outline"), QJsonArray::fromVariantList(m_outline));
+    root.insert(QStringLiteral("blocks"), blocksJson(session->blocks));
+    root.insert(QStringLiteral("outline"),
+                QJsonArray::fromVariantList(session->outline));
 
     const QString body = QString::fromUtf8(
         QJsonDocument(root).toJson(QJsonDocument::Compact));
     // const 方法要写缓存：这两支是页面侧的唯一真相，缓存错了就是渲染错了。
-    m_cachedRev = m_rev;
-    m_cachedBody = body;
+    session->cachedRev = session->rev;
+    session->cachedBody = body;
     return body;
 }
+
+/**
+ * @brief 活跃会话的 docId
+ */
+QString MarkdownPreviewController::docId() const
+{
+    return activeSession() ? activeSession()->docId : QString();
+}
+
+/**
+ * @brief 活跃会话的文档目录
+ */
+QString MarkdownPreviewController::assetRoot() const
+{
+    return activeSession() ? activeSession()->document.directory()
+                           : QString();
+}
+
+/**
+ * @brief 任意活着会话的文档目录
+ * @param docId 资源寻址 id
+ * @return 文档目录；会话不存在或没有目录（草稿）时为空串
+ *
+ * 适配器按 asset/<docId>/… 寻址：换页瞬间旧会话的图片请求还可能在飞，
+ * 所以解析范围是**所有**活着的会话，不只是活跃的那个。
+ */
+QString MarkdownPreviewController::assetRootFor(const QString &docId) const
+{
+    const std::shared_ptr<Session> session = sessionById(docId);
+    return session ? session->document.directory() : QString();
+}
+
+// --- 命令队列 ------------------------------------------------------------
 
 /**
  * @brief 取出队首命令
@@ -506,16 +999,12 @@ QString MarkdownPreviewController::takeCommand()
  *
  * 就绪即把视图与主题两条命令补发一次：doc.json 里已经带了它们，这条只是
  * 让「页面加载完成」与「设置命令到达」的顺序无关紧要。
- *
- * contentVisibility 为假时不必报错——Chromium 87 以下才没有它——但必须看得见：
- * 大文档滚动优化的主干（theme.css 的 .awb-block）在这个能力位上，页面照常出、
- * 滚动却卡，是那种「测不出问题在哪」的卡。
  */
 void MarkdownPreviewController::reportReady(const QString &json)
 {
     AWB_PERF << "markdown: page ready" << json.left(200);
     QVariantMap args;
-    args.insert(QStringLiteral("mode"), m_mode);
+    args.insert(QStringLiteral("mode"), mode());
     args.insert(QStringLiteral("fontSizePx"), m_fontSizePx);
     args.insert(QStringLiteral("contentWidthPx"), m_contentWidthPx);
     args.insert(QStringLiteral("showOutline"), m_showOutline);
@@ -560,7 +1049,7 @@ void MarkdownPreviewController::reportError(const QString &json)
  * purpose 由 requestMarkup() 记住：一次只可能有一个序列化请求在飞（按钮
  * 点了会等结果回来才再可用），所以不需要把 id 传进传出。
  *
- * 两条路都写盘，区别只在写到哪：
+ * 两条路都写盘，区别只在写到哪（落点取自**活跃会话**）：
  *  - "export" → exportDirectory()（空 = 文档所在目录）下的 exportFileName()。
  *    图片在导出件里是**相对引用**，落在文档旁边才显示得出来，这是默认目录的
  *    理由，也是用户换目录导出时要自己承担的后果。
@@ -575,6 +1064,7 @@ void MarkdownPreviewController::reportMarkup(const QString &html)
     m_markupPurpose.clear();
     Q_EMIT markupReady(html, purpose);
 
+    const Session *const session = activeSession();
     const QByteArray bytes = html.toUtf8();
     QString target;
     if (purpose == QLatin1String("browser")) {
@@ -582,8 +1072,9 @@ void MarkdownPreviewController::reportMarkup(const QString &html)
         target = core::Paths::markdownPreviewDir() + QLatin1Char('/')
                 + exportFileName();
     } else {
-        const QString directory = m_exportDirectory.isEmpty()
-                ? m_document.directory() : m_exportDirectory;
+        const QString directory = (session && !session->exportDirectory.isEmpty())
+                ? session->exportDirectory
+                : (session ? session->document.directory() : QString());
         if (directory.isEmpty()) {
             Q_EMIT markupWriteFailed(purpose, QCoreApplication::translate(
                 "MarkdownPreviewController",
@@ -604,12 +1095,24 @@ void MarkdownPreviewController::reportMarkup(const QString &html)
 }
 
 /**
- * @brief 记下导出目录
+ * @brief 记下导出目录（活跃会话）
  * @param directory 绝对路径；空串恢复默认（文档所在目录）
  */
 void MarkdownPreviewController::setExportDirectory(const QString &directory)
 {
-    m_exportDirectory = directory;
+    Session *const session = activeSession();
+    if (!session) {
+        return;
+    }
+    session->exportDirectory = directory;
+}
+
+/**
+ * @brief 导出目录（活跃会话）
+ */
+QString MarkdownPreviewController::exportDirectory() const
+{
+    return activeSession() ? activeSession()->exportDirectory : QString();
 }
 
 /**
@@ -621,7 +1124,7 @@ void MarkdownPreviewController::setExportDirectory(const QString &directory)
  */
 QString MarkdownPreviewController::exportFileName() const
 {
-    const QString source = m_document.fileName();
+    const QString source = fileTitle();
     if (source.isEmpty()) {
         return QStringLiteral("Markdown.html");
     }
@@ -717,7 +1220,7 @@ void MarkdownPreviewController::enqueue(const QString &cmd,
  *
  * 「同 cmd 覆盖」是本类唯一的路径保证：连续敲键时队列里留最后一次；
  * setDocument 是全量重建，它一进队就把还没发出的 updateBlocks 清掉，
- * 否则两种写法会在页面上打架。
+ * 否则两种写法会在页面上打架（切会话正是靠这条把上一会话的增量清干净）。
  *
  * 这里**不**按 available() 提前返回：能力缺失时根本没有人调用本类（菜单项
  * 与窗口都不出现），而把队列测试绑在编译期开关上，等于让 WebEngine 关闭的
@@ -754,20 +1257,18 @@ void MarkdownPreviewController::enqueue(const QString &cmd,
 
 /**
  * @brief 视图设置落盘
+ * @param mode 三态模式（作为新会话的默认值写进 settings）
  *
- * 写内存里的 Settings 再 save()：与界面其它设置项同一套语义（值一改就发
- * valueChanged，落盘由调用方决定）。这里每次都 save——预览窗口是低频操作，
- * 省不下什么，而「调完字号重启就没了」是实打实的抱怨。
+ * 写内存里的 Settings 再 save()：与界面其它设置项同一套语义。这里每次都
+ * save——预览窗口是低频操作，省不下什么，而「调完字号重启就没了」是
+ * 实打实的抱怨。
  */
-void MarkdownPreviewController::persistView()
+void MarkdownPreviewController::persistView(const QString &mode)
 {
     if (!m_settings) {
         return;
     }
-    // 载荷里也有视图状态，改了不改 rev 也得让它重算：缓存只按 rev 失效的话，
-    // 「改完字号后页面重新 fetch doc.json」会拿到旧的字号。
-    m_cachedRev = -1;
-    m_settings->setMarkdownMode(m_mode);
+    m_settings->setMarkdownMode(mode);
     m_settings->setMarkdownFontSizePx(m_fontSizePx);
     m_settings->setMarkdownContentWidthPx(m_contentWidthPx);
     m_settings->setMarkdownShowOutline(m_showOutline);
@@ -775,7 +1276,7 @@ void MarkdownPreviewController::persistView()
 }
 
 /**
- * @brief 从设置恢复视图偏好
+ * @brief 从设置恢复视图偏好（新会话的三态默认值 + 三项全局偏好）
  */
 void MarkdownPreviewController::loadView()
 {
@@ -783,7 +1284,7 @@ void MarkdownPreviewController::loadView()
         return;
     }
     const core::MarkdownSettings &markdown = m_settings->markdownOptions();
-    m_mode = markdown.mode;
+    m_defaultMode = markdown.mode;
     m_fontSizePx = markdown.fontSizePx;
     m_contentWidthPx = markdown.contentWidthPx;
     m_showOutline = markdown.showOutline;

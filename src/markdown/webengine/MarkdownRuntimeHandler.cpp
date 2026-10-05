@@ -128,13 +128,14 @@ void MarkdownRuntimeHandler::requestStarted(QWebEngineUrlRequestJob *job)
         }
         QString docId;
         const QString rel = assetRelativePath(rest, &docId);
-        // docId 是这次打开生成的，对不上就是陈旧的页面在要东西；形状不对的
+        // 资源按 docId 对到**任意活着的会话**（多会话：换页瞬间旧会话的
+        // 图片请求还可能在飞），会话不存在就是陈旧页面要东西；形状不对的
         // 一律不给，否则预览一张图片能读出用户主目录。
-        if (docId != m_controller->docId() || !isSafeRelativePath(rel)) {
+        const QString root = m_controller->assetRootFor(docId);
+        if (root.isEmpty() || !isSafeRelativePath(rel)) {
             job->fail(QWebEngineUrlRequestJob::UrlNotFound);
             return;
         }
-        const QString root = m_controller->assetRoot();
         const QString file = QDir(root).absoluteFilePath(rel);
         if (!file.startsWith(QDir(root).absolutePath())) {
             job->fail(QWebEngineUrlRequestJob::UrlNotFound);

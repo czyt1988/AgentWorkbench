@@ -9,9 +9,12 @@
 #include <QList>
 #include <QPair>
 #include <QObject>
+#include <QString>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+
+#include <memory>
 
 namespace awb::core {
 class Settings;
@@ -23,18 +26,27 @@ class Theme;
 
 namespace awb::markdown {
 
-/// QML 单例 `Markdown`（AgentWorkbench.App 上的大写类型名）：预览窗口的全部
-/// 状态与动作，也是页面 JS 与 C++ 之间那唯一一条命令队列的持有者。
+/// QML 单例 `Markdown`（AgentWorkbench.App 上的大写类型名）：Markdown 预览的
+/// 全部会话状态与动作，也是页面 JS 与 C++ 之间那唯一一条命令队列的持有者。
+///
+/// **多会话（M1）**：控制器是一台「会话容器 + 一个渲染面」。每个会话
+/// （`Session`，.cpp 内定义）带着自己的文档、块序列、大纲、rev、模式与
+/// 导出落点；`docId` 是会话的资源寻址键。同一时刻只有一个**活跃会话**——
+/// 单 `WebEngineView` 复用换文档：切换会话发一条 `setDocument` 全量重建，
+/// 增量编辑（`updateBlocks`）只发生在活跃会话上。`doc.json` 供应活跃会话，
+/// `asset/<docId>/…` 对所有活着的会话解析（换页瞬间旧会话的图片请求还可能
+/// 在飞）。草稿是其中一个特殊会话（虚拟文档，`docId` 固定 "draft"），
+/// 编辑面在 tools 域的草稿编辑器，这里只做渲染镜像。
 ///
 /// 分工线在这里划开：本类不认识 WebEngine，也不认识 QML 类型——它只负责
-/// 「文档 + 块 + 视图设置 + 待发送命令」，把命令送进视图、把视图拉取的资源
-/// 供出去，都是 src/markdown/webengine/ 适配器的活。这样纯层能在没有
-/// WebEngine 的构建里编译、在 tst_markdown 里没有浏览器地测试。
+/// 「会话们 + 待发送命令」，把命令送进视图、把视图拉取的资源供出去，
+/// 都是 src/markdown/webengine/ 适配器的活。这样纯层能在没有 WebEngine
+/// 的构建里编译、在 tst_markdown 里没有浏览器地测试。
 ///
 /// 命令队列而不是信号直发：QML 侧的 runJavaScript 只有 WebEngineView 这一个
-/// 入口，视图还没加载完时发的命令会全部丢失。所以命令先进队列，适配器在
+/// 入口，视图还没加载完时发的命令会全部丢失。所以命令先进队列，窗口在
 /// 「视图就绪」和「有新命令」两个时刻各排空一次，队列里只保留同一类的最新
-/// 一条（连续五次编辑只会送出最后一次 setDocument/updateBlocks）。
+/// 一条（连续五次编辑只会送出最后一次 updateBlocks）。
 class MarkdownPreviewController : public QObject
 {
     Q_OBJECT
@@ -49,6 +61,12 @@ class MarkdownPreviewController : public QObject
                    NOTIFY capabilitiesChanged)
     /// 窗口是否已经打开
     Q_PROPERTY(bool active READ active NOTIFY activeChanged)
+    /// 文件会话的 tab 清单（草稿不在内）：[{docId,title,dirty,active}]
+    Q_PROPERTY(QVariantList tabs READ tabs NOTIFY tabsChanged)
+    /// 活跃会话的资源寻址 id；无活跃会话时为空串
+    Q_PROPERTY(QString activeDocId READ activeDocId NOTIFY activeSessionChanged)
+    /// 活跃会话是否是草稿（提示词形态的渲染镜像）
+    Q_PROPERTY(bool draftActive READ isDraftActive NOTIFY activeSessionChanged)
     Q_PROPERTY(QString filePath READ filePath NOTIFY documentChanged)
     Q_PROPERTY(QString fileTitle READ fileTitle NOTIFY documentChanged)
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
@@ -57,6 +75,7 @@ class MarkdownPreviewController : public QObject
     Q_PROPERTY(bool canEdit READ canEdit NOTIFY readOnlyChanged)
     /// 能否用「编辑 | 分栏 | 源码」三态（受 canEdit 约束）
     Q_PROPERTY(bool splitAvailable READ splitAvailable NOTIFY readOnlyChanged)
+    /// 三态模式（每会话一份；新会话取 settings 里的默认值）
     Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY viewChanged)
     Q_PROPERTY(int fontSizePx READ fontSizePx WRITE setFontSizePx
                    NOTIFY viewChanged)
@@ -72,9 +91,13 @@ class MarkdownPreviewController : public QObject
                    NOTIFY changedOnDiskChanged)
 
 public:
+    /// 文件会话上限：满了再开会被拒绝（提示关 tab，不静默淘汰）。
+    static constexpr int kMaxFileSessions = 8;
+
     explicit MarkdownPreviewController(core::Settings *settings,
                                        theme::Theme *theme,
                                        QObject *parent = nullptr);
+    ~MarkdownPreviewController() override;
 
     bool available() const;
     QString unavailableReason() const;
@@ -87,22 +110,30 @@ public:
     /// 与图表出不来。只给适配器调用——QML 侧一律读 available 属性。
     void setSurfaceReady(bool ready);
     bool active() const { return m_windowOpen; }
-    QString filePath() const { return m_document.path(); }
-    QString fileTitle() const { return m_document.fileName(); }
-    bool dirty() const { return m_document.dirty(); }
-    bool readOnly() const { return m_document.readOnly(); }
-    QString readOnlyReason() const { return m_document.readOnlyReason(); }
-    bool canEdit() const { return m_document.canEdit(); }
-    bool splitAvailable() const { return m_document.canEdit(); }
-    bool changedOnDisk() const { return m_changedOnDisk; }
-    qint64 byteSize() const { return m_document.byteSize(); }
+    QString filePath() const;
+    QString fileTitle() const;
+    bool dirty() const;
+    bool readOnly() const;
+    QString readOnlyReason() const;
+    bool canEdit() const;
+    bool splitAvailable() const;
+    bool changedOnDisk() const;
+    qint64 byteSize() const;
 
-    // 视图设置的四组读写（WRITE 入口即 Q_INVOKABLE 的等价物）
-    QString mode() const { return m_mode; }
+    // 文件会话的 tab 清单（打开顺序）；草稿会话不占 tab（M1 的隐式草稿）
+    QVariantList tabs() const;
+    // 活跃会话的 docId；无活跃会话时为空串
+    QString activeDocId() const;
+    // 活跃会话是否是草稿会话
+    bool isDraftActive() const;
+
+    // 视图设置的四组读写（WRITE 入口即 Q_INVOKABLE 的等价物）。
+    // 模式是每会话一份；字号/栏宽/大纲是全局偏好（settings.json）。
+    QString mode() const;
     int fontSizePx() const { return m_fontSizePx; }
     int contentWidthPx() const { return m_contentWidthPx; }
     bool showOutline() const { return m_showOutline; }
-    QVariantList outline() const { return m_outline; }
+    QVariantList outline() const;
 
     Q_INVOKABLE void setMode(const QString &mode);
     Q_INVOKABLE void setFontSizePx(int pixels);
@@ -114,34 +145,60 @@ public:
     /// 只在运行时 404。
     Q_INVOKABLE QUrl pageUrl() const;
 
-    /// 打开一份 Markdown：校验、读盘、切块，成功后发 windowRequested()。
-    /// 失败只返回原因，不动既有文档，也不开窗。
+    // --- 会话管理（M1） ----------------------------------------------
+    /// 打开一份 Markdown：同路径已有会话则激活它（tab 已在），否则建新会话
+    /// 并激活。成功后发 windowRequested()。失败不开窗、不动既有会话。
     Q_INVOKABLE awb::core::OpResult openFile(const QString &path);
 
+    /// 激活一个会话（文件或草稿）。切换 = 页面整篇重建（setDocument）。
+    Q_INVOKABLE void activateSession(const QString &docId);
+
+    /// 关掉一个文件会话（关 tab ≠ 删文档：磁盘文件不动）。关的是活跃会话时，
+    /// 顺位激活最后打开的文件会话，没有文件会话则退到草稿。
+    Q_INVOKABLE void closeSession(const QString &docId);
+
+    /// 建草稿会话（幂等，返回 docId，固定 "draft"）：虚拟文档承载草稿正文，
+    /// 渲染管线与文件会话同一条。
+    Q_INVOKABLE QString openDraftSession();
+
+    /// 草稿正文回写（窗口的草稿编辑器每敲一键调一次；持久化在 tools 域）。
+    Q_INVOKABLE void setDraftText(const QString &text);
+
+    // ------------------------------------------------------------------
     /// 这个路径是否归预览管（后缀判定与 openFile() 同一处，见 .cpp）。
     /// 文件树右键菜单用它决定条目出不出——后缀清单不是 QML 该知道的事。
     Q_INVOKABLE bool canPreviewPath(const QString &path) const;
 
-    // 窗口 QML 的生命周期播报
+    // 窗口 QML 的生命周期播报。关窗**不清会话**：会话是应用运行期的记忆，
+    // 重开窗口经 doc.json 直接取回活跃会话；跨启动的恢复走 workbench 域
+    // 的会话文件（MarkdownSessionStore）。
     Q_INVOKABLE void notifyWindowOpened();
     Q_INVOKABLE void notifyWindowClosed();
 
-    // 编辑器回写与存盘
+    // 编辑器回写与存盘（作用在活跃会话上）
     Q_INVOKABLE void setEditorText(const QString &text);
-    Q_INVOKABLE QString editorText() const { return m_document.text(); }
+    Q_INVOKABLE QString editorText() const;
     Q_INVOKABLE awb::core::OpResult saveNow();
     // 磁盘那份重新读进来（放弃本地改动）
     Q_INVOKABLE awb::core::OpResult reloadFromDisk();
     // 差异提示消失（用户选了「保留我的改动」）
     Q_INVOKABLE void dismissDiskNotice();
     /// 重新比对磁盘形态并刷新 changedOnDisk。文件监视器与窗口激活各调一次：
-    /// QFileSystemWatcher 在 Windows 上会静默丢掉「删除后重建」的文件，光靠它
-    /// 会有「别人改了却始终不提示」的漏报，这条轮询式复查是它的兜底。
+    /// QFileSystemWatcher 在 Windows 上会静默丢掉「删除后重建」的文件，光靠
+    /// 它会有漏报，这条轮询式复查是它的兜底。
     Q_INVOKABLE void refreshDiskState();
 
-    /// 页面 fetch('awbmd://runtime/doc.json') 的响应体。
-    /// 每次调用都按当前状态重新生成，所以 rev 与内容不会错拍。
+    /// 页面 fetch('awbmd://runtime/doc.json') 的响应体：**活跃会话**的
+    /// 全部状态。每次调用都按当前状态重新生成，rev 与内容不会错拍。
     Q_INVOKABLE QString documentBodyJson() const;
+
+    /// 活跃会话的 docId（资源寻址键）；无会话时为空串。
+    QString docId() const;
+    /// 活跃会话的文档目录（相对图片的解析基准）。
+    QString assetRoot() const;
+    /// 任意活着会话的文档目录；会话不存在（或草稿）返回空串。适配器按
+    /// asset/<docId>/… 寻址时用：换页瞬间旧会话的图片请求还可能在飞。
+    QString assetRootFor(const QString &docId) const;
 
     /// 适配器排空命令队列用：取出队首命令 JSON，空串表示没有。
     Q_INVOKABLE QString takeCommand();
@@ -161,11 +218,11 @@ public:
     /// 回来。purpose 取 "export" 或 "browser"，决定接手方。
     Q_INVOKABLE void requestMarkup(const QString &purpose);
 
-    /// 导出目录。空串 = 文档所在目录——导出件里的图片是相对引用，只有落在
-    /// 文档旁边才取到，换目录导出是个用户知情选择的降级，不是默认。
-    /// 窗口 QML 经原生目录对话框选好这里，再调 requestMarkup("export")。
+    /// 导出目录（每会话一份）。空串 = 文档所在目录——导出件里的图片是相对
+    /// 引用，只有落在文档旁边才取到，换目录导出是个用户知情选择的降级，
+    /// 不是默认。窗口 QML 经原生目录对话框选好这里，再调 requestMarkup。
     Q_INVOKABLE void setExportDirectory(const QString &directory);
-    Q_INVOKABLE QString exportDirectory() const { return m_exportDirectory; }
+    Q_INVOKABLE QString exportDirectory() const;
     /// 导出文件的建议名：文档主名换 .html，没有文档时给 "Markdown.html"
     Q_INVOKABLE QString exportFileName() const;
     // 请求整篇渲染（把懒渲染的图表全部补上），只在导出/外部打开前需要
@@ -177,12 +234,8 @@ public:
     // 跳到大纲项
     Q_INVOKABLE void scrollToAnchor(const QString &anchor, int blockIndex);
 
-    // 供适配器解析 awbmd://runtime/asset/<docId>/… 的两个取值
-    QString docId() const { return m_docId; }
-    QString assetRoot() const { return m_document.directory(); }
-
-    // 块序列（测试与适配器都按它工作）
-    const QVector<MarkdownBlock> &blocks() const { return m_blocks; }
+    // 块序列（测试与适配器都按它工作；无活跃会话时是空表）
+    const QVector<MarkdownBlock> &blocks() const;
 
 Q_SIGNALS:
     /// 请求打开预览窗口：MainWindow.qml 里那个 Loader 的唯一激活条件
@@ -190,6 +243,10 @@ Q_SIGNALS:
     /// 有新命令排队，适配器应当来 takeCommand()
     void commandQueued();
     void activeChanged();
+    /// 活跃会话换人了：所有反映活跃会话的属性都随此重算
+    void activeSessionChanged();
+    /// tab 清单或其中某项的状态（标题/脏标记/激活位）变了
+    void tabsChanged();
     void documentChanged();
     void dirtyChanged();
     void readOnlyChanged();
@@ -212,37 +269,57 @@ Q_SIGNALS:
     void saved();
 
 private:
+    // 会话的完整形态（文档、块、视图态、导出态、载荷缓存）；定义在 .cpp。
+    struct Session;
+
+    // 按 docId 找会话（文件会话 + 草稿）；找不到返回空 shared_ptr
+    std::shared_ptr<Session> sessionById(const QString &docId) const;
+    // 活跃会话的裸指针；无活跃会话时为空（读侧各属性自带兜底）
+    Session *activeSession() const;
+    // 建一个新文件会话并接好它的信号线（读盘失败时不入列）
+    std::shared_ptr<Session> createFileSession(const QString &path,
+                                               core::OpResult *failure);
+    // 激活切换的公共路径：换人、发 setDocument、广播全部属性信号
+    bool activateSession(const std::shared_ptr<Session> &session);
+    // 把一段编辑回写进会话状态（重切块 + 差异），草稿与文件共用
+    void applySessionText(Session *session, const QString &text);
+    // 某个会话的磁盘差异复查（窗口激活轮询与 watcher 两条路的汇合点）
+    void refreshDiskStateFor(Session *session);
+    // 活跃会话整体重算（块 + 大纲 + rev），发 documentChanged 家族信号
+    void rebuildSession(Session *session);
+    // 接好一个会话的文档信号线（活跃时才转发为控制器的属性信号）
+    void wireSessionSignals(const std::shared_ptr<Session> &session);
+    // 让每个会话的 doc.json 载荷缓存失效（全局视图偏好变化时）
+    void invalidateAllSessionBodies();
+
     // 把一条命令放进队列（同类只留最新）
     void enqueue(const QString &cmd, const QVariantMap &args);
     void enqueue(const QString &cmd, const QJsonObject &args);
-    // 设置变更后持久化
-    void persistView();
+    // 视图设置持久化（模式进 settings 的默认值，其余三项本就是全局偏好）
+    void persistView(const QString &mode);
     void loadView();
 
     core::Settings *m_settings;    ///< 视图设置的落点（不拥有）
     theme::Theme *m_theme;         ///< CSS 变量的来源（不拥有）
-    MarkdownDocument m_document;   ///< 当前文档
-    QVector<MarkdownBlock> m_blocks; ///< 当前块序列
-    QVariantList m_outline;        ///< 由块序列派生的大纲
-    QString m_docId;               ///< 本次打开的资源寻址 id
-    int m_docSeq = 0;              ///< docId 的自增序号
-    int m_rev = 0;                 ///< 文档版本，进 doc.json 的 query
-    int m_seq = 0;                 ///< 命令序号，只用于日志对齐
-    bool m_surfaceReady = false;   ///< 适配器是否已装好预览表面（见 setSurfaceReady）
-    bool m_windowOpen = false;     ///< 窗口是否活着
-    bool m_changedOnDisk = false;  ///< 外部改动提示的当前状态
-    QString m_markupPurpose;       ///< 在飞的序列化请求用途
-    QString m_exportDirectory;     ///< 导出目录；空 = 文档所在目录
+
+    // --- 会话状态 -------------------------------------------------------
+    QList<std::shared_ptr<Session>> m_sessions;  ///< 文件会话（打开顺序）
+    std::shared_ptr<Session> m_draft;            ///< 草稿会话（至多一个）
+    std::shared_ptr<Session> m_active;           ///< 活跃会话（可空）
+    int m_docSeq = 0;             ///< docId 的自增序号
+
+    int m_seq = 0;                ///< 命令序号，只用于日志对齐
+    bool m_surfaceReady = false;  ///< 适配器是否已装好预览表面（见 setSurfaceReady）
+    bool m_windowOpen = false;    ///< 窗口是否活着
+    QString m_markupPurpose;      ///< 在飞的序列化请求用途
+
     QList<QPair<QString, QString>>
         m_queue;                   ///< 待发送命令：cmd → 命令 JSON
 
-    QString m_mode;                ///< preview | split | source
+    QString m_defaultMode;         ///< 新会话的三态默认值（settings 那份）
     int m_fontSizePx = 0;          ///< 0 = 用主题基准
     int m_contentWidthPx = 0;      ///< 0 = 用主题基准
     bool m_showOutline = true;     ///< 大纲侧栏开关
-
-    mutable int m_cachedRev = -1;  ///< documentBodyJson 的缓存版本
-    mutable QString m_cachedBody;  ///< documentBodyJson 的缓存内容
 };
 
 } // namespace awb::markdown
