@@ -13,8 +13,6 @@
 #include <tuple>
 #include <utility>
 
-#include <functional>
-
 namespace awb::tools {
 
 namespace {
@@ -893,6 +891,158 @@ void MarkdownEdit::applyTaskToCursor(QTextCursor &cursor)
     cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
                        QTextCursor::KeepAnchor);
     cursor.endEditBlock();
+}
+
+/**
+ * @brief 从某位置向后查找（B2 纯文档操作）
+ *
+ * 到尾部没找到时回卷到开头再找一遍（回卷标志置真——界面据此提示
+ * 「已从头开始」）。回卷那一遍仍找不到才返回 -1。
+ *
+ * @param document 文档（只读）
+ * @param needle 关键词（空串直接未命中）
+ * @param from 起点（夹到 [0, length]）
+ * @param caseSensitive 区分大小写
+ * @param wholeWords 全词匹配（命中两侧不是单词字符才算）
+ * @return 命中区间与回卷标志
+ */
+MarkdownEdit::FindResult MarkdownEdit::findFrom(
+    const QTextDocument *document, const QString &needle, int from,
+    bool caseSensitive, bool wholeWords)
+{
+    FindResult result;
+    if (!document || needle.isEmpty()) {
+        return result;
+    }
+    const QString haystack = document->toPlainText();
+    const int start = qBound(0, from, haystack.length());
+
+    // 手工 indexOf 而不是 QTextDocument::find 的 flags 重载：大小写与
+    // 全词语义完全掌控（那个重载的默认值语义在两代 Qt 上有出入，全词
+    // 档还要走 regex；自己的边界判定一处写清楚，测试也直接覆盖）。
+    const auto isWordChar = [](QChar ch) {
+        return ch.isLetterOrNumber() || ch == QLatin1Char('_');
+    };
+    const auto matchesAt = [&](int at) {
+        if (wholeWords) {
+            const bool leftOk =
+                    at == 0 || !isWordChar(haystack.at(at - 1));
+            const int end = at + needle.length();
+            const bool rightOk =
+                    end >= haystack.length()
+                    || !isWordChar(haystack.at(end));
+            if (!leftOk || !rightOk) {
+                return false;
+            }
+        }
+        for (int i = 0; i < needle.length(); ++i) {
+            const QChar a = haystack.at(at + i);
+            const QChar b = needle.at(i);
+            if (caseSensitive ? (a != b)
+                              : (a.toCaseFolded() != b.toCaseFolded())) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    for (int at = start; at + needle.length() <= haystack.length(); ++at) {
+        if (matchesAt(at)) {
+            result.start = at;
+            result.length = needle.length();
+            return result;
+        }
+    }
+    // 尾部没找到：回卷到开头再找一遍（范围到 start 为止——start 之后
+    // 的区域刚扫过）。
+    for (int at = 0;
+         at < start && at + needle.length() <= haystack.length(); ++at) {
+        if (matchesAt(at)) {
+            result.start = at;
+            result.length = needle.length();
+            result.wrapped = true;
+            return result;
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief 替换当前命中并找下一个
+ *
+ * 调用方保证 selection 正是这次命中（B2 的「替换后自动跳下一个」）。
+ * 替换在独立编辑块内（一次撤销 = 一次替换）；下一次查找从替换后光标
+ * 处开始（不是 0——避免替换循环原地打转）。
+ */
+MarkdownEdit::FindResult MarkdownEdit::replaceAndFindNext(
+    QTextDocument *document, const QTextCursor &selection,
+    const QString &replacement, const QString &needle,
+    bool caseSensitive, bool wholeWords)
+{
+    FindResult next;
+    if (!document || !selection.hasSelection() || needle.isEmpty()) {
+        return next;
+    }
+    const int selectionStart = selection.selectionStart();
+
+    QTextCursor editor(document);
+    editor.setPosition(selectionStart);
+    editor.setPosition(selection.selectionEnd(),
+                       QTextCursor::KeepAnchor);
+    editor.beginEditBlock();
+    editor.insertText(replacement);
+    editor.endEditBlock();
+
+    // 下一个：从替换内容的末尾向后（替换内容本身不算命中——它已经是
+    // 用户想要的形态）。
+    const int searchFrom = selectionStart + replacement.length();
+    return findFrom(document, needle, searchFrom, caseSensitive,
+                    wholeWords);
+}
+
+/**
+ * @brief 全部替换
+ *
+ * 从 0 开始反复 find-replace 直到找不到。逐次替换都收进**一个**编辑块，
+ * 全部替换 = 一次撤销。从左到右替换时位置只向右移动，不会死循环
+ * （needle 为空已拒绝；替换串包含 needle 时也安全——每次替换后从
+ * 替换串末尾继续找）。
+ *
+ * @return 替换次数
+ */
+int MarkdownEdit::replaceAll(QTextDocument *document,
+                             const QString &needle,
+                             const QString &replacement,
+                             bool caseSensitive, bool wholeWords)
+{
+    if (!document || needle.isEmpty()) {
+        return 0;
+    }
+    int count = 0;
+    int from = 0;
+    QTextCursor editor(document);
+    editor.beginEditBlock();
+    while (true) {
+        const FindResult hit = findFrom(document, needle, from,
+                                        caseSensitive, wholeWords);
+        if (hit.start < 0) {
+            break;
+        }
+        // 回卷命中说明开头已经替换过（我们从左到右扫，回卷只会发生
+        // 在「替换串里含关键词」的场景——findFrom 从 from 起找不到时
+        // 才回卷；这里 from 始终向右走，回卷命中 = 已扫过的区域）。
+        if (hit.wrapped) {
+            break;
+        }
+        editor.setPosition(hit.start);
+        editor.setPosition(hit.start + hit.length,
+                           QTextCursor::KeepAnchor);
+        editor.insertText(replacement);
+        ++count;
+        from = hit.start + replacement.length();
+    }
+    editor.endEditBlock();
+    return count;
 }
 
 /**

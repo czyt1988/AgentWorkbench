@@ -103,6 +103,37 @@ public:
     static bool isCodeAtCursor(const QTextCursor &cursor);
     static int headingLevelAtCursor(const QTextCursor &cursor);
 
+    // --- B2 查找 / 替换（纯文档操作，与格式动作同级） -----------------
+
+    /// 一次查找的结果：命中区间 + 是否发生回卷（从尾部跳回头部）。
+    struct FindResult {
+        int start = -1;          ///< 命中起点；-1 = 没找到
+        int length = 0;          ///< 命中长度
+        bool wrapped = false;    ///< 这一次查找发生了回卷
+    };
+
+    // 从 from 向后查找 needle（到尾部回卷一次）。大小写/全词由参数表达，
+    // 持久化偏好由调用方（tools.json 的 editor 段）带着进来。
+    static FindResult findFrom(const QTextDocument *document,
+                               const QString &needle, int from,
+                               bool caseSensitive, bool wholeWords);
+
+    // 替换「当前选中区间的这次命中」并自动找下一个。返回下一个命中的
+    // FindResult（选中它：调用方把选区写回编辑器）。找不到下一个时
+    // start = -1 且不回卷标志（替换动作结束）。
+    static FindResult replaceAndFindNext(QTextDocument *document,
+                                         const QTextCursor &selection,
+                                         const QString &replacement,
+                                         const QString &needle,
+                                         bool caseSensitive,
+                                         bool wholeWords);
+
+    // 全部替换：返回替换次数（0 = 没有命中）。逐个在一个编辑块内完成，
+    // 一次撤销全部回退。
+    static int replaceAll(QTextDocument *document, const QString &needle,
+                          const QString &replacement, bool caseSensitive,
+                          bool wholeWords);
+
 private:
     // 从 Theme 提取高亮配色
     static MarkdownColors colorsFromTheme(const theme::Theme *theme);

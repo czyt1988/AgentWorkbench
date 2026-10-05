@@ -468,6 +468,124 @@ private Q_SLOTS:
         document.undo(&cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
     }
+
+    // --- B2 查找 / 替换 ---------------------------------------------------
+
+    void testFindForwardAndWrap()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("foo bar foo baz"));
+        // 从 0 找：第一个 foo 在 0。
+        auto hit = MarkdownEdit::findFrom(&document,
+                                          QStringLiteral("foo"), 0,
+                                          false, false);
+        QCOMPARE(hit.start, 0);
+        QCOMPARE(hit.length, 3);
+        QVERIFY(!hit.wrapped);
+        // 从 8 找：第二个 foo 在 8。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 8,
+                                     false, false);
+        QCOMPARE(hit.start, 8);
+        // 从 12 找：尾部没有 → 回卷到 0。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 12,
+                                     false, false);
+        QCOMPARE(hit.start, 0);
+        QVERIFY(hit.wrapped);
+        // 找不到的词：-1 且不回卷标志。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("zzz"), 0,
+                                     false, false);
+        QCOMPARE(hit.start, -1);
+        QVERIFY(!hit.wrapped);
+    }
+
+    void testFindCaseAndWholeWords()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("Foo foo foobar"));
+        // 大小写不敏感：第一个命中 0。
+        auto hit = MarkdownEdit::findFrom(&document,
+                                          QStringLiteral("foo"), 0,
+                                          false, false);
+        QCOMPARE(hit.start, 0);
+        // 区分大小写：跳过大写的 Foo，命中 4。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 0,
+                                     true, false);
+        QCOMPARE(hit.start, 4);
+        // 全词：foobar 里的 foo 不算。从 5 向后只有 foobar（非全词），
+        // 回卷后命中 0 的 Foo（大小写不敏感 + 全词）。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 5,
+                                     false, true);
+        QCOMPARE(hit.start, 0);
+        QVERIFY(hit.wrapped);
+        // 区分大小写 + 全词：Foo（大写）不命中，foobar 也不命中 → 只命中 4。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 0,
+                                     true, true);
+        QCOMPARE(hit.start, 4);
+        // 全词 + 区分大小写，从 5 起：4 已在身后，foobar 不算 → 回卷
+        // 也只回卷到 4。
+        hit = MarkdownEdit::findFrom(&document, QStringLiteral("foo"), 5,
+                                     true, true);
+        QCOMPARE(hit.start, 4);
+        QVERIFY(hit.wrapped);
+    }
+
+    void testReplaceAndFindNext()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("one two one two"));
+        QTextCursor selection(&document);
+        // 选中第一个 "one"（0..3）。
+        selection.setPosition(0);
+        selection.setPosition(3, QTextCursor::KeepAnchor);
+        const auto next = MarkdownEdit::replaceAndFindNext(
+            &document, selection, QStringLiteral("1"),
+            QStringLiteral("one"), false, false);
+        QCOMPARE(document.toPlainText(), QStringLiteral("1 two one two"));
+        // 下一个 one 在 6。
+        QCOMPARE(next.start, 6);
+        QVERIFY(!next.wrapped);
+    }
+
+    void testReplaceAllCountsAndUndo()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("cat dog cat cat"));
+        const int count = MarkdownEdit::replaceAll(
+            &document, QStringLiteral("cat"), QStringLiteral("dog"),
+            false, false);
+        QCOMPARE(count, 3);
+        QCOMPARE(document.toPlainText(), QStringLiteral("dog dog dog dog"));
+        // 一次撤销全部回退。
+        QTextCursor cursor(&document);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("cat dog cat cat"));
+    }
+
+    void testReplaceAllWithSelfContainingNeedle()
+    {
+        // 替换串包含关键词：不进死循环（从替换串末尾继续找）。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("a a a"));
+        const int count = MarkdownEdit::replaceAll(
+            &document, QStringLiteral("a"), QStringLiteral("aa"),
+            false, false);
+        QCOMPARE(count, 3);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa aa aa"));
+    }
+
+    void testFindEmptyNeedleMisses()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("anything"));
+        const auto hit = MarkdownEdit::findFrom(&document, QString(), 0,
+                                                false, false);
+        QCOMPARE(hit.start, -1);
+        QCOMPARE(MarkdownEdit::replaceAll(&document, QString(),
+                                          QStringLiteral("x"), false,
+                                          false),
+                 0);
+    }
 };
 
 // Markdown 高亮器：围栏状态机、整行规则、行内规则与占位区间。
