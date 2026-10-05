@@ -69,6 +69,11 @@ set(_tst_markdownpreviewui_default_icons
     ${CMAKE_SOURCE_DIR}/config/default_file_icons.json)
 set_source_files_properties(${_tst_markdownpreviewui_default_icons}
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+# 内置模板表（窗口的模板库段从 :/config/ 读）。
+set(_tst_markdownpreviewui_templates
+    ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json)
+set_source_files_properties(${_tst_markdownpreviewui_templates}
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_prompt_templates.json")
 file(GLOB _tst_markdownpreviewui_filetype_icons
     "${CMAKE_SOURCE_DIR}/icons/filetypes/*.svg")
 file(GLOB _tst_markdownpreviewui_foldertype_icons
@@ -88,6 +93,7 @@ awb_add_resources(tst_markdownpreviewui "previewui_icons"
     FILES
         ${_tst_markdownpreviewui_icons}
         ${_tst_markdownpreviewui_default_icons}
+        ${_tst_markdownpreviewui_templates}
         ${_tst_markdownpreviewui_filetype_icons}
         ${_tst_markdownpreviewui_foldertype_icons}
 )
@@ -113,6 +119,8 @@ set(_tst_markdownpreviewui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AConfirmDialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASpotlight.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AListRow.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
@@ -126,8 +134,8 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreview
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
 foreach(_comp AButton AIconButton ASearchField ATextField ATextArea AScrollBar
-             AEmptyState APill ADialog AConfirmDialog ASpotlight AMenu AMenuItem
-             AMenuSeparator AComboBox)
+             AEmptyState APill ADialog AConfirmDialog ASpotlight ASectionHeader
+             AListRow AMenu AMenuItem AMenuSeparator AComboBox)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
         PROPERTIES QT_RESOURCE_ALIAS "components/${_comp}.qml")

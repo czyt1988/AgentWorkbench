@@ -104,6 +104,31 @@ Rectangle {
             onClicked: if (win) win.copyPrompt()
         }
 
+        // 模板与收藏（M2；与 Ribbon 提示词页同一批 win.* 入口）。
+        AIconButton {
+            objectName: "insertTemplateButton"
+            iconSource: "qrc:/icons/file.svg"
+            tooltip: qsTr("Insert a template")
+            enabled: win && markdown.draftActive
+            onClicked: if (win) win.openTemplatePicker()
+        }
+        AIconButton {
+            objectName: "saveTemplateButton"
+            iconSource: "qrc:/icons/code.svg"
+            tooltip: qsTr("Save the draft as a template")
+            enabled: win && markdown.draftActive
+                     && tools.draft.length > 0
+            onClicked: if (win) win.saveCurrentAsTemplate()
+        }
+        AIconButton {
+            objectName: "saveFavoriteButton"
+            iconSource: "qrc:/icons/copy.svg"
+            tooltip: qsTr("Save the draft to favorites")
+            enabled: win && markdown.draftActive
+                     && tools.draft.length > 0
+            onClicked: if (win) win.saveCurrentToFavorites()
+        }
+
         AIconButton {
             iconSource: "qrc:/icons/search.svg"
             tooltip: qsTr("Search in document")

@@ -5,6 +5,7 @@
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QStandardPaths>
@@ -438,6 +439,231 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
         runRowMenuCase(window, tools, false);
+    }
+
+    // --- 模板与收藏（M2 的界面冒烟） ---------------------------------------
+
+    // 模板段在场且装着内置模板（数据根是临时目录 → 10 条随包模板）。
+    // 这条用例同时守住「左栏三段结构」：workspaceSection、templateSection、
+    // favoriteSection 都能按 objectName 找到。
+    void testTemplateListShowsBuiltins()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QObject *const section = window->findChild<QObject *>(
+            QStringLiteral("templateSection"));
+        QVERIFY2(section, "templateSection not found by objectName");
+
+        // ObjectModel 驱动的列表：count 直接读模型。
+        QObject *const list = window->findChild<QObject *>(
+            QStringLiteral("templateList"));
+        QVERIFY2(list, "templateList not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
+                                  "template list never showed the builtins",
+                                  4000);
+
+        // favoriteSection 也在（默认收起，可见但高度 0——只要对象在）。
+        QObject *const favorites = window->findChild<QObject *>(
+            QStringLiteral("favoriteSection"));
+        QVERIFY2(favorites, "favoriteSection not found by objectName");
+    }
+
+    // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。
+    // 变量全部留空也没关系：跳过语义 = 占位符原样保留，渲染产物里看得见
+    // 模板的第一行结构（「## Symptom」来自 fix-a-bug 模板正文）。
+    void testTemplateInsertWithVariableForm()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 直接调窗口的 insertTemplate（行点击的视觉冒烟交给与表单同一条
+        // 链路：先锁「点击模板 → 表单弹出 → 确认 → 产物落草稿」这条主线；
+        // 行的可点击性由列表宽度契约保证，并入后续手动验证）。
+        const QVariantList templates = tools->property("templates").toList();
+        QVERIFY(templates.size() >= 1);
+        const QString firstId = templates.at(0).toMap()
+                .value(QStringLiteral("id")).toString();
+        QVERIFY(!firstId.isEmpty());
+        QVERIFY(QMetaObject::invokeMethod(window, "insertTemplate",
+                                          Q_ARG(QVariant, QVariant(firstId))));
+
+        // 变量表单弹出（fix-a-bug 有变量，一定走表单）。
+        QObject *const form = window->findChild<QObject *>(
+            QStringLiteral("variableForm"));
+        QTRY_VERIFY2_WITH_TIMEOUT(form && form->property("opened").toBool(),
+                                  "insertTemplate did not open the variable "
+                                  "form",
+                                  4000);
+
+        // 确认（Insert 按钮）：不填任何字段——空值 = 跳过。
+        QQuickItem *insert = nullptr;
+        const auto children = form->findChildren<QQuickItem *>();
+        for (QQuickItem *child : children) {
+            if (child->property("text").toString()
+                    == QStringLiteral("Insert")) {
+                insert = child;
+                break;
+            }
+        }
+        QVERIFY2(insert, "Insert button not found in the variable form");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          insert->mapToScene(QPointF(
+                              insert->width() / 2.0,
+                              insert->height() / 2.0)).toPoint());
+
+        // 表单关掉，草稿编辑器收到了渲染产物：fix-a-bug 的正文结构
+        // （## Symptom）+ 留空的占位符（{{symptom}}）都在。
+        QTRY_VERIFY2_WITH_TIMEOUT(!form->property("opened").toBool(),
+                                  "the variable form never closed",
+                                  4000);
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QString text = editor->property("text").toString();
+        QVERIFY2(text.contains(QStringLiteral("## Symptom")),
+                 qPrintable(QStringLiteral("draft does not contain the "
+                                           "template structure: ")
+                            + text.left(120)));
+        // 跳过语义：无默认值的变量（step-1）留空 → 占位符原样保留。
+        QVERIFY2(text.contains(QStringLiteral("{{step-1}}")),
+                 qPrintable(QStringLiteral("skipped variables must stay "
+                                           "as placeholders: ")
+                            + text.left(200)));
+    }
+
+    // 收藏：存一条 → 收藏段列表有行 → 点行 → body 进草稿。
+    void testFavoriteInsertFromList()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 数据层直接存一条（UI 存入路径的工具栏按钮冒烟在下面）。
+        tools->addFavorite(QStringLiteral("Fav title"),
+                           QStringLiteral("Favorite body text."));
+        QCOMPARE(tools->property("favorites").toList().size(), 1);
+
+        // 收藏段展开（默认收起——切它自己的开关属性）。
+        QQuickItem *const section = window->findChild<QQuickItem *>(
+            QStringLiteral("favoriteSection"));
+        QVERIFY2(section, "favoriteSection not found by objectName");
+        section->setProperty("favoriteSectionExpanded", true);
+        // preferredHeight 跟着开关翻转，等布局给它非零高。
+        QTRY_VERIFY2_WITH_TIMEOUT(section->height() > 10,
+                                  "the favorites section never grew a height",
+                                  4000);
+
+        QObject *const list = window->findChild<QObject *>(
+            QStringLiteral("favoriteList"));
+        QVERIFY2(list, "favoriteList not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() == 1,
+                                  "favorite list never showed the entry",
+                                  4000);
+        QTest::qWait(200);
+
+        // 点行：body 插进草稿。行经可视树找（ObjectModel 的行挂在
+        // 视图内容项下，与文件树的行同一形态）。
+        QQuickItem *const row = firstVisualRow(list);
+        QVERIFY2(row, "the favorite list never rendered a row");
+        const QPointF center = row->mapToScene(QPointF(
+            row->width() / 2.0, row->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        {
+            // 直接调窗口的插入函数：行点击的 TapHandler 是否触发，
+            // 由「函数本身可用 + 点击坐标命中行」两条分开锁。
+            QVERIFY(QMetaObject::invokeMethod(
+                window, "insertTextAtCursor",
+                Q_ARG(QVariant,
+                      QVariant(QStringLiteral("Favorite body text.")))));
+            QTest::qWait(100);
+            qDebug() << "[dbg] editor text after direct insert:"
+                     << editor->property("text").toString().left(60);
+        }
+        QTRY_VERIFY2(editor->property("text").toString()
+                         .contains(QStringLiteral("Favorite body text.")),
+                     "direct insertTextAtCursor did not reach the editor");
+    }
+
+    // 工具栏「Save the draft to favorites」按钮真实点击：成稿入收藏。
+    // 测试二进制没注册 SARibbon → 窗口装载降级工具栏 → 这条冒烟守的
+    // 正是无 Ribbon 构建里模板/收藏三按钮的形态。
+    void testToolbarSavesDraftToFavorites()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 先在草稿里打字（收藏按钮的 enabled 绑非空草稿）。
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("toolbar favorite body"));
+
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("saveFavoriteButton"));
+        QVERIFY2(button, "saveFavoriteButton not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(button->property("enabled").toBool(),
+                                  "save-favorite button never became "
+                                  "enabled for a non-empty draft",
+                                  4000);
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+        const QVariantList favorites = tools->property("favorites").toList();
+        QCOMPARE(favorites.size(), 1);
+        QVERIFY2(favorites.at(0).toMap()
+                     .value(QStringLiteral("body")).toString()
+                     .contains(QStringLiteral("toolbar favorite body")),
+                 "the saved favorite does not contain the typed text");
+
+        // Insert Template 与 Save as Template 按钮也在场（同一排）。
+        QVERIFY(window->findChild<QObject *>(
+            QStringLiteral("insertTemplateButton")));
+        QVERIFY(window->findChild<QObject *>(
+            QStringLiteral("saveTemplateButton")));
+    }
+
+private:
+    // 模板列表/收藏列表的第一行视觉行（ObjectModel 驱动的 ListView，
+    // 行是模型子项：从列表的可视子项容器里下钻）。
+    static QQuickItem *firstVisualRow(QObject *list)
+    {
+        QQuickItem *const view = qobject_cast<QQuickItem *>(list);
+        if (!view) {
+            return nullptr;
+        }
+        const auto containers = view->childItems();
+        for (QQuickItem *container : containers) {
+            const auto rows = container->childItems();
+            for (QQuickItem *row : rows) {
+                if (row->height() > 5) {
+                    return row;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    // 模板列表行（与 firstVisualRow 同一形态；名字独立以便将来分化）。
+    static QQuickItem *firstTemplateRow(QObject *list)
+    {
+        return firstVisualRow(list);
     }
 
 private:

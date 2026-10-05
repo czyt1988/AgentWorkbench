@@ -131,6 +131,9 @@ public:
     // QML 没有跨版本可靠的 fromLocalFile）。
     Q_INVOKABLE void openLocalFileExternal(const QString &path);
     Q_INVOKABLE void openFolder(const QString &path);
+    // 打开用户模板目录（不存在则先建）：mkpath 与打开一步做掉——QML
+    // 拿不到 QDir，先开一个不存在的目录只会收获一条报因 toast。
+    Q_INVOKABLE void openTemplateDirectory();
     Q_INVOKABLE void openConfigDir(const QString &agentId);
     Q_INVOKABLE void quit();
 

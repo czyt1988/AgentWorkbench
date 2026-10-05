@@ -3,6 +3,7 @@
 #include "agentcatalog/AgentModel.h"
 #include "agentcatalog/AgentUrls.h"
 #include "core/Settings.h"
+#include "core/Paths.h"
 #include "agentcatalog/AgentsFacade.h"
 #include "markdown/MarkdownPreviewController.h"
 #include "shell/NavigationModel.h"
@@ -13,6 +14,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSettings>
@@ -612,6 +614,20 @@ void WorkbenchContext::openFolder(const QString &path)
                                     "WorkbenchContext", "Cannot open folder"),
                                 result.error);
     }
+}
+
+/**
+ * @brief 打开用户模板目录（不存在则先建）
+ *
+ * 模板库的「打开模板目录」动作：目录在首次存模板之前并不存在，先
+ * mkpath 再交给 openFolder——用户第一次存完模板就能直达。
+ */
+void WorkbenchContext::openTemplateDirectory()
+{
+    const QString directory =
+        core::Paths::dataRoot() + QStringLiteral("/prompt_templates");
+    QDir().mkpath(directory);
+    openFolder(directory);
 }
 
 /**

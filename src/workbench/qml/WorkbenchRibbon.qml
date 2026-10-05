@@ -181,7 +181,49 @@ Item {
             }
         }
 
-        // --- 标签页 2 · 视图：三态、面板与 ribbon 自己的开关 ---------------
+        // --- 标签页 2 · 提示词：模板与收藏（上下文页，仅提示词预设） ---------
+        // 决策 D-2：文档模式（双击 .md）下这个 tab 不出现——模板与收藏是
+        // 草稿的工具，别人的文档不往里插。挂 RibbonContextCategory。
+        RibbonContextCategory {
+            id: promptContext
+            contextTitle: qsTr("Prompt tools")
+            contextColor: theme.accent
+            active: win ? win.preset === "prompt" : false
+
+            RibbonCategory {
+                title: qsTr("Prompt")
+
+                RibbonPanel {
+                    RibbonToolButton {
+                        // 左栏模板库就是选择器（openTemplatePicker）：
+                        // SARibbon 的 gallery/menuItems 是静态
+                        // listProperty 绑不了模型，不在 Ribbon 里
+                        // 造第二份列表。
+                        text: qsTr("Insert Template")
+                        iconSource: "qrc:/icons/file.svg"
+                        toolTip: qsTr("Browse the template library")
+                        onClicked: if (win) win.openTemplatePicker()
+                    }
+                    RibbonToolButton {
+                        text: qsTr("Save as Template")
+                        iconSource: "qrc:/icons/code.svg"
+                        enabled: win && win.preset === "prompt"
+                        onClicked: if (win) win.saveCurrentAsTemplate()
+                    }
+                }
+
+                RibbonPanel {
+                    RibbonToolButton {
+                        text: qsTr("Save Favorite")
+                        iconSource: "qrc:/icons/copy.svg"
+                        enabled: win && win.preset === "prompt"
+                        onClicked: if (win) win.saveCurrentToFavorites()
+                    }
+                }
+            }
+        }
+
+        // --- 标签页 3 · 视图：三态、面板与 ribbon 自己的开关 ---------------
         RibbonCategory {
             title: qsTr("View")
 

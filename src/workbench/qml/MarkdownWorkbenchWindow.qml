@@ -96,6 +96,117 @@ ApplicationWindow {
     // 全局字体与主窗一致（Controls2 的字体继承链的根在窗口上）
     font.family: theme.family.length > 0 ? theme.family : undefined
 
+    // --- 模板与收藏（M2 动作层） -------------------------------------------
+    // 「动作只有一处出口」：Ribbon、降级工具栏、左栏条目都只转发到这里。
+    // 插入目标永远是草稿编辑器（文件 tab 是别人的文档，不往里插模板）。
+
+    // 正在走变量表单流程的模板（{id, title}）；null = 无流程在飞。
+    property var pendingTemplate: null
+
+    // 左栏段的折叠态（窗口内存：会话文件存预设级开合，段级是浏览态）。
+    property bool templateSectionExpanded: true
+    property bool favoriteSectionExpanded: false
+
+    // 把文本插到草稿光标处（模板渲染与收藏插入共用的落点）。
+    function insertTextAtCursor(text) {
+        // 提示词预设与草稿激活不是同一件事（文档预设切回来草稿未激活
+        // 时编辑器还是隐藏的）：切预设并确保草稿会话在场。
+        applyPreset("prompt")
+        promptEditor.forceActiveFocus()
+        promptEditor.insert(promptEditor.cursorPosition, text)
+    }
+
+    // 完整的模板插入流程：无变量直插，有变量弹表单。
+    function insertTemplate(id) {
+        if (preset !== "prompt")
+            applyPreset("prompt")
+        const variables = tools.templateVariables(id)
+        if (variables.length === 0) {
+            // 无变量模板：选区仍参与渲染（内置 selection 变量），直接落。
+            const text = tools.renderTemplate(id, {},
+                                              promptEditor.selectedText)
+            insertTextAtCursor(text)
+            return
+        }
+        pendingTemplate = { id: id, title: templateTitleById(id) }
+        variableForm.open()
+        // 第一行拿焦点：模型绑 pendingTemplate（设值即建行），表单打开
+        // 就能打字；行没建出来就静默（Esc/Cancel 都还可用）。
+        const first = variableRepeater.itemAt(0)
+        if (first)
+            first.forceActiveFocus()
+    }
+
+    // 变量表单确认后的落地（表单调回；values 是 QVariantMap）。
+    function completeTemplateInsert(values) {
+        if (!pendingTemplate)
+            return
+        const text = tools.renderTemplate(
+                    pendingTemplate.id, values,
+                    promptEditor.selectedText)
+        pendingTemplate = null
+        insertTextAtCursor(text)
+    }
+
+    // 取消表单：流程清空，什么都不插。
+    function cancelTemplateInsert() {
+        pendingTemplate = null
+        promptEditor.forceActiveFocus()
+    }
+
+    // 「选择器」入口（Ribbon 的 Insert Template 转发到这里）：展开左栏
+    // 的模板段并聚焦检索框——左栏模板库就是选择器，不再造第二个列表。
+    function openTemplatePicker() {
+        templateSectionExpanded = true
+        if (!leftOpen) {
+            if (preset === "prompt")
+                promptLeftOpen = true
+            else
+                documentLeftOpen = true
+        }
+        templateSearch.forceActiveFocus()
+    }
+
+    // 把当前草稿存为模板（弹小框改标题/分类/描述，预填标题 = 首行）。
+    function saveCurrentAsTemplate() {
+        templateTitleField.text = saveTemplateDialog.draftTitleGuess()
+        saveTemplateDialog.open()
+        templateTitleField.forceActiveFocus()
+        templateTitleField.selectAll()
+    }
+
+    // 把当前草稿全文存为收藏（标题自动取首行，门面侧兜底）。
+    function saveCurrentToFavorites() {
+        if (tools.draft.length === 0) {
+            workbench.notify("info", qsTr("Nothing to save"),
+                             qsTr("The editor is empty."))
+            return
+        }
+        tools.addFavorite("", promptEditor.text)
+        workbench.notify("success", qsTr("Saved to favorites"),
+                         qsTr("Insert it from the favorites panel."))
+    }
+
+    // 模板 id → 显示标题（左栏与表单共用；空 id 给空串）。
+    function templateTitleById(id) {
+        const all = tools.templates
+        for (let i = 0; i < all.length; ++i) {
+            if (all[i].id === id)
+                return all[i].title
+        }
+        return ""
+    }
+
+    // 草稿首行（存为模板对话框的标题预填来源）。
+    function draftFirstLine() {
+        return promptEditor.text.split("\n")[0] || ""
+    }
+
+    // 草稿全文（存为模板的正文来源——与渲染镜像同源，取编辑器的实时文本）。
+    function draftFullText() {
+        return promptEditor.text
+    }
+
     // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
     // 预设与活跃会话耦合：提示词预设激活草稿会话（预览面渲染草稿），文档
     // 预设激活上次的文件会话（没有文件 tab 就退回提示词）。lastFileDocId
@@ -644,22 +755,49 @@ ApplicationWindow {
                         }
                     }
 
-                    // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
-                    // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
-                    // 统一用 ListView + depth/expanded role 渲染同一份数据。
-                    // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
-                    ListView {
-                        id: fileTree
-                        objectName: "fileTree"
+                    // --- 段 1 · 工作区与文件树（可折叠段，默认展开） --------
+                    ColumnLayout {
+                        id: workspaceSection
+                        objectName: "workspaceSection"
 
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        visible: tools.currentWorkspace.length > 0
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        model: tools.model
+                        spacing: theme.spacingXs
+                        visible: true
 
-                        ScrollBar.vertical: AScrollBar {}
+                        ASectionHeader {
+                            Layout.fillWidth: true
+                            text: qsTr("Workspace")
+
+                            AIconButton {
+                                iconSource: workspaceSection.visible
+                                        ? "qrc:/icons/chevron-left.svg"
+                                        : "qrc:/icons/chevron-right.svg"
+                                tooltip: workspaceSection.visible
+                                        ? qsTr("Hide the file tree")
+                                        : qsTr("Show the file tree")
+                                onClicked:
+                                    workspaceSection.visible = !workspaceSection.visible
+                            }
+                        }
+
+                        // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
+                        // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
+                        // 统一用 ListView + depth/expanded role 渲染同一份数据。
+                        // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
+                        ListView {
+                            id: fileTree
+                            objectName: "fileTree"
+
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            visible: tools.currentWorkspace.length > 0
+                                     && workspaceSection.visible
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: tools.model
+
+                            ScrollBar.vertical: AScrollBar {}
 
                         delegate: Item {
                             id: treeRow
@@ -825,11 +963,13 @@ ApplicationWindow {
                         }
                     }
 
+                    // 树的空态与未选态也收进工作区段（段收起时一起藏）。
                     Label {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        Layout.preferredHeight: workspaceSection.visible ? 60 : 0
                         visible: tools.currentWorkspace.length > 0
                                  && tools.model.visibleCount === 0
+                                 && workspaceSection.visible
                         Layout.margins: theme.spacingM
                         text: qsTr("The workspace folder is empty or unavailable.")
                         color: theme.textMuted
@@ -841,13 +981,285 @@ ApplicationWindow {
 
                     AEmptyState {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        Layout.preferredHeight: workspaceSection.visible ? 160 : 0
                         visible: tools.currentWorkspace.length === 0
+                                 && workspaceSection.visible
                         iconSource: "qrc:/icons/folder.svg"
                         title: qsTr("No workspace selected")
                         description: qsTr("Add a folder to browse its files and insert references into the prompt.")
                         actionText: qsTr("Add Folder...")
                         onActionClicked: workbenchWindow.addWorkspaceViaDialog()
+                    }
+
+                    // workspaceSection 的收尾（段内容到此为止）。
+                    }
+
+                    // --- 段 2 · 模板库（可折叠段，默认展开） ----------------
+                    // 既是浏览器也是选择器：Ribbon 的 Insert Template 引导到
+                    // 这里（openTemplatePicker），不在 Ribbon 里再造一份
+                    // 列表——SARibbon 的 gallery/menuItems 是静态
+                    // listProperty，绑不了模型。
+                    ColumnLayout {
+                        id: templateSection
+                        objectName: "templateSection"
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: templateSectionExpanded ? 260 : 0
+                        visible: templateSectionExpanded
+                        spacing: theme.spacingXs
+
+                        ASectionHeader {
+                            Layout.fillWidth: true
+                            text: qsTr("Templates")
+
+                            AIconButton {
+                                iconSource: "qrc:/icons/chevron-right.svg"
+                                rotation: templateSectionExpanded ? 90 : 0
+                                tooltip: templateSectionExpanded
+                                        ? qsTr("Hide the template library")
+                                        : qsTr("Show the template library")
+                                onClicked:
+                                    templateSectionExpanded = !templateSectionExpanded
+                            }
+                        }
+
+                        // 检索框：实时过滤（filteredTemplates 的空+空=全部）。
+                        ASearchField {
+                            id: templateSearch
+                            objectName: "templateSearch"
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: theme.spacingXs
+                            Layout.rightMargin: theme.spacingXs
+                            placeholderText: qsTr("Search templates")
+
+                            onTextChanged: templateModel.rebuild()
+                        }
+
+                        // 列表上限 30：检索后一般够用；全部模板走目录管理。
+                        // 高度跟内容（同收藏列表的理由：fillHeight 对零
+                        // 内容量不出高），段高由 preferredHeight 兜住。
+                        ListView {
+                            id: templateList
+                            objectName: "templateList"
+
+                            implicitHeight: Math.min(contentHeight, 220)
+                            Layout.fillWidth: true
+                            Layout.leftMargin: theme.spacingXs
+                            Layout.rightMargin: theme.spacingXs
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            spacing: 2
+                            model: ObjectModel {
+                                id: templateModel
+
+                                // 检索结果 → 行对象（上限 30）。
+                                function rebuild() {
+                                    while (count > 0)
+                                        remove(0)
+                                    const filtered = tools.filteredTemplates(
+                                                templateSearch.text, "")
+                                    const cap = Math.min(filtered.length, 30)
+                                    for (let i = 0; i < cap; ++i) {
+                                        append(rowComponent.createObject(
+                                                   templateModel, {
+                                                       "entry": filtered[i]
+                                                   }))
+                                    }
+                                }
+
+                                Component {
+                                    id: rowComponent
+
+                                    AListRow {
+                                        id: templateRow
+                                        required property var entry
+
+                                        // ObjectModel 的行是视图直接摆放的
+                                        // 对象：宽度必须显式跟列表（AListRow
+                                        // 只有 height 没有 implicitWidth，
+                                        // 不设就是 0 宽——点击永远落空）。
+                                        width: templateList.width
+                                        rowHeight: 40
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: theme.spacingS
+                                            anchors.rightMargin: theme.spacingS
+                                            spacing: theme.spacingS
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: templateRow.entry.title
+                                                color: theme.textPrimary
+                                                font.pixelSize: theme.fontSizeCaption
+                                                elide: Text.ElideMiddle
+                                            }
+
+                                            // 内置徽标：subtle 的 APill，与
+                                            // 文件 tab 的来源徽标同一形态。
+                                            APill {
+                                                visible: templateRow.entry.builtin
+                                                text: qsTr("built-in")
+                                            }
+                                        }
+
+                                        TapHandler {
+                                            onSingleTapped:
+                                                workbenchWindow.insertTemplate(
+                                                    templateRow.entry.id)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Connections {
+                                target: tools
+                                function onTemplatesChanged() {
+                                    templateModel.rebuild()
+                                }
+                            }
+
+                            Component.onCompleted: templateModel.rebuild()
+
+                            onVisibleChanged: {
+                                if (visible)
+                                    templateModel.rebuild()
+                            }
+                        }
+                    }
+
+                    // --- 段 3 · 收藏夹（可折叠段，默认收起） ----------------
+                    ColumnLayout {
+                        id: favoriteSection
+                        objectName: "favoriteSection"
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: favoriteSectionExpanded ? 200 : 0
+                        visible: favoriteSectionExpanded
+                        spacing: theme.spacingXs
+
+                        ASectionHeader {
+                            Layout.fillWidth: true
+                            text: qsTr("Favorites")
+
+                            AIconButton {
+                                iconSource: "qrc:/icons/chevron-right.svg"
+                                rotation: favoriteSectionExpanded ? 90 : 0
+                                tooltip: favoriteSectionExpanded
+                                        ? qsTr("Hide the favorites")
+                                        : qsTr("Show the favorites")
+                                onClicked:
+                                    favoriteSectionExpanded = !favoriteSectionExpanded
+                            }
+                        }
+
+                        // 空态：一行弱化提示（收藏是成稿，模板是骨架）。
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: theme.spacingS
+                            Layout.rightMargin: theme.spacingS
+                            visible: tools.favorites.length === 0
+                            text: qsTr("Save finished prompts here")
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                            wrapMode: Text.Wrap
+                        }
+
+                        ListView {
+                            id: favoriteList
+                            objectName: "favoriteList"
+
+                            // fillHeight 对零内容的列表量不出高度（段
+                            // 展开时高度仍为 0，行被裁掉）；收藏夹给内容
+                            // 高度，段高由 preferredHeight 兜住上限。
+                            implicitHeight: Math.min(contentHeight, 160)
+                            Layout.fillWidth: true
+                            Layout.leftMargin: theme.spacingXs
+                            Layout.rightMargin: theme.spacingXs
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            spacing: 2
+
+                            model: ObjectModel {
+                                id: favoriteModel
+
+                                function rebuild() {
+                                    while (count > 0)
+                                        remove(0)
+                                    const favorites = tools.favorites
+                                    for (let i = 0; i < favorites.length; ++i) {
+                                        append(favoriteRow.createObject(
+                                                   favoriteModel, {
+                                                       "entry": favorites[i]
+                                                   }))
+                                    }
+                                }
+
+                                Component {
+                                    id: favoriteRow
+
+                                    AListRow {
+                                        id: favRow
+                                        required property var entry
+
+                                        // 同模板行：宽度显式跟列表。
+                                        width: favoriteList.width
+                                        rowHeight: 40
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: theme.spacingS
+                                            spacing: theme.spacingS
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: favRow.entry.title
+                                                color: theme.textPrimary
+                                                font.pixelSize: theme.fontSizeCaption
+                                                elide: Text.ElideMiddle
+                                            }
+
+                                            // 行内动作：复制与删除（悬停可见）。
+                                            AIconButton {
+                                                iconSource: "qrc:/icons/copy.svg"
+                                                tooltip: qsTr("Copy this favorite")
+                                                onClicked:
+                                                    workbench.copyText(favRow.entry.body)
+                                            }
+                                            AIconButton {
+                                                iconSource: "qrc:/icons/close.svg"
+                                                tooltip: qsTr("Remove this favorite")
+                                                onClicked:
+                                                    tools.removeFavorite(
+                                                        favRow.entry.title,
+                                                        favRow.entry.body)
+                                            }
+                                        }
+
+                                        TapHandler {
+                                            onSingleTapped:
+                                                workbenchWindow.insertTextAtCursor(
+                                                    favRow.entry.body)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Connections {
+                                target: tools
+                                function onFavoritesChanged() {
+                                    favoriteModel.rebuild()
+                                }
+                            }
+
+                            Component.onCompleted: favoriteModel.rebuild()
+
+                            onVisibleChanged: {
+                                if (visible)
+                                    favoriteModel.rebuild()
+                            }
+                        }
                     }
                 }
             }
@@ -1780,6 +2192,236 @@ ApplicationWindow {
         }
         onCancelled: markdown.dismissDiskNotice()
     }
+
+    // --- 模板插入的变量表单（M2） -------------------------------------------
+    // 直接声明而非经 Loader：Dialog/Popup 从 Loader 的 sourceComponent
+    // 实例化时，弹层的父子重定会在「实例化中」触发一次已释放子项的
+    // 虚调用（实测崩溃，feeefeee 模式）；直接声明没有这条路径，而弹层
+    // 本来就不参与布局——没 open() 时零渲染开销，「惰性」在这里没有
+    // 实际收益。
+    ADialog {
+        id: variableForm
+        objectName: "variableForm"
+
+        // 窗口（动作层回调的持有者）。
+        property var win: null
+
+        width: 460
+        // 标题绑 pendingTemplate（装载前已设，创建时即有值）。
+        titleText: workbenchWindow.pendingTemplate
+                   ? workbenchWindow.pendingTemplate.title : ""
+        closePolicy: Popup.NoAutoClose
+
+        // 变量行：名字 + 输入框（有默认值预填；留空 = 跳过）。
+        // 逐行 Repeater 生成——数量级是个位数到十几个。模型绑
+        // pendingTemplate（装载前已设）：delegate 在实例化中创建。
+        ColumnLayout {
+            width: variableForm.availableWidth
+            spacing: theme.spacingS
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Empty fields stay as {{placeholders}} in the text.")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeCaption
+                wrapMode: Text.Wrap
+            }
+
+            Repeater {
+                id: variableRepeater
+
+                model: workbenchWindow.pendingTemplate
+                       ? tools.templateVariables(
+                             workbenchWindow.pendingTemplate.id)
+                       : []
+
+                delegate: RowLayout {
+                    id: variableRow
+                    required property var modelData
+                    required property int index
+
+                    Layout.fillWidth: true
+                    spacing: theme.spacingS
+
+                    Label {
+                        Layout.preferredWidth: 110
+                        text: variableRow.modelData.name
+                        color: theme.textSecondary
+                        font.pixelSize: theme.fontSizeCaption
+                        elide: Text.ElideMiddle
+                    }
+
+                    ATextField {
+                        id: valueField
+
+                        Layout.fillWidth: true
+                        placeholderText:
+                            variableRow.modelData.defaultValue
+                        text: variableRow.modelData.defaultValue
+                        // Enter = 确认（键盘流式：Tab 自然跳下一个，
+                        // Esc 走 ADialog 的 reject——closePolicy 关掉
+                        // 了 PressOutside，Esc 只由 Dialog 处理）。
+                        onAccepted: variableForm.confirm()
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item {
+                    Layout.fillWidth: true
+                }
+                AButton {
+                    text: qsTr("Cancel")
+                    onClicked: variableForm.reject()
+                }
+                AButton {
+                    variant: "primary"
+                    text: qsTr("Insert")
+                    onClicked: variableForm.confirm()
+                }
+            }
+        }
+
+        onRejected: {
+            cancelTemplateInsert()
+        }
+
+        // 确认：收表单值 → 窗口的 completeTemplateInsert。
+        function confirm() {
+            const values = {}
+            for (let i = 0; i < variableRepeater.count; ++i) {
+                const row = variableRepeater.itemAt(i)
+                if (!row)
+                    continue
+                // 行里唯一的 ATextField。
+                const fields = row.data
+                for (let c = 0; c < fields.length; ++c) {
+                    const child = fields[c]
+                    if (child instanceof ATextField) {
+                        values[row.modelData.name] = child.text
+                        break
+                    }
+                }
+            }
+            close()
+            completeTemplateInsert(values)
+        }
+    }
+
+    // --- 存为模板对话框（M2，Loader 惰性装载） -------------------------------
+    // --- 存为模板对话框（M2） -----------------------------------------------
+    // 直接声明（同 variableForm 的理由：Dialog 从 Loader 实例化会在
+    // 弹层重定父子时崩溃；弹层没 open() 零开销，不需要惰性）。
+    ADialog {
+        id: saveTemplateDialog
+        objectName: "saveTemplateDialog"
+
+        width: 460
+        titleText: qsTr("Save as template")
+        closePolicy: Popup.NoAutoClose
+
+        ColumnLayout {
+            width: saveTemplateDialog.availableWidth
+            spacing: theme.spacingS
+
+            // 标题（预填草稿首行；门面没有暴露「首行去记号」的推导，
+            // 在这里做一份轻量的）。
+            Label {
+                    text: qsTr("Title")
+                    color: theme.textSecondary
+                    font.pixelSize: theme.fontSizeCaption
+                }
+                ATextField {
+                    id: templateTitleField
+                    objectName: "templateTitleField"
+
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: qsTr("Category")
+                    color: theme.textSecondary
+                    font.pixelSize: theme.fontSizeCaption
+                }
+                ATextField {
+                    id: templateCategoryField
+                    objectName: "templateCategoryField"
+
+                    Layout.fillWidth: true
+                    text: qsTr("My templates")
+                }
+
+                Label {
+                    text: qsTr("Description")
+                    color: theme.textSecondary
+                    font.pixelSize: theme.fontSizeCaption
+                }
+                ATextField {
+                    id: templateDescriptionField
+                    objectName: "templateDescriptionField"
+
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: theme.spacingS
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    AButton {
+                        text: qsTr("Cancel")
+                        onClicked: saveTemplateDialog.reject()
+                    }
+                    AButton {
+                        variant: "primary"
+                        text: qsTr("Save")
+                        onClicked: saveTemplateDialog.accept()
+                    }
+                }
+            }
+
+            // 首行去 markdown 记号（与门面的 firstLineAsTitle 同一条规则；
+            // 门面没暴露它，这份推导留在 UI 侧即可——两边口径一致）。
+            function draftTitleGuess() {
+                const first = workbenchWindow.draftFirstLine()
+                let cleaned = ""
+                for (let i = 0; i < first.length; ++i) {
+                    const ch = first[i]
+                    if (ch === "#" || ch === "-" || ch === "*"
+                            || ch === ">" || ch === "`")
+                        continue
+                    cleaned += ch
+                }
+                cleaned = cleaned.trim()
+                return cleaned.length > 0 ? cleaned
+                        : qsTr("New template")
+            }
+
+            onAccepted: {
+                const result = tools.saveAsTemplate(
+                            templateTitleField.text,
+                            workbenchWindow.draftFullText(),
+                            templateCategoryField.text,
+                            templateDescriptionField.text)
+                if (result.ok) {
+                    workbench.notify(
+                                "success",
+                                qsTr("Template saved"),
+                                qsTr("It is in your template library and in the template folder."))
+                }
+                else {
+                    workbench.notify("error", qsTr("Could not save the template"),
+                                     result.error)
+                }
+            }
+
+            onRejected: promptEditor.forceActiveFocus()
+        }
 
     // 「保存 / 放弃 / 取消」三态：AConfirmDialog 只有两个按钮，所以直接基于
     // ADialog 写（与主窗的退出确认同形，见 designs.md）。守卫覆盖**所有**

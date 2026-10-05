@@ -90,6 +90,11 @@ awb_add_resources(tst_toolsui "test_themes"
 set(_tst_toolsui_default_icons ${CMAKE_SOURCE_DIR}/config/default_file_icons.json)
 set_source_files_properties(${_tst_toolsui_default_icons}
     PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+# 内置模板表（PromptTemplateLibrary 从 :/config/ 读）——窗口带着模板
+# 库两段，没有它列表恒空。
+set(_tst_toolsui_default_templates ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json)
+set_source_files_properties(${_tst_toolsui_default_templates}
+    PROPERTIES QT_RESOURCE_ALIAS "config/default_prompt_templates.json")
 
 # 窗口与组件引用的全部图标（alias = icons/<name>，URL 与 app 一致）。
 set(_tst_toolsui_icons
@@ -139,6 +144,7 @@ awb_add_resources(tst_toolsui "toolsui_test_resources"
     PREFIX "/"
     FILES
         ${_tst_toolsui_default_icons}
+        ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json
         ${_tst_toolsui_icons}
         ${_tst_toolsui_filetype_icons}
         ${_tst_toolsui_foldertype_icons}
@@ -156,12 +162,15 @@ set(_tst_toolsui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextArea.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AScrollBar.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AConfirmDialog.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AListRow.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
@@ -174,8 +183,8 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMen
     PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
     PROPERTIES QT_RESOURCE_ALIAS "shell/PageHeader.qml")
-foreach(_comp AButton AIconButton ATextArea AEmptyState AScrollBar ASearchField
-             APill ADialog AConfirmDialog
+foreach(_comp AButton AIconButton ATextArea ATextField AEmptyState AScrollBar
+             ASearchField APill ADialog AConfirmDialog ASectionHeader AListRow
              AMenu AMenuItem AMenuSeparator AComboBox)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
