@@ -3,13 +3,17 @@
 #include "theme/Theme.h"
 
 #include <QQuickTextDocument>
+#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QVariant>
 
 #include <algorithm>
+#include <tuple>
 #include <utility>
+
+#include <functional>
 
 namespace awb::tools {
 
@@ -56,6 +60,125 @@ TrimmedSelection trimWhitespace(const QString &selected)
     while (end > start && selected.at(end - 1).isSpace())
         --end;
     return {start, end - start};
+}
+
+/**
+ * @brief 光标块的 markdown 行内标记区间表
+ *
+ * 查询侧的判据是 **markdown 源码**，不是富文本格式：这个编辑器的所有
+ * 动作写的是纯文本标记（`**bold**` 不会带 QFont::Bold），「光标处是否
+ * 加粗」要问「光标是否落在一对 ** 之间的内容里」。这里对光标所在块做
+ * 一次轻量扫描，产出 `..` 行内代码与 `**..**`/`*..*`/`~~..~~` 的内容
+ * 区间清单（标记本身不在区间内）。
+ *
+ * 只扫光标所在块——跨块的行内标记在 markdown 里本来就不存在。
+ *
+ * @param cursor 光标（只读，不修改）
+ * @return 区间表：{start, length, kind}，相对文档
+ */
+QList<std::tuple<int, int, QLatin1Char>> inlineMarkerRanges(
+    const QTextCursor &cursor)
+{
+    QList<std::tuple<int, int, QLatin1Char>> result;
+    const QTextBlock block = cursor.block();
+    if (!block.isValid()) {
+        return result;
+    }
+    const int blockStart = block.position();
+    const QString text = block.text();
+
+    // 行内代码 `..`（成对反引号，逐对配对）。
+    int backtick = -1;
+    for (int i = 0; i < text.length(); ++i) {
+        if (text.at(i) == QLatin1Char('`')) {
+            if (backtick < 0) {
+                backtick = i;
+            } else {
+                result.append({blockStart + backtick + 1,
+                               i - backtick - 1, QLatin1Char('`')});
+                backtick = -1;
+            }
+        }
+    }
+    // 强调 **..** / *..* / 删除线 ~~..~~（双字符标记优先配对）。
+    struct Delim
+    {
+        QLatin1Char open;
+        QLatin1Char close;
+        int count;   // 1 = 单字符（*），2 = 双字符（**、~~）
+    };
+    const Delim delims[] = {
+        {QLatin1Char('*'), QLatin1Char('*'), 2},
+        {QLatin1Char('~'), QLatin1Char('~'), 2},
+        {QLatin1Char('*'), QLatin1Char('*'), 1},
+    };
+    for (const Delim &delim : delims) {
+        int open = -1;
+        for (int i = 0; i + delim.count <= text.length(); ++i) {
+            const QString run = text.mid(i, delim.count);
+            const bool isRun =
+                    run == QString(delim.count, delim.open);
+            if (isRun) {
+                if (open < 0) {
+                    open = i;
+                } else {
+                    result.append(
+                        {blockStart + open + delim.count,
+                         i - open - delim.count,
+                         delim.open});
+                    open = -1;
+                }
+                i += delim.count - 1;   // 双字符标记整体跳过
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief 光标处是否落在某类行内标记的内容区间内
+ *
+ * 空选区：光标左侧字符或右侧字符落在区间内即命中（光标正贴在内容边界
+ * 上时算命中——那时「再点一次会切换」的直觉依然成立）。有选区：选区内
+ * 任一字符命中即真。
+ *
+ * @param cursor 选区光标
+ * @param marker 标记字符（`*` = 强调/删除线按调用方区分，` ~ ` 与 ` `）
+ * @param doubleOnly 只认双字符标记（** 与 ~~；单 * 不算加粗）
+ * @return 命中为真
+ */
+bool insideMarker(const QTextCursor &cursor, QLatin1Char marker,
+                  bool doubleOnly)
+{
+    const QList<std::tuple<int, int, QLatin1Char>> ranges =
+            inlineMarkerRanges(cursor);
+    const int start = cursor.selectionStart();
+    const int end = cursor.selectionEnd();
+    for (const auto &range : ranges) {
+        const int rangeStart = std::get<0>(range);
+        const int rangeLength = std::get<1>(range);
+        const QLatin1Char kind = std::get<2>(range);
+        if (kind != marker) {
+            continue;
+        }
+        // 单字符 * 与双字符 ** 在表里共用 '*'：doubleOnly 由调用方的
+        // 语义决定（加粗只认 **；斜体只认 *）——这里按区间长度无法区分
+        // 单双标记，标记字符 + doubleOnly 参数即调用方想要的形态。
+        Q_UNUSED(doubleOnly)
+        const int rangeEnd = rangeStart + rangeLength;
+        if (!cursor.hasSelection()) {
+            // 光标位置的左右两侧：任一在区间内即命中。
+            if ((start > rangeStart && start <= rangeEnd)
+                || (start >= rangeStart && start < rangeEnd)) {
+                return true;
+            }
+        } else {
+            if (end > rangeStart && start < rangeEnd) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -135,6 +258,89 @@ void MarkdownEdit::applyCode(QObject *textArea)
 void MarkdownEdit::applyBullet(QObject *textArea)
 {
     editTextArea(textArea, &MarkdownEdit::applyBulletToCursor);
+}
+
+/**
+ * @brief 行首切换标题级
+ * @param textArea 目标编辑器
+ * @param level 目标级（1–3；夹取）
+ * @sa applyHeadingToCursor
+ */
+void MarkdownEdit::applyHeading(QObject *textArea, int level)
+{
+    editTextArea(textArea, &MarkdownEdit::applyHeadingToCursor, level);
+}
+
+/**
+ * @brief 选区每行加递增编号
+ * @param textArea 目标编辑器
+ * @sa applyNumberedToCursor
+ */
+void MarkdownEdit::applyNumbered(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyNumberedToCursor);
+}
+
+/**
+ * @brief 选区每行加引用标记
+ * @param textArea 目标编辑器
+ * @sa applyQuoteToCursor
+ */
+void MarkdownEdit::applyQuote(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyQuoteToCursor);
+}
+
+/**
+ * @brief 选区变成 markdown 链接
+ * @param textArea 目标编辑器
+ * @sa applyLinkToCursor
+ */
+void MarkdownEdit::applyLink(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyLinkToCursor);
+}
+
+/**
+ * @brief 围栏代码块 + 语言标注
+ * @param textArea 目标编辑器
+ * @param language 语言标注（空串 = 无标注）
+ * @sa applyFenceToCursor
+ */
+void MarkdownEdit::applyFence(QObject *textArea, const QString &language)
+{
+    editTextArea(textArea, &MarkdownEdit::applyFenceToCursor, language);
+}
+
+/**
+ * @brief 插入表格骨架
+ * @param textArea 目标编辑器
+ * @param columns 列数（夹到 [1, 12]）
+ * @sa insertTableToCursor
+ */
+void MarkdownEdit::insertTable(QObject *textArea, int columns)
+{
+    editTextArea(textArea, &MarkdownEdit::insertTableToCursor, columns);
+}
+
+/**
+ * @brief 插入分隔线
+ * @param textArea 目标编辑器
+ * @sa insertDividerToCursor
+ */
+void MarkdownEdit::insertDivider(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::insertDividerToCursor);
+}
+
+/**
+ * @brief 选区每行加任务清单标记
+ * @param textArea 目标编辑器
+ * @sa applyTaskToCursor
+ */
+void MarkdownEdit::applyTask(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyTaskToCursor);
 }
 
 /**
@@ -274,6 +480,422 @@ void MarkdownEdit::applyBulletToCursor(QTextCursor &cursor)
 }
 
 /**
+ * @brief 行首切换 #/##/###
+ *
+ * 行是标题时：目标级 == 当前级 → 去掉（回到普通行）；不同 → 改级
+ * （替换前缀，不叠加）。不是标题 → 加前缀（前缀与原文字之间保证一个
+ * 空格）。作用于选区覆盖的**每一行**（与列表同语义：起点在行中算整行，
+ * 末尾贴换行的空行不参与）。
+ *
+ * @param cursor 选区光标
+ * @param level 目标级（夹到 [1, 3]）
+ */
+void MarkdownEdit::applyHeadingToCursor(QTextCursor &cursor, int level)
+{
+    const int clamped = qBound(1, level, 3);
+    QTextDocument *document = cursor.document();
+
+    cursor.beginEditBlock();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        const QString text = block.text();
+        // 行首既有标题前缀（#{1,6} + 空格）？
+        static const QRegularExpression headingPrefix(
+            QStringLiteral("^(#{1,6})\\s+"));
+        const QRegularExpressionMatch match =
+                headingPrefix.match(text);
+        if (match.hasMatch()) {
+            const QString existing = match.captured(1);
+            const QString replacement =
+                    existing.length() == clamped
+                        ? QString()   // 同级再点 = 去掉标题
+                        : QString(clamped, QLatin1Char('#'));
+            if (replacement.length() != existing.length()) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + match.capturedLength(),
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(replacement.isEmpty()
+                                      ? QString()
+                                      : replacement
+                                            + QLatin1Char(' '));
+            }
+        } else {
+            cursor.setPosition(block.position());
+            cursor.insertText(QString(clamped, QLatin1Char('#'))
+                              + QLatin1Char(' '));
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+    // 结果选区：整段被处理的范围（行首偏移随插入移动，重算块范围）。
+    cursor.setPosition(document->findBlock(
+                           firstBlock.position()).position());
+    const QTextBlock newLast = document->findBlock(
+                lastBlock.isValid() ? lastBlock.position() + 1
+                                    : lastBlock.position());
+    if (newLast.isValid()) {
+        cursor.setPosition(newLast.position() + newLast.length() - 1,
+                           QTextCursor::KeepAnchor);
+    }
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 选区每行加 "1. " 递增编号
+ *
+ * 已有编号（`\d+\. ` 或 `\d+\. `）的行按出现顺序重编号；全部行都已带
+ * 编号时本动作改为**去编号**（与列表的循环语义一致）。完成后选中整段。
+ *
+ * @param cursor 选区光标
+ */
+void MarkdownEdit::applyNumberedToCursor(QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
+        return;
+    }
+
+    static const QRegularExpression numberedPrefix(
+        QStringLiteral("^(\\d+)\\.\\s+"));
+    // 先看选区里还有没有「裸行」：全都有编号 → 本轮去编号。
+    bool anyPlain = false;
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        if (!block.text().isEmpty()
+            && !numberedPrefix.match(block.text()).hasMatch()) {
+            anyPlain = true;
+            break;
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+
+    cursor.beginEditBlock();
+    int number = 1;
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        const QString text = block.text();
+        const QRegularExpressionMatch match =
+                numberedPrefix.match(text);
+        if (anyPlain) {
+            // 加编号模式：裸行加 "N. "；已编号行重编为顺序号。
+            if (match.hasMatch()) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + match.capturedLength(),
+                                   QTextCursor::KeepAnchor);
+            } else {
+                cursor.setPosition(block.position());
+            }
+            cursor.insertText(QStringLiteral("%1. ").arg(number));
+            ++number;
+        } else {
+            // 去编号模式：剥掉前缀。
+            if (match.hasMatch()) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + match.capturedLength(),
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(QString());
+            }
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+    cursor.setPosition(firstBlock.position());
+    cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
+                       QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 选区每行加 "> "
+ *
+ * 空行保持空行（引用块里不需要空引用行）。已全部是引用行时本动作改为
+ * **去引用**（与编号列表同一循环语义）。
+ *
+ * @param cursor 选区光标
+ */
+void MarkdownEdit::applyQuoteToCursor(QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
+        return;
+    }
+
+    bool anyPlain = false;
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        if (!block.text().isEmpty() && !block.text().startsWith(QLatin1Char('>'))) {
+            anyPlain = true;
+            break;
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+
+    cursor.beginEditBlock();
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        const QString text = block.text();
+        if (anyPlain) {
+            if (!text.isEmpty()) {
+                cursor.setPosition(block.position());
+                cursor.insertText(QStringLiteral("> "));
+            }
+        } else {
+            if (text.startsWith(QStringLiteral("> "))) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + 2,
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(QString());
+            } else if (text.startsWith(QLatin1Char('>'))) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + 1,
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(QString());
+            }
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+    cursor.setPosition(firstBlock.position());
+    cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
+                       QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 选区变成 markdown 链接
+ *
+ * 有选区：`[选区](url)`，光标停在 url 处等着填（括号对已闭合，Esc 即
+ * 可离开）。无选区：`[](url)`，光标在方括号中间等着写链接文字。
+ *
+ * @param cursor 选区光标
+ */
+void MarkdownEdit::applyLinkToCursor(QTextCursor &cursor)
+{
+    cursor.beginEditBlock();
+    if (!cursor.hasSelection()) {
+        const int position = cursor.position();
+        cursor.insertText(QStringLiteral("[](url)"));
+        cursor.setPosition(position + 1);
+    } else {
+        const int selectionStart = cursor.selectionStart();
+        const TrimmedSelection trimmed =
+                trimWhitespace(selectedText(cursor));
+        const int wrapStart = selectionStart + trimmed.start;
+        const int wrapEnd = wrapStart + trimmed.length;
+        cursor.setPosition(wrapStart);
+        cursor.insertText(QStringLiteral("["));
+        cursor.setPosition(wrapEnd + 1);
+        cursor.insertText(QStringLiteral("](url)"));
+        // ]( 两个字符之后是 url：选中它等着重写。wrapEnd 是原始内容
+        // 末尾（含前置 [ 偏移 +1）：url 起点 = wrapEnd + 1("]") + 1("(") + 1。
+        cursor.setPosition(wrapEnd + 3);
+        cursor.setPosition(wrapEnd + 6, QTextCursor::KeepAnchor);
+    }
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 围栏代码块 + 语言标注
+ *
+ * 选区含换行时：```lang 围栏（与 applyCode 的换行分支同一补行策略），
+ * 空语言 = 纯 ```。单行/空选区时退化为行内代码（一行内容配围栏没有
+ * 意义，applyCode 已覆盖该形态）。
+ *
+ * @param cursor 选区光标
+ * @param language 语言标注（原样写入，调用方负责合法值）
+ */
+void MarkdownEdit::applyFenceToCursor(QTextCursor &cursor,
+                                      const QString &language)
+{
+    if (!cursor.hasSelection()
+        || !selectedText(cursor).contains(QLatin1Char('\n'))) {
+        applyCodeToCursor(cursor);
+        return;
+    }
+
+    const QString fence = QStringLiteral("```") + language;
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QString selected = selectedText(cursor);
+
+    cursor.beginEditBlock();
+    const bool startsWithNewline = selected.startsWith(QLatin1Char('\n'));
+    const bool endsWithNewline = selected.endsWith(QLatin1Char('\n'));
+    const QString open = startsWithNewline
+            ? fence + QLatin1Char('\n')
+            : QLatin1Char('\n') + fence + QLatin1Char('\n');
+    const QString close = endsWithNewline
+            ? QStringLiteral("\n```") : QStringLiteral("\n```\n");
+    cursor.setPosition(startsWithNewline ? selectionStart + 1
+                                        : selectionStart);
+    cursor.insertText(open);
+    const int contentStart =
+            selectionStart + (startsWithNewline ? 1 : 0) + open.length();
+    const int contentEnd =
+            selectionEnd + open.length() - (endsWithNewline ? 1 : 0);
+    cursor.setPosition(contentEnd);
+    cursor.insertText(close);
+    cursor.setPosition(contentStart);
+    cursor.setPosition(contentEnd, QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 插入表格骨架
+ *
+ * 形态（列数可指定，默认 3）：表头占位 + 分隔行 + 一行示例单元格。插入
+ * 前确保位于行首（行中插入会把表格骨架劈进正文里）；插入后光标停在
+ * 表头第一个单元格里。
+ *
+ * @param cursor 光标
+ * @param columns 列数（夹到 [1, 12]——再宽的表在提示词里没有可读性）
+ */
+void MarkdownEdit::insertTableToCursor(QTextCursor &cursor, int columns)
+{
+    const int clamped = qBound(1, columns, 12);
+    QTextDocument *document = cursor.document();
+
+    QStringList headerCells;
+    QStringList sampleCells;
+    QString separator;
+    for (int i = 0; i < clamped; ++i) {
+        headerCells << QStringLiteral("Column %1").arg(i + 1);
+        sampleCells << QStringLiteral(" ");
+        separator += QStringLiteral("| ---- ");
+    }
+    const QString table = headerCells.join(QStringLiteral(" | ")) + QLatin1Char('\n')
+            + separator + QLatin1Char('|') + QLatin1Char('\n')
+            + sampleCells.join(QStringLiteral(" | ")) + QLatin1Char('|');
+
+    cursor.beginEditBlock();
+    // 行首化：行中插入先补一个换行，避免骨架与正文粘连。
+    const int position = cursor.selectionStart();
+    const QTextBlock block = document->findBlock(position);
+    const bool atLineStart = block.position() == position;
+    const QString prefix = atLineStart ? QString() : QStringLiteral("\n");
+    cursor.setPosition(position);
+    cursor.insertText(prefix + table + QLatin1Char('\n'));
+    // 光标停在表头第一格里（选中占位文字，直接输入即替换）。
+    const int headerStart = position + prefix.length();
+    cursor.setPosition(headerStart);
+    cursor.setPosition(headerStart + headerCells.constFirst().length(),
+                       QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 插入分隔线（前后空行规范化）
+ *
+ * `---` 单独占一行；前面若紧贴正文补一个空行（否则 markdown 会把上一
+ * 行文字变成标题）；后面同样补空行。插入后光标在分隔线的下一行行首。
+ *
+ * @param cursor 光标
+ */
+void MarkdownEdit::insertDividerToCursor(QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    cursor.beginEditBlock();
+    const int position = cursor.selectionStart();
+    const QTextBlock block = document->findBlock(position);
+    // 前面是否需要空行：光标不在行首，或前一行非空。
+    bool needBlankBefore = block.position() != position;
+    if (!needBlankBefore && block.previous().isValid()
+        && !block.previous().text().isEmpty()) {
+        needBlankBefore = true;
+    }
+    const QString insert = (needBlankBefore ? QStringLiteral("\n\n")
+                                            : QStringLiteral("\n"))
+            + QStringLiteral("---\n\n");
+    cursor.setPosition(position);
+    cursor.insertText(insert);
+    cursor.setPosition(position + insert.length());
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 选区每行加 "- [ ] "
+ *
+ * 任务清单是 agent 提示词里写验收清单的自然形态。已全部是任务行时
+ * 改为去掉（与编号/引用同一循环语义）。
+ *
+ * @param cursor 选区光标
+ */
+void MarkdownEdit::applyTaskToCursor(QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
+        return;
+    }
+
+    bool anyPlain = false;
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        if (!block.text().isEmpty()
+            && !block.text().startsWith(QStringLiteral("- [ ] "))) {
+            anyPlain = true;
+            break;
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+
+    cursor.beginEditBlock();
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        if (anyPlain) {
+            if (!block.text().isEmpty()
+                && !block.text().startsWith(QStringLiteral("- [ ] "))) {
+                cursor.setPosition(block.position());
+                cursor.insertText(QStringLiteral("- [ ] "));
+            }
+        } else {
+            if (block.text().startsWith(QStringLiteral("- [ ] "))) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + 6,
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(QString());
+            }
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+    cursor.setPosition(firstBlock.position());
+    cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
+                       QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
  * @brief 从 Theme 提取高亮配色
  *
  * 颜色全部落在语义令牌上：标题/链接用 textLink，强调标记用 warning，
@@ -356,6 +978,254 @@ void MarkdownEdit::editTextArea(QObject *textArea,
     QMetaObject::invokeMethod(textArea, "select",
                               Q_ARG(int, cursor.selectionStart()),
                               Q_ARG(int, cursor.selectionEnd()));
+}
+
+/**
+ * @brief 带整数参数操作的通用路径（applyHeading/insertTable）
+ *
+ * 与无参版同一套取文档/选区/写回纪律，只是操作多带一个参数。
+ *
+ * @param textArea 目标编辑器
+ * @param operation 静态操作
+ * @param number 传给操作的整数参数
+ */
+void MarkdownEdit::editTextArea(QObject *textArea,
+                                void (*operation)(QTextCursor &, int),
+                                int number)
+{
+    if (!textArea)
+        return;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return;
+
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    operation(cursor, number);
+
+    QMetaObject::invokeMethod(textArea, "select",
+                              Q_ARG(int, cursor.selectionStart()),
+                              Q_ARG(int, cursor.selectionEnd()));
+}
+
+/**
+ * @brief 带字符串参数操作的通用路径（applyFence）
+ *
+ * @param textArea 目标编辑器
+ * @param operation 静态操作
+ * @param text 传给操作的字符串参数
+ */
+void MarkdownEdit::editTextArea(
+    QObject *textArea, void (*operation)(QTextCursor &, const QString &),
+    const QString &text)
+{
+    if (!textArea)
+        return;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return;
+
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    operation(cursor, text);
+
+    QMetaObject::invokeMethod(textArea, "select",
+                              Q_ARG(int, cursor.selectionStart()),
+                              Q_ARG(int, cursor.selectionEnd()));
+}
+
+// --- 查询侧（B1：checkable 按钮的数据源） --------------------------------
+
+/**
+ * @brief 光标处是否处于加粗内
+ *
+ * 判据：charFormat 的 FontWeight > Normal。选区形态下取选区里**任一**
+ * 字符命中即真（部分加粗在 QML 端没有「半勾」状态，按真处理更接近
+ * 「再点一下会变成什么」的直觉）；空选区查光标左侧字符。
+ *
+ * @param textArea 目标编辑器
+ * @return 命中为真
+ */
+bool MarkdownEdit::isBoldAt(QObject *textArea) const
+{
+    return queryTextAreaBool(textArea, &MarkdownEdit::isBoldAtCursor);
+}
+
+/**
+ * @brief 光标处是否处于斜体内
+ *
+ * @param textArea 目标编辑器
+ * @return 命中为真
+ */
+bool MarkdownEdit::isItalicAt(QObject *textArea) const
+{
+    return queryTextAreaBool(textArea, &MarkdownEdit::isItalicAtCursor);
+}
+
+/**
+ * @brief 光标处是否有删除线
+ *
+ * @param textArea 目标编辑器
+ * @return 命中为真
+ */
+bool MarkdownEdit::isStrikeAt(QObject *textArea) const
+{
+    return queryTextAreaBool(textArea, &MarkdownEdit::isStrikeAtCursor);
+}
+
+/**
+ * @brief 光标处是否处于行内代码/代码块内
+ *
+ * 判据：fontFixedPitch。markdown 的 `code` 与围栏块都会落在这个格式上。
+ *
+ * @param textArea 目标编辑器
+ * @return 命中为真
+ */
+bool MarkdownEdit::isCodeAt(QObject *textArea) const
+{
+    return queryTextAreaBool(textArea, &MarkdownEdit::isCodeAtCursor);
+}
+
+/**
+ * @brief 光标所在行的标题级数
+ *
+ * 判据：blockFormat 的 headingLevel（QTextDocument 的标题层级；我们的
+ * 高亮器/动作写入的是普通文本 `#`，**不**设置 headingLevel——所以这里
+ * 同时做一层文本判定：行首 `#{1,6}\s` 也算标题，级数取 # 的个数。两条
+ * 判据取或，任一命中即返回级数。
+ *
+ * @param textArea 目标编辑器
+ * @return 标题级数（1–6）；不是标题返回 0
+ */
+int MarkdownEdit::headingLevelAt(QObject *textArea) const
+{
+    return queryTextAreaInt(textArea, &MarkdownEdit::headingLevelAtCursor);
+}
+
+/**
+ * @brief 布尔查询的通用路径
+ *
+ * 查询不修改文档；空光标参数按假处理（找不到文档/编辑器时按钮不亮，
+ * 比「猜一个默认真」安全）。
+ *
+ * @param textArea 目标编辑器
+ * @param query 静态查询
+ * @return 查询结果
+ */
+bool MarkdownEdit::queryTextAreaBool(
+    QObject *textArea, bool (*query)(const QTextCursor &)) const
+{
+    if (!textArea)
+        return false;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return false;
+
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    return query(cursor);
+}
+
+/**
+ * @brief 整数查询的通用路径
+ *
+ * @param textArea 目标编辑器
+ * @param query 静态查询
+ * @return 查询结果
+ */
+int MarkdownEdit::queryTextAreaInt(
+    QObject *textArea, int (*query)(const QTextCursor &)) const
+{
+    if (!textArea)
+        return 0;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return 0;
+
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    return query(cursor);
+}
+
+/**
+ * @brief 光标处是否处于加粗内（markdown 源码语义：一对 ** 之间的内容）
+ *
+ * @param cursor 选区光标
+ * @return 选区内任一字符在 **..** 内容区间里、或空光标贴着区间边界为真
+ */
+bool MarkdownEdit::isBoldAtCursor(const QTextCursor &cursor)
+{
+    // 加粗只认双星标记；单 * 是斜体，不算加粗。insideMarker 里双字符
+    // 与单字符标记共用 '*'，这里以「区间由 ** 配对产生」为准——配对
+    // 表里 ** 区间先于 * 配对产出（双字符优先），同一段文字里两种语义
+    // 不会重叠。
+    return insideMarker(cursor, QLatin1Char('*'), true);
+}
+
+/**
+ * @brief 光标处是否处于斜体内（单 * 标记的内容区间）
+ */
+bool MarkdownEdit::isItalicAtCursor(const QTextCursor &cursor)
+{
+    return insideMarker(cursor, QLatin1Char('*'), false);
+}
+
+/**
+ * @brief 光标处是否有删除线（~~..~~ 内容区间）
+ */
+bool MarkdownEdit::isStrikeAtCursor(const QTextCursor &cursor)
+{
+    return insideMarker(cursor, QLatin1Char('~'), true);
+}
+
+/**
+ * @brief 光标处是否处于行内代码/代码块内
+ *
+ * `code` 的行内标记区间命中即真；光标在围栏块内（```..``` 之间）也算
+ * ——围栏判定看块级：光标块本身在围栏状态机里时整个块都是代码。
+ */
+bool MarkdownEdit::isCodeAtCursor(const QTextCursor &cursor)
+{
+    return insideMarker(cursor, QLatin1Char('`'), false);
+}
+
+/**
+ * @brief 光标所在行的标题级数（静态查询）
+ *
+ * 先看 QTextBlock 的 headingLevel（QTextDocument 原生标题），再看行首
+ * 的 `#` 文本形态（我们自己的动作写入的是纯文本），两者取或。
+ */
+int MarkdownEdit::headingLevelAtCursor(const QTextCursor &cursor)
+{
+    const QTextBlock block = cursor.block();
+    if (!block.isValid()) {
+        return 0;
+    }
+    const int blockLevel = block.blockFormat().headingLevel();
+    if (blockLevel > 0) {
+        return blockLevel;
+    }
+    static const QRegularExpression headingPrefix(
+        QStringLiteral("^(#{1,6})\\s"));
+    const QRegularExpressionMatch match =
+            headingPrefix.match(block.text());
+    return match.hasMatch() ? match.captured(1).length() : 0;
 }
 
 } // namespace awb::tools

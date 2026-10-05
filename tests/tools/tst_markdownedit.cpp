@@ -217,6 +217,257 @@ private Q_SLOTS:
         document.undo(&cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("hello world"));
     }
+
+    // --- M3 新动作（B1）--------------------------------------------------
+
+    void testHeadingAddsPrefix()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("plain"), 2, 2,
+              [](QTextCursor &c) {
+                  MarkdownEdit::applyHeadingToCursor(c, 2);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("## plain"));
+    }
+
+    void testHeadingReplacesExistingLevel()
+    {
+        // 已是标题：改级不叠加（## → ###）。
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("## old"), 1, 1,
+              [](QTextCursor &c) {
+                  MarkdownEdit::applyHeadingToCursor(c, 3);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("### old"));
+    }
+
+    void testHeadingSameLevelRemoves()
+    {
+        // 同级再点 = 去标题（循环语义与列表一致）。
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("### old"), 0, 0,
+              [](QTextCursor &c) {
+                  MarkdownEdit::applyHeadingToCursor(c, 3);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("old"));
+    }
+
+    void testNumberedAddsIncrementing()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 5,
+              &MarkdownEdit::applyNumberedToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("1. aa\n2. bb"));
+    }
+
+    void testNumberedRemovesWhenAllNumbered()
+    {
+        // 全部已编号 → 本轮去编号。
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("1. aa\n2. bb"), 0, 11,
+              &MarkdownEdit::applyNumberedToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testQuoteAddsAndSkipsEmptyLines()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\n\nbb"), 0, 6,
+              &MarkdownEdit::applyQuoteToCursor, &document, &cursor);
+        // 空行保持空行。
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("> aa\n\n> bb"));
+    }
+
+    void testQuoteRemovesWhenAllQuoted()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("> aa\n> bb"), 0, 9,
+              &MarkdownEdit::applyQuoteToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testLinkWithSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("see docs here"), 4, 8,
+              &MarkdownEdit::applyLinkToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("see [docs](url) here"));
+        // 光标选区落在 url 上（等着重写）。
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("url"));
+    }
+
+    void testLinkWithoutSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("go"), 2, 2,
+              &MarkdownEdit::applyLinkToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("go[](url)"));
+        // 光标在方括号中间等着写链接文字（[ 是 index 2，中间 = 3）。
+        QCOMPARE(cursor.position(), 3);
+        QVERIFY(!cursor.hasSelection());
+    }
+
+    void testFenceWithLanguage()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        document.setPlainText(QStringLiteral("a\nbc"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(0);
+        cursor.setPosition(4, QTextCursor::KeepAnchor);
+        MarkdownEdit::applyFenceToCursor(cursor, QStringLiteral("cpp"));
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("\n```cpp\na\nbc\n```\n"));
+    }
+
+    void testFenceSingleLineFallsBackToInline()
+    {
+        // 单行内容配围栏没有意义：退化为行内代码（applyCode 的形态）。
+        QTextDocument document;
+        QTextCursor cursor;
+        document.setPlainText(QStringLiteral("foo bar"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(0);
+        cursor.setPosition(3, QTextCursor::KeepAnchor);
+        MarkdownEdit::applyFenceToCursor(cursor, QStringLiteral("cpp"));
+        QCOMPARE(document.toPlainText(), QStringLiteral("`foo` bar"));
+    }
+
+    void testInsertTableSkeleton()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("x"), 1, 1,
+              [](QTextCursor &c) {
+                  MarkdownEdit::insertTableToCursor(c, 3);
+              }, &document, &cursor);
+        // 行中插入先补行；骨架 = 表头 + 分隔 + 一行示例。
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("x\nColumn 1 | Column 2 | Column 3\n"
+                                "| ---- | ---- | ---- |\n"
+                                "  |   |  |\n"));
+        // 光标选中表头第一格的占位文字。
+        QCOMPARE(normalizedSelection(cursor),
+                 QStringLiteral("Column 1"));
+    }
+
+    void testInsertDividerNormalizesBlanks()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 行中 + 前一行有正文：两侧都补空行。
+        apply(QStringLiteral("text\nhere"), 5, 5,
+              &MarkdownEdit::insertDividerToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("text\n\n\n---\n\nhere"));
+    }
+
+    void testInsertDividerAtEmptyDocument()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral(""), 0, 0,
+              &MarkdownEdit::insertDividerToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("\n---\n\n"));
+    }
+
+    void testTaskListAddsAndRemoves()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("verify it works"), 0, 16,
+              &MarkdownEdit::applyTaskToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("- [ ] verify it works"));
+        // 全部已是任务行 → 去掉。
+        apply(QStringLiteral("- [ ] verify"), 0, 12,
+              &MarkdownEdit::applyTaskToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("verify"));
+    }
+
+    // --- M3 查询侧（B1：checkable 按钮的数据源）--------------------------
+
+    void testQueryBoldAtCursor()
+    {
+        // 判据是 markdown 源码：光标在 **..** 内即加粗（纯文本标记，
+        // 富文本格式在这个编辑器里不存在）。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("plain **bold** tail"));
+        QTextCursor probe(&document);
+
+        probe.setPosition(10);  // “bold”内部（7..11 区间）
+        QVERIFY(MarkdownEdit::isBoldAtCursor(probe));
+        probe.setPosition(2);   // 纯文本内
+        QVERIFY(!MarkdownEdit::isBoldAtCursor(probe));
+        // 选区跨纯文本与加粗：任一命中即真。
+        probe.setPosition(4);
+        probe.setPosition(10, QTextCursor::KeepAnchor);
+        QVERIFY(MarkdownEdit::isBoldAtCursor(probe));
+        // 标记本身（**）的位置不算在内容里：贴在标记外侧不算加粗。
+        probe.setPosition(6);   // 正好贴在第一个 * 之后
+        QVERIFY(!MarkdownEdit::isBoldAtCursor(probe));
+    }
+
+    void testQueryCodeAndHeadingAtCursor()
+    {
+        // 查询的输入面是 markdown 源码（我们的动作写的是纯文本标记，
+        // 不是富文本格式）：源码语义上光标在 `..` 或 **..** 内即命中。
+        QTextDocument document;
+        QTextCursor cursor(&document);
+        cursor.insertText(QStringLiteral("use `code` here"));
+
+        QTextCursor probe(&document);
+        probe.setPosition(6);   // `code` 内部
+        QVERIFY(MarkdownEdit::isCodeAtCursor(probe));
+        probe.setPosition(2);   // 普通文字内
+        QVERIFY(!MarkdownEdit::isCodeAtCursor(probe));
+        // **bold** 的判定同一条路。
+        document.setPlainText(QStringLiteral("**bold** tail"));
+        probe = QTextCursor(&document);
+        probe.setPosition(4);   // bold 内部
+        QVERIFY(MarkdownEdit::isBoldAtCursor(probe));
+        probe.setPosition(10);  // tail 内
+        QVERIFY(!MarkdownEdit::isBoldAtCursor(probe));
+    }
+
+    void testQueryHeadingFromTextForm()
+    {
+        // 我们自己的动作写入的是纯文本 #：文本判定也认。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("### title"));
+        QTextCursor probe(&document);
+        probe.setPosition(2);
+        QCOMPARE(MarkdownEdit::headingLevelAtCursor(probe), 3);
+        // 普通行返回 0。
+        document.setPlainText(QStringLiteral("plain text"));
+        probe = QTextCursor(&document);
+        probe.setPosition(2);
+        QCOMPARE(MarkdownEdit::headingLevelAtCursor(probe), 0);
+    }
+
+    void testNewActionsAreOneUndoStep()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("aa\nbb"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(0);
+        cursor.setPosition(5, QTextCursor::KeepAnchor);
+        MarkdownEdit::applyNumberedToCursor(cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
 };
 
 // Markdown 高亮器：围栏状态机、整行规则、行内规则与占位区间。
