@@ -19,17 +19,6 @@ namespace awb::markdown {
 
 namespace {
 
-/// 认作 Markdown 的后缀（小写）。判定放在这一层而不是 QML：菜单项的可用态、
-/// openFile() 的拒绝、命令行参数的文件关联、以及将来 agent 报告的批量预览
-/// 都要同一个答案。
-bool isMarkdownPath(const QString &path)
-{
-    static const QRegularExpression re(
-        QStringLiteral("\\.(md|markdown|mdown|mdtxt|mdtext|text)\\z"),
-        QRegularExpression::CaseInsensitiveOption);
-    return re.match(path).hasMatch();
-}
-
 // 块 → 页面用的紧凑对象：i=索引 s=首行 e=末行 h=键 t=原文
 QJsonObject blockJson(const MarkdownBlock &block)
 {
@@ -113,6 +102,22 @@ MarkdownPreviewController::MarkdownPreviewController(core::Settings *settings,
 }
 
 MarkdownPreviewController::~MarkdownPreviewController() = default;
+
+/**
+ * @brief 路径是否认作 Markdown（纯后缀判定，与能力无关）
+ * @param path 磁盘路径
+ * @return 后缀认作 Markdown 时为真
+ *
+ * 判定放在这一层而不是 QML：菜单项的可用态、openFile() 的拒绝、命令行
+ * 参数的文件关联、以及将来 agent 报告的批量预览都要同一个答案。
+ */
+bool MarkdownPreviewController::isMarkdownPath(const QString &path)
+{
+    static const QRegularExpression re(
+        QStringLiteral("\\.(md|markdown|mdown|mdtxt|mdtext|text)\\z"),
+        QRegularExpression::CaseInsensitiveOption);
+    return re.match(path).hasMatch();
+}
 
 /**
  * @brief 本构建有没有预览能力

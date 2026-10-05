@@ -194,6 +194,64 @@ Item {
                 }
             }
 
+            // 文件关联（E2）：只出现在有预览能力的构建里——没有它，双击
+            // .md 只会收获一个报因的 toast，注册入口不该出现。
+            ColumnLayout {
+                id: associationSection
+                Layout.fillWidth: true
+                Layout.leftMargin: theme.spacingL
+                Layout.rightMargin: theme.spacingL
+                spacing: theme.spacingXs
+                visible: markdown.available
+
+                // 注册态在开页时读一次、点击后手动刷新——它是注册表
+                // 事实，没有变更信号可绑。
+                property bool registered:
+                    workbench.markdownFileAssociationRegistered()
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: theme.spacingM
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Associate .md files")
+                        color: theme.textPrimary
+                        font.pixelSize: theme.fontSizeBody
+                    }
+                    AButton {
+                        text: associationSection.registered
+                              ? qsTr("Registered")
+                              : qsTr("Associate")
+                        enabled: !associationSection.registered
+                        onClicked: {
+                            const result =
+                                    workbench.registerMarkdownFileAssociation()
+                            // 成功与失败都给一句话：失败的原因（策略/权限）
+                            // 由注册动作带回，成功提示「去系统设置选默认」。
+                            workbench.notify(
+                                result.ok ? "success" : "error",
+                                result.ok
+                                    ? qsTr("Added to the Open with list")
+                                    : qsTr("Could not register"),
+                                result.ok
+                                    ? qsTr("Pick the default app for .md files in Windows Settings.")
+                                    : result.error)
+                            associationSection.registered =
+                                    workbench.markdownFileAssociationRegistered()
+                        }
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                    wrapMode: Text.Wrap
+                    text: qsTr("Puts this app in the \"Open with\" list for .md and .markdown files. The default app is chosen in Windows Settings, not here.")
+                }
+            }
+
             // singleInstance 只在启动时被读一次（实例守卫在界面装配之前
             // 就已经判定），改完要到下次启动才生效。
             Label {

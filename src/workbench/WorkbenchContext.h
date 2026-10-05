@@ -1,6 +1,8 @@
 #ifndef AWB_WORKBENCH_WORKBENCHCONTEXT_H
 #define AWB_WORKBENCH_WORKBENCHCONTEXT_H
 
+#include "core/OpResult.h"
+
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -104,6 +106,21 @@ public:
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &windowState);
     // 最近文档 MRU（新在前；启动页的「最近文档」列表）。
     Q_INVOKABLE QStringList recentMarkdownDocuments() const;
+
+    // --- .md 文件关联（E2） -----------------------------------------------
+    // 「关联 .md / .markdown 文件」：把本程序写进 HKCU 的打开方式列表。
+    // 只出现在「打开方式」里——默认应用由用户在系统设置里选（UserChoice
+    // 有签名保护，静默抢默认不可靠也不礼貌）。返回失败原因（写注册表被
+    // 策略挡住时如实报因）。
+    Q_INVOKABLE awb::core::OpResult registerMarkdownFileAssociation();
+    // 注册是否还在（command 键指向当前可执行文件）。
+    Q_INVOKABLE bool markdownFileAssociationRegistered() const;
+
+    // 单实例 open 消息的编解码（静态便于测试）：消息形如
+    // "open:<JSON 路径数组>"；无请求时仍是 "raise"。解码不认识的消息
+    // 得到空列表。
+    static QByteArray encodeOpenMessage(const QStringList &paths);
+    static QStringList decodeOpenMessage(const QByteArray &message);
 
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);

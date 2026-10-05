@@ -13,8 +13,22 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QSettings>
 
 namespace awb::workbench {
+
+namespace {
+
+// 文件关联的 ProgId、注册表根与后缀清单。ProgId 是「我们这一族打开器」
+// 在注册表里的名字；卸载不清理（残留无害，Windows 惯例）。QSettings 的
+// NativeFormat 路径用反斜杠。
+constexpr auto kAssocProgId = "AgentWorkbench.Markdown.1";
+const char kAssocClassRoot[] = "HKEY_CURRENT_USER\\Software\\Classes";
+const char *const kAssocSuffixes[] = { ".md", ".markdown" };
+
+} // namespace
 
 /**
  * @brief 构造跨域上下文
@@ -387,6 +401,116 @@ void WorkbenchContext::touchRecentDocument(const QString &path)
 void WorkbenchContext::openMarkdownWorkbench()
 {
     Q_EMIT markdownWorkbenchRequested();
+}
+
+/**
+ * @brief 把本程序写进 .md / .markdown 的「打开方式」列表（HKCU）
+ * @return 成功，或带原因的失败
+ *
+ * 写两处：ProgId 的 shell\\open\\command 指向当前可执行文件，以及两个
+ * 后缀的 OpenWithProgids 里登记该 ProgId。**不碰 UserChoice**——默认
+ * 应用由用户在系统设置里选（Win10+ 的 UserChoice 有签名保护，静默抢
+ * 默认既不可靠也不礼貌）；我们的目标是出现在列表里。非 Windows 平台
+ * 如实报「不支持」。
+ */
+core::OpResult WorkbenchContext::registerMarkdownFileAssociation()
+{
+#ifndef Q_OS_WIN
+    return core::OpResult::failure(QCoreApplication::translate(
+        "WorkbenchContext",
+        "File association is only available on Windows."));
+#else
+    const QString exe = QCoreApplication::applicationFilePath();
+    if (exe.isEmpty()) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "WorkbenchContext",
+            "The application path could not be determined."));
+    }
+    QSettings classes(QString::fromLatin1(kAssocClassRoot),
+                      QSettings::NativeFormat);
+    classes.setValue(QStringLiteral("%1/Default").arg(kAssocProgId),
+                     QStringLiteral("Markdown document"));
+    classes.setValue(
+        QStringLiteral("%1/shell/open/command").arg(kAssocProgId),
+        QStringLiteral("\"%1\" \"%2\"").arg(exe, QStringLiteral("%1")));
+    for (const char *suffix : kAssocSuffixes) {
+        classes.setValue(
+            QStringLiteral("%1/OpenWithProgids/%2")
+                .arg(QString::fromLatin1(suffix), kAssocProgId),
+            QString());
+    }
+    classes.sync();
+    if (classes.status() != QSettings::NoError) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "WorkbenchContext",
+            "The registry could not be written (policy or permission)."));
+    }
+    return core::OpResult::success();
+#endif
+}
+
+/**
+ * @brief 注册是否还在（command 键指向当前可执行文件）
+ * @return 已注册且指向本程序为真
+ */
+bool WorkbenchContext::markdownFileAssociationRegistered() const
+{
+#ifdef Q_OS_WIN
+    const QString exe = QCoreApplication::applicationFilePath();
+    if (exe.isEmpty()) {
+        return false;
+    }
+    const QSettings classes(QString::fromLatin1(kAssocClassRoot),
+                            QSettings::NativeFormat);
+    const QString command = classes.value(
+        QStringLiteral("%1/shell/open/command").arg(kAssocProgId)
+    ).toString();
+    return command.contains(exe);
+#else
+    return false;
+#endif
+}
+
+/**
+ * @brief 编码单实例的 open 消息
+ * @param paths 要打开的文档路径
+ * @return "open:<JSON 数组>"；空列表给 "raise"
+ */
+QByteArray WorkbenchContext::encodeOpenMessage(const QStringList &paths)
+{
+    if (paths.isEmpty()) {
+        return QByteArrayLiteral("raise");
+    }
+    const QJsonArray array = QJsonArray::fromStringList(paths);
+    return "open:"
+            + QJsonDocument(array).toJson(QJsonDocument::Compact);
+}
+
+/**
+ * @brief 解码单实例消息里的打开请求
+ * @param message 第二实例发来的消息
+ * @return 路径列表；"raise" 或形状不对的消息得到空列表
+ *
+ * 坏 JSON 整体作废而不是部分采用：第二实例的消息经过本地 IPC，形状错
+ * 只能是版本错位，宁可当一次普通唤醒。
+ */
+QStringList WorkbenchContext::decodeOpenMessage(const QByteArray &message)
+{
+    if (!message.startsWith("open:")) {
+        return QStringList();
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(message.mid(5));
+    if (!doc.isArray()) {
+        return QStringList();
+    }
+    QStringList paths;
+    const QJsonArray array = doc.array();
+    for (const QJsonValue &value : array) {
+        if (value.isString() && !value.toString().isEmpty()) {
+            paths.append(value.toString());
+        }
+    }
+    return paths;
 }
 
 /**

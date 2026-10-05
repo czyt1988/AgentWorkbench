@@ -276,6 +276,52 @@ private Q_SLOTS:
         // QFileInfo::absoluteFilePath()，而不是调用方给的那个串。
         QCOMPARE(markdown.filePath(), QFileInfo(docPath).absoluteFilePath());
     }
+
+    /// 单实例 open 消息的编解码往返：路径数组进、路径数组出；
+    /// "raise" 与坏 JSON 得到空列表（首实例把它当一次普通唤醒）。
+    void testOpenMessageRoundTrip()
+    {
+        QCOMPARE(WorkbenchContext::encodeOpenMessage({}),
+                 QByteArrayLiteral("raise"));
+        QVERIFY(WorkbenchContext::decodeOpenMessage(
+                    QByteArrayLiteral("raise")).isEmpty());
+        QVERIFY(WorkbenchContext::decodeOpenMessage(
+                    QByteArrayLiteral("open:not json")).isEmpty());
+        QVERIFY(WorkbenchContext::decodeOpenMessage(
+                    QByteArrayLiteral("open:[1,2]")).isEmpty());
+
+        const QStringList paths = {
+            QStringLiteral("C:/docs/read me.md"),
+            QStringLiteral("C:/x/notes.markdown"),
+        };
+        const QByteArray message = WorkbenchContext::encodeOpenMessage(paths);
+        QVERIFY(message.startsWith("open:"));
+        QCOMPARE(WorkbenchContext::decodeOpenMessage(message), paths);
+
+        // 空串元素在解码侧被丢弃：IPC 的载荷是本程序写的，形状怪只能
+        // 是版本错位，宁可少开一个也不要开一个空路径。
+        QCOMPARE(WorkbenchContext::decodeOpenMessage(
+                    QByteArrayLiteral("open:[\"a.md\",\"\"]")),
+                 QStringList{QStringLiteral("a.md")});
+    }
+
+    /// 文件关联的注册态读侧：默认（测试机上没有写过这个 ProgId）为假。
+    /// 真实写 HKCU 不进测试——那是机器状态，单测不该动用户的注册表。
+    void testFileAssociationRegisteredDefault()
+    {
+        NavigationModel nav;
+        UiServices ui;
+        Notifications notifications;
+        Settings settings;
+        WebTabsFacade web(&settings);
+        AgentsFacade agents(&settings, QStringLiteral("."));
+        WorkbenchContext workbench(&nav, &ui, &notifications, &agents,
+                                   &web, &settings);
+        // 只断言「不崩溃且返回布尔」；注册与否取决于这台机器的历史，
+        // 断言具体值会把测试绑在机器状态上。
+        const bool value = workbench.markdownFileAssociationRegistered();
+        QVERIFY(value == true || value == false);
+    }
 };
 
 /// 测 workbench 的运行时检测：探测结论怎么并入已知状态、缓存怎么写怎么

@@ -102,6 +102,11 @@ public:
                                        QObject *parent = nullptr);
     ~MarkdownPreviewController() override;
 
+    /// 路径是否认作 Markdown（纯后缀判定，与能力无关）。命令行参数的
+    /// 文件关联扫描用它——argv 里挑出 .md 后能不能真打开交给 openFile()
+    /// 的能力判定与报因，这里只回答「这像是 Markdown 吗」。
+    static bool isMarkdownPath(const QString &path);
+
     bool available() const;
     QString unavailableReason() const;
     QString rendererVersion() const;

@@ -935,6 +935,15 @@ void TestMarkdownPreviewController::testPageUrlAndPreviewEligibility()
     QVERIFY(!controller.canPreviewPath(QStringLiteral("readme")));
     QVERIFY(!controller.canPreviewPath(QString()));
 
+    // 静态版（argv 扫描用）与能力无关：同一份后缀清单，不看表面。
+    QVERIFY(MarkdownPreviewController::isMarkdownPath(
+        QStringLiteral("x/readme.markdown")));
+    QVERIFY(MarkdownPreviewController::isMarkdownPath(
+        QStringLiteral("D:/tmp/a.md")));
+    QVERIFY(!MarkdownPreviewController::isMarkdownPath(
+        QStringLiteral("x/readme.txt")));
+    QVERIFY(!MarkdownPreviewController::isMarkdownPath(QString()));
+
     // 表面没装上（Qt 5 与关掉 WebEngine 的构建）时后缀再对也不给预览：
     // 菜单项整批消失，而不是点开一个开不了的窗。
     MarkdownPreviewController bare(m_settings, nullptr);

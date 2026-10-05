@@ -53,6 +53,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFont>
 #include <QGuiApplication>
 #include <QIcon>
@@ -67,6 +68,36 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+
+/**
+ * @brief 从命令行参数里挑出真实存在的 Markdown 文档路径
+ * @param argc 参数个数
+ * @param argv 参数数组
+ * @return 后缀认作 Markdown 且磁盘上存在的路径（保持出现顺序）
+ *
+ * 文件关联的 argv 半边（E2）：双击 .md 或 `app note.md` 启动时，这些
+ * 路径成为「打开请求」。只挑存在的文件——不存在的（比如别的旗标恰好
+ * 带 .md 后缀）静默忽略，交给正常启动；能不能真打开（能力位）是
+ * previewMarkdown() 的事，那里有如实的报因。
+ */
+static QStringList markdownPathsFromArguments(int argc, char *argv[])
+{
+    QStringList paths;
+    for (int i = 1; i < argc; ++i) {
+        const QString arg = QString::fromLocal8Bit(argv[i]);
+        if (!awb::markdown::MarkdownPreviewController::isMarkdownPath(arg)) {
+            continue;
+        }
+        const QFileInfo info(arg);
+        if (info.isFile()) {
+            const QString absolute = info.absoluteFilePath();
+            if (!paths.contains(absolute)) {
+                paths.append(absolute);
+            }
+        }
+    }
+    return paths;
+}
 
 /**
  * @brief 应用入口：装配整个对象图并启动 QML 引擎
@@ -150,11 +181,14 @@ int main(int argc, char *argv[])
                               | SingleApplication::Mode::SecondaryNotification);
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
 
-    // 第二实例：唤醒首实例的窗口后立刻退出。日志队列先排空，否则尾部
+    // 第二实例：把意图交给首实例后立刻退出。日志队列先排空，否则尾部
     // 消息会随进程消失。SecondaryNotification 保证构造期已连上首实例，
     // sendMessage 是同步确认写，返回 false 只意味着首实例没能收到。
+    // 带 .md/.markdown 参数启动（文件关联双击）时发 "open:<路径数组>"：
+    // 首实例开 tab 并唤醒工作台窗口；无请求时仍是纯 "raise"。
     if (singleInstance && app.isSecondary()) {
-        app.sendMessage(QStringLiteral("raise").toUtf8());
+        app.sendMessage(awb::workbench::WorkbenchContext::encodeOpenMessage(
+            markdownPathsFromArguments(argc, argv)));
         awb::core::Logging::uninstall();
         return 0;
     }
@@ -413,11 +447,29 @@ int main(int argc, char *argv[])
         Q_EMIT workbench.markdownWorkbenchRequested();
     }
 
-    // 单实例的另一半：第二实例 sendMessage 后从这里把窗口唤回前台——
-    // 窗口正收在托盘里时也一并解除隐藏。
+    // 文件关联的 argv 半边（E2）：双击 .md 冷启动到这里，逐条开 tab
+    // （previewMarkdown 内部开窗 + 触 MRU；无能力构建在它那里如实报因）。
+    const QStringList argPaths = markdownPathsFromArguments(argc, argv);
+    for (const QString &path : argPaths) {
+        workbench.previewMarkdown(path);
+    }
+
+    // 单实例的另一半：第二实例的消息在这里接。open:<json> 携带打开请求
+    // ——逐条开 tab，工作台窗口由 previewMarkdown 的信号链唤起；纯
+    // "raise" 只把主窗唤回前台（正收在托盘里时也一并解除隐藏）。
     QObject::connect(
         &app, &SingleApplication::receivedMessage, &tray,
-        [&tray](quint32, const QByteArray &) { tray.showWindow(); });
+        [&tray, &workbench](quint32, const QByteArray &message) {
+            const QStringList paths =
+                awb::workbench::WorkbenchContext::decodeOpenMessage(message);
+            if (paths.isEmpty()) {
+                tray.showWindow();
+                return;
+            }
+            for (const QString &path : paths) {
+                workbench.previewMarkdown(path);
+            }
+        });
 
     const int exitCode = app.exec();
     // 同上：不先 uninstall，队列里没写盘的尾部日志会随进程消失。
