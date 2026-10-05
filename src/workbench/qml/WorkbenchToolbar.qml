@@ -217,6 +217,24 @@ Rectangle {
                      && tools.draft.length > 0
             onClicked: if (win) win.confirmClearDraft()
         }
+
+        // 草稿管理（M4）：新建与 E4（从文档新建）——重命名/复制/删除
+        // 走 Ribbon，降级工具栏保持高频两键。
+        AIconButton {
+            objectName: "newDraftButton"
+            iconSource: "qrc:/icons/plus.svg"
+            tooltip: qsTr("New draft")
+            enabled: win
+            onClicked: if (win) win.newDraft()
+        }
+        AIconButton {
+            objectName: "newDraftFromDocumentButton"
+            iconSource: "qrc:/icons/file.svg"
+            tooltip: qsTr("New draft from this document")
+            enabled: win && win.preset === "document"
+                     && markdown.filePath.length > 0
+            onClicked: if (win) win.newDraftFromDocument()
+        }
         AIconButton {
             iconSource: "qrc:/icons/download.svg"
             tooltip: qsTr("Save")

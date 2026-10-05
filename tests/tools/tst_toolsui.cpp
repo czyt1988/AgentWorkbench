@@ -752,6 +752,207 @@ private Q_SLOTS:
             4000);
     }
 
+    // --- M4 冒烟 ------------------------------------------------------------
+
+    /// 多草稿：新建（工具栏真实点击）→ 清单 +1 且编辑器清空；切回旧
+    /// 草稿 → 编辑器换回旧正文（undo 栈随 text 重置不串草稿）。
+    void testDraftCreateAndSwitch()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("first draft body"));
+
+        const QVariantList before = tools->property("drafts").toList();
+        QCOMPARE(before.size(), 1);
+
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("newDraftButton"));
+        QVERIFY2(button, "newDraftButton not found by objectName");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            tools->property("drafts").toList().size() == 2,
+            "New Draft did not create a second draft",
+            4000);
+        // 新草稿是空的可写主体：编辑器清空、当前草稿换人。
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("text").toString().isEmpty(),
+            qPrintable(QStringLiteral(
+                "the editor did not switch to the empty new draft; text=")
+                + editor->property("text").toString().left(120)),
+            4000);
+
+        // 切回第一条：正文回来。
+        const QString firstId = before.at(0).toMap()
+                .value(QStringLiteral("id")).toString();
+        QVERIFY(QMetaObject::invokeMethod(window, "switchDraftTo",
+                                          Q_ARG(QVariant,
+                                                QVariant(firstId))));
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("text").toString()
+                .contains(QStringLiteral("first draft body")),
+            "switching back did not restore the first draft's text",
+            4000);
+    }
+
+    /// 快照与回滚：存一版 → 历史列表有行 → 回滚（确认弹窗真实点击）→
+    /// 编辑器回到那版正文（当前版被自动存为 rollback 快照，历史不清空）。
+    void testSnapshotSaveAndRollback()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("version one body"));
+
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("saveVersionButton"));
+        QVERIFY2(button, "saveVersionButton not found by objectName");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+
+        QObject *const list = window->findChild<QObject *>(
+            QStringLiteral("snapshotList"));
+        QVERIFY2(list, "snapshotList not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 1,
+                                  "the snapshot list never showed the "
+                                  "saved version",
+                                  4000);
+
+        // 改掉正文再回滚：回到「version one body」。
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
+        typeText(window, QStringLiteral(" CHANGED"));
+        QVERIFY(editor->property("text").toString()
+                    .contains(QStringLiteral("CHANGED")));
+
+        const QVariantList snapshots = tools->snapshots(
+            tools->property("activeDraftId").toString());
+        QVERIFY(!snapshots.isEmpty());
+        const double createdAt = snapshots.at(0).toMap()
+                .value(QStringLiteral("createdAt")).toDouble();
+        QVERIFY(QMetaObject::invokeMethod(
+            window, "rollbackDraftVersion",
+            Q_ARG(QVariant, QVariant(createdAt))));
+
+        // 回滚确认弹窗出现，真实点 Roll back。
+        QObject *const dialog = window->findChild<QObject *>(
+            QStringLiteral("rollbackConfirm"));
+        QVERIFY2(dialog, "rollbackConfirm not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(dialog->property("opened").toBool(),
+                                  "rollback did not open the confirm dialog",
+                                  4000);
+        // 找 AButton 本体（带 variant 属性的才是按钮）：弹窗标题 Label
+        // 的 text 同样是 "Roll back"，只按文字匹配会点到标题上——
+        // 按钮找成标题，点击落在标题区域，doRollback 永远不触发。
+        QQuickItem *rollbackButton = nullptr;
+        const auto children = dialog->findChildren<QQuickItem *>();
+        for (QQuickItem *child : children) {
+            if (child->property("text").toString()
+                        == QStringLiteral("Roll back")
+                    && child->property("variant").isValid()) {
+                rollbackButton = child;
+                break;
+            }
+        }
+        QVERIFY2(rollbackButton, "Roll back button not found");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          rollbackButton->mapToScene(QPointF(
+                              rollbackButton->width() / 2.0,
+                              rollbackButton->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("text").toString()
+                .contains(QStringLiteral("version one body"))
+                && !editor->property("text").toString()
+                         .contains(QStringLiteral("CHANGED")),
+            "rollback did not restore the saved version",
+            4000);
+    }
+
+    /// E4：从文档新建草稿——文档文本原样成稿并切到提示词预设。纯层
+    /// 控制器点亮 surfaceReady 后 openFile 可用（渲染面不存在也不碍事：
+    /// 命令没人泵，只是不显示）。
+    void testNewDraftFromDocument()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 造一份文档并打开（经窗口的文档预设链路：openFile → 窗口在）。
+        const QString root = m_dataRoot->path() + QStringLiteral("/e4ws");
+        QVERIFY(QDir().mkpath(root));
+        const QString docPath = QDir(root).filePath(QStringLiteral("spec.md"));
+        QFile doc(docPath);
+        QVERIFY(doc.open(QIODevice::WriteOnly));
+        doc.write("# Spec\n\nThe document body.\n");
+        doc.close();
+        m_markdown->setSurfaceReady(true);
+        QVERIFY(m_markdown->openFile(docPath).ok);
+        window->setProperty("initialPreset", QStringLiteral("document"));
+        QTRY_VERIFY(m_markdown->fileTitle().contains(QStringLiteral("spec")));
+
+        // 工具栏的 E4 按钮（降级路径）真实点击。
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("newDraftFromDocumentButton"));
+        QVERIFY2(button, "newDraftFromDocumentButton not found");
+        QTRY_VERIFY2_WITH_TIMEOUT(button->property("enabled").toBool(),
+                                  "E4 button never became enabled with a "
+                                  "file session active",
+                                  4000);
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          button->mapToScene(QPointF(
+                              button->width() / 2.0,
+                              button->height() / 2.0)).toPoint());
+
+        // 草稿清单 +1（Component.onCompleted 已建一条，E4 后应为 2），
+        // 新草稿正文 = 文档文本，编辑器切回提示词预设。
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            tools->property("drafts").toList().size() == 2,
+            qPrintable(QStringLiteral(
+                "E4 did not create a draft from the document; count=")
+                + QString::number(
+                    tools->property("drafts").toList().size())),
+            4000);
+        const QString draftId = tools->property("activeDraftId").toString();
+        QVERIFY(!draftId.isEmpty());
+        QVERIFY2(tools->draftBody(draftId)
+                     .contains(QStringLiteral("The document body.")),
+                 "the E4 draft does not contain the document text");
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("visible").toBool()
+                && editor->property("text").toString()
+                       .contains(QStringLiteral("The document body.")),
+            "the editor did not switch to the new draft",
+            4000);
+    }
+
 private:
     // 模板列表/收藏列表的第一行视觉行（ObjectModel 驱动的 ListView，
     // 行是模型子项：从列表的可视子项容器里下钻）。

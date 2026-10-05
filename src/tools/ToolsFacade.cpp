@@ -284,6 +284,11 @@ core::OpResult ToolsFacade::createDraft(const QString &title,
         return core::OpResult::failure(tr(
             "Too many drafts are open. Delete one first."));
     }
+    // 防抖缓冲还压着**旧**草稿的尾巴：先把缓冲冲进旧草稿再换人，否则
+    // 新建前最后半秒的敲键随 m_draft 换人静默蒸发（冲完后缓存才指向
+    // 新草稿——顺序反了会把新空体写进旧草稿）。
+    persistDraft();
+    m_activeDraftIdCache = id;
     m_draft = m_store.draftById(id).body;
     Q_EMIT draftsChanged();
     Q_EMIT activeDraftIdChanged();
@@ -321,7 +326,10 @@ core::OpResult ToolsFacade::duplicateDraft(const QString &id)
         return core::OpResult::failure(tr(
             "Too many drafts are open. Delete one first."));
     }
-    // 不切激活：复制是「留个副本」，不是「开始写这份」。
+    // 不切激活：复制是「留个副本」，不是「开始写这份」。store 的
+    // createDraft 已把激活位挪到新副本上，拨回来；防抖尾巴先冲进源草稿
+    // （冲的时候缓存还指着源——顺序不能反）。
+    persistDraft();
     m_store.setActiveDraft(id);
     m_draft = m_store.draftById(id).body;
     Q_EMIT draftsChanged();
@@ -438,9 +446,17 @@ void ToolsFacade::addSnapshot(const QString &id, const QString &body,
  * 正文存一版（reason=rollback——回滚本身可再撤回），再换正文。确认弹窗
  * 是窗口动作层的职责，这里只做「已经确认了」的事。
  */
-core::OpResult ToolsFacade::rollbackToSnapshot(const QString &id,
-                                               qint64 createdAt)
+/**
+ * @brief 回滚到某版快照
+ *
+ * 返回 {ok, body, error}：编辑器换正文需要 body，OpResult 带不了正文字段
+ * （Q_GADGET 的成员属性表只有 ok/error），QML 里 result.body 是 undefined
+ * 会让「回滚后编辑器不动」这类静默失效。失败时 map 里只有 ok/error。
+ */
+QVariantMap ToolsFacade::rollbackToSnapshot(const QString &id,
+                                           qint64 createdAt)
 {
+    QVariantMap result;
     const auto list = m_store.snapshots(id);
     QString body;
     bool found = false;
@@ -452,7 +468,9 @@ core::OpResult ToolsFacade::rollbackToSnapshot(const QString &id,
         }
     }
     if (!found) {
-        return core::OpResult::failure(tr("No such snapshot."));
+        result.insert(QStringLiteral("ok"), false);
+        result.insert(QStringLiteral("error"), tr("No such snapshot."));
+        return result;
     }
     // 当前版先存（rollback 原因），然后替换。
     const QString current = m_store.draftById(id).body;
@@ -464,7 +482,9 @@ core::OpResult ToolsFacade::rollbackToSnapshot(const QString &id,
         Q_EMIT draftChanged();
     }
     Q_EMIT draftsChanged();
-    return core::OpResult::success();
+    result.insert(QStringLiteral("ok"), true);
+    result.insert(QStringLiteral("body"), body);
+    return result;
 }
 
 // --- 崩溃恢复（M4，D6） -----------------------------------------------------
@@ -501,6 +521,10 @@ QString ToolsFacade::recoverToNewDraft()
     if (id.isEmpty()) {
         return QString();
     }
+    // 与 createDraft 同一条纪律：换人前把旧草稿的防抖尾巴冲进去，缓存
+    // 跟着新草稿走。
+    persistDraft();
+    m_activeDraftIdCache = id;
     m_draft = m_store.draftById(id).body;
     Q_EMIT draftsChanged();
     Q_EMIT activeDraftIdChanged();

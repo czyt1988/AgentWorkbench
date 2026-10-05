@@ -261,13 +261,19 @@ void MarkdownPreviewController::wireSessionSignals(
  * @param path 磁盘路径
  * @param failure 输出：读盘失败的原因（成功时不清空）
  * @return 新会话；读盘失败为空（此时**不**入列，既有会话不受影响）
+ *
+ * 文件会话的 docId 用 "f%1" 前缀，草稿会话沿用 tools 域的 "d%1"：两个
+ * 域各自数各自的序号，同前缀必撞（M4 排障实录：文件 d1 与草稿 d1 同名，
+ * isDraftId 按 docId 字符串判定，文件会话被误认成草稿、预设切换把草稿
+ * 顶回活跃位）。id 是 tabs / 激活 / asset 路由的公共地址，撞名就是
+ * 串会话。
  */
 std::shared_ptr<MarkdownPreviewController::Session>
 MarkdownPreviewController::createFileSession(const QString &path,
                                              core::OpResult *failure)
 {
     auto session = std::make_shared<Session>(
-        QStringLiteral("d%1").arg(++m_docSeq));
+        QStringLiteral("f%1").arg(++m_docSeq));
     const core::OpResult loaded = session->document.load(path);
     if (!loaded) {
         if (failure) {

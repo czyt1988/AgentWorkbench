@@ -9,6 +9,7 @@
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"
+#include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "workbench/MarkdownSessionStore.h"
 
@@ -286,6 +287,41 @@ QVariantMap WorkbenchContext::restoreMarkdownSession()
     int restoredCount = 0;
     QString lastDocId;
     for (const MarkdownSessionState::Tab &tab : state.tabs) {
+        if (!tab.draftId.isEmpty()) {
+            // 草稿 tab：正文与标题是 tools 域的数据；门面没接进来（单测
+            // 路径）或草稿已被删除的，跳过——与「文件不存在就跳过」同一条
+            // 容错纪律。
+            if (!m_tools) {
+                continue;
+            }
+            const QVariantList drafts = m_tools->drafts();
+            QString title;
+            bool found = false;
+            for (const QVariant &entry : drafts) {
+                const QVariantMap draft = entry.toMap();
+                if (draft.value(QStringLiteral("id")).toString()
+                        == tab.draftId) {
+                    title = draft.value(QStringLiteral("title")).toString();
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                qWarning() << "[workbench] session draft tab skipped"
+                              " (no such draft):"
+                           << tab.draftId;
+                continue;
+            }
+            const QString docId = m_markdown->openDraftSession(
+                tab.draftId, title,
+                m_tools->draftBody(tab.draftId));
+            if (docId.isEmpty()) {
+                continue;
+            }
+            ++restoredCount;
+            m_markdown->setMode(tab.mode);
+            continue;
+        }
         if (!m_markdown->openFile(tab.path)) {
             qWarning() << "[workbench] session tab skipped (cannot open):"
                        << tab.path;
@@ -344,10 +380,20 @@ void WorkbenchContext::saveMarkdownSession(const QVariantMap &windowState)
     for (int i = 0; i < tabs.size(); ++i) {
         const QVariantMap tab = tabs.at(i).toMap();
         MarkdownSessionState::Tab entry;
-        entry.path = tab.value(QStringLiteral("path")).toString();
         entry.mode = tab.value(QStringLiteral("mode")).toString();
-        if (entry.path.isEmpty()) {
-            continue;
+        if (tab.value(QStringLiteral("draft"), false).toBool()) {
+            // 草稿 tab：docId 即 tools.json 的草稿 id（资源寻址共用一键）。
+            entry.draftId =
+                tab.value(QStringLiteral("docId")).toString();
+            if (entry.draftId.isEmpty()) {
+                continue;
+            }
+        }
+        else {
+            entry.path = tab.value(QStringLiteral("path")).toString();
+            if (entry.path.isEmpty()) {
+                continue;
+            }
         }
         if (tab.value(QStringLiteral("active")).toBool()) {
             activeIndex = state.tabs.size();
@@ -534,6 +580,16 @@ void WorkbenchContext::setMarkdownPreview(
 void WorkbenchContext::setMarkdownSessionStore(MarkdownSessionStore *store)
 {
     m_sessionStore = store;
+}
+
+/**
+ * @brief 组装层灌进 tools 门面
+ *
+ * @param tools 草稿数据门面；空指针表示会话恢复不认草稿 tab（测试路径）
+ */
+void WorkbenchContext::setToolsFacade(tools::ToolsFacade *tools)
+{
+    m_tools = tools;
 }
 
 /**

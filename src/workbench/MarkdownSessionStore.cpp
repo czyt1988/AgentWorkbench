@@ -21,6 +21,7 @@ constexpr auto kDocumentRibbonKey = "documentRibbonCollapsed";
 constexpr auto kRecentKey = "recentDocuments";
 
 constexpr auto kTabPathKey = "path";
+constexpr auto kTabDraftKey = "draft";
 constexpr auto kTabModeKey = "mode";
 
 /**
@@ -31,11 +32,16 @@ constexpr auto kTabModeKey = "mode";
  */
 bool tabFromJson(const QJsonObject &object, MarkdownSessionState::Tab *out)
 {
+    // 草稿 tab：draft 键给 tools.json 的草稿 id（path 为空）。
+    const QString draftId =
+        object.value(QLatin1String(kTabDraftKey)).toString();
+    // 文件 tab：path 给磁盘绝对路径。两者都没有的条目作废。
     const QString path = object.value(QLatin1String(kTabPathKey)).toString();
-    if (path.isEmpty()) {
+    if (draftId.isEmpty() && path.isEmpty()) {
         return false;
     }
-    out->path = path;
+    out->draftId = draftId;
+    out->path = draftId.isEmpty() ? path : QString();
     const QString mode = object.value(QLatin1String(kTabModeKey)).toString();
     out->mode = (mode == QLatin1String("preview")
                  || mode == QLatin1String("split")
@@ -126,7 +132,14 @@ bool MarkdownSessionStore::save(const MarkdownSessionState &state) const
     QJsonArray tabs;
     for (const MarkdownSessionState::Tab &tab : state.tabs) {
         QJsonObject entry;
-        entry.insert(QLatin1String(kTabPathKey), tab.path);
+        // 草稿 tab 写 draft（id），文件 tab 写 path；另一方留空不写，
+        // 读侧按「哪个有值」判型。
+        if (!tab.draftId.isEmpty()) {
+            entry.insert(QLatin1String(kTabDraftKey), tab.draftId);
+        }
+        else {
+            entry.insert(QLatin1String(kTabPathKey), tab.path);
+        }
         entry.insert(QLatin1String(kTabModeKey), tab.mode);
         tabs.append(entry);
     }

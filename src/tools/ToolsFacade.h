@@ -200,9 +200,11 @@ public:
     Q_INVOKABLE void addSnapshot(const QString &id, const QString &body,
                                  const QString &reason);
     // 回滚：确认过破坏性的旧内容替换——先给当前版存一版（rollback 原因），
-    // 再把正文换成快照内容。返回 {ok, body}（body = 回滚后的正文）。
-    Q_INVOKABLE awb::core::OpResult rollbackToSnapshot(const QString &id,
-                                                       qint64 createdAt);
+    // 再把正文换成快照内容。返回 {ok, body, error}（body = 回滚后的正
+    // 文）——OpResult 没有正文字段，QML 拿不到 body 就没法把编辑器换过
+    // 去，所以这里用 map。
+    Q_INVOKABLE QVariantMap rollbackToSnapshot(const QString &id,
+                                               qint64 createdAt);
 
     // --- 崩溃恢复（M4，D6） ---------------------------------------------------
     // 启动时问一次：有没有恢复副本（返回 null 或 {draftId, body}）

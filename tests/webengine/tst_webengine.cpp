@@ -586,7 +586,9 @@ private Q_SLOTS:
 
         const awb::core::OpResult opened = controller.openFile(markdownPath);
         QVERIFY2(opened.ok, qPrintable(opened.error));
-        QCOMPARE(controller.docId(), QStringLiteral("d1"));
+        // 文件会话的 docId 是 "f%1"（与草稿的 "d%1" 分命名空间——撞名
+        // 会串会话，见 createFileSession 的注释）。
+        QCOMPARE(controller.docId(), QStringLiteral("f1"));
         QVERIFY(controller.blocks().size() >= 2);
 
         QSignalSpy renderFailed(&controller,

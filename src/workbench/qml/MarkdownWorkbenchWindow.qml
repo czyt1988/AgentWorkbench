@@ -225,12 +225,169 @@ ApplicationWindow {
         return promptEditor.text
     }
 
+    // --- 草稿管理（M4：多草稿的动作层，Ribbon/工具栏转发的就是这一批） ----
+    // 新建并立即开始写它：编辑器与渲染会话都跟着 activeDraftIdChanged 走。
+    function newDraft() {
+        const result = tools.createDraft("", "", tools.currentWorkspace)
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not create the draft"),
+                             result.error)
+            return
+        }
+        applyPreset("prompt")
+    }
+
+    // E4：从当前文档 tab 新建草稿——文档内容原样成稿，单向升级（草稿
+    // 永不写回文件）。没有文件会话时按钮本就不可用。
+    function newDraftFromDocument() {
+        if (markdown.draftActive || markdown.filePath.length === 0)
+            return
+        const body = markdown.editorText()
+        const result = tools.createDraft(markdown.fileTitle, body,
+                                         tools.currentWorkspace)
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not create the draft"),
+                             result.error)
+            return
+        }
+        applyPreset("prompt")
+        workbench.notify("success", qsTr("Draft created"),
+                         qsTr("The document text is now an editable draft."))
+    }
+
+    // 重命名当前草稿（改名不改 id——会话恢复按 id 不受影响）。
+    function renameCurrentDraft() {
+        if (tools.activeDraftId.length === 0)
+            return
+        renameDraftField.text = draftTitleById(tools.activeDraftId)
+        renameDraftDialog.open()
+    }
+
+    function doRenameDraft() {
+        // QML JS 字符串只有 .trim()（QString 的 .trimmed() 在这里不存在，
+        // 用错是静默 TypeError——绑与动作全断）。
+        const title = renameDraftField.text.trim()
+        if (title.length === 0)
+            return
+        const result = tools.renameDraft(tools.activeDraftId, title)
+        if (result.ok)
+            markdown.setDraftTitle(tools.activeDraftId, title)
+        renameDraftDialog.close()
+    }
+
+    // 复制当前草稿并切到副本：门面侧复制不切激活（「留个副本」），但
+    // 没有会话的草稿不占 tab、无处可点——切过去让副本立即可见，用户
+    // 不想要关掉它的 tab 就是（关 tab 不删草稿）。
+    function duplicateCurrentDraft() {
+        const from = tools.activeDraftId
+        if (from.length === 0)
+            return
+        // 切走前给源草稿存一版（switch 触发点，规划 06 §1.3）。
+        if (promptEditor)
+            tools.addSnapshot(from, promptEditor.text, "switch")
+        const result = tools.duplicateDraft(from)
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not duplicate the draft"),
+                             result.error)
+            return
+        }
+        // 副本 id = 清单里最新的那条（门面不返回 id；创建序的末尾）。
+        const all = tools.drafts
+        if (all.length > 0)
+            tools.switchDraft(all[all.length - 1].id)
+        applyPreset("prompt")
+    }
+
+    // 删除当前草稿：非空先确认（M4 判据；空草稿直接删）。删除后控制器
+    // 会话由 closeDraftSession 收掉，激活位顺延。
+    function deleteCurrentDraft() {
+        const id = tools.activeDraftId
+        if (id.length === 0)
+            return
+        if (tools.draft.length > 0) {
+            deleteDraftDialog.open()
+            return
+        }
+        doDeleteDraft()
+    }
+
+    function doDeleteDraft() {
+        const id = tools.activeDraftId
+        markdown.closeDraftSession(id)
+        const result = tools.removeDraft(id)
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not delete the draft"),
+                             result.error)
+            return
+        }
+        // 门面把激活位顺延到下一条草稿；渲染会话跟上。
+        activateActiveDraftSession()
+        historyModel.rebuild()
+    }
+
+    // 关掉当前草稿的 tab（关视图不删草稿——与文件 tab 同一语义）。
+    function closeCurrentDraftTab() {
+        if (tools.activeDraftId.length === 0)
+            return
+        markdown.closeDraftSession(tools.activeDraftId)
+    }
+
+    // 切换草稿（tab 点击与快照回滚后的兜底共用）：切走前存一版。
+    function switchDraftTo(id) {
+        if (id === tools.activeDraftId || id.length === 0)
+            return
+        if (promptEditor && tools.activeDraftId.length > 0)
+            tools.addSnapshot(tools.activeDraftId,
+                              promptEditor.text, "switch")
+        tools.switchDraft(id)
+    }
+
+    // 快照：手动存一版当前草稿。
+    function saveDraftVersion() {
+        if (tools.activeDraftId.length === 0 || !promptEditor)
+            return
+        tools.addSnapshot(tools.activeDraftId, promptEditor.text, "manual")
+        historyModel.rebuild()
+        workbench.notify("success", qsTr("Version saved"),
+                         qsTr("It is in the draft's history list."))
+    }
+
+    // 回滚到某版快照：破坏性替换（当前版先自动存一版 rollback，门面
+    // 侧做），确认对话框在这里。
+    function rollbackDraftVersion(createdAt) {
+        rollbackTargetCreatedAt = createdAt
+        rollbackConfirm.open()
+    }
+
+    property double rollbackTargetCreatedAt: 0
+
+    function doRollback() {
+        const result = tools.rollbackToSnapshot(tools.activeDraftId,
+                                                rollbackTargetCreatedAt)
+        if (result.ok && promptEditor) {
+            promptEditor.text = result.body
+            draftSyncTimer.restart()
+        }
+        rollbackConfirm.close()
+        historyModel.rebuild()
+    }
+
     // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
-    // 预设与活跃会话耦合：提示词预设激活草稿会话（预览面渲染草稿），文档
-    // 预设激活上次的文件会话（没有文件 tab 就退回提示词）。lastFileDocId
+    // 预设与活跃会话耦合：提示词预设激活当前草稿的会话（预览面渲染它），
+    // 文档预设激活上次的文件会话（没有文件 tab 就退回提示词）。lastFileDocId
     // 记住「上一个活跃的文件会话」：prompt ⇄ document 来回切时回到看的那份，
     // 而不是总跳到最后打开的。
     property string lastFileDocId: ""
+
+    // 文件 tab 子集（草稿 tab 混排后，「能不能切文档预设」只看文件）。
+    function fileTabs() {
+        const files = []
+        for (let i = 0; i < markdown.tabs.length; ++i) {
+            if (!markdown.tabs[i].draft)
+                files.push(markdown.tabs[i])
+        }
+        return files
+    }
 
     readonly property var dirtyFileTabs: {
         const dirty = []
@@ -241,23 +398,43 @@ ApplicationWindow {
         return dirty
     }
 
+    // 草稿 id → 显示标题（tab 与会话激活共用）。
+    function draftTitleById(id) {
+        const all = tools.drafts
+        for (let i = 0; i < all.length; ++i) {
+            if (all[i].id === id)
+                return all[i].title
+        }
+        return ""
+    }
+
+    // 激活当前草稿的渲染会话（幂等）：正文与标题从 tools 取——门面是
+    // 草稿数据的唯一来源，窗口只做接线。
+    function activateActiveDraftSession() {
+        const id = tools.activeDraftId
+        if (id.length === 0)
+            return
+        markdown.activateSession(
+            markdown.openDraftSession(id, draftTitleById(id), tools.draft))
+    }
+
     function applyPreset(requested) {
-        const documentUsable = markdown.available
-                               && markdown.tabs.length > 0
+        const files = fileTabs()
+        const documentUsable = markdown.available && files.length > 0
         if (requested === "document" && documentUsable) {
             preset = "document"
             if (markdown.draftActive || markdown.activeDocId.length === 0) {
                 const target = lastFileDocId.length > 0
-                        && markdown.tabs.length > 0
+                        && fileTabs().some(t => t.docId === lastFileDocId)
                         ? lastFileDocId
-                        : markdown.tabs[markdown.tabs.length - 1].docId
+                        : files[files.length - 1].docId
                 markdown.activateSession(target)
             }
         }
         else {
             preset = "prompt"
             // 草稿会话承载提示词形态的渲染（虚拟文档）；已激活时是幂等的。
-            markdown.activateSession(markdown.openDraftSession())
+            activateActiveDraftSession()
         }
     }
 
@@ -270,6 +447,10 @@ ApplicationWindow {
                              qsTr("The editor is empty."))
             return
         }
+        // copy 是快照触发点（规划 06 §1.3）：交出去的版本进历史——
+        // 「上次复制的那版」是回滚时最常找的一版。
+        if (tools.activeDraftId.length > 0)
+            tools.addSnapshot(tools.activeDraftId, tools.draft, "copy")
         workbench.copyText(tools.draft)
         workbench.notify("success", qsTr("Copied"),
                          qsTr("The prompt is on the clipboard."))
@@ -394,9 +575,13 @@ ApplicationWindow {
 
     // 确认后的全部替换：文档侧一个编辑块完成（一次撤销全部回退），
     // 编辑器 text 经 Document 牵引自动跟随（remove/insert 与全文替换
-    // 同走 QTextDocument，绑不用手动拨）。
+    // 同走 QTextDocument，绑不用手动拨）。replace 是快照触发点（规划
+    // 06 §1.3）：动大刀前先存一版。
     function doReplaceAll() {
         const needle = draftFindField.text
+        if (tools.activeDraftId.length > 0 && promptEditor)
+            tools.addSnapshot(tools.activeDraftId,
+                              promptEditor.text, "replace")
         const count = MarkdownEdit.replaceAll(
                     promptEditor, needle, draftReplaceField.text,
                     tools.findCaseSensitive, tools.findWholeWords)
@@ -413,6 +598,10 @@ ApplicationWindow {
     function doClearDraft() {
         if (!promptEditor || tools.draft.length === 0)
             return
+        // clear 是快照触发点（规划 06 §1.3）：清空前把旧内容存进历史。
+        if (tools.activeDraftId.length > 0)
+            tools.addSnapshot(tools.activeDraftId,
+                              promptEditor.text, "clear")
         // 双保险：确认弹窗（本函数的调用者）+ 编辑器 undo 栈一步回退
         //（clear() 是一次可撤销的编辑动作）。空串写回走既有防抖通道。
         promptEditor.clear()
@@ -623,12 +812,14 @@ ApplicationWindow {
     }
 
     // 开窗即向控制器报到：从此它才往外排命令（窗口不在时命令一律不排）。
-    // 草稿会话在这里灌进初始正文——之后每敲一键经防抖器增量喂给它。
-    // 本轮应用的第一次开窗顺带恢复上次的 tab 组（E3）：之后窗口的销毁
-    // 重建走控制器内存里的会话，不需要再恢复。
+    // 一条草稿都没有（全新安装）时先建一条——提示词形态需要一个可写的
+    // 主体；之后草稿会话由 applyPreset 携带正文打开。
+    // 本轮应用的第一次开窗顺带恢复上次的 tab 组（E3，含草稿 tab）：之后
+    // 窗口的销毁重建走控制器内存里的会话，不需要再恢复。
     Component.onCompleted: {
         markdown.notifyWindowOpened()
-        markdown.setDraftText(tools.draft)
+        if (tools.activeDraftId.length === 0)
+            tools.createDraft("", "", tools.currentWorkspace)
         var restored = null
         if (markdown.tabs.length === 0)
             restored = workbench.restoreMarkdownSession()
@@ -644,6 +835,13 @@ ApplicationWindow {
         }
         if (!markdown.canEdit && markdown.mode === "source")
             markdown.setMode("preview")
+        // 崩溃恢复（D6）：有未恢复的副本就问一次（新对话框，不挡正常
+        // 路径——没有副本时什么都不弹）。门面没有副本时给的是**空
+        // map**（QML 里是 {}，不是 null）：判「有没有 draftId 键」，
+        // 判 null 会每次都弹。
+        const recovery = tools.pendingRecovery()
+        if (recovery && recovery.draftId !== undefined)
+            recoveryDialog.open()
     }
 
     // 没有关闭事件也要把状态位放下来：主窗退出、Loader 被直接关掉都会跳过
@@ -1433,9 +1631,10 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 spacing: 0
 
-                // tab 条：一条贴顶的窄条。文件 tab 可点（激活 + 切文档
-                // 预设）、可关（关视图不删文件）；脏标记以圆点呈现，
-                // 不只靠颜色。
+                // tab 条：一条贴顶的窄条。文件 tab 与草稿 tab 混排（草稿
+                // 在前，M4）：都可点（激活 + 切到各自预设）、都可关（关视图
+                // 不删东西）；脏标记以圆点呈现，不只靠颜色；草稿标题斜体
+                // 加草稿徽标，与文件 tab 一眼可分。
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 34
@@ -1487,12 +1686,23 @@ ApplicationWindow {
                                         color: theme.warning
                                     }
 
+                                    // 草稿徽标：小圆点（强调色）——文件
+                                    // tab 只有脏点，草稿 tab 恒有草稿点。
+                                    Rectangle {
+                                        visible: fileTab.modelData.draft
+                                        implicitWidth: 6
+                                        implicitHeight: 6
+                                        radius: 3
+                                        color: theme.accent
+                                    }
+
                                     Label {
                                         text: fileTab.modelData.title
                                         color: fileTab.isActive
                                               ? theme.textPrimary
                                               : theme.textSecondary
                                         font.pixelSize: theme.fontSizeCaption
+                                        font.italic: fileTab.modelData.draft
                                         elide: Text.ElideMiddle
                                     }
 
@@ -1500,19 +1710,34 @@ ApplicationWindow {
                                         iconSource: "qrc:/icons/close.svg"
                                         tooltip: qsTr("Close this tab")
                                         onClicked: {
-                                            markdown.closeSession(
-                                                fileTab.modelData.docId)
+                                            if (fileTab.modelData.draft)
+                                                markdown.closeDraftSession(
+                                                    fileTab.modelData.docId)
+                                            else
+                                                markdown.closeSession(
+                                                    fileTab.modelData.docId)
                                         }
                                     }
                                 }
 
-                                // 点 tab：激活该会话并切到文档预设。点关闭
-                                // 按钮不该走到这里——AIconButton 自己吃点击。
+                                // 点 tab：激活该会话并切到各自预设——草稿
+                                // tab 的编辑对象也要跟过去（门面侧换当前
+                                // 草稿）。点关闭按钮不该走到这里——
+                                // AIconButton 自己吃点击。
                                 TapHandler {
                                     onSingleTapped: {
-                                        markdown.activateSession(
-                                            fileTab.modelData.docId)
-                                        workbenchWindow.applyPreset("document")
+                                        if (fileTab.modelData.draft) {
+                                            workbenchWindow.switchDraftTo(
+                                                        fileTab.modelData.docId)
+                                            workbenchWindow.applyPreset(
+                                                        "prompt")
+                                        }
+                                        else {
+                                            markdown.activateSession(
+                                                fileTab.modelData.docId)
+                                            workbenchWindow.applyPreset(
+                                                        "document")
+                                        }
                                     }
                                 }
                             }
@@ -1836,9 +2061,9 @@ ApplicationWindow {
                                 MarkdownEdit.attach(promptEditor)
                             }
                             // 双写：tools.draft 走门面自己的 500 ms 防抖落
-                            // tools.json；草稿会话走 200 ms 防抖——一次敲键
-                            // 要整篇重切块，逐键喂是把 CPU 花在马上会被改
-                            // 掉的中间态上。
+                            // tools.json（写的是**当前**草稿）；草稿会话走
+                            // 200 ms 防抖——一次敲键要整篇重切块，逐键喂
+                            // 是把 CPU 花在马上会被改掉的中间态上。
                             onTextChanged: {
                                 tools.draft = text
                                 draftSyncTimer.restart()
@@ -1890,10 +2115,19 @@ ApplicationWindow {
                     }
 
                     // 草稿会话的增量喂入（与 editorSyncTimer 同一条纪律）。
+                    // 恢复副本也在这里顺路写（2 s 停顿节流由门面侧做）。
                     Timer {
                         id: draftSyncTimer
                         interval: 200
-                        onTriggered: markdown.setDraftText(promptEditor.text)
+                        onTriggered: {
+                            if (tools.activeDraftId.length === 0)
+                                return
+                            markdown.setDraftText(tools.activeDraftId,
+                                                  promptEditor.text)
+                            tools.writeRecoverySnapshot(
+                                        tools.activeDraftId,
+                                        promptEditor.text)
+                        }
                     }
 
                     // 两栏主体（编辑槽位 + 预览面 + 分隔条）。
@@ -2403,6 +2637,128 @@ ApplicationWindow {
                             font.pixelSize: theme.fontSizeCaption
                         }
                     }
+
+                    // --- 草稿历史（M4 D2：快照与回滚） -------------------
+                    // 只在草稿会话激活时出现（文件没有快照）。点一版 = 回滚
+                    // （先确认——回滚是破坏性替换；当前版会被自动存成
+                    // rollback 快照，两头都留退路）。
+                    ColumnLayout {
+                        visible: markdown.draftActive
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 148
+                        spacing: theme.spacingXs
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 1
+                            color: theme.separator
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: theme.spacingS
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("History")
+                                color: theme.textMuted
+                                font.pixelSize: theme.fontSizeCaption
+                                font.bold: true
+                            }
+                            AButton {
+                                objectName: "saveVersionButton"
+                                text: qsTr("Save version")
+                                variant: "ghost"
+                                onClicked:
+                                    workbenchWindow.saveDraftVersion()
+                            }
+                        }
+
+                        ListView {
+                            id: snapshotList
+                            objectName: "snapshotList"
+
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            spacing: 2
+
+                            model: ObjectModel {
+                                id: historyModel
+
+                                // 按当前草稿重建快照清单（新在前）。
+                                function rebuild() {
+                                    while (count > 0)
+                                        remove(0)
+                                    const id = tools.activeDraftId
+                                    if (id.length === 0)
+                                        return
+                                    const entries = tools.snapshots(id)
+                                    for (let i = 0; i < entries.length; ++i) {
+                                        append(snapshotRow.createObject(
+                                                   historyModel, {
+                                                       "entry": entries[i]
+                                                   }))
+                                    }
+                                }
+
+                                Component {
+                                    id: snapshotRow
+
+                                    AListRow {
+                                        id: histRow
+                                        required property var entry
+
+                                        width: snapshotList.width
+                                        rowHeight: 30
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: theme.spacingS
+                                            anchors.rightMargin: theme.spacingS
+                                            spacing: theme.spacingS
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                // 时间（HH:mm）+ 原因。
+                                                text: {
+                                                    const when = new Date(
+                                                        histRow.entry.createdAt)
+                                                    const hh = ("0" + when.getHours()).slice(-2)
+                                                    const mm = ("0" + when.getMinutes()).slice(-2)
+                                                    return hh + ":" + mm
+                                                           + "  ·  "
+                                                           + histRow.entry.reason
+                                                           + "  ·  "
+                                                           + histRow.entry.charCount
+                                                }
+                                                color: theme.textSecondary
+                                                font.pixelSize: theme.fontSizeCaption
+                                                elide: Text.ElideMiddle
+                                            }
+                                        }
+
+                                        TapHandler {
+                                            onSingleTapped:
+                                                workbenchWindow.rollbackDraftVersion(
+                                                    histRow.entry.createdAt)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Label {
+                                anchors.centerIn: parent
+                                visible: snapshotList.count === 0
+                                text: qsTr("Versions appear when you copy, clear, replace or switch.")
+                                color: theme.textMuted
+                                font.pixelSize: theme.fontSizeCaption
+                                wrapMode: Text.Wrap
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                    }
                 }
 
                 Rectangle {
@@ -2438,6 +2794,12 @@ ApplicationWindow {
         function onActiveSessionChanged() {
             if (!markdown.draftActive)
                 workbenchWindow.lastFileDocId = markdown.activeDocId
+            else if (markdown.activeDraftId !== tools.activeDraftId
+                     && markdown.activeDraftId.length > 0) {
+                // 会话侧先落到了另一条草稿（会话恢复、关 tab 顺位）：编辑
+                // 器的编辑对象跟过去——门面侧 switch 落盘旧草稿并换正文。
+                tools.switchDraft(markdown.activeDraftId)
+            }
             // 激活位是会话文件的一部分，切换即排队落盘。
             workbenchWindow.scheduleSessionSave()
         }
@@ -2528,6 +2890,38 @@ ApplicationWindow {
             workbenchWindow.raise()
             workbenchWindow.requestActivate()
             workbenchWindow.applyPreset("prompt")
+        }
+    }
+
+    // --- 与 tools 门面之间的信号（M4：草稿集驱动编辑器与会话） --------------
+    Connections {
+        target: tools
+
+        // 当前草稿换人（新建/切换/删除顺位）：编辑器换正文（undo 栈随
+        // text 重置清零——不同草稿不该共享撤销历史），渲染会话跟过去，
+        // 体检与历史面板跟着当前草稿重算。
+        function onActiveDraftIdChanged() {
+            // promptEditor 是文件级 id（QML 组件内全局解析），直接用；
+            // 写成 workbenchWindow.promptEditor 是在窗口上找不存在的
+            // 属性，静默 undefined——守卫一挡编辑器就永远不换正文。
+            if (promptEditor) {
+                promptEditor.text = tools.draft
+                draftSyncTimer.stop()
+            }
+            workbenchWindow.activateActiveDraftSession()
+            historyModel.rebuild()
+            workbenchWindow.draftCheckResults = null
+        }
+
+        // 清单变化（新建/删除/重命名/复制）：重命名的标题要同步进控制
+        // 器（tab 与渲染标题），历史面板跟着当前草稿重算。
+        function onDraftsChanged() {
+            if (markdown.draftActive
+                    && tools.activeDraftId.length > 0)
+                markdown.setDraftTitle(tools.activeDraftId,
+                                       workbenchWindow.draftTitleById(
+                                           tools.activeDraftId))
+            historyModel.rebuild()
         }
     }
 
@@ -3000,6 +3394,174 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
                     onClicked: clearDraftConfirm.close()
+                }
+            }
+        }
+    }
+
+    // 重命名草稿：改名不改 id（会话恢复按 id 不受影响）。
+    ADialog {
+        id: renameDraftDialog
+        width: 420
+        titleText: qsTr("Rename the draft")
+
+        onOpened: renameDraftField.forceActiveFocus()
+
+        ColumnLayout {
+            width: renameDraftDialog.availableWidth
+            spacing: theme.spacingM
+
+            ATextField {
+                id: renameDraftField
+                objectName: "renameDraftField"
+                Layout.fillWidth: true
+                placeholderText: qsTr("Draft title")
+                onAccepted: workbenchWindow.doRenameDraft()
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Rename")
+                    onClicked: workbenchWindow.doRenameDraft()
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: renameDraftDialog.close()
+                }
+            }
+        }
+    }
+
+    // 删除草稿的确认：非空草稿先问（连带快照与恢复副本一起删，不可撤销）。
+    ADialog {
+        id: deleteDraftDialog
+        width: 420
+        titleText: qsTr("Delete the draft")
+
+        ColumnLayout {
+            width: deleteDraftDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Delete “%1” and its version history? This cannot be undone.")
+                            .arg(workbenchWindow.draftTitleById(
+                                     tools.activeDraftId))
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Delete")
+                    onClicked: {
+                        deleteDraftDialog.close()
+                        workbenchWindow.doDeleteDraft()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: deleteDraftDialog.close()
+                }
+            }
+        }
+    }
+
+    // 回滚确认：破坏性替换。门面在回滚前把当前版存成 rollback 快照，
+    // 所以两头都有退路——文案如实说。
+    ADialog {
+        id: rollbackConfirm
+        objectName: "rollbackConfirm"
+        width: 420
+        titleText: qsTr("Roll back")
+
+        ColumnLayout {
+            width: rollbackConfirm.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Replace the draft with this version? The current text is saved to the history first.")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Roll back")
+                    onClicked: workbenchWindow.doRollback()
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: rollbackConfirm.close()
+                }
+            }
+        }
+    }
+
+    // 崩溃恢复（D6）：启动时检测到未恢复的副本问一次。恢复 = 副本变成
+    // 一条新草稿（标题标注来源）；丢弃 = 删副本不再问。
+    ADialog {
+        id: recoveryDialog
+        width: 440
+        closePolicy: Popup.NoAutoClose
+        titleText: qsTr("Recovered draft")
+
+        ColumnLayout {
+            width: recoveryDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("The app closed unexpectedly. Restore the draft text from that session as a new draft?")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: qsTr("Restore")
+                    onClicked: {
+                        recoveryDialog.close()
+                        const id = tools.recoverToNewDraft()
+                        if (id.length > 0) {
+                            workbenchWindow.applyPreset("prompt")
+                            workbench.notify(
+                                        "success",
+                                        qsTr("Draft restored"),
+                                        qsTr("It is open as a new draft tab."))
+                        }
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Discard")
+                    onClicked: {
+                        recoveryDialog.close()
+                        tools.discardRecovery()
+                    }
                 }
             }
         }

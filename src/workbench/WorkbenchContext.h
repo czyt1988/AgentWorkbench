@@ -27,6 +27,9 @@ class WebTabsFacade;
 namespace awb::markdown {
 class MarkdownPreviewController;
 } // namespace awb::markdown
+namespace awb::tools {
+class ToolsFacade;
+} // namespace awb::tools
 
 namespace awb::workbench {
 
@@ -156,6 +159,10 @@ public:
     /// 组装层灌进来的会话存储（main.cpp 在构造后设一次）。没设过 = 不做
     /// 会话持久化（单测里就是这条路径）。
     void setMarkdownSessionStore(MarkdownSessionStore *store);
+    /// 组装层灌进来的 tools 门面（main.cpp 在构造后设一次）。会话恢复要
+    /// 按 draftId 找回草稿的标题与正文——那是 tools 域的数据，L3 是唯一
+    /// 能同时认识两个域的层。没设过 = 草稿 tab 不进会话恢复（单测路径）。
+    void setToolsFacade(tools::ToolsFacade *tools);
 
 Q_SIGNALS:
     /**
@@ -182,6 +189,8 @@ private:
         *m_markdown = nullptr;   ///< Markdown 预览（可空：本构建可能没有）
     MarkdownSessionStore
         *m_sessionStore = nullptr;  ///< 会话文件读写（可空：单测不持久化）
+    tools::ToolsFacade
+        *m_tools = nullptr;  ///< 草稿数据（可空：草稿 tab 不进会话恢复）
     QStringList m_recentDocuments;          ///< 最近文档 MRU（新在前）
     QString m_legacyImportNotice;           ///< 一次性导入提示；正常启动为空串
     QVariantList m_discoveredPlugins;       ///< 发现的插件快照（设置页列表）

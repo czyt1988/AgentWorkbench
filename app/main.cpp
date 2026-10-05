@@ -282,6 +282,9 @@ int main(int argc, char *argv[])
     awb::workbench::MarkdownSessionStore markdownSessionStore(
         awb::core::Paths::dataRoot());
     workbench.setMarkdownSessionStore(&markdownSessionStore);
+    // 草稿数据（会话恢复的草稿 tab 按 id 找回标题与正文）。tools 门面
+    // 在每个构建里都存在，无条件接。
+    workbench.setToolsFacade(&tools);
     workbench.setLegacyImportNotice(legacyImported ? legacyNotice
                                                    : QString());
     // 插件：manifest 总是发现（设置页列表要用），库只在用户开启总开关后

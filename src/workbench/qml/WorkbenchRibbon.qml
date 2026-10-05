@@ -320,6 +320,49 @@ Item {
                     onClicked: if (win) win.confirmClearDraft()
                 }
             }
+
+            // 草稿管理（M4）：放「开始」页而不是提示词上下文页——
+            // E4（从文档新建草稿）在文档预设下才有意义，开始页两种
+            // 预设都在场。
+            RibbonPanel {
+                panelTitle: qsTr("Drafts")
+
+                RibbonToolButton {
+                    text: qsTr("New Draft")
+                    iconSource: "qrc:/icons/plus.svg"
+                    enabled: win
+                    onClicked: if (win) win.newDraft()
+                }
+                RibbonToolButton {
+                    // E4：当前文档的文本原样成稿（单向：草稿永不写回文件）。
+                    text: qsTr("From Document")
+                    iconSource: "qrc:/icons/file.svg"
+                    enabled: win && win.preset === "document"
+                             && markdown.filePath.length > 0
+                    onClicked: if (win) win.newDraftFromDocument()
+                }
+                RibbonToolButton {
+                    text: qsTr("Rename")
+                    iconSource: "qrc:/icons/bold.svg"
+                    enabled: win && win.preset === "prompt"
+                             && tools.activeDraftId.length > 0
+                    onClicked: if (win) win.renameCurrentDraft()
+                }
+                RibbonToolButton {
+                    text: qsTr("Duplicate")
+                    iconSource: "qrc:/icons/copy.svg"
+                    enabled: win && win.preset === "prompt"
+                             && tools.activeDraftId.length > 0
+                    onClicked: if (win) win.duplicateCurrentDraft()
+                }
+                RibbonToolButton {
+                    text: qsTr("Delete")
+                    iconSource: "qrc:/icons/close.svg"
+                    enabled: win && win.preset === "prompt"
+                             && tools.activeDraftId.length > 0
+                    onClicked: if (win) win.deleteCurrentDraft()
+                }
+            }
         }
 
         // --- 标签页 2 · 提示词：模板与收藏（上下文页，仅提示词预设） ---------

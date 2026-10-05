@@ -12,12 +12,13 @@ namespace awb::workbench {
 /// @struct MarkdownSessionState
 struct MarkdownSessionState {
     struct Tab {
-        QString path;   ///< 磁盘绝对路径
-        QString mode;   ///< 该 tab 的三态（preview/split/source）
+        QString path;    ///< 磁盘绝对路径（文件 tab；草稿 tab 为空）
+        QString draftId; ///< tools.json 里的草稿 id（草稿 tab；文件 tab 为空）
+        QString mode;    ///< 该 tab 的三态（preview/split/source）
     };
 
-    QList<Tab> tabs;                 ///< tab 组（打开顺序；M1 只装文件）
-    int activeIndex = -1;            ///< 激活 tab 下标；-1 = 草稿/无
+    QList<Tab> tabs;                 ///< tab 组（打开顺序；草稿在前、文件在后）
+    int activeIndex = -1;            ///< 激活 tab 下标；-1 = 无
     QString preset = QStringLiteral("prompt");  ///< 上次的界面预设
     bool promptLeftOpen = true;      ///< 提示词预设的左栏开合
     bool documentLeftOpen = false;   ///< 文档预设的左栏开合
