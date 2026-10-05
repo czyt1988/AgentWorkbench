@@ -35,7 +35,14 @@ class ToolsFacade : public QObject
     Q_PROPERTY(QVariantList workspaces READ workspaces NOTIFY workspacesChanged)
     Q_PROPERTY(QString currentWorkspace READ currentWorkspace
                WRITE setCurrentWorkspace NOTIFY currentWorkspaceChanged)
+    /// 活跃草稿正文（M4：多草稿中**当前**那条的镜像；旧 draft 键的语义）
     Q_PROPERTY(QString draft READ draft WRITE setDraft NOTIFY draftChanged)
+    /// 草稿清单（创建序）：[{id,title,workspace,updatedAt}]（不含正文——
+    /// 正文按 id 经 draftBody() 取或经 setDraftBody 写）
+    Q_PROPERTY(QVariantList drafts READ drafts NOTIFY draftsChanged)
+    /// 当前草稿 id；空 = 无草稿（界面给新建引导）
+    Q_PROPERTY(QString activeDraftId READ activeDraftId
+               WRITE setActiveDraftId NOTIFY activeDraftIdChanged)
     /// 模板清单（合并视图）：[{id,title,category,tags,description,builtin}]
     Q_PROPERTY(QVariantList templates READ templates NOTIFY templatesChanged)
     /// 收藏夹（新在前）：[{title,body,tags,createdAt}]
@@ -162,9 +169,56 @@ public:
     Q_INVOKABLE void removeFavorite(const QString &title,
                                     const QString &body);
 
+    // --- 草稿集（M4） ------------------------------------------------------
+    // 草稿清单（Q_PROPERTY 的 READ 侧；创建序）
+    QVariantList drafts() const;
+    // 当前草稿 id（Q_PROPERTY 的 READ 侧）
+    QString activeDraftId() const;
+    // 某条草稿的正文（渲染镜像/编辑器初值的取用入口）
+    Q_INVOKABLE QString draftBody(const QString &id) const;
+    // 新建草稿并设为当前：标题空时给 "Untitled N"，工作区默认绑当前
+    // 工作区。返回 {ok, id, error}；上限拒绝与写盘失败都带原因。
+    Q_INVOKABLE awb::core::OpResult createDraft(const QString &title,
+                                                const QString &body,
+                                                const QString &workspace);
+    // 重命名（改名不改 id——tab 恢复按 id 不受影响）
+    Q_INVOKABLE awb::core::OpResult renameDraft(const QString &id,
+                                                const QString &title);
+    // 复制一条草稿（新 id、标题加 " copy"、同工作区；不切激活）
+    Q_INVOKABLE awb::core::OpResult duplicateDraft(const QString &id);
+    // 删除草稿（连带快照与恢复副本记录）。删的是当前草稿时激活位顺延。
+    Q_INVOKABLE awb::core::OpResult removeDraft(const QString &id);
+    // 切换当前草稿（id 必须存在）。旧草稿有改动先落盘。
+    Q_INVOKABLE awb::core::OpResult switchDraft(const QString &id);
+    // 活跃草稿的正文回写（编辑防抖的落点）
+    Q_INVOKABLE void setDraftBody(const QString &id, const QString &body);
+
+    // --- 历史快照（M4） ------------------------------------------------------
+    // 某条草稿的快照（新在前）：[{body, reason, createdAt, charCount}]
+    Q_INVOKABLE QVariantList snapshots(const QString &id) const;
+    // 存一版（reason: copy/clear/replace/switch/manual/rollback）
+    Q_INVOKABLE void addSnapshot(const QString &id, const QString &body,
+                                 const QString &reason);
+    // 回滚：确认过破坏性的旧内容替换——先给当前版存一版（rollback 原因），
+    // 再把正文换成快照内容。返回 {ok, body}（body = 回滚后的正文）。
+    Q_INVOKABLE awb::core::OpResult rollbackToSnapshot(const QString &id,
+                                                       qint64 createdAt);
+
+    // --- 崩溃恢复（M4，D6） ---------------------------------------------------
+    // 启动时问一次：有没有恢复副本（返回 null 或 {draftId, body}）
+    Q_INVOKABLE QVariantMap pendingRecovery() const;
+    // 恢复 = 把副本内容变成一条新草稿（标题标注来源），删除副本。
+    Q_INVOKABLE QString recoverToNewDraft();
+    // 丢弃副本（用户选了不恢复）
+    Q_INVOKABLE void discardRecovery();
+    // 编辑期降频落恢复副本（窗口的恢复定时器调；2 s 停顿节流）
+    Q_INVOKABLE void writeRecoverySnapshot(const QString &id,
+                                            const QString &body);
+
     // Q_PROPERTY WRITE 侧
     void setCurrentWorkspace(const QString &path);
     void setDraft(const QString &text);
+    void setActiveDraftId(const QString &id);
     void setRibbonCollapsed(bool collapsed);
     void setRibbonStyle(const QString &style);
     void setRibbonFollowAppTheme(bool follow);
@@ -187,6 +241,14 @@ Q_SIGNALS:
      * @brief 草稿内容变化时发射
      */
     void draftChanged();
+    /**
+     * @brief 草稿清单或其中某项变化时发射（新建、删除、重命名、复制）
+     */
+    void draftsChanged();
+    /**
+     * @brief 当前草稿变化时发射（切换、新建、删除引起的顺延）
+     */
+    void activeDraftIdChanged();
     /**
      * @brief 任一 Ribbon 界面偏好变化时发射（四个值共用一条信号）
      */
@@ -224,7 +286,8 @@ private:
     PromptTemplateLibrary m_templates;  ///< 模板库（内置 + 用户目录）
     FileTreeModel *m_model;          ///< 树本体（懒加载、watcher、增量对账）
     FileTreeFlatModel *m_flatModel;  ///< QML 消费的扁平投影
-    QString m_draft;                 ///< 草稿全文（防抖写盘的缓冲）
+    QString m_draft;                 ///< 活跃草稿全文（防抖写盘的缓冲）
+    QString m_activeDraftIdCache;    ///< 活跃草稿 id 的门面侧缓存（信号判断用）
     QTimer *m_draftTimer;            ///< 草稿防抖定时器（单次、500 ms）
 };
 

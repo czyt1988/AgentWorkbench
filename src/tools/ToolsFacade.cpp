@@ -125,6 +125,18 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
 {
     m_store.load();
     m_draft = m_store.draft();
+    m_activeDraftIdCache = m_store.activeDraftId();
+    // 一条草稿都没有：建一条空的当前草稿（界面从这里起步；M0 以来的
+    // 老行为——启动就有一条可写的草稿——保持不变）。
+    if (m_activeDraftIdCache.isEmpty()) {
+        QString rejected;
+        const QString id = m_store.createDraft(
+            QString(), QString(), m_store.currentWorkspace(), &rejected);
+        if (!id.isEmpty()) {
+            m_activeDraftIdCache = id;
+            m_draft = m_store.draftById(id).body;
+        }
+    }
 
     m_draftTimer->setSingleShot(true);
     m_draftTimer->setInterval(kDraftSaveDelayMs);
@@ -147,12 +159,15 @@ ToolsFacade::ToolsFacade(const QString &dataRoot, QObject *parent)
  * @brief 析构门面
  *
  * 防抖计时器里还压着的最后一段草稿不能丢：计时器活跃时立即补写一次。
+ * 正常退出的收尾：恢复副本一并清掉（它只在「没正常走到这里」时才有
+ * 意义，D6 的语义）。
  */
 ToolsFacade::~ToolsFacade()
 {
     if (m_draftTimer->isActive()) {
         persistDraft();
     }
+    m_store.clearRecovery();
 }
 
 /**
@@ -202,13 +217,312 @@ QString ToolsFacade::currentWorkspace() const
 }
 
 /**
- * @brief 取草稿全文（Q_PROPERTY 的 READ 侧）
+ * @brief 取当前草稿正文（Q_PROPERTY 的 READ 侧）
  *
- * @return 草稿文本；从未写过时为空串
+ * @return 活跃草稿的文本；无草稿时为空串
  */
 QString ToolsFacade::draft() const
 {
     return m_draft;
+}
+
+// --- 草稿集（M4） ----------------------------------------------------------
+
+/**
+ * @brief 草稿清单（创建序，Q_PROPERTY 的 READ 侧）
+ *
+ * 不含正文——清单是给 tab 条与选择列表用的，正文的取用走 draftBody(id)，
+ * 避免一次绑定把所有草稿全文都拽进 QML。
+ */
+QVariantList ToolsFacade::drafts() const
+{
+    QVariantList result;
+    const auto entries = m_store.drafts();
+    for (const auto &entry : entries) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), entry.id);
+        item.insert(QStringLiteral("title"), entry.title);
+        item.insert(QStringLiteral("workspace"), entry.workspace);
+        item.insert(QStringLiteral("updatedAt"),
+                    double(entry.updatedAt));
+        result.append(item);
+    }
+    return result;
+}
+
+/**
+ * @brief 当前草稿 id（Q_PROPERTY 的 READ 侧）
+ */
+QString ToolsFacade::activeDraftId() const
+{
+    return m_store.activeDraftId();
+}
+
+/**
+ * @brief 某条草稿的正文
+ */
+QString ToolsFacade::draftBody(const QString &id) const
+{
+    return m_store.draftById(id).body;
+}
+
+/**
+ * @brief 新建草稿并设为当前
+ *
+ * 工作区传空串时绑当前工作区（新草稿的默认挂点；规划 05 D3）。
+ */
+core::OpResult ToolsFacade::createDraft(const QString &title,
+                                        const QString &body,
+                                        const QString &workspace)
+{
+    QString rejected;
+    const QString id = m_store.createDraft(
+        title, body,
+        workspace.isEmpty() ? m_store.currentWorkspace() : workspace,
+        &rejected);
+    if (id.isEmpty()) {
+        return core::OpResult::failure(tr(
+            "Too many drafts are open. Delete one first."));
+    }
+    m_draft = m_store.draftById(id).body;
+    Q_EMIT draftsChanged();
+    Q_EMIT activeDraftIdChanged();
+    Q_EMIT draftChanged();
+    return core::OpResult::success();
+}
+
+/**
+ * @brief 重命名（改名不改 id）
+ */
+core::OpResult ToolsFacade::renameDraft(const QString &id,
+                                        const QString &title)
+{
+    if (!m_store.renameDraft(id, title)) {
+        return core::OpResult::failure(tr("No such draft."));
+    }
+    Q_EMIT draftsChanged();
+    return core::OpResult::success();
+}
+
+/**
+ * @brief 复制一条草稿（新 id、标题加 " copy"、同工作区；不切激活）
+ */
+core::OpResult ToolsFacade::duplicateDraft(const QString &id)
+{
+    const auto source = m_store.draftById(id);
+    if (source.id.isEmpty()) {
+        return core::OpResult::failure(tr("No such draft."));
+    }
+    QString rejected;
+    const QString title = source.title + tr(" copy");
+    const QString newId = m_store.createDraft(
+        title, source.body, source.workspace, &rejected);
+    if (newId.isEmpty()) {
+        return core::OpResult::failure(tr(
+            "Too many drafts are open. Delete one first."));
+    }
+    // 不切激活：复制是「留个副本」，不是「开始写这份」。
+    m_store.setActiveDraft(id);
+    m_draft = m_store.draftById(id).body;
+    Q_EMIT draftsChanged();
+    return core::OpResult::success();
+}
+
+/**
+ * @brief 删除草稿（连带快照与恢复副本记录）
+ */
+core::OpResult ToolsFacade::removeDraft(const QString &id)
+{
+    if (!m_store.removeDraft(id)) {
+        return core::OpResult::failure(tr("No such draft."));
+    }
+    const QString active = m_store.activeDraftId();
+    if (active != m_activeDraftIdCache) {
+        m_activeDraftIdCache = active;
+        Q_EMIT activeDraftIdChanged();
+    }
+    m_draft = m_store.draft();
+    Q_EMIT draftsChanged();
+    Q_EMIT draftChanged();
+    return core::OpResult::success();
+}
+
+/**
+ * @brief 切换当前草稿（旧草稿有改动先落盘）
+ */
+core::OpResult ToolsFacade::switchDraft(const QString &id)
+{
+    if (m_store.draftById(id).id.isEmpty()) {
+        return core::OpResult::failure(tr("No such draft."));
+    }
+    // 防抖缓冲里可能还压着旧草稿的尾巴：切换前先冲掉（store 侧同内容
+    // 不写盘，多冲一次没有代价）。
+    if (!m_activeDraftIdCache.isEmpty() && m_activeDraftIdCache != id) {
+        persistDraft();
+    }
+    if (!m_store.setActiveDraft(id)) {
+        return core::OpResult::failure(tr("Could not switch drafts."));
+    }
+    m_activeDraftIdCache = id;
+    m_draft = m_store.draftById(id).body;
+    Q_EMIT activeDraftIdChanged();
+    Q_EMIT draftChanged();
+    return core::OpResult::success();
+}
+
+/**
+ * @brief 活跃草稿的正文回写（编辑防抖的落点）
+ *
+ * 非活跃草稿直接写（store 立即落盘）；活跃草稿走防抖缓冲——窗口的
+ * 编辑器每敲一键调一次，这里不能跟着写盘。
+ */
+void ToolsFacade::setDraftBody(const QString &id, const QString &body)
+{
+    if (m_store.draftById(id).id.isEmpty()) {
+        return;
+    }
+    if (id == m_activeDraftIdCache) {
+        // 与 setDraft(text) 同一条防抖路（活跃草稿）。
+        setDraft(body);
+        return;
+    }
+    m_store.setDraftBody(id, body);
+    Q_EMIT draftsChanged();
+}
+
+/**
+ * @brief Q_PROPERTY WRITE 侧：切当前草稿
+ */
+void ToolsFacade::setActiveDraftId(const QString &id)
+{
+    if (id.isEmpty()) {
+        return;   // 空串不是合法目标（清空没有意义）
+    }
+    switchDraft(id);
+}
+
+// --- 历史快照（M4） ---------------------------------------------------------
+
+/**
+ * @brief 某条草稿的快照（新在前）
+ */
+QVariantList ToolsFacade::snapshots(const QString &id) const
+{
+    QVariantList result;
+    const auto list = m_store.snapshots(id);
+    for (const auto &snapshot : list) {
+        QVariantMap item;
+        item.insert(QStringLiteral("body"), snapshot.body);
+        item.insert(QStringLiteral("reason"), snapshot.reason);
+        item.insert(QStringLiteral("createdAt"),
+                    double(snapshot.createdAt));
+        item.insert(QStringLiteral("charCount"), snapshot.charCount);
+        result.append(item);
+    }
+    return result;
+}
+
+/**
+ * @brief 存一版快照
+ */
+void ToolsFacade::addSnapshot(const QString &id, const QString &body,
+                              const QString &reason)
+{
+    m_store.addSnapshot(id, body, reason);
+}
+
+/**
+ * @brief 回滚到一版快照
+ *
+ * 破坏性替换的纪律（M3 的 confirmDestructiveReplace 同源）：先给**当前**
+ * 正文存一版（reason=rollback——回滚本身可再撤回），再换正文。确认弹窗
+ * 是窗口动作层的职责，这里只做「已经确认了」的事。
+ */
+core::OpResult ToolsFacade::rollbackToSnapshot(const QString &id,
+                                               qint64 createdAt)
+{
+    const auto list = m_store.snapshots(id);
+    QString body;
+    bool found = false;
+    for (const auto &snapshot : list) {
+        if (snapshot.createdAt == createdAt) {
+            body = snapshot.body;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        return core::OpResult::failure(tr("No such snapshot."));
+    }
+    // 当前版先存（rollback 原因），然后替换。
+    const QString current = m_store.draftById(id).body;
+    m_store.addSnapshot(id, current,
+                        QStringLiteral("rollback"));
+    m_store.setDraftBody(id, body);
+    if (id == m_activeDraftIdCache) {
+        m_draft = body;
+        Q_EMIT draftChanged();
+    }
+    Q_EMIT draftsChanged();
+    return core::OpResult::success();
+}
+
+// --- 崩溃恢复（M4，D6） -----------------------------------------------------
+
+/**
+ * @brief 启动时问一次：有没有恢复副本
+ */
+QVariantMap ToolsFacade::pendingRecovery() const
+{
+    QVariantMap result;
+    const auto info = m_store.recovery();
+    if (!info.present || info.body.isEmpty()) {
+        return result;   // 空 map = 没有
+    }
+    result.insert(QStringLiteral("draftId"), info.draftId);
+    result.insert(QStringLiteral("body"), info.body);
+    return result;
+}
+
+/**
+ * @brief 恢复 = 副本内容变成一条新草稿（标题标注来源），删除副本
+ */
+QString ToolsFacade::recoverToNewDraft()
+{
+    const auto info = m_store.recovery();
+    if (!info.present || info.body.isEmpty()) {
+        return QString();
+    }
+    const QString title = tr("Recovered draft");
+    QString rejected;
+    const QString id = m_store.createDraft(
+        title, info.body, m_store.currentWorkspace(), &rejected);
+    m_store.clearRecovery();
+    if (id.isEmpty()) {
+        return QString();
+    }
+    m_draft = m_store.draftById(id).body;
+    Q_EMIT draftsChanged();
+    Q_EMIT activeDraftIdChanged();
+    Q_EMIT draftChanged();
+    return id;
+}
+
+/**
+ * @brief 丢弃副本
+ */
+void ToolsFacade::discardRecovery()
+{
+    m_store.clearRecovery();
+}
+
+/**
+ * @brief 编辑期降频落恢复副本（窗口的恢复定时器调）
+ */
+void ToolsFacade::writeRecoverySnapshot(const QString &id,
+                                        const QString &body)
+{
+    m_store.writeRecovery(id, body);
 }
 
 /**
@@ -486,7 +800,8 @@ void ToolsFacade::setCurrentWorkspace(const QString &path)
 /**
  * @brief 覆盖草稿（Q_PROPERTY 的 WRITE 侧）
  *
- * 只更新缓冲并重启防抖计时器，落盘由 persistDraft() 在停顿后执行。
+ * M4：写的是**当前草稿**的镜像缓冲；只更新缓冲并重启防抖计时器，落盘
+ * 由 persistDraft() 在停顿后执行。
  *
  * @param text 草稿全文
  */
@@ -513,13 +828,16 @@ void ToolsFacade::applyCurrentToModel()
 }
 
 /**
- * @brief 把草稿缓冲写进 tools.json
+ * @brief 把草稿缓冲写进 tools.json（当前草稿的 body）
  *
  * 防抖到期或析构时调用；失败只记警告（下一段草稿或下次启动会再试）。
  */
 void ToolsFacade::persistDraft()
 {
-    if (!m_store.setDraft(m_draft)) {
+    if (m_activeDraftIdCache.isEmpty()) {
+        return;
+    }
+    if (!m_store.setDraftBody(m_activeDraftIdCache, m_draft)) {
         qWarning() << "[tools] could not persist the draft";
     }
 }
