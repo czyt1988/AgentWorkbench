@@ -328,6 +328,256 @@ private Q_SLOTS:
                  QStringList{QStringLiteral("a")});
     }
 
+    // --- M4：草稿集 -------------------------------------------------------
+
+    /// M4 最硬的判据：旧版三键文件（workspaces/current/draft）读入 →
+    /// 一条 "default" 草稿（正文 = draft、工作区 = current）；写回后
+    /// drafts/activeDraftId 在、`draft` 镜像键还在且值与当前草稿一致
+    /// （旧程序降级读不丢内容）。
+    void testLegacyDraftKeyBecomesDefaultDraft()
+    {
+        {
+            ToolsStore store(Paths::dataRoot());
+            store.load();
+            QVERIFY(store.addWorkspace(QStringLiteral("/w/legacy")));
+            QVERIFY(store.setDraft(QStringLiteral("old single draft")));
+        }
+        // 剥掉一切 M2-M4 键，模拟旧版本写的文件。
+        {
+            QFile file(storeJsonPath());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const QJsonObject root =
+                QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+            QJsonObject legacy;
+            legacy.insert(QStringLiteral("workspaces"),
+                          root.value(QStringLiteral("workspaces")));
+            legacy.insert(QStringLiteral("current"),
+                          root.value(QStringLiteral("current")));
+            legacy.insert(QStringLiteral("draft"),
+                          root.value(QStringLiteral("draft")));
+            QFile writer(storeJsonPath());
+            QVERIFY(writer.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            writer.write(QJsonDocument(legacy).toJson());
+            writer.close();
+        }
+        ToolsStore reloaded(Paths::dataRoot());
+        reloaded.load();
+        QCOMPARE(reloaded.drafts().size(), 1);
+        QCOMPARE(reloaded.drafts().at(0).id, QStringLiteral("default"));
+        QCOMPARE(reloaded.drafts().at(0).body,
+                 QStringLiteral("old single draft"));
+        QCOMPARE(reloaded.drafts().at(0).workspace,
+                 QStringLiteral("/w/legacy"));
+        QCOMPARE(reloaded.activeDraftId(), QStringLiteral("default"));
+        // 旧键的读侧容错是「容错」不是「迁移」：load() 不写盘。之后的
+        // 一次结构写盘（重命名）才把它落进 drafts 键——且 `draft` 镜像
+        // 仍在（旧程序降级读不丢内容）。
+        QVERIFY(reloaded.renameDraft(QStringLiteral("default"),
+                                     QStringLiteral("Kept")));
+        {
+            QFile file(storeJsonPath());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const QJsonObject root =
+                QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+            QCOMPARE(root.value(QStringLiteral("draft")).toString(),
+                     QStringLiteral("old single draft"));
+            QVERIFY(root.contains(QStringLiteral("drafts")));
+            QVERIFY(root.contains(QStringLiteral("activeDraftId")));
+        }
+    }
+
+    /// 多草稿增删改与当前位切换；`draft` 镜像始终跟随当前草稿。
+    void testDraftsLifecycle()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QString rejected;
+        const QString a = store.createDraft(
+            QStringLiteral("Alpha"), QStringLiteral("body-a"),
+            QStringLiteral("/w/one"), &rejected);
+        QVERIFY2(!a.isEmpty(), "first draft created");
+        const QString b = store.createDraft(
+            QStringLiteral("Beta"), QStringLiteral("body-b"),
+            QString(), &rejected);
+        QVERIFY(!b.isEmpty());
+        QCOMPARE(store.drafts().size(), 2);
+        QCOMPARE(store.activeDraftId(), b);
+        QCOMPARE(store.draft(), QStringLiteral("body-b"));   // 镜像跟随
+
+        // 切回 A：镜像切、其余不动。
+        QVERIFY(store.setActiveDraft(a));
+        QCOMPARE(store.draft(), QStringLiteral("body-a"));
+        QCOMPARE(store.drafts().size(), 2);
+
+        // 正文回写只动目标草稿。
+        QVERIFY(store.setDraftBody(a, QStringLiteral("body-a-2")));
+        QCOMPARE(store.draftById(b).body, QStringLiteral("body-b"));
+        QCOMPARE(store.draft(), QStringLiteral("body-a-2"));
+
+        // 重命名与工作区覆盖。
+        QVERIFY(store.renameDraft(b, QStringLiteral("Beta 2")));
+        QVERIFY(store.updateDraft(b, QStringLiteral("Beta 2"),
+                                  QStringLiteral("/w/two")));
+        QCOMPARE(store.draftById(b).title, QStringLiteral("Beta 2"));
+        QCOMPARE(store.draftById(b).workspace, QStringLiteral("/w/two"));
+
+        // 删除当前草稿 → 顺位队首。
+        QVERIFY(store.removeDraft(a));
+        QCOMPARE(store.drafts().size(), 1);
+        QCOMPARE(store.activeDraftId(), b);
+        QCOMPARE(store.draft(), QStringLiteral("body-b"));
+
+        // 删光 → 无草稿、镜像清空。
+        QVERIFY(store.removeDraft(b));
+        QVERIFY(store.drafts().isEmpty());
+        QVERIFY(store.activeDraftId().isEmpty());
+        QVERIFY(store.draft().isEmpty());
+
+        // 重载一次：全部状态保真。
+        QVERIFY(!store.createDraft(QStringLiteral("Keep"),
+                                   QStringLiteral("kept"), QString(),
+                                   nullptr).isEmpty());
+        ToolsStore reloaded(Paths::dataRoot());
+        reloaded.load();
+        QCOMPARE(reloaded.drafts().size(), 1);
+        QCOMPARE(reloaded.drafts().at(0).title, QStringLiteral("Keep"));
+        QCOMPARE(reloaded.drafts().at(0).body, QStringLiteral("kept"));
+    }
+
+    /// 上限：第 21 条被拒绝（不静默淘汰），原因可区分。
+    void testDraftsLimitRefusal()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QString rejected;
+        for (int i = 0; i < ToolsStore::kMaxDrafts; ++i) {
+            const QString id = store.createDraft(
+                QStringLiteral("D%1").arg(i), QString(), QString(),
+                &rejected);
+            QVERIFY2(!id.isEmpty(), "within the cap");
+        }
+        const QString overflow = store.createDraft(
+            QStringLiteral("Over"), QString(), QString(), &rejected);
+        QVERIFY(overflow.isEmpty());
+        QCOMPARE(rejected, QStringLiteral("draft-limit"));
+        QCOMPARE(store.drafts().size(), ToolsStore::kMaxDrafts);
+        // 删一条后能再建。
+        QVERIFY(store.removeDraft(store.drafts().at(0).id));
+        QVERIFY(!store.createDraft(QStringLiteral("Back"), QString(),
+                                   QString(), &rejected).isEmpty());
+    }
+
+    /// 标题兜底：空标题 → "Untitled N"（编号取首个未占用）。
+    void testUntitledNumbering()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QString rejected;
+        store.createDraft(QString(), QString(), QString(), &rejected);
+        store.createDraft(QStringLiteral("Untitled 1"), QString(),
+                          QString(), &rejected);
+        const QString third = store.createDraft(
+            QString(), QString(), QString(), &rejected);
+        // 已有 "Untitled 1"（显式给了这个名字），第二条未命名的编号跳到 2。
+        QCOMPARE(store.draftById(third).title, QStringLiteral("Untitled 2"));
+    }
+
+    // --- M4：历史快照 -----------------------------------------------------
+
+    /// 快照：新在前、上限淘汰最旧、内容相同跳过、删除按时间精确定位、
+    /// 草稿删除连带清快照、孤儿快照（手改文件造出）重载时清掉。
+    void testSnapshotsLifecycle()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QString rejected;
+        const QString id = store.createDraft(
+            QStringLiteral("Snap"), QString(), QString(), &rejected);
+
+        // 同内容跳过：连存两版一样的不产生第二条。
+        store.addSnapshot(id, QStringLiteral("v1"),
+                          QStringLiteral("manual"));
+        store.addSnapshot(id, QStringLiteral("v1"),
+                          QStringLiteral("manual"));
+        QCOMPARE(store.snapshots(id).size(), 1);
+        QCOMPARE(store.snapshots(id).at(0).reason,
+                 QStringLiteral("manual"));
+        QCOMPARE(store.snapshots(id).at(0).charCount, 2);
+
+        store.addSnapshot(id, QStringLiteral("v2"),
+                          QStringLiteral("copy"));
+        store.addSnapshot(id, QStringLiteral("v3"),
+                          QStringLiteral("clear"));
+        QCOMPARE(store.snapshots(id).at(0).body, QStringLiteral("v3"));
+        QCOMPARE(store.snapshots(id).size(), 3);
+
+        // 别的草稿的快照互不串门。
+        const QString other = store.createDraft(
+            QStringLiteral("Other"), QString(), QString(), &rejected);
+        store.addSnapshot(other, QStringLiteral("o1"),
+                          QStringLiteral("switch"));
+        QCOMPARE(store.snapshots(id).size(), 3);
+        QCOMPARE(store.snapshots(other).size(), 1);
+
+        // 上限淘汰：灌满 + 3，最旧的被挤掉（v1/v2 是头两版）。
+        for (int i = 0; i < ToolsStore::kMaxSnapshotsPerDraft; ++i) {
+            store.addSnapshot(id, QStringLiteral("bulk-%1").arg(i),
+                              QStringLiteral("manual"));
+        }
+        const QList<awb::tools::DraftSnapshot> after =
+            store.snapshots(id);
+        QCOMPARE(after.size(), ToolsStore::kMaxSnapshotsPerDraft);
+        // 最旧一批（v1、v2、v3）被淘汰：全部 bulk-* 或更晚。
+        for (const auto &snapshot : after) {
+            QVERIFY(snapshot.body.startsWith(QStringLiteral("bulk-"))
+                    || snapshot.body == QStringLiteral("o1"));
+        }
+
+        // 精确删除一版。
+        const qint64 target = after.at(2).createdAt;
+        QVERIFY(store.removeSnapshot(id, target));
+        QCOMPARE(store.snapshots(id).size(),
+                 ToolsStore::kMaxSnapshotsPerDraft - 1);
+
+        // 草稿删除连带清快照。
+        QVERIFY(store.removeDraft(id));
+        QVERIFY(store.snapshots(id).isEmpty());
+    }
+
+    // --- M4：恢复副本 -----------------------------------------------------
+
+    /// 恢复副本两条路径：有副本（上次未正常退出）→ present + 正文可取；
+    /// 无副本（正常退出清掉了）→ present=false。
+    void testRecoveryWriteAndClear()
+    {
+        ToolsStore store(Paths::dataRoot());
+        store.load();
+        QString rejected;
+        const QString id = store.createDraft(
+            QStringLiteral("R"), QString(), QString(), &rejected);
+
+        QVERIFY(store.writeRecovery(id, QStringLiteral("unsaved tail")));
+        {
+            const auto info = store.recovery();
+            QVERIFY(info.present);
+            QCOMPARE(info.draftId, id);
+            QCOMPARE(info.body, QStringLiteral("unsaved tail"));
+            QVERIFY(info.updatedAt > 0);
+        }
+        // 空草稿 id 的恢复副本 = 删除（清空草稿的场合）。
+        QVERIFY(store.writeRecovery(QString(), QString()));
+        QVERIFY(!store.recovery().present);
+
+        // 正常退出清理。
+        QVERIFY(store.writeRecovery(id, QStringLiteral("again")));
+        QVERIFY(store.clearRecovery());
+        QVERIFY(!store.recovery().present);
+        // 再清一次（文件已不在）也成功。
+        QVERIFY(store.clearRecovery());
+    }
+
 private:
     // <dataRoot>/tools.json 的绝对路径（与被测的 store 同一棵树）。
     QString storeJsonPath() const
