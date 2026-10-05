@@ -1,3 +1,6 @@
 [submodule "third_party/spdlog"]
 	path = third_party/spdlog
 	url = https://gitee.com/czyt1988/spdlog.git
+[submodule "third_party/SARibbon"]
+	path = third_party/SARibbon
+	url = https://gitee.com/czyt1988/SARibbon
