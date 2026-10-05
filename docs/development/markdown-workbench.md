@@ -1,6 +1,6 @@
 # Markdown workbench
 
-The Markdown workbench is a **standalone window** that unifies the former prompt-writing page and the former Markdown preview window: one window, two presets. The **prompt form** composes a prompt against a workspace file tree; the **document form** reads and edits one Markdown file. It is opened from the sidebar's **Markdown** entry or by opening a Markdown file from the workspace tree; it is not a page in `Workspace`.
+The Markdown workbench is a **standalone window** that unifies the former prompt-writing page and the former Markdown preview window: one window, two presets, many sessions. The **prompt form** composes a prompt against a workspace file tree; the **document form** reads and edits Markdown files, one tab per file. It is opened from the sidebar's **Markdown** entry, by opening a Markdown file from the workspace tree, or by double-clicking an associated `.md` file in the system file manager; it is not a page in `Workspace`.
 
 It exists for three concrete reasons. Referencing a file in a prompt normally means hand-building a relative path — the file tree inserts `` `./relative/path` `` references by drag-and-drop or double-click. Typing a prompt straight into an agent CLI risks hitting Enter on a half-finished message — so the window has **no send action**: Enter inserts a newline, nothing leaves the window, and the only delivery is copy. And on a document of a few hundred kilobytes, the first paint is bounded by *the first pass over it*, not by *the whole document* — [the renderer](#the-renderer-passes-batches-and-visibility) is where that claim is earned, and
 [Markdown preview runtime (research)](../research/markdown-preview-runtime.md) holds the numbers behind it.
@@ -17,15 +17,16 @@ Architecture context: [Layers and dependencies](../architecture/layers-and-depen
   |---|---|---|
   | Left panel | the workspace file tree, open by default | collapsed to a narrow edge that can be clicked open |
   | Ribbon | expanded (single row by default) | collapsed to its tab row |
-  | Middle area | the prompt draft, in the editor | the opened document, with Preview / Split / Source |
+  | Middle area | the prompt draft, with Preview / Split / Source | the open documents, one per tab, with Preview / Split / Source |
 
-  The right side holds the outline panel, and only in the document form, behind its toggle. Opening the window from the sidebar or its start page yields the prompt form; opening a Markdown file from the workspace tree yields the document form (or retargets the live window to that file). The preset switch is the **Full Tools** toggle on the ribbon's View tab; a document preset that cannot be rendered (no capability, no document) falls back to the prompt form rather than showing a broken window. There is no user-facing "mode" concept — one window with more or fewer tooling.
-- **The window is destroyed when closed.** `MainWindow.qml` keeps the window behind a `Loader` whose `active` no longer includes `markdown.available` — the only thing that turns it off is the window reporting its own close. A QML `Window` survives its own close, so every accepted `onClosing` path calls `MarkdownPreviewController::notifyWindowClosed()` and `Component.onDestruction` reports again for paths that never deliver a close event, such as quitting the app; the report is idempotent. Holding a live preview view (and the ~4 MB of runtime it loads) between uses would be a permanent tax on every start.
-- **The prompt form works in every build.** It is a plain QML editor with highlighting; in Qt 5 and no-WebEngine builds the preview pane is simply never loaded (no `WebEngineView` exists in the process) and the document form's entry point never appears — the feature is absent rather than present and broken (see [Capability gating](#capability-gating-qt-5-and-no-webengine)).
-- **One document at a time.** Opening a second file reuses the live window and swaps its content rather than building a second `WebEngineView`. Each embedded view is a Chromium frame with its own renderer-side memory; a feature that pooled them would cost more than the case it serves. This is the decision the preview window was built on, carried over unchanged.
+  The right side holds the outline panel, behind its toggle, serving whichever session is active (the draft has headings too). Opening the window from the sidebar or its start page yields the prompt form; opening a Markdown file from the workspace tree yields the document form (or retargets the live window to that file). The preset switch is the **Full Tools** toggle on the ribbon's View tab; a document preset that cannot be rendered (no capability, no file tab) falls back to the prompt form rather than showing a broken window. There is no user-facing "mode" concept — one window with more or fewer tooling.
+- **The window is destroyed when closed, the sessions are not.** `MainWindow.qml` keeps the window behind a `Loader` whose `active` no longer includes `markdown.available` — the only thing that turns it off is the window reporting its own close. A QML `Window` survives its own close, so every accepted `onClosing` path calls `MarkdownPreviewController::notifyWindowClosed()` and `Component.onDestruction` reports again for paths that never deliver a close event, such as quitting the app; the report is idempotent. Closing the window puts the sessions to sleep in the controller's memory; reopening the window picks them back up, unsaved edits included. Only closing a tab drops a session. Holding a live preview view (and the ~4 MB of runtime it loads) between uses would be a permanent tax on every start.
+- **The prompt form works in every build.** It is a plain QML editor with highlighting; in Qt 5 and no-WebEngine builds the preview pane is simply never loaded (no `WebEngineView` exists in the process), the view switcher is absent, and the document form's entry points degrade honestly — the file-tree menu item never appears, an open request reports its reason (see [Capability gating](#capability-gating-qt-5-and-no-webengine)).
+- **One render surface, many sessions.** The controller is a session container: each session carries its own document, blocks, outline, rev, per-tab view mode and export directory, addressed by `docId`. Only one session is *active* at a time; switching sessions rebuilds the page wholesale (`setDocument`). `doc.json` serves the active session, while `asset/<docId>/…` resolves against **every live session** — image requests for a tab you just switched away from may still be in flight. Each embedded view is a Chromium frame with its own renderer-side memory, which is why there is exactly one and it is reused rather than pooled.
+- **File tabs are capped at eight.** Opening the same path twice activates the existing tab (deduplicated by absolute path); opening a ninth file is refused with an explanation instead of silently evicting the least recently viewed one — a tab the user is editing in must not vanish because another file was opened.
 - **Saving cannot rewrite a file.** A README that is CRLF with a BOM must still be CRLF with a BOM after `Ctrl+S` — the document pipeline records the byte shape on load and reproduces it on save (see [the pure layer](#the-pure-layer-document-blocks-page-strings)). The draft, by contrast, never touches the filesystem directly: it lives in `tools.json`.
-- **Not a general HTML viewer.** Only `.md` and `.markdown` paths are accepted (`MarkdownPreviewController::canPreviewPath`, which is also what decides whether the file tree's menu item appears). Rendering arbitrary HTML through this surface would mean executing the document's own scripts, which the renderer's `html: false` deliberately refuses.
-- **No agent coupling.** The window talks to no agent, runs nothing, and edits no repository file other than the document the user explicitly opened. Its writes are `tools.json` (workspace memory, draft, ribbon preferences), the system clipboard, the document's own file on save, and the export copies.
+- **Not a general HTML viewer.** Only Markdown-suffixed paths are accepted (`MarkdownPreviewController::isMarkdownPath()`, the one place the suffix list lives — it also decides the file-tree menu item and the command-line file arguments). Rendering arbitrary HTML through this surface would mean executing the document's own scripts, which the renderer's `html: false` deliberately refuses.
+- **No agent coupling.** The window talks to no agent, runs nothing, and edits no repository file other than the documents the user explicitly opened. Its writes are `tools.json` (workspace memory, draft, ribbon preferences), `markdown_session.json` (the session snapshot), the system clipboard, the document's own files on save, and the export copies.
 
 ## The ribbon
 
@@ -42,8 +43,8 @@ The window's actions live in a command bar across the top. In `AWB_ENABLE_RIBBON
 
 The command bar has two tabs: **Start** and **View**.
 
-- **Start** holds the migrated actions: **Copy Prompt** (the delivery path — a second **Copy** sits in the quick-access bar on the title row), the clipboard group **Paste / Cut / Copy Text**, **Undo / Redo**, and the formatting trio **Bold / Code / Bullets**. While a document is showing, the tab also carries **Find** (opens the document search) and **Save** (enabled only when the document is editable). Every action forwards to the window's action layer or the existing `MarkdownEdit` static cursor operations — the command bar is an entry point only and holds no logic of its own.
-- **View** holds the switches: the **Preview / Split / Source** three-state and the outline toggle (both while a document is showing), **Full Tools** (the preset switch: on = the prompt form, off = the document form), **Collapse** (fold the whole band to its tab row), **Style** (single / two / three rows), and **Follow Theme** (whether the band's colours track the application theme).
+- **Start** holds the migrated actions: **Copy Prompt** (the delivery path — a second **Copy** sits in the quick-access bar on the title row), the clipboard group **Paste / Cut / Copy Text**, **Undo / Redo**, and the formatting trio **Bold / Code / Bullets**. While a file tab is active, the tab also carries **Find** (opens the document search) and **Save** (enabled only when the document is editable). Every action forwards to the window's action layer or the existing `MarkdownEdit` static cursor operations — the command bar is an entry point only and holds no logic of its own.
+- **View** holds the switches: the **Preview / Split / Source** three-state and the outline toggle (both for whichever session is active — the draft renders too), **Full Tools** (the preset switch: on = the prompt form, off = the document form), **Collapse** (fold the whole band to its tab row), **Style** (single / two / three rows), and **Follow Theme** (whether the band's colours track the application theme).
 
 The single row is the default style, and its consequences are worth knowing before adding buttons: panel titles are hidden, and every button renders at the small size regardless of its `proportion` — grouping and button order carry the hierarchy, and labels must stay short. `minimumMode` collapses the band to its tab row; the document-form preset starts collapsed, and clicking the tab row expands it again.
 
@@ -59,15 +60,100 @@ Two design systems meet at exactly one point. `WorkbenchRibbon.qml` pushes the a
 - Ribbon menus accept `RibbonMenuItem` only; the `AMenu` family stays for in-window context menus. An action lives in exactly one place — the same action must not appear both in a command bar tab and in a side panel, or label and enabled state will drift apart.
 - SARibbon's own strings are not in this repository's `.ts` files and stay English in Chinese sessions. The window adds no ribbon-builtin screens beyond the bar itself.
 
+## Sessions: one container, one render surface
+
+`MarkdownPreviewController` (the QML singleton `Markdown`) is a **session container plus a single render surface**. A *session* is one document the user is looking at:
+
+- a **file session** — a disk file, opened via `openFile()` (the file tree, a recent-documents row, a command-line argument or a second-instance message all land there); each has a generated `docId` (`d1`, `d2`, …);
+- the **draft session** — a *virtual document* (`MarkdownDocument::setVirtual()`) holding the prompt draft, with the fixed `docId` `"draft"`. It takes no tab, it cannot be closed via tabs (it is the prompt form's own body), and it is editable-and-renderable like any file: the rendering pipeline consumes text, not paths. The draft's default view mode is **split** (it exists to be written in, and preview-first would hide the editor); builds without the preview capability degrade it to source.
+
+Each session owns its `MarkdownDocument`, block sequence, outline, `rev`, per-tab view mode, export directory and `doc.json` payload cache. The QML property surface (`filePath`, `dirty`, `mode`, `outline`, …) reflects the **active** session; `tabs` is the tab strip's model — `[{docId, title, path, mode, dirty, active}]` in open order, files only (the `path` and `mode` fields exist for the session file; the UI reads the rest).
+
+**Switching is a full page rebuild.** `activateSession()` enqueues `setDocument`, whose same-command overwrite semantics purge the previous session's pending `updateBlocks` — exactly the guard that keeps a stale delta from fighting a full rebuild. Incremental edits (`updateBlocks`) only ever target the active session.
+
+**Lifecycle:**
+
+- `openFile()` on a path that already has a session **activates** it (the tab is already there, the unsaved edits with it) instead of opening a second tab; otherwise it creates a session, activates it and emits `windowRequested()`. The cap is eight file sessions; the ninth is refused with an explanation.
+- `closeSession(docId)` closes a **tab** — the view goes away, the disk file stays. Closing the active tab activates the most recently opened remaining file session; with none left, the draft.
+- `notifyWindowClosed()` puts the sessions to sleep: the in-flight commands are dropped (no one would pump them), the sessions, tabs and dirty flags all stay. Reopening the window takes `doc.json` straight back to the active session. Only a restart needs the session file (below).
+- The draft is fed by `setDraftText()` (the window's draft editor, through a 200 ms debounce — one keystroke re-chunks the whole draft, the same CPU trap as the file editor); persistence of the draft text stays in the tools domain (`tools.draft`, its own 500 ms debounce).
+
+The diagram shows a session's life across open, switch, edit, external change, save and close:
+
+```mermaid
+sequenceDiagram
+    participant WC as WorkbenchContext
+    participant MC as MarkdownPreviewController
+    participant S1 as Session d1 (one.md)
+    participant S2 as Session d2 (two.md)
+    participant Doc as MarkdownDocument
+    participant Page as the preview page
+
+    WC->>MC: openFile("one.md")
+    MC->>Doc: load() (byte shape recorded)
+    MC->>S1: blocks + outline + rev=1
+    MC->>MC: activate(d1), emit windowRequested()
+    MC->>Page: setDocument (page fetches doc.json of d1)
+    WC->>MC: openFile("two.md")
+    MC->>S2: new session, activate(d2)
+    MC->>Page: setDocument (d1's pending updateBlocks purged)
+    Note over S1: d1 stays alive: dirty flag, mode, blocks kept
+    MC->>MC: activate(d1) again (tab click)
+    MC->>Page: setDocument (same docId, full rebuild)
+    WC->>MC: activate(d1), setEditorText edits
+    MC->>S1: re-chunk + diff -> updateBlocks (active session only)
+    Doc-->>MC: externallyChangedByOther (watcher)
+    MC->>MC: changedOnDisk on d1 (asked only when active)
+    WC->>MC: saveNow() / saveSession(d1)
+    MC->>Doc: save() (byte shape reproduced)
+    MC->>MC: closeSession(d1)
+    MC->>MC: activate most recent file session (or the draft)
+    Note over MC: window close keeps every session; process exit drops them
+```
+
+Two invariants worth pinning:
+
+- **Dirty flags are per session.** Editing one tab never flips another's dirty flag, and the close guard (below) inspects every dirty tab, not just the active one.
+- **Signals are gated by activity.** A background session's dirty or read-only flip does not emit the controller's global signals — only the session's own state moves; the properties are correct the moment it becomes active again.
+
+## The tab strip
+
+The strip above the middle area renders `markdown.tabs`: one delegate per file session — title, a dirty dot (never colour-only), and a close button (`AIconButton`). Clicking a tab activates its session and switches the document preset; the delegate's root is a plain `Item` with the visuals in a child (the required-property shadowing rule). To its right sit the view switcher, the outline and search buttons, the text-size and width pickers and the More-actions menu — visible per the current capability, and the switcher now serves **both** presets: the prompt form renders the draft through the same pipeline.
+
+The window couples preset and session: the prompt preset activates the draft session, the document preset activates the last file session the user had (`lastFileDocId`, so prompt ⇄ document round-trips return to the document being read, not the newest tab).
+
+## Session persistence (restarts)
+
+`markdown_session.json` (`MarkdownSessionStore`, workbench domain — session state spans tools and markdown, so only L3 may own it) remembers the scene across restarts:
+
+- the tab group: each tab's **path** and **view mode** (no content — the files are re-read from disk);
+- the active tab index;
+- the preset and the per-preset panel/ribbon collapse states;
+- a recent-documents MRU (20 entries), touched by every successful open.
+
+Restoration happens once, when the window is first created during an app run (later destroy/reopen cycles use the controller's in-memory sessions): `WorkbenchContext::restoreMarkdownSession()` re-opens each path in order — a file that no longer exists is skipped with a log line, never failing the whole group — applies each tab's recorded mode, then activates the recorded tab. Writes are debounced 800 ms behind tab/active/preset/panel changes (dirty-flag flips ride the same debounce; per-keystroke persistence buys nothing) and flushed undebounced on close. A corrupted file discards the whole session with one warning: layout state is not worth rescuing. The privacy stance is deliberate — local paths only, no content, no encryption, no cleanup: "find what I had open" is the entire semantic.
+
+The **start page** shows the top six of the MRU (file name plus parent folder, one click opens it as a tab), and `WorkbenchContext::recentMarkdownDocuments()` is its only source.
+
+## File association (double-click a `.md`)
+
+Three pieces, Windows only, none of them a lightweight viewer:
+
+1. **Command line.** `app/main.cpp` scans the arguments for existing Markdown-suffixed paths (`isMarkdownPath()` — the same suffix verdict the file tree's menu item uses) and opens each as a tab via `previewMarkdown()` once the UI is loaded. A no-capability build reports the reason as a toast, exactly like a right-click there.
+2. **Single-instance message.** A second instance with file arguments no longer sends a bare `"raise"` but `"open:<JSON path array>"` (`WorkbenchContext::encodeOpenMessage()` / `decodeOpenMessage()`; without a request the message is still `"raise"`). The first instance opens each path as a tab and raises the workbench window.
+3. **The Settings action.** **Associate .md files** (Launchers section) writes HKCU only: the ProgId `AgentWorkbench.Markdown.1` with `shell\open\command` pointing at the current executable, registered in `OpenWithProgids` for `.md` and `.markdown`. **UserChoice is never touched** — Windows 10+ guards the default-app choice with a signature, and silently stealing it is neither reliable nor polite. The goal is to appear in the Open-with list; the default app is chosen in Windows Settings, and the UI copy says exactly that. A registry write blocked by policy fails with an honest error. Uninstall does not clean up the keys (harmless leftovers, the Windows convention).
+
+Double-clicking a file in the explorer starts the **full application** — shell, sidebar, engine — not an instant viewer; that is a deliberate decision, and the honest cost is the startup time. Builds without the preview capability hide the association action entirely (registering an entry that would only ever produce an error toast is worse than not offering it).
+
 ## Files and classes
 
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/workbench/qml/MarkdownWorkbenchWindow.qml` | `MarkdownWorkbenchWindow` | The window: command bar slot, side panels, the draft/document middle area, search bar, status line, dialogs, shortcuts (evolved from the former `MarkdownPreviewWindow.qml`; the resource alias moves from `markdown/` to `workbench/`) | `ToolsFacade`, `Markdown`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench`, `theme` |
+| `src/workbench/qml/MarkdownWorkbenchWindow.qml` | `MarkdownWorkbenchWindow` | The window: command bar slot, side panels, the file tab strip, the draft/document middle area (one split structure serving both presets), search bar, status line, dialogs, shortcuts, session save/restore (evolved from the former `MarkdownPreviewWindow.qml`; the resource alias moves from `markdown/` to `workbench/`) | `ToolsFacade`, `Markdown`, `MarkdownEdit`, `MarkdownContextMenu`, `workbench`, `theme` |
 | `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | The SARibbon command bar: two tabs, single-row default, style from `tools.ribbonStyle`, the one-way theme bridge; pure forwarding to the window's action layer | the window QML, `RibbonTheme`, `tools.*` |
 | `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | The no-ribbon fallback: a plain toolbar with the same actions, loaded when the ribbon file is absent | the window QML |
 | `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | The preview surface (the `WebEngineView` and its wiring), loaded by resource URL only when the capability exists | `Markdown`, the window QML |
-| `src/shell/qml/MarkdownStartPage.qml` | `MarkdownStartPage` | The sidebar's **Markdown** start page: a header and one button that opens (or raises) the workbench window — a thin shell, not the editor | `workbench.openMarkdownWorkbench()` |
+| `src/shell/qml/MarkdownStartPage.qml` | `MarkdownStartPage` | The sidebar's **Markdown** start page: the open-workbench button plus the **Recent documents** list (top 6 of the MRU) — a thin shell, not the editor | `workbench.openMarkdownWorkbench()`, `workbench.previewMarkdown()`, `workbench.recentMarkdownDocuments()` |
 | `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | Registers the built-in pages, including the **Markdown** start page | `NavigationModel`, `WorkbenchContext` |
 | `src/tools/ToolsStore.{h,cpp}` | `ToolsStore` | `tools.json` state: MRU workspace list, current workspace, prompt draft, and the `ribbon` section (`collapsed` / `style` / `followAppTheme` / `lastTabIndex`); `kMaxWorkspaces` = 20 | `ToolsFacade`, `core::JsonStore` |
 | `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML facade: workspace properties, draft property, `addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`, the flat tree model as `model`, and the four `ribbon*` interface preferences; 500 ms draft debounce plus destructor flush | the window QML, `app/main.cpp` (`tools` alias), `FileTreeModel`, `FileTreeFlatModel` |
@@ -77,14 +163,15 @@ Two design systems meet at exactly one point. `WorkbenchRibbon.qml` pushes the a
 | `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML singleton (`AgentWorkbench.App`): `attach()`, `applyBold()`, `applyCode()`, `applyBullet()` — the formatting actions behind the command bar's Start tab and the editor context menu | the window QML, `MarkdownContextMenu`, `theme::Theme` |
 | `src/tools/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`, `MarkdownColors` | Lightweight per-block Markdown highlighter; colour tokens | `MarkdownEdit` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | The draft editor's `AMenu`: top formatting toolbar + undo/redo/cut/copy/paste items | `MarkdownEdit`, `AMenu`/`AMenuItem` |
-| `src/markdown/MarkdownDocument.{h,cpp}` | `MarkdownDocument` | One file on disk: text, dirty flag, read-only verdict, and the **byte shape it was loaded as** (BOM, line endings, UTF-8 validity) | `MarkdownPreviewController`, `core::OpResult` |
+| `src/markdown/MarkdownDocument.{h,cpp}` | `MarkdownDocument` | One file on disk: text, dirty flag, read-only verdict, and the **byte shape it was loaded as** (BOM, line endings, UTF-8 validity); `setVirtual()` turns it into a file-less carrier (the draft session: never dirty, `save()` refused, the 2 MB edit cap still applies) | `MarkdownPreviewController`, `core::OpResult` |
 | `src/markdown/MarkdownChunker.{h,cpp}` | `MarkdownChunker`, `MarkdownBlock` | Top-level block splitting, the minimal replacement range between two splits, the per-block hash | `MarkdownPreviewController`, `renderer.js`, `scripts/spike-markdown-chunker.js` |
 | `src/markdown/MarkdownRuntime.{h,cpp}` | `MarkdownRuntime` | All page-side strings and pure computation: URL layout, MIME table, resource mapping, theme → CSS variables, page strings, outline, command/event name tables, capability verdict | everything below; the only C++ the page protocol is written against |
-| `src/markdown/MarkdownPreviewController.{h,cpp}` | `MarkdownPreviewController` | QML singleton `Markdown`: document + blocks + view settings + the pending-command queue; the landing point for exports | `core::Settings`, `theme::Theme`, `MarkdownRuntimeHandler`, the window QML |
+| `src/markdown/MarkdownPreviewController.{h,cpp}` | `MarkdownPreviewController` | QML singleton `Markdown`: the **session container** (one `Session` per open document plus the draft, `docId`-addressed; `kMaxFileSessions` = 8, `isMarkdownPath()` is the single suffix verdict), the pending-command queue, and the landing point for exports; `saveSession(docId)` saves a file session without switching activation | `core::Settings`, `theme::Theme`, `MarkdownRuntimeHandler`, the window QML |
 | `src/markdown/webengine/MarkdownPreviewProvider.{h,cpp}` | `MarkdownPreviewProvider` | Registers the scheme, owns the preview-only profile, installs the handler, and tells the controller the surface exists | `app/main.cpp`, `MarkdownRuntimeHandler` |
 | `src/markdown/webengine/MarkdownRuntimeHandler.{h,cpp}` | `MarkdownRuntimeHandler` | The single supplier for `awbmd://runtime/…`, with an in-memory cache for vendor bytes | `MarkdownPreviewController` |
 | `src/markdown/webengine/runtime/*` | `shell.html`, `bridge.js`, `renderer.js`, `markdown-config.js`, `math-rule.js`, `diagram.js`, `find.js`, `theme.css` | The page: bootstrap and command dispatch, the chunked pipeline, the markdown-it configuration, KaTeX/task/alert rules, deferred mermaid, in-document search | `MarkdownRuntime` (protocol), `third_party/markdown-runtime/` |
-| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | The cross-domain entry: `previewMarkdown()` / `canPreviewMarkdown()` for the document form, `openMarkdownWorkbench()` for the prompt form — for domains that may not name each other | `MarkdownPreviewController`, the window QML, the start page |
+| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | The cross-domain entry: `previewMarkdown()` / `canPreviewMarkdown()` for the document form, `openMarkdownWorkbench()` for the prompt form, `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()` for the session file and MRU, and `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` plus the single-instance `encodeOpenMessage()` / `decodeOpenMessage()` for file association — for domains that may not name each other | `MarkdownPreviewController`, `MarkdownSessionStore`, the window QML, the start page, `app/main.cpp` |
+| `src/workbench/MarkdownSessionStore.{h,cpp}` | `MarkdownSessionStore`, `MarkdownSessionState` | `markdown_session.json`: tab group (path + mode), active index, preset and panel states, the 20-entry recent-documents MRU; corrupted file = default state with a warning | `WorkbenchContext`, `core::JsonStore` |
 | `src/shell/qml/MainWindow.qml` | `MainWindow` | Hosts the window's `Loader`; writes the window's `initialPreset` from the opening intent | `Markdown`, `WorkbenchContext` |
 | `cmake/AwbOptions.cmake`, `app/CMakeLists.txt` | `AWB_ENABLE_RIBBON` wiring | SARibbon submodule build and the window's resource registration | `third_party/SARibbon` |
 | `third_party/markdown-runtime/` | — | Vendored browser builds plus `manifest.json` (versions, licences, sha256) | `tst_markdown`, `scripts/update-markdown-runtime.sh` |
@@ -101,23 +188,22 @@ Outside the modules the window leans on `core::Paths::dataRoot()`, `config/defau
 │              fallback — tabs: Start · View                      │
 ├───────────────┬────────────────────────────────┬───────────────┤
 │ left panel    │ middle area                    │ outline panel │
-│ workspace     │ single-tab strip (Draft / File)│ (document     │
-│ + file tree   │ the draft, or the document     │  form only,   │
-│               │ with Preview / Split / Source  │  behind its   │
+│ workspace     │ file tab strip (dirty dots)    │ (any session, │
+│ + file tree   │ Preview / Split / Source       │  behind its   │
 │               │ search bar · status line       │  toggle)      │
 └───────────────┴────────────────────────────────┴───────────────┘
 ```
 
 - The left panel is the migrated prompt-page tree panel: a compact header row (workspace `AComboBox` with `Layout.fillWidth`, folder-picker `AIconButton`, refresh `AIconButton`) above the tree. It collapses to a narrow, clickable edge; the document-form preset starts it collapsed. Neither the panel nor the editor takes a corner radius where they meet — flush squares at the junction.
-- The right panel is the outline, and it exists only in the document form, behind the outline toggle. The prompt form has no right panel — panels that hold nothing are not drawn.
-- The middle area is headed by a **single-tab strip**: a `Draft` or `File` badge (`APill`) plus the title (the draft, or the file name). While a document is showing, the strip also carries the document's own chrome: the Preview / Split / Source switcher, the outline toggle, the search button, the text-size and column-width pickers, and the **More actions** menu. The strip is the one place a future multi-tab bar would grow from; today it holds exactly one tab.
-- The middle body is the draft editor in the prompt form, or the document's two panes in the document form. The document body is a hand-rolled two-pane layout, not a `SplitView`: two of the three view states squeeze one pane to zero width, and `SplitView`'s handling of `visible` panes differs across Qt versions. The divider is 4 px visually with a 12 px hit area; the split proportion (`editorShare`) is window state — dragging it should not touch the disk.
+- The right panel is the outline, behind the outline toggle, serving the **active session** — the draft has headings too, so it is no longer document-form-only.
+- The middle area is headed by the **file tab strip** (`Repeater` over `markdown.tabs`): one tab per file session with its title, dirty dot and close button; the strip also carries the view switcher, the outline and search buttons, the text-size and column-width pickers, and the **More actions** menu. The switcher serves both presets — the draft renders through the same pipeline as the files.
+- The middle body is **one split structure for both presets**: the editor slot holds the draft editor when the draft session is active and the file source editor otherwise, and the preview pane renders the active session. It is a hand-rolled two-pane layout, not a `SplitView`: two of the three view states squeeze one pane to zero width, and `SplitView`'s handling of `visible` panes differs across Qt versions. The divider is 4 px visually with a 12 px hit area; the split proportion (`editorShare`) is window state — dragging it should not touch the disk.
 - Under the middle area sits the **status line**: in the prompt form it shows the draft's character and line counts; in the document form it shows the file's path, the **Unsaved changes** mark, the read-only reason when one applies, the file size, and the renderer's version numbers. State is never colour-only — dirty and read-only are written out as words.
-- The prompt form's ribbon preferences (collapse state, style row, last tab, theme following) persist in `tools.json`'s `ribbon` section. The panel states and the document form's ribbon collapse live for the window's lifetime — closing the window resets them, which is the honest cost of not writing UI state per keystroke.
+- The prompt form's ribbon preferences (collapse state, style row, last tab, theme following) persist in `tools.json`'s `ribbon` section. The per-preset panel states and the document form's ribbon collapse persist in the **session file**; within one app run they additionally survive window close/reopen, because the window reads them back from the restore call.
 
 ### The draft editor
 
-The editor is the migrated prompt editor, now living in the window. A vertical `Flickable` (`objectName: "promptScroll"`, `clip`, `StopAtBounds`, `ScrollBar.vertical: AScrollBar {}`) carries an `ATextArea` (`objectName: "promptEditor"`) through the `TextArea.flickable` attached property. The text is initialised once in `Component.onCompleted` (`text = tools.draft`, then `MarkdownEdit.attach(promptEditor)`) rather than two-way bound — a permanent binding would fight the user's typing; `onTextChanged: tools.draft = text` is the write path. The placeholder states the contract in so many words: Enter only inserts a new line, nothing is sent from this window.
+The editor is the migrated prompt editor, now living in the window's editor slot. A vertical `Flickable` (`objectName: "promptScroll"`, `clip`, `StopAtBounds`, `ScrollBar.vertical: AScrollBar {}`) carries an `ATextArea` (`objectName: "promptEditor"`) through the `TextArea.flickable` attached property. The text is initialised once in `Component.onCompleted` (`text = tools.draft`, then `MarkdownEdit.attach(promptEditor)`) rather than two-way bound — a permanent binding would fight the user's typing. The write path is **double**: `onTextChanged` writes `tools.draft` (the tools domain persists it through its own 500 ms debounce) and restarts the 200 ms `draftSyncTimer`, which feeds the draft **session** via `setDraftText()` — one keystroke re-chunks the whole draft, so per-keystroke feeding burns CPU on intermediate states. The placeholder states the contract in so many words: Enter only inserts a new line, nothing is sent from this window.
 
 A `DropArea` filling the editor accepts only drags from the file tree (`drop.source.isFileReferenceDrag`), computes the insertion offset with `promptEditor.positionAt(drop.x, drop.y)` and inserts `drop.text`; the local drop coordinates are already document coordinates. A right-button `MouseArea` sets `editorMenu.editor = promptEditor` and pops `MarkdownContextMenu`.
 
@@ -304,29 +390,35 @@ Direction of travel is split by payload size on purpose. Commands C++ → page g
 
 ### One preview surface
 
-The rendering pipeline serves the document form. It lives behind `MarkdownPreviewPane.qml`, loaded by resource URL only when `markdown.available` — a build without WebEngine never creates a `WebEngineView`, and a window whose document cannot be rendered falls back to the prompt form. There is exactly one preview pane in the window. The draft side of the window is the editor alone: where there is no rendering surface, the view switcher is hidden rather than presented greyed out — the same "absent, not broken" principle the preview entry follows.
+The rendering pipeline lives behind `MarkdownPreviewPane.qml`, loaded by resource URL only when `markdown.available` — a build without WebEngine never creates a `WebEngineView`. There is exactly one preview pane in the window, and it renders **whatever the active session is**: a file tab or the draft. In a build without the capability the pane is absent, the view switcher disappears (absent, not greyed out — the same principle the preview entry follows), and the draft's view mode degrades to source.
 
 ## Entry points and wiring
 
-The file tree asks, and never decides. Its context menu contains `visible: workbench.canPreviewMarkdown(treeRow.path)` and `onTriggered: workbench.previewMarkdown(treeRow.path)`. The suffix rules live in the preview domain; the QML only asks about a path it already has. `canPreviewMarkdown()` is a *method* rather than a binding source, and that matters: the expression does not re-evaluate, so the item's visibility is computed at menu build time — fine here, because the capability cannot change while the process is running.
+The file tree asks, and never decides. Its context menu contains `visible: workbench.canPreviewMarkdown(treeRow.path)` and `onTriggered: workbench.previewMarkdown(treeRow.path)`. The suffix rules live in the preview domain (`isMarkdownPath()`); the QML only asks about a path it already has. `canPreviewMarkdown()` is a *method* rather than a binding source, and that matters: the expression does not re-evaluate, so the item's visibility is computed at menu build time — fine here, because the capability cannot change while the process is running.
 
-`WorkbenchContext` is the only place that may name both domains (`src/tools` must not include `src/markdown`; gate rule 1). It holds a nullable pointer to the preview controller, set by `setMarkdownPreview()` from `app/main.cpp`. When it is null — or when the controller reports itself unavailable — `previewMarkdown()` produces a toast with the reason and nothing else, so the failure has one explanation path instead of two. The second intent, `openMarkdownWorkbench()`, is what the start page's button calls; it opens (or raises) the window in the prompt form.
+The same `previewMarkdown()` is the landing point for every "open a Markdown file" intent: the file tree, a recent-documents row on the start page, a command-line argument, a second-instance message, and a double-clicked associated file in the explorer. One entry, one set of failure paths, one MRU touch.
+
+`WorkbenchContext` is the only place that may name both domains (`src/tools` must not include `src/markdown`; gate rule 1). It holds a nullable pointer to the preview controller, set by `setMarkdownPreview()` from `app/main.cpp`. When it is null — or when the controller reports itself unavailable — `previewMarkdown()` produces a toast with the reason and nothing else, so the failure has one explanation path instead of two. The second intent, `openMarkdownWorkbench()`, is what the start page's button calls; it opens (or raises) the window in the prompt form. The session intents — `restoreMarkdownSession()` on the window's first creation, `saveMarkdownSession()` behind the window's changes — and the file-association pair live here too, all on the same object the QML already talks to.
 
 `MainWindow.qml` hosts the window through a `Loader` and uses `source` (a resource URL string) rather than `sourceComponent` (a type name): the command bar and the preview surface are registered into the QML module only in builds that can run them, and addressing the window by resource URL keeps the shell independent of which variant exists. The `Loader`'s `onLoaded` writes the window's `initialPreset` property — `"document"` when the opening intent was `previewMarkdown()`, `"prompt"` when it was `openMarkdownWorkbench()` — and the window applies the preset idempotently before it appears. Loader failures are surfaced as a toast on purpose — otherwise the symptom of a mis-registered resource is "right-click does nothing", which is much harder to diagnose than an error box.
 
+The startup side of file association and of the auto-open preference also lives in `app/main.cpp`: the argument scan and the second-instance message decoding run after the engine loaded (the UI is up, the tabs open through the normal path), and `markdown.autoOpenWorkbench` emits the open-workbench intent right after the tray wiring — the same signal the start page's button produces.
+
 ## View settings, outline, export, external browser
 
-The four view settings (`mode`, `fontSizePx`, `contentWidthPx`, `showOutline`) are read at controller construction by `loadView()` and written back by `persistView()`. `0` means "use the theme's measurement" for the two sizes; `contentWidthPx` beyond the viewport is how **Full width** is expressed.
+The view settings are read at controller construction by `loadView()` and written back by `persistView()`. The three **global** preferences — `fontSizePx`, `contentWidthPx`, `showOutline` — apply to every session; `0` means "use the theme's measurement" for the two sizes, and `contentWidthPx` beyond the viewport is how **Full width** is expressed. The **mode** (`preview` / `split` / `source`) is **per session**: each tab remembers its own, and a session created from the session file takes back the mode it was saved with; the settings value is the default for newly opened sessions, and `setMode()` syncs it so the preference tracks the user's latest choice. Switching the view on the draft or a file both route through the same `setView` command.
 
-The outline comes from the block sequence (`MarkdownRuntime::outlineFromBlocks()`) with `blockIndex` as its positioning anchor, so clicking an outline row is a `scrollTo` command with a block index, not a fragile DOM query. Heading text is stripped of emphasis, links, inline code, images and HTML tags first.
+The outline comes from the block sequence (`MarkdownRuntime::outlineFromBlocks()`) with `blockIndex` as its positioning anchor, so clicking an outline row is a `scrollTo` command with a block index, not a fragile DOM query. Heading text is stripped of emphasis, links, inline code, images and HTML tags first. The outline follows the active session — the draft's headings are one click away.
 
-Export and "open in browser" both need the page's own serialisation, so both go through `requestFullRender()` (flush the lazily-rendered diagrams) and then `requestMarkup(purpose)`. The page returns the HTML, and **`reportMarkup()` is the only write site** — QML never touches the filesystem. Landing rules differ by purpose: `"export"` writes next to the document unless the user picked a folder through `setExportDirectory()` (exported HTML references images **relatively**, so only a file beside the document resolves them); `"browser"` writes to `core::Paths::markdownPreviewDir()` (`<dataRoot>/preview`), because an external browser cannot resolve `awbmd://` at all. `exportFileName()` suggests the document's base name with `.html`, falling back to `Markdown.html` when no document is loaded.
+Export and "open in browser" both need the page's own serialisation, so both go through `requestFullRender()` (flush the lazily-rendered diagrams) and then `requestMarkup(purpose)`. The page returns the HTML, and **`reportMarkup()` is the only write site** — QML never touches the filesystem. The export directory is per session: a user choice made on one document does not leak to the next (a leftover choice would export a README into some other project). Landing rules differ by purpose: `"export"` writes next to the document unless the user picked a folder through `setExportDirectory()` (exported HTML references images **relatively**, so only a file beside the document resolves them); `"browser"` writes to `core::Paths::markdownPreviewDir()` (`<dataRoot>/preview`), because an external browser cannot resolve `awbmd://` at all. `exportFileName()` suggests the document's base name with `.html`, falling back to `Markdown.html` when no document is loaded.
 
 ## Capability gating: Qt 5 and no WebEngine
 
 `MarkdownRuntime::isSupportedBuild()` is a compile-time verdict (Qt 6 **and** WebEngine), and the same condition decides whether `awb_markdown_webengine` is linked, whether the `:/markdown/` runtime is embedded, and whether the preview pane is registered. Keeping them in one place is the whole point — disagreement between them shows up as "menu item is clickable, page 404s".
 
-At runtime the verdict is refined, not relaxed: `available` is `m_surfaceReady && isSupportedBuild()`, where `m_surfaceReady` is set by the provider once the handler is actually installed on a profile. `unavailableReason()` gives the user the sentence. In a build without the capability the file tree's Preview Markdown item never appears, the preview pane's `Loader` never activates, and a document-preset request falls back to the prompt form — the feature is absent rather than present and broken. The prompt form, needing none of this, stays fully usable.
+At runtime the verdict is refined, not relaxed: `available` is `m_surfaceReady && isSupportedBuild()`, where `m_surfaceReady` is set by the provider once the handler is actually installed on a profile. `unavailableReason()` gives the user the sentence. In a build without the capability the file tree's Preview Markdown item never appears, the preview pane's `Loader` never activates, the view switcher is absent, and a document-preset request falls back to the prompt form — the feature is absent rather than present and broken. The prompt form, needing none of this, stays fully usable, and the draft's view mode degrades to source.
+
+Document-tab and file-association entry points report their reason rather than failing silently: an open request that reaches a no-capability build produces the honest toast (the association action is hidden there in the first place, since registering an entry that can only ever error is worse than not offering it).
 
 The command bar adds a second axis to the matrix: `AWB_ENABLE_RIBBON=ON` and `OFF` must each configure, build and pass the tests, with the OFF build showing the toolbar fallback described above.
 
@@ -345,10 +437,13 @@ bash scripts/build.sh --test                            # tst_markdown asserts t
 ## Costs and deliberate limits
 
 - **No send path, ever.** The window has no send action and no delivery channel other than copy; Enter inserts a newline. Any change that introduces a send path contradicts the feature's reason to exist.
-- **The prompt form is editor-only.** The draft has no rendering surface; the view switcher is hidden in that form rather than shown greyed out.
+- **One render surface.** Switching sessions is a full page rebuild (`setDocument`); only the active session gets incremental edits. The first screen of a newly switched tab pays the first pass again — the "first paint bounded by the first pass" guarantee does not extend to free tab switching.
+- **Eight file tabs.** The ninth open is refused with an explanation; nothing is silently evicted.
+- **The session file holds paths, not content.** A file that changed on disk between runs is re-read as it is now; the session restores the *layout*, not the texts.
+- **Double-clicking an associated file starts the full application.** No lightweight viewer process exists by decision; the honest cost is the startup time.
 - **About 4 MB is embedded in the Qt 6 + WebEngine binary**, and 2.6 MB of that is mermaid — loaded only by documents that actually contain diagrams.
 - **Inline HTML is not rendered** (`html: false`). Previewing someone else's Markdown over a channel with no CSP is a script-injection surface; the cost is that a document written with embedded `<br>` or `<details>` shows those tags as text.
-- **One document at a time.** The command queue, the `docId` asset namespace and the outline are all single-document by construction; the window is reused and its content swapped.
+- **One live render surface, many documents.** The command queue and the `doc.json` body serve the active session; the `docId` asset namespace resolves for every live session. The window is reused and its content swapped, never pooled.
 - **Search counts only mounted blocks**, and cannot match across inline markup.
 - **More than 40 diagrams means click-to-render.**
 - **A file above `kOpenCapBytes` is refused** rather than partially shown.
@@ -368,6 +463,8 @@ bash scripts/build.sh --test                            # tst_markdown asserts t
 - **`objectName`s are test contracts.** The interaction smoke locates `promptEditor`, `promptScroll`, `promptScrollBar`, `editorMenu`, `fileTree` and `treeRowMenu` by `objectName`; renaming them breaks the test. Command bar controls are created by the third-party host or the fallback toolbar and have no reliable `objectName` — test the actions through the window's action layer, the facade methods and `MarkdownEdit`'s pure functions instead.
 - **The command bar skins only forward.** `WorkbenchRibbon.qml` and `WorkbenchToolbar.qml` carry the same actions to the same window functions; behaviour grown in either skin is a drift bug.
 - **Actions have exactly one home.** A control appears in the command bar, in a side panel or in the context menu — never in two of them.
+- **Session writes go through `saveMarkdownSession()`.** The window composes the state and hands it to `WorkbenchContext` in one call (tab group from the controller, preset from the window, MRU from the context) — writing the file from anywhere else risks losing one of the three sources.
+- **The multi-class test runner and `-o`.** `awbRunRegisteredTests()` passes `-o <file>` through to each class's `qExec`; the argument used to be eaten as a test filter, which silently skipped every class and reported success. When debugging a multi-class suite, run one case by name and check it actually ran.
 
 ## Tests
 
@@ -375,12 +472,12 @@ bash scripts/build.sh --test                            # tst_markdown asserts t
 |---|---|
 | `tst_tools` | `ToolsStore` semantics (MRU, cap, draft debounce, ribbon section tolerance), lazy tree model (roles, fetch, incremental refresh), icon mapping, facade wiring, `MarkdownEdit` cursor operations |
 | `tst_toolsui` | The window-level interaction smoke: loads the workbench window, drives the draft editor, the file tree and the context menu through the `objectName` contracts |
-| `tst_markdown` | `MarkdownChunker` (including corpus equivalence), `MarkdownDocument` (shape-preserving save, caps, read-only sources, watcher semantics), `MarkdownRuntime` (URLs, MIME, routes, protocol tables, theme → CSS, outline), `MarkdownPreviewController` (queue de-duplication, open/save/export, capability verdicts), and the vendor sha256 table |
+| `tst_markdown` | `MarkdownChunker` (including corpus equivalence), `MarkdownDocument` (shape-preserving save, caps, read-only sources, watcher semantics, **the virtual document**), `MarkdownRuntime` (URLs, MIME, routes, protocol tables, theme → CSS, outline), `MarkdownPreviewController` (**the session container**: open/switch/close, path dedup, the 8-tab cap, dirty isolation, doc.json-follows-active, asset resolution for live sessions, the draft session, close-keeps-sessions, save-without-switching; queue de-duplication, open/save/export, capability verdicts), and the vendor sha256 table |
 | `tst_markdownpreview` | The page pipeline against a real `WebEngineView`: a document mounts, blocks appear, incremental updates land. The large-document case runs only under `AWB_MD_PERF` |
 | `tst_markdownpreviewui` | The shipped `MarkdownWorkbenchWindow.qml` as loaded QML: the command pump runs, find/serialize round-trip, the open/close reporting contract (Qt 6 + WebEngine only) |
 | `tst_webengine` | The scheme serving resources, fonts, `doc.json` and beacons end to end |
-| `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` delegation and the toast-only failure paths |
-| `tst_core` | The four `markdown.*` settings keys and `Paths::markdownPreviewDir()` |
+| `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` delegation and the toast-only failure paths; the single-instance **open-message round trip**; the file-association **registered-state verdict** (default and after registration, on builds where the registry is writable) |
+| `tst_core` | The five `markdown.*` settings keys and `Paths::markdownPreviewDir()` |
 
 The gates that keep `tst_markdownpreview` and `tst_markdownpreviewui` out of Qt 5 and no-WebEngine builds are in `tests/CMakeLists.txt`, matching the feature's own condition. The command bar axis (`AWB_ENABLE_RIBBON` on/off) applies to the whole suite: both states must be green.
 
@@ -390,6 +487,8 @@ The gates that keep `tst_markdownpreview` and `tst_markdownpreviewui` out of Qt 
 - [ ] New or moved `.qml` files are registered in `app/CMakeLists.txt` (the window and command bar live under the `workbench/` resource alias; the ribbon file only in `AWB_ENABLE_RIBBON` builds) and in `AWB_TS_SOURCES` if they use `qsTr()`.
 - [ ] `objectName`s used by the interaction smoke are unchanged, or the test is updated in the same commit.
 - [ ] `tools.json` key names (`workspaces`, `current`, `draft`, `ribbon` with its four inner keys) are unchanged — they are on-disk format.
+- [ ] `markdown_session.json` key names (`tabs`, `activeIndex`, `preset`, `promptLeftOpen`, `documentLeftOpen`, `documentRibbonCollapsed`, `recentDocuments`, and per-tab `path`/`mode`) are unchanged — same rule.
+- [ ] The single-instance message format (`open:<JSON array>` / `raise`) stays in sync between `encodeOpenMessage()` and `decodeOpenMessage()`, and the ProgId (`AgentWorkbench.Markdown.1`) is not renamed — renaming it orphans the registry entry the user already registered.
 - [ ] `FileIcons` key names in `config/default_file_icons.json` were not renamed.
 - [ ] Both `AWB_ENABLE_RIBBON` states configure, build and pass the tests.
 - [ ] `bash scripts/build.sh --test` is green, including `check_architecture`.

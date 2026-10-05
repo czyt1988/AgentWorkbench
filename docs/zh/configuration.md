@@ -44,7 +44,8 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
                "level": "debug", "mirrorToStderr": true },
   "plugins": { "enabled": false, "disabledIds": [] },
   "markdown": { "mode": "preview", "fontSizePx": 0,
-               "contentWidthPx": 0, "showOutline": true }
+               "contentWidthPx": 0, "showOutline": true,
+               "autoOpenWorkbench": false }
 }
 ```
 
@@ -81,12 +82,16 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 - `logging.level` 是落盘的最低级别——`debug`（默认，全部记录）、`info`、`warning`、`critical` 或 `off`，非法值告警后回退 `debug`；`logging.mirrorToStderr`（默认开启）把每行同时镜像到启动它的控制台。两项都在下次启动时生效。
 - `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
   加载，开关重启后生效。参见[插件](plugins.md)。
-- `markdown.*` 是 Markdown 工作台窗口记住的文档视图状态：`mode` 取 `preview`、
-  `split` 或 `source`；`fontSizePx` 为 `0` 时跟随主题正文字号，`contentWidthPx`
-  为 `0` 时用内置栏宽（两者分别钳制 `[0, 48]` 与 `[0, 4000]`）；`showOutline`
-  决定大纲面板打开时是否展开。你在窗口的下拉里改动时由窗口自己写入——这一组没有
-  设置页。文档预览只存在于 Qt 6 + WebEngine 的构建里，其它构建照样读取并保留这
-  几个键，但应用内没有任何地方能改它们。参见 [Markdown 工作台](guide/Markdown工作台.md)。
+- `markdown.*` 是 Markdown 工作台窗口记住的状态：`mode` 取 `preview`、
+  `split` 或 `source`（新开文档的默认值——每个打开的 tab 记住自己的）；
+  `fontSizePx` 为 `0` 时跟随主题正文字号，`contentWidthPx` 为 `0` 时用内置
+  栏宽（两者分别钳制 `[0, 48]` 与 `[0, 4000]`）；`showOutline` 决定大纲面板
+  打开时是否展开；`autoOpenWorkbench`（默认 `false`）让应用启动时就把工作台
+  窗口打开——恢复上次的 tab 组——给「开应用就是为了写」的重度用户（下次
+  启动起生效；设置 → 启动器 里有开关）。视图键由窗口在你用下拉与开关时自己
+  写入——视图那一组没有设置页。文档预览只存在于 Qt 6 + WebEngine 的构建里，
+  其它构建照样读取并保留这几个键，但依赖预览的那些改不了。参见
+  [Markdown 工作台](guide/Markdown工作台.md)。
 
 ## 主题
 

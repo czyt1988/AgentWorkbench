@@ -50,6 +50,15 @@ whether each is running.
 - **Single instance** - when on, starting the app a second time does not open
   a second window: the existing one is brought to the front instead. Takes
   effect at the next start.
+- **Open the Markdown workbench on startup** - for heavy prompt writers: the
+  workbench window is already open when the app starts, restored to the
+  documents you had open. Off by default — the normal start stays fast and
+  quiet. Takes effect at the next start.
+- **Associate .md files** - puts this app into the **Open with** list for
+  `.md` and `.markdown` files, so double-clicking a Markdown file can open it
+  in the workbench. The default app is chosen in Windows Settings, not here —
+  the button only adds the entry. After clicking it the button reads
+  **Registered**. Only available in builds that can preview documents.
 - **Add Launcher** - opens the form for a new agent.
 - **Edit** on a row - opens the same form, prefilled.
 - **Delete** on a row - removes the agent after a confirmation.

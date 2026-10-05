@@ -8,6 +8,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Markdown workbench tabs and sessions**: the workbench window now holds
+  **several documents at once** — one tab per file, up to eight (the ninth is
+  refused with an explanation, nothing is silently closed). Tabs carry a
+  dirty dot, remember their own Preview/Split/Source, and closing one closes
+  the view, never the file. Switching tabs swaps the single embedded view;
+  closing the window keeps every session — reopening it restores the tabs
+  exactly, unsaved edits included. The **draft now has a rendered preview
+  too** (Preview/Split/Source, defaulting to split): the same pipeline that
+  renders documents renders the prompt as you write it, so long prompts can
+  be checked for structure, tables and diagrams on the spot. The outline
+  panel serves the draft as well.
+- **Session restore and startup**: the app remembers the workbench's open
+  tabs (with each tab's view setting), the active tab, and the window's
+  shape, and restores them when the window is next opened after a restart —
+  a document whose file has been moved or deleted is skipped, the rest come
+  back. The start page gains a **Recent documents** list (six entries, one
+  click opens the file). By default the app does not open the workbench at
+  startup; the new **Open the Markdown workbench on startup** switch
+  (Settings → Launchers, `markdown.autoOpenWorkbench`) turns that on for
+  heavy writers.
+- **.md file association**: double-clicking a `.md` file in the file manager
+  can now open it in the workbench. With the app already running, the file
+  opens as a new tab and the window comes to the front; otherwise the app
+  starts and shows it — the **full application**, deliberately not a
+  lightweight viewer. The **Associate .md files** action (Settings →
+  Launchers) writes the registration; the default app remains the user's
+  choice in Windows Settings, and the switch says exactly that. Builds
+  without the preview capability hide the action and report the reason when
+  an open request arrives.
 - **Markdown workbench window**: prompt writing and the Markdown preview are
   now **one standalone window** with two presets. The **prompt form** (opened
   from the sidebar's new **Markdown** start page) carries the whole former

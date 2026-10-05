@@ -36,8 +36,9 @@ make the "untouched root" check fail forever.
 |---|---|---|---|
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
-| `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view | `core::Settings` — the only entry point |
+| `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view and its startup behaviour | `core::Settings` — the only entry point |
 | `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, prompt draft, window interface state | `ToolsStore` via `ToolsFacade` |
+| `markdown_session.json` | Markdown workbench | the workbench window's last scene: open tabs (paths + view modes), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths only, no document content** | `MarkdownSessionStore` via `WorkbenchContext` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
 | `file_icons.json` | you | icon-table overrides / additions | `FileIcons` (via `FileTreeModel`) |
@@ -63,13 +64,15 @@ user chose or paid for; everything else is rebuilt from scratch.
 | Captured session URL (`m_sessionUrls`) | memory | dropped when the process stops |
 | Agent running / installed / version / console output (`AgentState`) | memory (except `setupDone`) | until app exit or the next health check |
 | `WebTab` state, load progress, zoom, LRU timestamp | memory | until the tab is closed or the app exits |
-| Markdown preview document, dirty flag, block hash table, asset cache | memory (`MarkdownPreviewController`) | until the window closes — the page's rendered DOM dies with it |
+| Markdown workbench sessions — open documents, per-tab modes, dirty flags, block hash tables, asset cache (`MarkdownPreviewController`) | memory | until the tab is closed or the app exits; **closing the window keeps them** (reopening restores from memory, unsaved edits included) |
+| The recent-documents MRU | memory (`WorkbenchContext`), persisted through the session file | across restarts |
 | Purely visual state (expanded rows, current filter …) | memory | until the view is destroyed |
 | Agent definitions | `agents.json` | across restarts |
 | Application settings, including the last sidebar page | `settings.json` | across restarts |
 | One-time setup completion | `agent_state.json` | across restarts |
 | Workspace memory and prompt draft | `tools.json` | across restarts |
-| Markdown preview view choices | `settings.json` (`markdown.*`) | across restarts |
+| Markdown workbench view choices and startup behaviour | `settings.json` (`markdown.*`) | across restarts |
+| Markdown workbench tab group, active tab, preset and panel states | `markdown_session.json` | across restarts (until the next write) |
 
 The draft is the one piece of memory state with a tuned write path. Editing the
 prompt does not write on every keystroke: `ToolsFacade::setDraft()` returns
@@ -78,6 +81,16 @@ timer, and `persistDraft()` writes once the typing pauses. The destructor
 flushes a still-pending draft, so quitting mid-edit does not lose it. This keeps
 a fast typist from turning every keystroke into a disk write while still being
 crash-tolerant down to half a second.
+
+The Markdown workbench session file follows the same philosophy with its own
+tuning: tab, activation, preset and panel changes are written through an
+800 ms debounce (a dirty-flag flip rides the same debounce — per-keystroke
+session writes buy nothing), and closing the window flushes undebounced so the
+last state cannot be lost to timing. A corrupted session file is discarded
+wholesale with one warning: it is layout state, not user content, and it is not
+worth rescuing. The file is deliberately kept to local paths — no document
+content, no encryption, no cleanup — because "find what I had open" is the
+entire semantic; anything more would turn a convenience into a privacy surface.
 
 Two concrete consequences of keeping PIDs and session URLs in memory:
 

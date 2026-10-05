@@ -61,7 +61,8 @@ Missing keys take their defaults in place — there is no migration code:
                "level": "debug", "mirrorToStderr": true },
   "plugins": { "enabled": false, "disabledIds": [] },
   "markdown": { "mode": "preview", "fontSizePx": 0,
-               "contentWidthPx": 0, "showOutline": true }
+               "contentWidthPx": 0, "showOutline": true,
+               "autoOpenWorkbench": false }
 }
 ```
 
@@ -118,14 +119,19 @@ Missing keys take their defaults in place — there is no migration code:
 - `plugins.enabled` is the master switch; `disabledIds` lists per-plugin
   opt-outs. Plugins load at startup, so toggles take effect after a
   restart. See [Plugins](plugins.md).
-- `markdown.*` is the Markdown workbench window's remembered document view:
-  `mode` is `preview`, `split` or `source`; `fontSizePx` `0` follows the theme's
-  body size and `contentWidthPx` `0` uses the built-in column width (both clamp
-  to `[0, 48]` and `[0, 4000]`); `showOutline` decides whether the outline panel
-  starts open. The window writes these as you use its pickers — there is no
-  Settings page for the group. Only Qt 6 + WebEngine builds contain the document
-  preview; elsewhere the keys are still read and preserved, but nothing in the
-  app can change them. See [Markdown workbench](guide/markdown-workbench.md).
+- `markdown.*` is the Markdown workbench window's remembered state:
+  `mode` is `preview`, `split` or `source` (the default for newly opened
+  documents — each open tab remembers its own); `fontSizePx` `0` follows the
+  theme's body size and `contentWidthPx` `0` uses the built-in column width
+  (both clamp to `[0, 48]` and `[0, 4000]`); `showOutline` decides whether the
+  outline panel starts open; `autoOpenWorkbench` (default `false`) opens the
+  workbench window — restored to its last tabs — as part of the app startup,
+  for heavy users who start the app to write (applies from the next start; the
+  setting has a switch in Settings → Launchers). The window writes these as
+  you use its pickers and switches — there is no Settings page for the view
+  keys. Only Qt 6 + WebEngine builds contain the document preview; elsewhere
+  the keys are still read and preserved, but the preview-dependent ones cannot
+  change. See [Markdown workbench](guide/markdown-workbench.md).
 
 ## Themes
 
