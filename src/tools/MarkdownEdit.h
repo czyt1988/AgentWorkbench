@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QVariantMap>
 
 #include <QList>
 
@@ -42,6 +43,12 @@ public:
     Q_INVOKABLE void applyBullet(QObject *textArea);
 
     // --- M3 新增格式动作（B1：全部沿用静态光标操作形状，一次撤销一步） ---
+
+    // 选区加斜体（单个 *）；空选区时插入 ** 并把光标放到中间
+    Q_INVOKABLE void applyItalic(QObject *textArea);
+
+    // 选区加删除线（~~）；空选区时插入 ~~~~ 并把光标放到中间
+    Q_INVOKABLE void applyStrike(QObject *textArea);
 
     // 行首切换 #/##/###；该行已是标题时改为目标级（不叠加），目标级与
     // 当前级相同时去掉标题（再点一次回到普通行）
@@ -84,6 +91,8 @@ public:
     // 纯光标操作（测试入口）：QTextCursor 的选区就是作用范围，调用后
     // cursor 的位置/选区即动作结果
     static void applyBoldToCursor(QTextCursor &cursor);
+    static void applyItalicToCursor(QTextCursor &cursor);
+    static void applyStrikeToCursor(QTextCursor &cursor);
     static void applyCodeToCursor(QTextCursor &cursor);
     static void applyBulletToCursor(QTextCursor &cursor);
     static void applyHeadingToCursor(QTextCursor &cursor, int level);
@@ -103,7 +112,7 @@ public:
     static bool isCodeAtCursor(const QTextCursor &cursor);
     static int headingLevelAtCursor(const QTextCursor &cursor);
 
-    // --- B2 查找 / 替换（纯文档操作，与格式动作同级） -----------------
+    // --- B2 查找 / 替换（纯文档操作，与格式动作同级） -------------------
 
     /// 一次查找的结果：命中区间 + 是否发生回卷（从尾部跳回头部）。
     struct FindResult {
@@ -111,6 +120,20 @@ public:
         int length = 0;          ///< 命中长度
         bool wrapped = false;    ///< 这一次查找发生了回卷
     };
+
+    // QML 侧的查找/替换入口：编辑器（TextArea）+ 关键词 + 起点由调用方
+    // 给；返回 QVariantMap（{start, length, wrapped}）——结构体不经
+    // QMetaType 注册，map 是 QML 可消费的形状。大小写/全词取 tools 单例
+    // 的偏好（调用方带入），保持纯层的参数化。
+    Q_INVOKABLE QVariantMap find(QObject *textArea, const QString &needle,
+                                 int from, bool caseSensitive,
+                                 bool wholeWords) const;
+    Q_INVOKABLE QVariantMap replaceAndFindNext(
+        QObject *textArea, const QString &replacement,
+        const QString &needle, bool caseSensitive, bool wholeWords) const;
+    Q_INVOKABLE int replaceAll(QObject *textArea, const QString &needle,
+                               const QString &replacement,
+                               bool caseSensitive, bool wholeWords) const;
 
     // 从 from 向后查找 needle（到尾部回卷一次）。大小写/全词由参数表达，
     // 持久化偏好由调用方（tools.json 的 editor 段）带着进来。

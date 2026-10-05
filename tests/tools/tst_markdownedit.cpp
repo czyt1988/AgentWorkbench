@@ -132,6 +132,75 @@ private Q_SLOTS:
         QVERIFY(!cursor.hasSelection());
     }
 
+    // --- 斜体与删除线（B1：与加粗同一形状、不同标记对） ---------------------
+
+    void testItalicWrapsSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello world"), 0, 5,
+              &MarkdownEdit::applyItalicToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("*hello* world"));
+        QCOMPARE(cursor.selectionStart(), 1);
+        QCOMPARE(cursor.selectionEnd(), 6);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("hello"));
+    }
+
+    void testItalicTrimsWhitespace()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("xx word yy"), 2, 8,
+              &MarkdownEdit::applyItalicToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("xx *word* yy"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("word"));
+    }
+
+    void testItalicWithoutSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello"), 2, 2,
+              &MarkdownEdit::applyItalicToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("he**llo"));
+        QCOMPARE(cursor.position(), 3);
+        QVERIFY(!cursor.hasSelection());
+    }
+
+    void testStrikeWrapsSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello world"), 6, 11,
+              &MarkdownEdit::applyStrikeToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("hello ~~world~~"));
+        QCOMPARE(cursor.selectionStart(), 8);
+        QCOMPARE(cursor.selectionEnd(), 13);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("world"));
+    }
+
+    void testStrikeTrimsWhitespace()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("xx word yy"), 2, 8,
+              &MarkdownEdit::applyStrikeToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("xx ~~word~~ yy"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("word"));
+    }
+
+    void testStrikeWithoutSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello"), 2, 2,
+              &MarkdownEdit::applyStrikeToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("he~~~~llo"));
+        QCOMPARE(cursor.position(), 4);
+        QVERIFY(!cursor.hasSelection());
+    }
+
     void testCodeSingleLine()
     {
         QTextDocument document;
@@ -219,6 +288,31 @@ private Q_SLOTS:
     }
 
     // --- M3 新动作（B1）--------------------------------------------------
+
+    void testItalicIsOneUndoStep()
+    {
+        // 标记对在一个编辑块内插入：一次 undo 完整回退（不留下半对）。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("hello world"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(0);
+        cursor.setPosition(5, QTextCursor::KeepAnchor);
+        MarkdownEdit::applyItalicToCursor(cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("hello world"));
+    }
+
+    void testStrikeIsOneUndoStep()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("hello world"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(0);
+        cursor.setPosition(5, QTextCursor::KeepAnchor);
+        MarkdownEdit::applyStrikeToCursor(cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("hello world"));
+    }
 
     void testHeadingAddsPrefix()
     {

@@ -179,6 +179,45 @@ bool insideMarker(const QTextCursor &cursor, QLatin1Char marker,
     return false;
 }
 
+/**
+ * @brief 对称标记对的通用包裹（斜体 * 与删除线 ~~ 共用）
+ *
+ * 与 MarkdownEdit::applyBoldToCursor 同一形状：空选区插入「标记对
+ * ×2」并把光标放到中间；有选区时空白留在标记外，包裹后重新选中原
+ * 内容（前后各偏移 marker 长度）。italic / strike 的差异只有标记串
+ * 本身，抽这一个助手避免两份 90% 相同的代码各自漂移。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ * @param marker 标记串（"*" 或 "~~"）
+ */
+void wrapSelectionToCursor(QTextCursor &cursor, const QString &marker)
+{
+    const int markerLength = marker.length();
+    if (!cursor.hasSelection()) {
+        const int position = cursor.position();
+        cursor.beginEditBlock();
+        cursor.insertText(marker + marker);
+        cursor.setPosition(position + markerLength);
+        cursor.endEditBlock();
+        return;
+    }
+
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
+
+    cursor.beginEditBlock();
+    const int wrapStart = selectionStart + trimmed.start;
+    const int wrapEnd = wrapStart + trimmed.length;
+    cursor.setPosition(wrapStart);
+    cursor.insertText(marker);
+    cursor.setPosition(wrapEnd + markerLength);
+    cursor.insertText(marker);
+    cursor.setPosition(wrapStart + markerLength);
+    cursor.setPosition(wrapEnd + markerLength, QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
 } // namespace
 
 /**
@@ -236,6 +275,26 @@ void MarkdownEdit::attach(QObject *textArea)
 void MarkdownEdit::applyBold(QObject *textArea)
 {
     editTextArea(textArea, &MarkdownEdit::applyBoldToCursor);
+}
+
+/**
+ * @brief 给编辑器的选区加斜体标记
+ * @param textArea 目标编辑器
+ * @sa applyItalicToCursor
+ */
+void MarkdownEdit::applyItalic(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyItalicToCursor);
+}
+
+/**
+ * @brief 给编辑器的选区加删除线标记
+ * @param textArea 目标编辑器
+ * @sa applyStrikeToCursor
+ */
+void MarkdownEdit::applyStrike(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyStrikeToCursor);
 }
 
 /**
@@ -375,6 +434,24 @@ void MarkdownEdit::applyBoldToCursor(QTextCursor &cursor)
     cursor.setPosition(wrapStart + 2);
     cursor.setPosition(wrapEnd + 2, QTextCursor::KeepAnchor);
     cursor.endEditBlock();
+}
+
+/**
+ * @brief 给选区加 * 标记对（斜体）
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::applyItalicToCursor(QTextCursor &cursor)
+{
+    wrapSelectionToCursor(cursor, QStringLiteral("*"));
+}
+
+/**
+ * @brief 给选区加 ~~ 标记对（删除线）
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::applyStrikeToCursor(QTextCursor &cursor)
+{
+    wrapSelectionToCursor(cursor, QStringLiteral("~~"));
 }
 
 /**
@@ -1043,6 +1120,89 @@ int MarkdownEdit::replaceAll(QTextDocument *document,
     }
     editor.endEditBlock();
     return count;
+}
+
+// --- B2 的 QML 入口（TextArea 版：包装静态纯函数） -----------------------
+
+/**
+ * @brief QML 版查找：编辑器 + 关键词 + 起点 → {start, length, wrapped}
+ *
+ * 静态纯函数吃 QTextDocument；这里从 TextArea 取文档、跑查找、把结果
+ * 包成 QML 可消费的 map（结构体不进 QMetaType）。
+ */
+QVariantMap MarkdownEdit::find(QObject *textArea, const QString &needle,
+                               int from, bool caseSensitive,
+                               bool wholeWords) const
+{
+    QVariantMap result;
+    result.insert(QStringLiteral("start"), -1);
+    result.insert(QStringLiteral("length"), 0);
+    result.insert(QStringLiteral("wrapped"), false);
+    if (!textArea)
+        return result;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return result;
+    const FindResult hit = findFrom(quickDocument->textDocument(), needle,
+                                    from, caseSensitive, wholeWords);
+    result.insert(QStringLiteral("start"), hit.start);
+    result.insert(QStringLiteral("length"), hit.length);
+    result.insert(QStringLiteral("wrapped"), hit.wrapped);
+    return result;
+}
+
+/**
+ * @brief QML 版替换并找下一个
+ *
+ * 选中区即这次命中（TextArea 的 selectionStart/selectionEnd）。
+ */
+QVariantMap MarkdownEdit::replaceAndFindNext(
+    QObject *textArea, const QString &replacement, const QString &needle,
+    bool caseSensitive, bool wholeWords) const
+{
+    QVariantMap result;
+    result.insert(QStringLiteral("start"), -1);
+    result.insert(QStringLiteral("length"), 0);
+    result.insert(QStringLiteral("wrapped"), false);
+    if (!textArea)
+        return result;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return result;
+    QTextDocument *document = quickDocument->textDocument();
+    QTextCursor selection(document);
+    selection.setPosition(textArea->property("selectionStart").toInt());
+    selection.setPosition(textArea->property("selectionEnd").toInt(),
+                          QTextCursor::KeepAnchor);
+    const FindResult next = replaceAndFindNext(
+        document, selection, replacement, needle, caseSensitive,
+        wholeWords);
+    result.insert(QStringLiteral("start"), next.start);
+    result.insert(QStringLiteral("length"), next.length);
+    result.insert(QStringLiteral("wrapped"), next.wrapped);
+    return result;
+}
+
+/**
+ * @brief QML 版全部替换（编辑器全文）
+ */
+int MarkdownEdit::replaceAll(QObject *textArea, const QString &needle,
+                             const QString &replacement, bool caseSensitive,
+                             bool wholeWords) const
+{
+    if (!textArea)
+        return 0;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return 0;
+    return replaceAll(quickDocument->textDocument(), needle, replacement,
+                      caseSensitive, wholeWords);
 }
 
 /**
