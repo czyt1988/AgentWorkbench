@@ -124,6 +124,15 @@ if (AWB_ENABLE_WEBENGINE)
     endif()
 endif()
 
+# The ribbon of the Markdown workbench window (AWB_ENABLE_RIBBON, see the root
+# CMakeLists). The app target is the single link point: domain libraries never
+# link SARibbon, QML just does `import SARibbon` after main.cpp registered the
+# types imperatively before engine.load().
+if (AWB_ENABLE_RIBBON)
+    target_compile_definitions(AgentWorkbench PRIVATE AWB_ENABLE_RIBBON=1)
+    target_link_libraries(AgentWorkbench PRIVATE SARibbon::Qml)
+endif()
+
 # The QML module shared by every page/component. awb_add_qml_module (from
 # cmake/AwbQtCompat.cmake) is qt_add_qml_module on Qt 6; on Qt 5 it embeds the
 # same files under the same aliases plus a generated qmldir so the

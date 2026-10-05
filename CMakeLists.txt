@@ -77,6 +77,38 @@ set(SINGLEAPPLICATION_INSTALL OFF)
 set(SINGLEAPPLICATION_DOCUMENTATION OFF)
 add_subdirectory(third_party/SingleApplication EXCLUDE_FROM_ALL)
 
+# Third-party: SARibbon, the ribbon UI of the Markdown workbench window. It is
+# a git submodule (same convention as spdlog; offline init via
+# scripts/worktree-add.sh, which clones from a populated checkout). Pinned to
+# f89a02e — the last commit whose QML module links only Core/Gui/Qml/Quick/
+# QuickControls2 + SARibbonCore; the next commit (c7f9bfd) forces QWindowKit
+# into the QML module, a dependency this integration deliberately does not
+# take (the workbench window keeps the native window frame).
+#
+# Only the QML module is built (SARIBBON_BUILD_WIDGETS=OFF keeps the QWidget
+# stack out of the binary); static libs avoid a third DLL next to the exe.
+# SARIBBON_INSTALL/SARIBBON_INSTALL_IN_CURRENT_DIR=OFF keep its install/export
+# rules from polluting this project. A missing submodule fails loudly with the
+# fix instead of silently building a ribbon-less binary (AWB_ENABLE_RIBBON=OFF
+# is the only supported way to trim it).
+if (AWB_ENABLE_RIBBON)
+    if (NOT EXISTS "${CMAKE_SOURCE_DIR}/third_party/SARibbon/CMakeLists.txt")
+        message(FATAL_ERROR
+            "SARibbon submodule is missing. Run:\n"
+            "  git submodule update --init third_party/SARibbon\n"
+            "(on this machine's intranet, use bash scripts/worktree-add.sh, "
+            "which clones it offline from the main worktree)")
+    endif()
+    set(SARIBBON_BUILD_QML ON)
+    set(SARIBBON_BUILD_WIDGETS OFF)
+    set(SARIBBON_BUILD_EXAMPLES OFF)
+    set(SARIBBON_BUILD_TESTS OFF)
+    set(SARIBBON_INSTALL OFF)
+    set(SARIBBON_INSTALL_IN_CURRENT_DIR OFF)
+    set(SARIBBON_BUILD_STATIC_LIBS ON)
+    add_subdirectory(third_party/SARibbon EXCLUDE_FROM_ALL)
+endif()
+
 # Layered modules, bottom-up:
 #   core -> theme -> {shell, agentcatalog, skillcatalog, web, tools} -> workbench -> app
 add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)

@@ -90,6 +90,7 @@ Each module owns its QML under `src/<module>/qml/`; the shared `A*` components l
 | Option | Default | Meaning |
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | embedded web views (MSVC only; MinGW + ON fails at configure time with a readable error) |
+| `AWB_ENABLE_RIBBON` | `ON` | build the SARibbon QML module (`third_party/SARibbon`, a git submodule pinned at `f89a02e`) that the Markdown workbench window's ribbon is made of; OFF means the window falls back to a plain toolbar, it never breaks the build |
 | `BUILD_TESTING` | `ON` | unit test targets (needs the Qt Test module) |
 
 `build.sh` sets `BUILD_TESTING` explicitly for both of its test flags — `--test` configures it `ON`, `--no-tests` (used by `package.sh`) configures it `OFF` — so one build directory keeps working after either was used on it.

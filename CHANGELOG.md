@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **SARibbon integration (build only)**: the ribbon toolkit that will power
+  the Markdown workbench window is now a git submodule
+  (`third_party/SARibbon`, https://gitee.com/czyt1988/SARibbon, MIT — the
+  license travels inside the submodule). Pinned at `f89a02e`, the last
+  commit whose QML module links only Core/Gui/Qml/Quick/QuickControls2 +
+  SARibbonCore; the next upstream commit forces a QWindowKit dependency the
+  integration deliberately does not take. New build option
+  `AWB_ENABLE_RIBBON` (default `ON`) builds it as a static library — QML
+  module only, no QWidget stack, no extra DLL — and registers its types via
+  `saRibbonRegisterQmlTypes()` before the engine loads; `OFF` keeps the
+  binary ribbon-free without breaking the build. No window uses it yet; the
+  workbench window that consumes it lands next. Offline submodule init
+  follows the spdlog convention (`scripts/worktree-add.sh` clones from a
+  populated checkout).
 - **Prompt workbench relayout**: the page (formerly **Agent Tools - Prompt**,
   now **Prompt Writing**) swaps its panes — the file tree sits on the **left**,
   the editor fills the right workspace — and the workspace switcher, the

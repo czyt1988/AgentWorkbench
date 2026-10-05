@@ -40,6 +40,14 @@
 #endif
 #endif
 
+#ifdef AWB_ENABLE_RIBBON
+// SARibbon 的 QML 类型走命令式注册（third_party/SARibbon，submodule）：
+// 没有 qmldir 插件，必须在 engine.load() 之前由宿主进程调一次
+// saRibbonRegisterQmlTypes。唯一的 C++ 集成点就是这里与 CMake 链接，
+// 领域模块（awb_tools / awb_markdown 等）不 include 任何 SARibbon 头。
+#include <SARibbonQml/SARibbonQmlGlobal.h>
+#endif
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -341,6 +349,13 @@ int main(int argc, char *argv[])
     // Qt 5 无 qt_add_qml_module，AgentWorkbench 模块经 qrc:/qt/qml/ 下的
     // 生成 qmldir 注册（见 cmake/AwbQtCompat.cmake），导入路径补上它。
     engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
+
+#ifdef AWB_ENABLE_RIBBON
+    // SARibbon 的注册必须先于 engine.load()：QML 里 `import SARibbon` 的
+    // 类型全靠这一步进全局元对象注册表。函数内部 static-once，重复调用
+    // 无害；静态链接时它还负责 Q_INIT_RESOURCE(saribbon_qml)。
+    saRibbonRegisterQmlTypes(&engine);
 #endif
 
     engine.load(QUrl(

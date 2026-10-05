@@ -3,8 +3,15 @@
 # AWB_ENABLE_WEBENGINE: embedded Web views via Qt WebEngine. WebEngine only
 # ships for MSVC — combining ON with MinGW must fail at configure time with
 # a readable message, not with a wall of linker errors.
+#
+# AWB_ENABLE_RIBBON: build the SARibbon QML module (third_party/SARibbon)
+# that powers the Markdown workbench window's ribbon. The submodule is always
+# in the tree; the switch only trims the build, mirroring AWB_ENABLE_WEBENGINE.
+# It must stay OFF-able so "no ribbon" remains a buildable configuration (the
+# window then falls back to a plain toolbar), never a broken binary.
 
 option(AWB_ENABLE_WEBENGINE "Embed agent WebUIs with Qt WebEngine" ON)
+option(AWB_ENABLE_RIBBON "Build the SARibbon QML module for the workbench window" ON)
 
 if (AWB_ENABLE_WEBENGINE AND WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR

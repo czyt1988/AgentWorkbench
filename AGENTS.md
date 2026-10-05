@@ -37,7 +37,7 @@ cmake --build build
 - 需要 Qt 6.5+，或 Qt 5.15.16 LTS 兜底（模块同名：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools；内嵌 Web 另需 WebEngineQuick——Qt 5 里组件叫 WebEngine）。两个大版本的差异全部集中在 `cmake/AwbQtCompat.cmake` 与 `#if QT_VERSION` 分支：Qt 5 路线的验证基准是 **5.15.16 LTS**（内嵌 Web 依赖的 lifecycleState/对话框请求等 WebEngine backport 在 LTS 补丁版里，开源 5.15.0/2 未必齐全）。Qt 5 构建的 QML 源在配置期自动改写补上 import 版本号（Qt 5 编译器要求库 import 带版本），资源/qmldir 用生成的 qrc 镜像 Qt 6 的 `/qt/qml/AgentWorkbench/` URL。
 - 需要 CMake 3.16+，C++17。
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
-- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
+- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`AWB_ENABLE_RIBBON`（默认 ON，构建 `third_party/SARibbon` 的 QML 模块——Markdown 工作台窗口的 Ribbon；关掉时窗口退回普通工具栏）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
 - 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与窗口层，仅 `AWB_ENABLE_WEBENGINE=ON` 且 Qt 6）、`tst_workbench` 与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
@@ -63,7 +63,7 @@ resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json、default_file_icons.json（打包为 Qt 资源）
 icons/         SVG 图标（打包为 Qt 资源）；filetypes/ 与 foldertypes/ 是文件树的类型图标
 translations/  只有一份 agentworkbench_zh_CN.ts（编译为 .qm 后以 :/i18n/ 嵌入）
-third_party/   spdlog（submodule）与 markdown-runtime（Markdown 预览的浏览器侧产物：markdown-it/KaTeX/mermaid/highlight.js，直接提交构建产物、离线随包，manifest.json 的 sha256 由 tst_markdown 核对）
+third_party/   spdlog 与 SARibbon（均为 submodule）与 markdown-runtime（Markdown 预览的浏览器侧产物：markdown-it/KaTeX/mermaid/highlight.js，直接提交构建产物、离线随包，manifest.json 的 sha256 由 tst_markdown 核对）
 docs/          MkDocs 站点（英文为源 + zh/ 中文镜像）：architecture/（架构）、development/（功能实现）、guide/（用户指引）、standards/、research/；写作规范见 docs/AGENTS.md
 tests/         每模块一个测试目标 + check_architecture（多类套件经 tests/awbtest.h 注册）
 scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh、generate_icon.py
@@ -172,7 +172,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 - **分支模型**：`dev` 是唯一集成分支，一切工作的终点；`main` 受保护，不在其上直接开发。功能开发用 `feat/<domain>-<topic>`，修复用 `fix/<topic>`，合并回 `dev` 后删除工作分支。
 - **禁止在主工作树的 `dev` 上直接开发/提交**：无论当前是否只有一个 agent 在跑，任务一律在 `.worktree/` 下的工作分支上开发；主工作树的 `dev` 只做合并目标。「现在没有并行会话」「dev 检出且干净」都不是就地直接提交的理由——按规范走：开工作树 → 分支上开发 → 测试全绿 → 合并回 `dev` → 删分支删树。
 - **新任务开工作树**：用 `bash scripts/worktree-add.sh <分支> [base]`（如 `bash scripts/worktree-add.sh feat/web-xyz`，默认从最新的 `dev` 切出；分支已存在则直接检出）。工作树统一放在主仓库的 `.worktree/` 下，目录名是分支名把 `/` 换成 `-`（`.worktree/` 已 git-ignore），每个任务/agent 一个。删除工作树用 `bash scripts/worktree-add.sh --remove <名字>`——本机 git 2.7.2 没有 `git worktree remove`，脚本等价于 `rm -rf` + `git worktree prune`，只删已注册的工作树、不动分支（分支合并后自行 `git branch -d`）；目录被占用（shell/编辑器还在里面）时会删失败，离开该目录重试即可。已有哪些工作树以 `--list`（即 `git worktree list`）的实时输出为准（本机已知另有 `C:/src/Qt/AgentLauncher`、`C:/src/Qt/agent-workbench-dev2` 等旧工作树）。
-- **submodule 必须离线初始化**：`third_party/spdlog` 的远端在 gitee，内网不可达，新工作树里裸跑 `git submodule update --init` 必然失败，**不要在 worktree 里手动跑它**——`worktree-add.sh` 创建时用 `git -c` 把 submodule URL 临时指向主仓库已有的检出、从本地完成克隆（不污染任何 git config；每个工作树的 submodule gitdir 独立，位于 `.git/worktrees/<id>/modules/`，互不共享状态）。前提与例外：主仓库的 submodule 尚未检出时（无本地克隆源）需先在有网环境初始化一次；base 移到更新过 submodule 的提交时，先在主工作树 `git submodule update`，否则新工作树离线拿不到新 SHA。
+- **submodule 必须离线初始化**：`third_party/spdlog` 与 `third_party/SARibbon` 的远端都在 gitee，内网不可达，新工作树里裸跑 `git submodule update --init` 必然失败，**不要在 worktree 里手动跑它**——`worktree-add.sh` 创建时用 `git -c` 把 submodule URL 临时指向主仓库已有的检出、从本地完成克隆（不污染任何 git config；每个工作树的 submodule gitdir 独立，位于 `.git/worktrees/<id>/modules/`，互不共享状态）。前提与例外：主仓库的 submodule 尚未检出时（无本地克隆源）需先在有网环境初始化一次；base 移到更新过 submodule 的提交时，先在主工作树 `git submodule update`，否则新工作树离线拿不到新 SHA。
 - **状态随时在变，合并前必须实时核对**：`git status` 快照和「`dev` 检出在某处」这类前提只代表看到它的那一刻——并行会话可能在你任务中途切走分支、产生在途改动。每次合并前重新执行 `git -C <目标工作树> branch --show-current` 与 `git -C <目标工作树> status --porcelain`，以实时结果为准。
 - **合并回 `dev` 按实时核对结果选路径**：
   1. `dev` 检出在某个工作树、且该树干净 → `git -C <该工作树> merge <工作分支>`；

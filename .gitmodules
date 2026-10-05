@@ -4,3 +4,7 @@
 [submodule "third_party/SARibbon"]
 	path = third_party/SARibbon
 	url = https://gitee.com/czyt1988/SARibbon
+# SARibbon 的顶层 CMakeLists 在配置期向自己的源码树写入生成的
+# SARibbonBarVersionInfo.h（untracked），ignore=dirty 让它不至于把每个
+# git status 都染上「子模块有未跟踪内容」的噪声；指针移动仍然照常报告。
+	ignore = dirty
