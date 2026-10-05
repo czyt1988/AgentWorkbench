@@ -26,8 +26,18 @@ struct FavoriteEntry {
     qint64 createdAt = 0; ///< 创建时间（ms 纪元）
 };
 
+/// 编辑器偏好（tools.json 的 `editor` 段，M3 新增，缺键全取默认）：
+/// 查找替换的两个开关 + 上下文预算的窗口基数。
+struct EditorSettings {
+    // B2 查找替换的持久项
+    bool findCaseSensitive = false;   ///< 区分大小写
+    bool findWholeWords = false;      ///< 全词匹配
+    // C4 预算条的持久项（保守常量 32k，决策 D-9 小决策 2：不探测真实窗口）
+    int contextWindowTokens = 32000;  ///< 上下文窗口估算基数（>= 1000）
+};
+
 /// tools.json 的全部状态：工作区列表（MRU 序）、当前工作区、提示词草稿、
-/// Ribbon 界面偏好。
+/// Ribbon 界面偏好、编辑器偏好、体检规则开关。
 ///
 /// 启动时 load() 一次，之后每次变更立即原子写回（core::JsonStore）；
 /// 列表语义（MRU 换序、上限淘汰）与键位见 ToolsStore.cpp。
@@ -53,6 +63,18 @@ public:
     QString draft() const { return m_draft; }
     // Ribbon 界面偏好（缺键取默认值）
     RibbonSettings ribbon() const { return m_ribbon; }
+
+    // 编辑器偏好（M3：查找选项与预算基数；缺键取默认值）
+    EditorSettings editor() const { return m_editor; }
+    // 覆盖编辑器偏好并立即写盘
+    bool setEditor(const EditorSettings &editor);
+
+    // 体检规则开关：**只存已关闭的规则 id**（缺键 = 全开）。大多数用户
+    // 一条都不关，空数组是常态；「默认全开 + 记例外」让未来新增的规则
+    // 自动是开的，不需要迁移。
+    QStringList disabledCheckIds() const { return m_disabledChecks; }
+    // 整组覆盖体检规则的关闭集合并立即写盘
+    bool setDisabledCheckIds(const QStringList &ids);
 
     // 收藏夹（新在前；缺键为空列表）
     QList<FavoriteEntry> favorites() const { return m_favorites; }
@@ -89,6 +111,8 @@ private:
     QString m_current;     ///< 当前工作区的绝对路径；空串表示无
     QString m_draft;       ///< 提示词草稿全文
     RibbonSettings m_ribbon; ///< Ribbon 界面偏好
+    EditorSettings m_editor;   ///< 编辑器偏好（查找选项、预算基数）
+    QStringList m_disabledChecks;  ///< 已关闭的体检规则 id（其余全开）
     QList<FavoriteEntry> m_favorites;  ///< 收藏夹，新在前
 };
 

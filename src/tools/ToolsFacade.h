@@ -52,6 +52,22 @@ class ToolsFacade : public QObject
     Q_PROPERTY(int ribbonLastTabIndex READ ribbonLastTabIndex
                WRITE setRibbonLastTabIndex NOTIFY ribbonSettingsChanged)
 
+    // --- 编辑器偏好与体检开关（M3；写盘经 ToolsStore 的 editor/checks 段）
+    /// 查找是否区分大小写（B2）
+    Q_PROPERTY(bool findCaseSensitive READ findCaseSensitive
+               WRITE setFindCaseSensitive NOTIFY editorSettingsChanged)
+    /// 查找是否全词匹配（B2）
+    Q_PROPERTY(bool findWholeWords READ findWholeWords
+               WRITE setFindWholeWords NOTIFY editorSettingsChanged)
+    /// 上下文窗口估算基数（C4；>= 1000）
+    Q_PROPERTY(int contextWindowTokens READ contextWindowTokens
+               WRITE setContextWindowTokens NOTIFY editorSettingsChanged)
+    /// 已关闭的体检规则 id 列表（B9；缺键 = 全开）
+    Q_PROPERTY(QStringList disabledCheckIds READ disabledCheckIds
+               WRITE setDisabledCheckIds NOTIFY checksConfigChanged)
+    /// 某条体检规则是否开启（disabledCheckIds 的便捷读侧）
+    Q_INVOKABLE bool checkEnabled(const QString &ruleId) const;
+
 public:
     // 构造后立即可用：加载 tools.json、建好树模型并把当前工作区设为树根
     explicit ToolsFacade(const QString &dataRoot, QObject *parent = nullptr);
@@ -74,6 +90,13 @@ public:
     QString ribbonStyle() const;
     bool ribbonFollowAppTheme() const;
     int ribbonLastTabIndex() const;
+
+    // 编辑器偏好（Q_PROPERTY 的 READ 侧）
+    bool findCaseSensitive() const;
+    bool findWholeWords() const;
+    int contextWindowTokens() const;
+    // 体检规则开关（Q_PROPERTY 的 READ 侧）
+    QStringList disabledCheckIds() const;
 
     // 新增工作区：校验目录存在后交给 ToolsStore（MRU + 上限淘汰），并把树根
     // 切到新工作区；失败带可展示的原因。返回类型写全限定名的原因见 .cpp
@@ -132,6 +155,10 @@ public:
     void setRibbonStyle(const QString &style);
     void setRibbonFollowAppTheme(bool follow);
     void setRibbonLastTabIndex(int index);
+    void setFindCaseSensitive(bool caseSensitive);
+    void setFindWholeWords(bool wholeWords);
+    void setContextWindowTokens(int tokens);
+    void setDisabledCheckIds(const QStringList &ids);
 
 Q_SIGNALS:
     /**
@@ -162,6 +189,14 @@ Q_SIGNALS:
      * @brief 收藏夹变化时发射（新增、移除）
      */
     void favoritesChanged();
+    /**
+     * @brief 任一编辑器偏好变化时发射（三个值共用一条信号）
+     */
+    void editorSettingsChanged();
+    /**
+     * @brief 体检规则开关集变化时发射
+     */
+    void checksConfigChanged();
 
 private:
     // 把当前工作区设为树根；目录已不存在时不设根（树保持空）

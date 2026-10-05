@@ -295,6 +295,93 @@ void ToolsFacade::applyRibbon(const RibbonSettings &ribbon)
 }
 
 /**
+ * @brief 编辑器偏好与体检开关的读侧/写侧（M3）
+ *
+ * 与 Ribbon 偏好同一套纪律：直读直写 ToolsStore（立即落盘、低频动作），
+ * 落盘失败只记警告、界面状态以内存为准。三个编辑器值共用
+ * editorSettingsChanged()，体检开关单独一条 checksConfigChanged()
+ * （规则清单是独立的 UI 段）。
+ */
+///@{
+bool ToolsFacade::findCaseSensitive() const
+{
+    return m_store.editor().findCaseSensitive;
+}
+
+bool ToolsFacade::findWholeWords() const
+{
+    return m_store.editor().findWholeWords;
+}
+
+int ToolsFacade::contextWindowTokens() const
+{
+    return m_store.editor().contextWindowTokens;
+}
+
+QStringList ToolsFacade::disabledCheckIds() const
+{
+    return m_store.disabledCheckIds();
+}
+
+bool ToolsFacade::checkEnabled(const QString &ruleId) const
+{
+    return !m_store.disabledCheckIds().contains(ruleId);
+}
+
+void ToolsFacade::setFindCaseSensitive(bool caseSensitive)
+{
+    if (m_store.editor().findCaseSensitive == caseSensitive) {
+        return;
+    }
+    EditorSettings editor = m_store.editor();
+    editor.findCaseSensitive = caseSensitive;
+    if (!m_store.setEditor(editor)) {
+        qWarning() << "[tools] could not persist the editor settings";
+    }
+    Q_EMIT editorSettingsChanged();
+}
+
+void ToolsFacade::setFindWholeWords(bool wholeWords)
+{
+    if (m_store.editor().findWholeWords == wholeWords) {
+        return;
+    }
+    EditorSettings editor = m_store.editor();
+    editor.findWholeWords = wholeWords;
+    if (!m_store.setEditor(editor)) {
+        qWarning() << "[tools] could not persist the editor settings";
+    }
+    Q_EMIT editorSettingsChanged();
+}
+
+void ToolsFacade::setContextWindowTokens(int tokens)
+{
+    // 与 store 读侧同一夹法：0 会把预算条变成「永远超限」。
+    const int clamped = qBound(1000, tokens, 1000000);
+    if (m_store.editor().contextWindowTokens == clamped) {
+        return;
+    }
+    EditorSettings editor = m_store.editor();
+    editor.contextWindowTokens = clamped;
+    if (!m_store.setEditor(editor)) {
+        qWarning() << "[tools] could not persist the editor settings";
+    }
+    Q_EMIT editorSettingsChanged();
+}
+
+void ToolsFacade::setDisabledCheckIds(const QStringList &ids)
+{
+    if (m_store.disabledCheckIds() == ids) {
+        return;
+    }
+    if (!m_store.setDisabledCheckIds(ids)) {
+        qWarning() << "[tools] could not persist the checks config";
+    }
+    Q_EMIT checksConfigChanged();
+}
+///@}
+
+/**
  * @brief 新增工作区并切换到它
  *
  * 返回类型必须写全限定名 awb::core::OpResult：Qt 5 的 moc 按头文件书写

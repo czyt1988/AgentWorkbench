@@ -15,20 +15,31 @@ namespace {
  * @brief tools.json 的键名
  *
  * workspaces（字符串数组，MRU 在前）、current（当前工作区绝对路径）、
- * draft（提示词草稿全文）、ribbon（Ribbon 界面偏好对象）。键名是磁盘
- * 格式的一部分，改键名等于丢用户数据。
+ * draft（提示词草稿全文）、ribbon（Ribbon 界面偏好对象）、editor（编辑器
+ * 偏好对象，M3）、checks（体检规则开关对象，M3）。键名是磁盘格式的一
+ * 部分，改键名等于丢用户数据。
  */
 constexpr auto kWorkspacesKey = "workspaces";
 constexpr auto kCurrentKey = "current";
 constexpr auto kDraftKey = "draft";
 constexpr auto kRibbonKey = "ribbon";
 constexpr auto kFavoritesKey = "favorites";
+constexpr auto kEditorKey = "editor";
+constexpr auto kChecksKey = "checks";
 
 // ribbon 段内的键名与样式档位的合法取值（单行 / 两行 / 三行）。
 constexpr auto kRibbonCollapsedKey = "collapsed";
 constexpr auto kRibbonStyleKey = "style";
 constexpr auto kRibbonFollowThemeKey = "followAppTheme";
 constexpr auto kRibbonLastTabKey = "lastTabIndex";
+
+// editor 段内的键名。
+constexpr auto kEditorCaseKey = "findCaseSensitive";
+constexpr auto kEditorWholeWordsKey = "findWholeWords";
+constexpr auto kEditorContextWindowKey = "contextWindowTokens";
+
+// checks 段内的键名（只存已关闭的规则 id）。
+constexpr auto kChecksDisabledKey = "disabled";
 
 // favorites 数组项的键名。
 constexpr auto kFavoriteTitleKey = "title";
@@ -57,6 +68,26 @@ RibbonSettings ribbonFromJson(const QJsonObject &object)
     const int tab = object.value(QLatin1String(kRibbonLastTabKey)).toInt(0);
     ribbon.lastTabIndex = tab > 0 ? tab : 0;
     return ribbon;
+}
+
+/**
+ * @brief 从 JSON 对象还原编辑器偏好，坏值一律落到默认
+ *
+ * 与 ribbon 段同一套读侧容错纪律。窗口基数夹在 [1000, 1,000,000]——
+ * 手改文件改出 0 或负数没有意义，改出天文数字则预算条永远显示安全。
+ */
+EditorSettings editorFromJson(const QJsonObject &object)
+{
+    EditorSettings editor;
+    editor.findCaseSensitive =
+        object.value(QLatin1String(kEditorCaseKey)).toBool(false);
+    editor.findWholeWords =
+        object.value(QLatin1String(kEditorWholeWordsKey)).toBool(false);
+    const int window =
+        object.value(QLatin1String(kEditorContextWindowKey)).toInt(
+            editor.contextWindowTokens);
+    editor.contextWindowTokens = qBound(1000, window, 1000000);
+    return editor;
 }
 
 /**
@@ -150,6 +181,8 @@ void ToolsStore::load()
     m_current.clear();
     m_draft.clear();
     m_ribbon = RibbonSettings();
+    m_editor = EditorSettings();
+    m_disabledChecks.clear();
 
     const QJsonObject root = core::JsonStore::readFile(storeFilePath());
     const QJsonArray list = root.value(QLatin1String(kWorkspacesKey)).toArray();
@@ -166,6 +199,17 @@ void ToolsStore::load()
     m_draft = root.value(QLatin1String(kDraftKey)).toString();
     m_ribbon = ribbonFromJson(
         root.value(QLatin1String(kRibbonKey)).toObject());
+    m_editor = editorFromJson(
+        root.value(QLatin1String(kEditorKey)).toObject());
+    // checks 段读侧：只收「已关闭」的规则 id 字符串，去重保序。
+    const QJsonArray disabled = root.value(QLatin1String(kChecksKey))
+            .toObject().value(QLatin1String(kChecksDisabledKey)).toArray();
+    for (const QJsonValue &value : disabled) {
+        if (value.isString() && !value.toString().isEmpty()
+            && !m_disabledChecks.contains(value.toString())) {
+            m_disabledChecks.append(value.toString());
+        }
+    }
     m_favorites = favoritesFromJson(
         root.value(QLatin1String(kFavoritesKey)).toArray());
 
@@ -319,6 +363,36 @@ bool ToolsStore::removeFavorite(const QString &title, const QString &body)
 }
 
 /**
+ * @brief 覆盖编辑器偏好并立即写盘
+ * @param editor 新的偏好值
+ * @return 落盘是否成功；内容没变时直接返回 true（不写盘）
+ */
+bool ToolsStore::setEditor(const EditorSettings &editor)
+{
+    if (m_editor.findCaseSensitive == editor.findCaseSensitive
+        && m_editor.findWholeWords == editor.findWholeWords
+        && m_editor.contextWindowTokens == editor.contextWindowTokens) {
+        return true;
+    }
+    m_editor = editor;
+    return save();
+}
+
+/**
+ * @brief 整组覆盖体检规则的关闭集合并立即写盘
+ * @param ids 已关闭的规则 id 列表（其余视为开启）
+ * @return 落盘是否成功；集合没变时直接返回 true（不写盘）
+ */
+bool ToolsStore::setDisabledCheckIds(const QStringList &ids)
+{
+    if (m_disabledChecks == ids) {
+        return true;
+    }
+    m_disabledChecks = ids;
+    return save();
+}
+
+/**
  * @brief 把当前全部状态写回 tools.json
  *
  * 经 core::JsonStore 原子写（临时文件 + 替换）。
@@ -341,6 +415,16 @@ bool ToolsStore::save()
     ribbon[QLatin1String(kRibbonFollowThemeKey)] = m_ribbon.followAppTheme;
     ribbon[QLatin1String(kRibbonLastTabKey)] = m_ribbon.lastTabIndex;
     root[QLatin1String(kRibbonKey)] = ribbon;
+    QJsonObject editor;
+    editor[QLatin1String(kEditorCaseKey)] = m_editor.findCaseSensitive;
+    editor[QLatin1String(kEditorWholeWordsKey)] = m_editor.findWholeWords;
+    editor[QLatin1String(kEditorContextWindowKey)] =
+        m_editor.contextWindowTokens;
+    root[QLatin1String(kEditorKey)] = editor;
+    QJsonObject checks;
+    checks[QLatin1String(kChecksDisabledKey)] =
+        QJsonArray::fromStringList(m_disabledChecks);
+    root[QLatin1String(kChecksKey)] = checks;
     QJsonArray favorites;
     for (const FavoriteEntry &entry : std::as_const(m_favorites)) {
         favorites.append(favoriteToJson(entry));

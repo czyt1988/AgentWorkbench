@@ -13,6 +13,7 @@
 #include <memory>
 
 using awb::core::Paths;
+using awb::tools::EditorSettings;
 using awb::tools::ToolsStore;
 
 /// 测 tools::ToolsStore 的 tools.json 状态语义：MRU 换序、20 上限淘汰、
@@ -235,6 +236,96 @@ private Q_SLOTS:
         store.removeFavorite(
             store.favorites().at(0).title, store.favorites().at(0).body);
         QCOMPARE(store.favorites().size(), ToolsStore::kMaxFavorites - 1);
+    }
+
+    /// M3：editor 段往返（缺键默认、坏值夹取、内容不变不写盘的幂等）。
+    void testEditorSettingsRoundTrip()
+    {
+        {
+            ToolsStore store(Paths::dataRoot());
+            store.load();
+            // 缺键全默认（写盘前先读：默认值不落盘）。
+            QVERIFY(!store.editor().findCaseSensitive);
+            QVERIFY(!store.editor().findWholeWords);
+            QCOMPARE(store.editor().contextWindowTokens, 32000);
+
+            EditorSettings editor;
+            editor.findCaseSensitive = true;
+            editor.findWholeWords = true;
+            editor.contextWindowTokens = 128000;
+            QVERIFY(store.setEditor(editor));
+        }
+        ToolsStore reloaded(Paths::dataRoot());
+        reloaded.load();
+        QVERIFY(reloaded.editor().findCaseSensitive);
+        QVERIFY(reloaded.editor().findWholeWords);
+        QCOMPARE(reloaded.editor().contextWindowTokens, 128000);
+
+        // 坏值：窗口基数夹回合法区间（0 → 1000；天文数字 → 1000000）。
+        {
+            QFile file(storeJsonPath());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QJsonObject root =
+                QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+            QJsonObject editor = root.value(QStringLiteral("editor")).toObject();
+            editor[QStringLiteral("contextWindowTokens")] = 0;
+            root[QStringLiteral("editor")] = editor;
+            QFile writer(storeJsonPath());
+            QVERIFY(writer.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            writer.write(QJsonDocument(root).toJson());
+            writer.close();
+        }
+        ToolsStore clamped(Paths::dataRoot());
+        clamped.load();
+        QCOMPARE(clamped.editor().contextWindowTokens, 1000);
+    }
+
+    /// M3：checks 段——默认全开、只存已关闭的 id、整组覆盖、坏元素跳过。
+    void testChecksDisabledIds()
+    {
+        {
+            ToolsStore store(Paths::dataRoot());
+            store.load();
+            QVERIFY(store.disabledCheckIds().isEmpty());
+
+            store.setDisabledCheckIds(
+                { QStringLiteral("vague-wording"),
+                  QStringLiteral("trailing-whitespace") });
+        }
+        ToolsStore reloaded(Paths::dataRoot());
+        reloaded.load();
+        QCOMPARE(reloaded.disabledCheckIds(),
+                 QStringList({ QStringLiteral("vague-wording"),
+                               QStringLiteral("trailing-whitespace") }));
+
+        // 整组覆盖（清空 = 全开）。
+        reloaded.setDisabledCheckIds({});
+        QVERIFY(reloaded.disabledCheckIds().isEmpty());
+        // 坏元素（非字符串、空串、重复）在重载侧被跳过/去重。
+        {
+            QFile file(storeJsonPath());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QJsonObject root =
+                QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+            QJsonObject checks = root.value(QStringLiteral("checks")).toObject();
+            QJsonArray disabled;
+            disabled.append(QStringLiteral("a"));
+            disabled.append(QStringLiteral("a"));
+            disabled.append(QString());
+            disabled.append(42);
+            checks[QStringLiteral("disabled")] = disabled;
+            root[QStringLiteral("checks")] = checks;
+            QFile writer(storeJsonPath());
+            QVERIFY(writer.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            writer.write(QJsonDocument(root).toJson());
+            writer.close();
+        }
+        ToolsStore dirty(Paths::dataRoot());
+        dirty.load();
+        QCOMPARE(dirty.disabledCheckIds(),
+                 QStringList{QStringLiteral("a")});
     }
 
 private:
