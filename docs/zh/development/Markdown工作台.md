@@ -1,16 +1,16 @@
 # Markdown 工作台
 
-Markdown 工作台是一个**独立窗口**，把原先的提示词撰写页与 Markdown 预览窗合为一体：一个窗口、两种预设、多个会话。**提示词模式**对着工作区文件树撰写提示词；**文档模式**阅读并编辑 Markdown 文件，一个文件一个 tab。它从侧栏的 **Markdown** 条目、工作区文件树、或系统文件管理器里双击已关联的 `.md` 文件打开，不是 `Workspace` 里的一个页面。
+Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提示词撰写页与 Markdown 预览窗合为一体：一个页面、两种预设、多个会话。**提示词模式**对着工作区文件树撰写提示词；**文档模式**阅读并编辑 Markdown 文件，一个文件一个 tab。它从侧栏 **Agent Tools** 分组下的 **Prompt Writing** 条目、工作区文件树、或系统文件管理器里双击已关联的 `.md` 文件进入。它是 `keepAlive` 页：首次进入时创建，之后常驻到应用关闭——编辑器的撤销栈、滚动位置与分屏比例在切页之间原样保留。
 
-它为三个具体理由而存在。在提示词里引用文件，通常要手拼相对路径——文件树经拖放或双击插入 `` `./相对路径` `` 引用。直接把提示词敲进 agent CLI，有在半成品上误触回车的风险——因此本窗口**没有发送动作**：回车只换行，什么都不会离开窗口，交付只有复制。以及：几百 KB 的文档，首屏时间被**第一趟**而不是**整篇文档**决定——「渲染器：分趟、攒批与可见性」一节写的是这句承诺怎么兑现，数字与实验过程记在调研记录里（`docs/research/markdown-preview-runtime.md`，调研记录只写英文、不做镜像）。
+它为三个具体理由而存在。在提示词里引用文件，通常要手拼相对路径——文件树经拖放或双击插入 `` `./相对路径` `` 引用。直接把提示词敲进 agent CLI，有在半成品上误触回车的风险——因此工作台**没有发送动作**：回车只换行，什么都不会离开这个页面，交付只有复制。以及：几百 KB 的文档，首屏时间被**第一趟**而不是**整篇文档**决定——「渲染器：分趟、攒批与可见性」一节写的是这句承诺怎么兑现，数字与实验过程记在调研记录里（`docs/research/markdown-preview-runtime.md`，调研记录只写英文、不做镜像）。
 
 用户视角见 [Markdown 工作台](../guide/Markdown工作台.md)。
 架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
 [前端设计](../architecture/前端设计.md)。
 
-## 这个窗口是什么，以及它不是什么
+## 这个页面是什么，以及它不是什么
 
-- **一个窗口，两种预设。** 预设是同一套代码的两份界面配置，不是两个应用：
+- **一个页面，两种预设。** 预设是同一套代码的两份界面配置，不是两个应用：
 
   | | 提示词模式 | 文档模式 |
   |---|---|---|
@@ -18,22 +18,22 @@ Markdown 工作台是一个**独立窗口**，把原先的提示词撰写页与 
   | Ribbon | 展开（默认单行） | 折叠为 tab 行 |
   | 中间区 | 提示词草稿，带 预览 / 分栏 / 源码 | 打开的文档们，一 tab 一份，带 预览 / 分栏 / 源码 |
 
-  右侧是大纲面板，跟在大纲开关后面，服务**活跃会话**（草稿也有标题）。从侧栏或启动页打开窗口得到提示词模式；从工作区文件树打开一份 Markdown 文件得到文档模式（或让活着的窗口切到那个文件）。切预设的入口是 Ribbon 视图页的 **Full Tools** 开关；渲染不了的文档预设（无能力、无文件 tab）会退回提示词模式，而不是亮出一个坏窗口。用户视角里没有「模式」这个概念——只有一个窗口、工具多一点少一点。
-- **窗口关掉即销毁，会话不销毁。** `MainWindow.qml` 用一个 `Loader` 持有它，`active` 不再包含 `markdown.available`——唯一把它置假的是窗口自己报到关闭。QML 的 `Window` 关不掉自己，所以 `onClosing` 的每一条放行路径都调 `MarkdownPreviewController::notifyWindowClosed()`，而根本没有关闭事件的那些路径（例如退出应用）由 `Component.onDestruction` 再报一次——报到是幂等的。关窗把会话收进控制器的内存里睡觉；重开窗口直接把它们捡回来，未保存的改动也在。只有关 tab 才真正销毁一个会话。两次使用之间常驻一个活视图（连带它那约 4 MB 的运行时）等于给每次启动都加税。
+  右侧是大纲面板，跟在大纲开关后面，服务**活跃会话**（草稿也有标题）。从侧栏进入得到提示词模式；从工作区文件树打开一份 Markdown 文件得到文档模式（或让活着的工作台切到那个文件）。切预设的入口是 Ribbon 视图页的 **Full Tools** 开关；渲染不了的文档预设（无能力、无文件 tab）会退回提示词模式，而不是亮出一片坏区。用户视角里没有「模式」这个概念——只有同一个工作台、工具多一点少一点。
+- **页面常驻，会话也常驻。** 页面是 `Workspace` 常驻 Repeater 里的一个 `keepAlive` 条目：首次进入（导航或预览请求）时实例化，之后活到进程退出，别的页面在前面时仅仅隐藏。`Component.onCompleted` 报一次 `MarkdownPreviewController::notifyWindowOpened()`——从此控制器排队命令，页面里的 `Connections` 即使在隐藏状态也泵它们（预览面活着，往返照常；没有任何东西要等到重新可见才处理）。一轮运行里会话从不睡觉；它们随进程一起死。只有关 tab 才真正销毁一个会话。常驻的代价是一个 WebEngine 视图（连带它那约 4 MB 的运行时）在首次进入后一直温着——这是「切页不丢写作现场」的价格，也是页面**不**在启动时就创建的原因：只有用户第一次需要它时它才存在。
 - **提示词模式在每种构建里都可用。** 它是纯 QML 编辑器加高亮；Qt 5 与无 WebEngine 的构建里预览面根本不装载（进程里不存在 `WebEngineView`）、视图切换器不出现，文档模式的入口如实降级——文件树的菜单项不出现，打开请求报出原因（见「能力门禁」一节）。
 - **一个渲染面，多个会话。** 控制器是会话容器：每个会话带着自己的文档、块序列、大纲、rev、每 tab 三态与导出目录，按 `docId` 寻址。同一时刻只有一个**活跃会话**；切换会话整篇重建页面（`setDocument`）。`doc.json` 供活跃会话，而 `asset/<docId>/…` 对**所有活着的会话**解析——刚切走的 tab 的图片请求可能还在飞。每个内嵌视图都是一个 Chromium 帧、各自带着渲染进程那侧的内存，所以只有一个且复用，不做池化。
 - **文件 tab 上限 8 个。** 同一路径再开是激活既有 tab（按绝对路径去重）；开第 9 份会被拒绝并说明原因，而不是静默挤掉最久没看的——用户正在改的 tab 不该因为又开了一份文件而消失。
 - **存盘不能改写文件。** 一份 CRLF + BOM 的 README，Ctrl+S 之后必须还是 CRLF + BOM——文档管线在载入时记下字节形态、存盘时按原样编回（见「纯层」一节）。草稿则从不直接碰文件系统：它活在 `tools.json` 里。
 - **不是通用 HTML 查看器。** 只有 Markdown 后缀的路径会被接受（`MarkdownPreviewController::isMarkdownPath()`——后缀清单唯一的一处，同时决定文件树菜单项与命令行文件参数）。用这块表面渲染任意 HTML 等于执行文档自带的脚本，而渲染器的 `html: false` 明确拒绝这件事。
-- **不与 agent 耦合。** 窗口不与任何 agent 通信、不运行任何东西，除了用户显式打开的那些文档之外不编辑任何仓库文件。它的写入只有 `tools.json`（工作区记忆、草稿、Ribbon 偏好）、`markdown_session.json`（会话快照）、系统剪贴板、文档自己的存盘，以及导出副本。
+- **不与 agent 耦合。** 页面不与任何 agent 通信、不运行任何东西，除了用户显式打开的那些文档之外不编辑任何仓库文件。它的写入只有 `tools.json`（工作区记忆、草稿、Ribbon 偏好）、`markdown_session.json`（会话快照）、系统剪贴板、文档自己的存盘，以及导出副本。
 
 ## Ribbon
 
-窗口的动作住在顶部一条命令带里。`AWB_ENABLE_RIBBON` 的构建里它是 SARibbon 的 `RibbonBar`（`WorkbenchRibbon.qml`）；其余场合——以及没注册过 SARibbon 类型的单测引擎——它是普通工具栏 `WorkbenchToolbar.qml`。本节记录 SARibbon 怎么进构建、每个标签页里有什么、以及集成必须遵守的约束。
+页面的动作住在顶部一条命令带里。`AWB_ENABLE_RIBBON` 的构建里它是 SARibbon 的 `RibbonBar`（`WorkbenchRibbon.qml`）；其余场合——以及没注册过 SARibbon 类型的单测引擎——它是普通工具栏 `WorkbenchToolbar.qml`。本节记录 SARibbon 怎么进构建、每个标签页里有什么、以及集成必须遵守的约束。
 
 ### SARibbon 怎么引入
 
-- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `f89a02e`**——刻意不取上游顶端：顶端在 QML 模块打开时强制引入第二个第三方依赖（QWindowKit），而工作台窗口保留系统原生边框。
+- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `d3d45d8`**（上游 dev-3.0 顶端，2026-10-07）——它带着本集成需要的 ribbon 修复：面板子项顺序错乱、面板内分隔线从不渲染、注册 category 的 hit-test 可见性。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
 - `AWB_ENABLE_RIBBON`（默认 `ON`，声明在 `cmake/AwbOptions.cmake`）负责接线：`SARIBBON_BUILD_QML=ON`、`SARIBBON_BUILD_WIDGETS` / `SARIBBON_BUILD_EXAMPLES` / `SARIBBON_BUILD_TESTS` / `SARIBBON_INSTALL` = `OFF`、静态库。只编 QML 模块——SARibbon 的 QWidget 部分永远进不了二进制。
 - `app/main.cpp` 在 `engine.load()` **之前**调 `saRibbonRegisterQmlTypes(&engine)`。注册是命令式的（没有 qmldir 插件）；函数自带重复调用守卫。
 - 领域库不链 SARibbon。`awb_tools` 与 `awb_markdown` 照旧只依赖 `awb_core` + `awb_theme`；集成点在 `app/`（CMake 链接 + 注册）与命令带 QML（`import SARibbon`）。第三方模块因此进不了领域层。
@@ -42,29 +42,29 @@ Markdown 工作台是一个**独立窗口**，把原先的提示词撰写页与 
 
 命令带有三个标签页：**开始**、**提示词工具** 与 **视图**。
 
-- **开始** 装着日常编辑全集：**Copy Prompt**（交付路径——标题行的快速访问栏里还有第二个 **Copy**）、剪贴板组 **Paste / Cut / Copy Text**、**Undo / Redo**、字符格式 **Bold / Italic / Strike / Code**（四个都 `checkable`，`checked` 绑 `MarkdownEdit` 的光标查询——查询侧是 checkable 的入场券）、**Link**、段落组 **Heading**（菜单：1/2/3 与取消）、**Bullets / Numbered / Task List / Quote / Divider**、插入组 **Fence**（语言菜单：无、C++、Python、JavaScript、QML、Bash）与 **Table**（3 列），外加 **Find**（按预设分流——文档形态开预览搜索，提示词形态开草稿查找条）、**Save**（文档形态、可编辑文件）与 **Clear**（提示词形态、草稿非空：确认 + 可撤销守卫）。每一个动作都转发到窗口的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
-- **提示词工具** 是这扇窗口的第一个**上下文标签页**——一个 `RibbonContextCategory`，`active` 跟随提示词预设；文档形态下它整个不出现（决策 D-2：模板与收藏是草稿的工具，别人的文档不是往里插东西的地方）。它装着 **Insert Template**（展开左栏的模板段并聚焦检索框——左栏就是选择器）、**Save as Template**、**Save Favorite**，以及 **Check Prompt**（B9 的触发；命中清单在右栏）。
+- **开始** 装着日常编辑全集：**Copy Prompt**（交付路径——标题行的快速访问栏里还有第二个 **Copy**）、剪贴板组 **Paste / Cut / Copy Text**、**Undo / Redo**、字符格式 **Bold / Italic / Strike / Code**（四个都 `checkable`，`checked` 绑 `MarkdownEdit` 的光标查询——查询侧是 checkable 的入场券）、**Link**、段落组 **Heading**（菜单：1/2/3 与取消）、**Bullets / Numbered / Task List / Quote / Divider**、插入组 **Fence**（语言菜单：无、C++、Python、JavaScript、QML、Bash）与 **Table**（3 列），外加 **Find**（按预设分流——文档形态开预览搜索，提示词形态开草稿查找条）、**Save**（文档形态、可编辑文件）与 **Clear**（提示词形态、草稿非空：确认 + 可撤销守卫）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
+- **提示词工具** 是工作台的第一个**上下文标签页**——一个 `RibbonContextCategory`，`active` 跟随提示词预设；文档形态下它整个不出现（决策 D-2：模板与收藏是草稿的工具，别人的文档不是往里插东西的地方）。它装着 **Insert Template**（展开左栏的模板段并聚焦检索框——左栏就是选择器）、**Save as Template**、**Save Favorite**，以及 **Check Prompt**（B9 的触发；命中清单在右栏）。它的 `contextColor` 是 `theme.success`，刻意不用 `theme.accent`：SARibbon 把整条标题行涂成 `RibbonTheme.accent`（主题桥把应用 accent 推了进去），上下文色与 accent 相同会让色带与 tab 文字全部隐形——2026-10 本集成踩过的「上下文页与普通页混叠」缺陷正是这么来的。
 - **视图** 装着开关：**Preview / Split / Source** 三态与大纲开关（对**活跃会话**生效——草稿也渲染）、**Full Tools**（预设切换：开 = 提示词模式，关 = 文档模式）、**Collapse**（把整条功能带折叠成 tab 行）、**Style**（单行 / 两行 / 三行）、**Follow Theme**（功能带的颜色是否跟随应用主题）。
 
 单行是默认样式档，它的后果在加按钮前值得知道：面板标题隐藏，所有按钮不论 `proportion` 一律按小尺寸渲染——层级靠分组与按钮顺序表达，文字必须短。`minimumMode` 把功能带折叠成一行 tab；文档模式预设默认折叠，点 tab 行即再展开。
 
 ### 主题桥接
 
-两套设计系统只在一个点相遇。`WorkbenchRibbon.qml` 把应用 `theme` 推进 `RibbonTheme`——accent、内容底色、文字色，以及深浅判定——每次 `Theme::changed` 推一次，受 **Follow Theme** 偏好（`tools.ribbonFollowAppTheme`，默认开）门控；关掉时 ribbon 保留自己的调色板。桥接是**单向**的（应用 → ribbon），没有反向同步，也没有第二套自动跟随。窗口自己的 QML 照旧只用 `theme.*` 令牌；「QML 无字面颜色」的架构门禁对本仓源码的约束一寸不变。
+两套设计系统只在一个点相遇。`WorkbenchRibbon.qml` 把应用 `theme` 推进 `RibbonTheme`——accent、内容底色、文字色，以及深浅判定——每次 `Theme::changed` 推一次，受 **Follow Theme** 偏好（`tools.ribbonFollowAppTheme`，默认开）门控；关掉时 ribbon 保留自己的调色板。桥接是**单向**的（应用 → ribbon），没有反向同步，也没有第二套自动跟随。页面自己的 QML 照旧只用 `theme.*` 令牌；「QML 无字面颜色」的架构门禁对本仓源码的约束一寸不变。
 
 ### 命令带的约束
 
-- ribbon 是独立组件，由窗口经 `Loader` **按资源 URL** 装载——与预览面同一个模式。`WorkbenchRibbon.qml` 只在 `AWB_ENABLE_RIBBON` 的构建里登记进资源清单；装载失败（开关关着，或没注册过 SARibbon 类型的测试引擎）时窗口改载 `WorkbenchToolbar.qml`。装载发生在窗口创建那一刻、绝不按需反复切换：SARibbon 的叶子在 `Component.onCompleted` 期间创建，按需创建的 bar 会因上下文早死而亡。
-- 两张皮都是对同一窗口动作层的纯转发——谁都不许长自己的行为，否则两种构建各自漂移。按钮集与右键菜单、两个 ribbon 标签页对齐。
+- ribbon 是独立组件，由页面经 `Loader` **按资源 URL** 装载——与预览面同一个模式。`WorkbenchRibbon.qml` 只在 `AWB_ENABLE_RIBBON` 的构建里登记进资源清单；装载失败（开关关着，或没注册过 SARibbon 类型的测试引擎）时页面改载 `WorkbenchToolbar.qml`。装载发生在页面创建那一刻、绝不按需反复切换：SARibbon 的叶子在 `Component.onCompleted` 期间创建，按需创建的 bar 会因上下文早死而亡。
+- 两张皮都是对同一页面动作层的纯转发——谁都不许长自己的行为，否则两种构建各自漂移。按钮集与右键菜单、两个 ribbon 标签页对齐。
 - 不在 `RibbonPanel` 里声明 `Popup`/`Dialog`/`Menu`——bar 的 `componentComplete` 期间创建的弹窗会变成独立原生窗口、毁掉窗口场景。凡是弹窗形状的都经 `Loader` 创建。
-- Ribbon 菜单只收 `RibbonMenuItem`；`AMenu` 家族留给窗口内上下文菜单。一个动作只有一处出口——同一个动作不许同时出现在命令带标签页和侧面板里，否则文案与启用态必然漂移。
-- SARibbon 自带的字符串不进本仓 `.ts`，中文环境下是英文。窗口除这条 bar 本体外不引入任何 ribbon 自带界面。
+- Ribbon 菜单只收 `RibbonMenuItem`；`AMenu` 家族留给工作台内的上下文菜单。一个动作只有一处出口——同一个动作不许同时出现在命令带标签页和侧面板里，否则文案与启用态必然漂移。
+- SARibbon 自带的字符串不进本仓 `.ts`，中文环境下是英文。工作台除这条 bar 本体外不引入任何 ribbon 自带界面。
 
 ## 会话：一个容器，一个渲染面
 
 `MarkdownPreviewController`（QML 单例 `Markdown`）是一台**会话容器 + 单渲染面**。一个**会话**就是用户正在看的一份文档：
 
-- **文件会话**——磁盘上的一个文件，经 `openFile()` 打开（文件树、启动页的最近文档行、命令行参数、第二实例消息都落到这里）；每个会话有生成的 `docId`（`d1`、`d2`…）。
+- **文件会话**——磁盘上的一个文件，经 `openFile()` 打开（文件树、命令行参数、第二实例消息都落到这里）；每个会话有生成的 `docId`（`d1`、`d2`…）。
 - **草稿会话**——一份**虚拟文档**（`MarkdownDocument::setVirtual()`）承载提示词草稿，`docId` 固定为 `"draft"`。它不占 tab、不能由 tab 关闭（它是提示词形态的本体），可编辑、可渲染——渲染管线吃文本不吃路径。草稿的默认三态是**分栏**（它存在的意义就是写，preview 起步会把编辑器整个藏掉）；无预览能力的构建退到源码。
 
 每个会话拥有自己的 `MarkdownDocument`、块序列、大纲、`rev`、每 tab 三态、导出目录与 `doc.json` 载荷缓存。QML 属性面（`filePath`、`dirty`、`mode`、`outline`…）反映**活跃会话**；`tabs` 是 tab 条的模型——`[{docId, title, path, mode, dirty, active}]`，按打开顺序，只装文件（`path` 与 `mode` 两个字段是给会话文件用的；界面读其余的）。
@@ -75,8 +75,8 @@ Markdown 工作台是一个**独立窗口**，把原先的提示词撰写页与 
 
 - 对已有会话的路径再调 `openFile()` 是**激活**它（tab 已在条上、未保存的改动也还在），而不是再开一个 tab；否则建会话、激活它、发 `windowRequested()`。上限是 8 个文件会话，第 9 份被拒绝并说明原因。
 - `closeSession(docId)` 关的是** tab**——视图收起来，磁盘文件不动。关的是活跃 tab 时顺位激活最近打开的剩余文件会话；一个不剩就退到草稿。
-- `notifyWindowClosed()` 让会话睡觉：在飞命令放下（没有人泵它们了），会话、tab 与脏标记全部保留。重开窗口直接从 `doc.json` 取回活跃会话。只有重启才需要会话文件（见下节）。
-- 草稿由 `setDraftText()` 喂入（窗口的草稿编辑器，经 200 ms 防抖——一次敲键要整篇重切块，与文件编辑器同一个 CPU 陷阱）；草稿正文的持久化仍在 tools 域（`tools.draft`，它自己的 500 ms 防抖）。
+- `notifyWindowClosed()` 放下在飞命令、让会话睡觉。应用里页面从不报关闭——它常驻到进程退出，会话活满整轮；这个报点为拆卸路径与测试 harness 而存在。只有重启才需要会话文件（见下节）。
+- 草稿由 `setDraftText()` 喂入（页面的草稿编辑器，经 200 ms 防抖——一次敲键要整篇重切块，与文件编辑器同一个 CPU 陷阱）；草稿正文的持久化仍在 tools 域（`tools.draft`，它自己的 500 ms 防抖）。
 
 下图是一个会话跨越打开、切换、编辑、外部修改、保存与关闭的一生：
 
@@ -120,7 +120,7 @@ sequenceDiagram
 
 中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则）。右侧依次是视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单——按当前能力出场，而切换器如今**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线。
 
-草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。窗口把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
+草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。页面把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
 
 ## 会话持久化（跨启动）
 
@@ -131,16 +131,16 @@ sequenceDiagram
 - 预设与每预设的面板/Ribbon 折叠状态；
 - 最近文档 MRU（20 条），每次成功打开都会触碰。
 
-恢复只发生一次：本轮应用第一次创建窗口时（之后的销毁重建走控制器内存里的会话）——`WorkbenchContext::restoreMarkdownSession()` 按顺序逐条重开（已不存在的文件、或已删除的草稿跳过并记一条日志，绝不让整组恢复失败），套用每个 tab 记录的三态，最后激活记录的激活位。草稿 tab 的标题与正文来自 tools 域，`WorkbenchContext::setToolsFacade()` 就是那条缝（装配层是唯一同时看得见两个域的层——域模块互不 include；单测里门面缺席，草稿 tab 干脆跳过）。写盘在 tab/激活/预设/面板变化后防抖 800 ms（脏标记的翻转搭同一趟防抖；逐键持久化买不到任何东西），关窗时再加一次不防抖的 flush。损坏的文件整体作废、记一条警告：布局状态不值得抢救。隐私口径是刻意的——只有本地路径与草稿 id、无正文、不加密、不清理：「找回上次开着的」就是全部语义。
+恢复只发生一次：本轮应用第一次创建页面时（之后的一切走控制器内存里的会话）——`WorkbenchContext::restoreMarkdownSession()` 按顺序逐条重开（已不存在的文件、或已删除的草稿跳过并记一条日志，绝不让整组恢复失败），套用每个 tab 记录的三态，最后激活记录的激活位。草稿 tab 的标题与正文来自 tools 域，`WorkbenchContext::setToolsFacade()` 就是那条缝（装配层是唯一同时看得见两个域的层——域模块互不 include；单测里门面缺席，草稿 tab 干脆跳过）。写盘在 tab/激活/预设/面板变化后防抖 800 ms（脏标记的翻转搭同一趟防抖；逐键持久化买不到任何东西）。损坏的文件整体作废、记一条警告：布局状态不值得抢救。隐私口径是刻意的——只有本地路径与草稿 id、无正文、不加密、不清理：「找回上次开着的」就是全部语义。
 
-**启动页**显示 MRU 的前 6 条（文件名 + 父目录，点一下开成 tab），`WorkbenchContext::recentMarkdownDocuments()` 是它唯一的数据源。
+**最近文档** MRU 由 `WorkbenchContext::recentMarkdownDocuments()` 提供，随会话文件保存。
 
 ## 文件关联（双击 .md）
 
 三件套，仅 Windows，都不做轻量查看器：
 
 1. **命令行。** `app/main.cpp` 扫描参数里真实存在、后缀认作 Markdown 的路径（`isMarkdownPath()`——与文件树菜单项同一个后缀判定），UI 装载完成后逐条经 `previewMarkdown()` 开成 tab。无能力的构建如实弹原因 toast，与在那里点右键一样。
-2. **单实例消息。** 带文件参数的第二实例不再发裸 `"raise"`，而是 `"open:<JSON 路径数组>"`（`WorkbenchContext::encodeOpenMessage()` / `decodeOpenMessage()`；无请求时仍是 `"raise"`）。首实例逐条开成 tab 并唤起工作台窗口。
+2. **单实例消息。** 带文件参数的第二实例不再发裸 `"raise"`，而是 `"open:<JSON 路径数组>"`（`WorkbenchContext::encodeOpenMessage()` / `decodeOpenMessage()`；无请求时仍是 `"raise"`）。首实例逐条开成 tab 并导航到工作台页（`WorkbenchContext::previewMarkdown()` 的最后一步是 `showPage("tools")`）。
 3. **设置页动作。** **关联 .md 文件**（启动器分区）只写 HKCU：ProgId `AgentWorkbench.Markdown.1` 的 `shell\open\command` 指向当前可执行文件，并在 `.md` 与 `.markdown` 的 `OpenWithProgids` 里登记。**绝不碰 UserChoice**——Win10+ 的默认应用选择有签名保护，静默抢默认既不可靠也不礼貌；目标是出现在「打开方式」列表里，默认应用由用户在系统设置里选，界面文案说的就是这句话。注册表被策略挡住时如实报错。卸载不清理这些键（残留无害，Windows 惯例）。
 
 在资源管理器里双击文件启动的是**完整应用**——外壳、侧栏、引擎——不是秒开的查看器；这是刻意的决策，诚实的代价就是启动时间。无预览能力的构建整个隐藏关联入口（登记一个只会报错的条目，比不提供更糟）。
@@ -161,11 +161,11 @@ M4 把单草稿变成一组。`tools.json` 多出三个键（全部纯增量—�
 
 **切换在边界冲缓冲。** 500 ms 编辑防抖缓冲在 `m_draft` 里；任何替换活跃草稿的路径（`createDraft`、`duplicateDraft`、`recoverToNewDraft`）都要先把缓冲冲进**旧**草稿、再把 id 缓存挪过去——顺序反了会把新草稿的空体写进旧草稿的 id。撤销栈不共享：切换时编辑器 text 重置，undo 历史各自为政。
 
-窗口层补动作：`newDraft`、`newDraftFromDocument`（E4——文档文本成稿，单向；草稿永不写回文件）、`rename` / `duplicate` / `delete`（delete 要确认且不可撤销——历史与恢复副本一起走）、`closeCurrentDraftTab`、`switchDraftTo`（切走前给源草稿存一版）、`saveDraftVersion`，以及确认弹窗后的 `rollbackDraftVersion`。Ribbon 的草稿 Panel 放**开始**页——E4 只在文档预设下有意义，而开始页两种预设都在场。右栏「历史」面板列出当前草稿的快照并提供回滚。
+页面层补动作：`newDraft`、`newDraftFromDocument`（E4——文档文本成稿，单向；草稿永不写回文件）、`rename` / `duplicate` / `delete`（delete 要确认且不可撤销——历史与恢复副本一起走）、`closeCurrentDraftTab`、`switchDraftTo`（切走前给源草稿存一版）、`saveDraftVersion`，以及确认弹窗后的 `rollbackDraftVersion`。Ribbon 的草稿 Panel 放**开始**页——E4 只在文档预设下有意义，而开始页两种预设都在场。右栏的「历史」段列出当前草稿的快照并提供回滚。
 
 ## 模板与收藏
 
-窗口的提示词一侧长出了一座库：**模板**是带占位符要填的骨架，**收藏**是拿来就用的成稿。这条区分不只写在文档里，也在界面上强制执行——两者住在不同的面板、不同的存储、不同的动作里，因为混在一起会让每次点击都先问一遍「这是哪种东西？」。
+页面的提示词一侧长出了一座库：**模板**是带占位符要填的骨架，**收藏**是拿来就用的成稿。这条区分不只写在文档里，也在界面上强制执行——两者住在不同的面板、不同的存储、不同的动作里，因为混在一起会让每次点击都先问一遍「这是哪种东西？」。
 
 ### 模板从哪来，覆盖规则是什么
 
@@ -210,7 +210,7 @@ description: My own shape for bug reports.
 - **名字语法：**仅 ASCII 标识符（不要中文、不能数字开头）。包含形式 `{{> name}}` 与非标识符的花括号都不匹配。
 - **一个名字一次填。**`{{task}}` 的每一处出现都从同一个值替换。
 - **值优先于默认值，默认值优先于没有。**显式给的值赢过 `{{task:兜底}}` 的兜底；两者都没有时，占位符**原样保留**——跳过是一个有意的行为，留下一个看得见的 `{{task}}` 等你回来，而不是一次失败。
-- **内置变量在 `renderTemplate()` 里求值：**`workspace` 是当前工作区，`date` 是今天（ISO 形式）。`selection` 由窗口带入（门面看不到编辑器）。
+- **内置变量在 `renderTemplate()` 里求值：**`workspace` 是当前工作区，`date` 是今天（ISO 形式）。`selection` 由页面带入（门面看不到编辑器）。
 
 ### 界面装配：三段、一个选择器、一个上下文标签页
 
@@ -229,11 +229,11 @@ description: My own shape for bug reports.
 
 ## 编辑动作、体检与预算
 
-窗口的编辑侧长出三层，全部离线：**格式动作**（B1）、**查找替换**（B2），以及两个质量面——**提示词体检**（B9）与**上下文预算估算**（C4/E6）。它们共用一个形状：`awb_tools` 里一层纯的、由 `QTextDocument` 或字符串驱动的逻辑（测试直接驱动它），窗口里一层薄 QML 装配。
+页面的编辑侧长出三层，全部离线：**格式动作**（B1）、**查找替换**（B2），以及两个质量面——**提示词体检**（B9）与**上下文预算估算**（C4/E6）。它们共用一个形状：`awb_tools` 里一层纯的、由 `QTextDocument` 或字符串驱动的逻辑（测试直接驱动它），页面里一层薄 QML 装配。
 
 ### 格式动作与查询侧
 
-`MarkdownEdit`（tools 域单例，窗口把它 attach 到每个编辑器）现在带全集。每个动作都与最初三个同一形状——静态 `*ToCursor(QTextCursor &)` 包一层 `Q_INVOKABLE` 实例方法——正是这让它们无需焦点就可测、菜单抢走焦点后照常工作。每个动作一个 `beginEditBlock`，一次 `Ctrl+Z` 整体回退。
+`MarkdownEdit`（tools 域单例，页面把它 attach 到每个编辑器）现在带全集。每个动作都与最初三个同一形状——静态 `*ToCursor(QTextCursor &)` 包一层 `Q_INVOKABLE` 实例方法——正是这让它们无需焦点就可测、菜单抢走焦点后照常工作。每个动作一个 `beginEditBlock`，一次 `Ctrl+Z` 整体回退。
 
 | 动作 | 行为 |
 |---|---|
@@ -300,41 +300,40 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 
 | 文件 | 类 / 组件 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/workbench/qml/MarkdownWorkbenchWindow.qml` | `MarkdownWorkbenchWindow` | 窗口：命令带槽位、侧面板（三个可折叠段：工作区树、模板库、收藏夹）、文件 tab 条、草稿/文档中间区（一套两栏结构服务两种预设）、**草稿查找条**（B2）、搜索条、状态行（含 C4/E6 的 token 估算）、右栏的**体检段**（B9）、对话框（变量表单、存为模板、未保存守卫、清空草稿确认、全部替换确认）、快捷键（`Ctrl+F` 按预设分流）、会话保存与恢复（由原 `MarkdownPreviewWindow.qml` 演化而来；资源别名从 `markdown/` 挪到 `workbench/`） | `ToolsFacade`、`Markdown`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench`、`theme` |
-| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | SARibbon 命令带：**开始**、**Prompt tools**（`RibbonContextCategory`，仅提示词预设可见）与 **视图** 三个标签页、默认单行、样式档取自 `tools.ribbonStyle`、单向主题桥；对窗口动作层纯转发 | 窗口 QML、`RibbonTheme`、`tools.*` |
-| `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | 无 Ribbon 的降级形态：一条普通工具栏、同一批动作（含 Insert Template / Save as Template / Save Favorite，草稿激活时可用），ribbon 文件缺席时装载它 | 窗口 QML |
-| `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | 预览面（`WebEngineView` 及其接线），仅在有能力的构建里按资源 URL 装载 | `Markdown`、窗口 QML |
-| `src/shell/qml/MarkdownStartPage.qml` | `MarkdownStartPage` | 侧栏的 **Markdown** 启动页：打开工作台按钮 + **最近文档** 列表（MRU 前 6 条）——薄壳，不是编辑器本体 | `workbench.openMarkdownWorkbench()`、`workbench.previewMarkdown()`、`workbench.recentMarkdownDocuments()` |
-| `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | 注册内置页面，含 **Markdown** 启动页 | `NavigationModel`、`WorkbenchContext` |
+| `src/workbench/qml/MarkdownWorkbenchPage.qml` | `MarkdownWorkbenchPage` | 页面（`keepAlive` 的 `Item`，首次进入后常驻）：命令带槽位、侧面板（左栏三段可折叠：工作区树、模板库、收藏夹；右栏三段：大纲、体检、历史，共享一个带边框面板）、文件 tab 条、草稿/文档中间区（一套两栏结构服务两种预设）、**草稿查找条**（B2）、搜索条、状态行（含 C4/E6 的 token 估算）、对话框（变量表单、存为模板、清空草稿确认、全部替换确认）、快捷键（`Ctrl+F` 按预设分流，全部门控在 `pageCurrent`）、会话保存与恢复（由原 `MarkdownPreviewWindow.qml` 演化而来；资源别名从 `markdown/` 挪到 `workbench/`） | `ToolsFacade`、`Markdown`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench`、`theme`、`nav` |
+| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | SARibbon 命令带：**开始**、**Prompt tools**（`RibbonContextCategory`，仅提示词预设可见，`contextColor: theme.success`）与 **视图** 三个标签页、默认单行、样式档取自 `tools.ribbonStyle`、单向主题桥；对页面动作层纯转发 | 页面 QML、`RibbonTheme`、`tools.*` |
+| `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | 无 Ribbon 的降级形态：一条普通工具栏、同一批动作（含 Insert Template / Save as Template / Save Favorite，草稿激活时可用），ribbon 文件缺席时装载它 | 页面 QML |
+| `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | 预览面（`WebEngineView` 及其接线），仅在有能力的构建里按资源 URL 装载 | `Markdown`、页面 QML |
+| `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | 注册内置页面与侧栏分组标签，含 **Agent Tools** 分组下的 **Prompt Writing** 条目（`id: tools`、`keepAlive`、`level: 1`） | `NavigationModel`、`WorkbenchContext` |
 | `src/tools/ToolsStore.{h,cpp}` | `ToolsStore` | `tools.json` 状态：MRU 工作区列表、当前工作区、提示词草稿、`ribbon` 段（`collapsed` / `style` / `followAppTheme` / `lastTabIndex`）、`favorites` 数组（新在前、上限 50、同标题同全文幂等重存）、`editor` 段（`findCaseSensitive` / `findWholeWords` / `contextWindowTokens`，默认 32000）与 `checks` 段（`disabled` 规则 id 列表）；`kMaxWorkspaces` = 20 | `ToolsFacade`、`core::JsonStore` |
-| `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML 门面：工作区属性、草稿属性、`addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`、经 `model` 暴露的扁平树模型、四个 `ribbon*` 界面偏好；M2 的面——`templates` / `filteredTemplates` / `templateVariables` / `renderTemplate` / `saveAsTemplate` / `removeTemplate` / `templateDirectory` 与 `favorites` / `addFavorite` / `removeFavorite`（加 `templatesChanged` / `favoritesChanged` 信号）；M3 的面——`findCaseSensitive` / `findWholeWords` / `contextWindowTokens` / `disabledCheckIds` 属性与 `runChecks()` / `checkRuleTitle()` / `checkRuleIds()` / `estimateTokens()` / `budgetLevel()`；500 ms 草稿防抖加析构补写 | 窗口 QML、`app/main.cpp`（`tools` 别名）、`FileTreeModel`、`FileTreeFlatModel`、`PromptTemplateLibrary`、`PromptChecks` |
+| `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML 门面：工作区属性、草稿属性、`addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`、经 `model` 暴露的扁平树模型、四个 `ribbon*` 界面偏好；M2 的面——`templates` / `filteredTemplates` / `templateVariables` / `renderTemplate` / `saveAsTemplate` / `removeTemplate` / `templateDirectory` 与 `favorites` / `addFavorite` / `removeFavorite`（加 `templatesChanged` / `favoritesChanged` 信号）；M3 的面——`findCaseSensitive` / `findWholeWords` / `contextWindowTokens` / `disabledCheckIds` 属性与 `runChecks()` / `checkRuleTitle()` / `checkRuleIds()` / `estimateTokens()` / `budgetLevel()`；500 ms 草稿防抖加析构补写 | 页面 QML、`app/main.cpp`（`tools` 别名）、`FileTreeModel`、`FileTreeFlatModel`、`PromptTemplateLibrary`、`PromptChecks` |
 | `src/tools/PromptTemplate.{h,cpp}` | `PromptTemplate`、`PromptTemplateIo`、`PromptVariables` | 值类型（id/title/category/tags/description/body/scope）、最小头部的解析/序列化，以及纯字符串变量引擎（提取/求值，内置 `workspace`/`date`） | `PromptTemplateLibrary`、`ToolsFacade::renderTemplate()` |
 | `src/tools/PromptTemplateLibrary.{h,cpp}` | `PromptTemplateLibrary` | 合并随包内置（`config/default_prompt_templates.json`，只读）与 `<dataRoot>/prompt_templates/*.md`（用户 id 原位覆盖内置）；检索匹配标题/描述/标签/正文并与关系过滤标签；存/删写用户目录 | `ToolsFacade`（持有一个）、`core::JsonStore` |
 | `src/tools/FileTreeModel.{h,cpp}` | `FileTreeModel`（含私有 `Node`） | 单个工作区根上的懒加载目录树；增量 `refresh()`；`QFileSystemWatcher` | `ToolsFacade`、`FileTreeFlatModel` |
-| `src/tools/FileTreeFlatModel.{h,cpp}` | `FileTreeFlatModel`（含私有 `Row`） | 供 QML `ListView` 消费的扁平投影；持有展开路径集合 | 窗口 QML、`FileTreeModel` |
+| `src/tools/FileTreeFlatModel.{h,cpp}` | `FileTreeFlatModel`（含私有 `Row`） | 供 QML `ListView` 消费的扁平投影；持有展开路径集合 | 页面 QML、`FileTreeModel` |
 | `src/tools/FileIcons.{h,cpp}` | `FileIcons` | 三张查找表（文件名 / 后缀 / 目录名）加兜底；`forFile()`/`forFolder()` | `FileTreeModel`（`IconRole`）、`core::IconResolver` |
-| `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、B1 动作全集（`applyBold/Italic/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、checkable 按钮绑的**光标查询**（`isBoldAt/isItalicAt/isStrikeAt/isCodeAt/headingLevelAt`），以及 B2 查找族（`find()`、`replaceAndFindNext()`、`replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 窗口 QML、`MarkdownContextMenu`、`theme::Theme` |
-| `src/tools/PromptChecks.{h,cpp}` | `PromptChecks`、`ContextBudget` | 纯函数：十条体检规则（文本 → 带 ruleId/严重度/区间/文案的命中；开关列表是调用方的事）与 token 估算 + 分级阈值（同输入同输出——草稿预算标签与文档状态行消费同一个估算器） | `ToolsFacade`（为 QML 包一层）、窗口 QML |
+| `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、B1 动作全集（`applyBold/Italic/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、checkable 按钮绑的**光标查询**（`isBoldAt/isItalicAt/isStrikeAt/isCodeAt/headingLevelAt`），以及 B2 查找族（`find()`、`replaceAndFindNext()`、`replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 页面 QML、`MarkdownContextMenu`、`theme::Theme` |
+| `src/tools/PromptChecks.{h,cpp}` | `PromptChecks`、`ContextBudget` | 纯函数：十条体检规则（文本 → 带 ruleId/严重度/区间/文案的命中；开关列表是调用方的事）与 token 估算 + 分级阈值（同输入同输出——草稿预算标签与文档状态行消费同一个估算器） | `ToolsFacade`（为 QML 包一层）、页面 QML |
 | `src/tools/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 草稿编辑器的 `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
 | `src/markdown/MarkdownDocument.{h,cpp}` | `MarkdownDocument` | 磁盘上那一个文件：文本、脏标记、只读判定，以及**载入时看到的字节形态**（BOM、行尾、UTF-8 是否合法）；`setVirtual()` 把它变成无文件载体（草稿会话：永不脏、`save()` 拒绝、2 MB 编辑上限照算） | `MarkdownPreviewController`、`core::OpResult` |
 | `src/markdown/MarkdownChunker.{h,cpp}` | `MarkdownChunker`、`MarkdownBlock` | 顶层块切分、两次切分之间的最小替换区间、块摘要 | `MarkdownPreviewController`、`renderer.js`、`scripts/spike-markdown-chunker.js` |
 | `src/markdown/MarkdownRuntime.{h,cpp}` | `MarkdownRuntime` | 页面侧全部的纯字符串与纯计算：URL 布局、MIME 表、资源映射、主题 → CSS 变量、页面文案、大纲、命令/事件名表、能力判定 | 下面所有成员；页面协议唯一对着的 C++ |
-| `src/markdown/MarkdownPreviewController.{h,cpp}` | `MarkdownPreviewController` | QML 单例 `Markdown`：**会话容器**（每个打开的文档一个 `Session`，外加草稿，按 `docId` 寻址；`kMaxFileSessions` = 8、`isMarkdownPath()` 是唯一的后缀判定）+ 待发送命令队列 + 导出件的落盘点；`saveSession(docId)` 按 id 存文件会话、不换激活 | `core::Settings`、`theme::Theme`、`MarkdownRuntimeHandler`、窗口 QML |
+| `src/markdown/MarkdownPreviewController.{h,cpp}` | `MarkdownPreviewController` | QML 单例 `Markdown`：**会话容器**（每个打开的文档一个 `Session`，外加草稿，按 `docId` 寻址；`kMaxFileSessions` = 8、`isMarkdownPath()` 是唯一的后缀判定）+ 待发送命令队列 + 导出件的落盘点；`saveSession(docId)` 按 id 存文件会话、不换激活 | `core::Settings`、`theme::Theme`、`MarkdownRuntimeHandler`、页面 QML |
 | `src/markdown/webengine/MarkdownPreviewProvider.{h,cpp}` | `MarkdownPreviewProvider` | 注册 scheme、持有只服务预览的 profile、装好供体，并告诉控制器「表面现在真的存在」 | `app/main.cpp`、`MarkdownRuntimeHandler` |
 | `src/markdown/webengine/MarkdownRuntimeHandler.{h,cpp}` | `MarkdownRuntimeHandler` | `awbmd://runtime/…` 的唯一供体，随包字节带内存缓存 | `MarkdownPreviewController` |
 | `src/markdown/webengine/runtime/*` | `shell.html`、`bridge.js`、`renderer.js`、`markdown-config.js`、`math-rule.js`、`diagram.js`、`find.js`、`theme.css` | 页面：启动与命令分发、分块管线、markdown-it 配置、KaTeX/任务项/告警规则、懒加载 mermaid、文档内搜索 | `MarkdownRuntime`（协议）、`third_party/markdown-runtime/` |
-| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | 跨域入口：文档形态走 `previewMarkdown()` / `canPreviewMarkdown()`，提示词形态走 `openMarkdownWorkbench()`，会话文件走 `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()`，文件关联走 `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` 加单实例的 `encodeOpenMessage()` / `decodeOpenMessage()`，以及 `openTemplateDirectory()`（按需建用户模板目录并在文件管理器里打开）——替不许互相点名的域说话 | `MarkdownPreviewController`、`MarkdownSessionStore`、窗口 QML、启动页、`app/main.cpp` |
+| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | 跨域入口：文档形态走 `previewMarkdown()` / `canPreviewMarkdown()`，提示词形态走 `openMarkdownWorkbench()`，会话文件走 `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()`，文件关联走 `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` 加单实例的 `encodeOpenMessage()` / `decodeOpenMessage()`，以及 `openTemplateDirectory()`（按需建用户模板目录并在文件管理器里打开）——替不许互相点名的域说话 | `MarkdownPreviewController`、`MarkdownSessionStore`、页面 QML、`BuiltinPages`、`app/main.cpp` |
 | `src/workbench/MarkdownSessionStore.{h,cpp}` | `MarkdownSessionStore`、`MarkdownSessionState` | `markdown_session.json`：tab 组（路径 + 三态）、激活位、预设与面板状态、20 条最近文档 MRU；损坏 = 默认态加一条警告 | `WorkbenchContext`、`core::JsonStore` |
-| `src/shell/qml/MainWindow.qml` | `MainWindow` | 承载窗口的那个 `Loader`；按开窗意图写窗口的 `initialPreset` | `Markdown`、`WorkbenchContext` |
-| `cmake/AwbOptions.cmake`、`app/CMakeLists.txt` | `AWB_ENABLE_RIBBON` 接线 | SARibbon submodule 构建与窗口的资源登记 | `third_party/SARibbon` |
+| `src/shell/qml/MainWindow.qml` | `MainWindow` | 承载未保存 markdown 文档的退出守卫（页面常驻，守卫住主窗的退出流：`requestExit()` 拦一道，对话框给全部保存 / 放弃 / 取消三选） | `Markdown`、`WorkbenchContext` |
+| `cmake/AwbOptions.cmake`、`app/CMakeLists.txt` | `AWB_ENABLE_RIBBON` 接线 | SARibbon submodule 构建（含嵌套的 QWindowKit 链）与页面的资源登记 | `third_party/SARibbon` |
 | `third_party/markdown-runtime/` | —— | 随包的浏览器构建产物，外加 `manifest.json`（版本、许可、sha256） | `tst_markdown`、`scripts/update-markdown-runtime.sh` |
 
-模块之外，窗口依赖 `core::Paths::dataRoot()`、`config/default_file_icons.json`、`theme::Theme`、shell 的 `A*` 组件、`workbench.copyText()`/`notify()` 与 `ui.pickFolder()`。
+模块之外，页面依赖 `core::Paths::dataRoot()`、`config/default_file_icons.json`、`theme::Theme`、shell 的 `A*` 组件、`workbench.copyText()`/`notify()` 与 `ui.pickFolder()`。
 
 ## 前端设计
 
-### 窗口骨架与两种预设
+### 页面骨架与两种预设
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -352,13 +351,13 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 - 左侧面板是**三个可折叠段**，各自带 `ASectionHeader`：工作区/文件树（迁过来的提示词页树面板：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）、**模板库**（检索框 + 上限列表，提示词形态默认展开）、**收藏夹**（默认收起）。面板与编辑器在相接处都不带圆角——直角齐平。两个列表的行是 `AListRow`，由 `ObjectModel` 从门面重建驱动——这意味着行的 `width` 必须显式跟列表（见坑与约定）。
 - 右侧面板是大纲，跟在大纲开关后面，服务**活跃会话**——草稿也有标题，所以它不再是文档模式专属。它旁边（仅提示词预设）是**体检段**：Check 按钮、带严重度色点的命中清单、点击跳区间，以及逐条命中的「不再提醒此类」×。体检是提示词质量工具，文档形态下这段不占位。
 - 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件会话一个 tab，带标题、脏圆点与关闭按钮；条上还有视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单。切换器两种预设都服务——草稿与文件走同一条渲染管线。
-- 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是窗口内状态——拖一下不该碰磁盘。
-- 中间区底部是**状态行**：提示词模式显示草稿的字符数、行数**与 token 估算**（「~N tokens (estimated)」，颜色跟分级走，tooltip 写明窗口基数——见「编辑动作、体检与预算」一节）；文档模式显示文件路径、**有未保存的改动** 标记、只读原因（若有）、文件大小、渲染器版本号**与同一估算对文件文本的数字**。状态永远不只靠颜色——脏与只读都写成文字。
-- 提示词模式的 Ribbon 偏好（折叠位、样式档、上次标签页、主题跟随）持久化在 `tools.json` 的 `ribbon` 段里。每预设的面板状态与文档模式的 Ribbon 折叠位持久化在**会话文件**里；一轮应用之内它们还能活过关窗重开——窗口从恢复调用里把它们读回来。
+- 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
+- 中间区底部是**状态行**：提示词模式显示草稿的字符数、行数**与 token 估算**（「~N tokens (estimated)」，颜色跟分级走，tooltip 写明上下文窗口基数——见「编辑动作、体检与预算」一节）；文档模式显示文件路径、**有未保存的改动** 标记、只读原因（若有）、文件大小、渲染器版本号**与同一估算对文件文本的数字**。状态永远不只靠颜色——脏与只读都写成文字。
+- 提示词模式的 Ribbon 偏好（折叠位、样式档、上次标签页、主题跟随）持久化在 `tools.json` 的 `ribbon` 段里。每预设的面板状态与文档模式的 Ribbon 折叠位持久化在**会话文件**里；一轮应用之内它们随页面的常驻天然活过切页。
 
 ### 草稿编辑器
 
-编辑器就是迁过来的提示词编辑器，如今住在窗口的编辑槽位里。一个纵向 `Flickable`（`objectName: "promptScroll"`、`clip`、`StopAtBounds`、`ScrollBar.vertical: AScrollBar {}`）经 `TextArea.flickable` 附加属性挂一个 `ATextArea`（`objectName: "promptEditor"`）。文本只在 `Component.onCompleted` 初始化一次（`text = tools.draft`，随后 `MarkdownEdit.attach(promptEditor)`），不做双向绑定——常驻绑定会与用户输入打架。写路径是**双写**：`onTextChanged` 既写 `tools.draft`（tools 域经它自己的 500 ms 防抖持久化），又重启 200 ms 的 `draftSyncTimer`，由它把草稿**会话**喂给 `setDraftText()`——一次敲键要整篇重切块，逐键喂是把 CPU 花在马上会被改掉的中间态上。占位文本把契约写在明处：回车只插入一个新行，这个窗口不发送任何东西。
+编辑器就是迁过来的提示词编辑器，如今住在页面的编辑槽位里。一个纵向 `Flickable`（`objectName: "promptScroll"`、`clip`、`StopAtBounds`、`ScrollBar.vertical: AScrollBar {}`）经 `TextArea.flickable` 附加属性挂一个 `ATextArea`（`objectName: "promptEditor"`）。文本只在 `Component.onCompleted` 初始化一次（`text = tools.draft`，随后 `MarkdownEdit.attach(promptEditor)`），不做双向绑定——常驻绑定会与用户输入打架。写路径是**双写**：`onTextChanged` 既写 `tools.draft`（tools 域经它自己的 500 ms 防抖持久化），又重启 200 ms 的 `draftSyncTimer`，由它把草稿**会话**喂给 `setDraftText()`——一次敲键要整篇重切块，逐键喂是把 CPU 花在马上会被改掉的中间态上。占位文本把契约写在明处：回车只插入一个新行，这个页面不发送任何东西。
 
 铺满编辑器的 `DropArea` 只接受来自文件树的拖拽（`drop.source.isFileReferenceDrag`），用 `promptEditor.positionAt(drop.x, drop.y)` 求插入偏移并把 `drop.text` 插进去；落点坐标本身就是文档坐标。只吃右键的 `MouseArea` 设 `editorMenu.editor = promptEditor` 再弹 `MarkdownContextMenu`。
 
@@ -377,7 +376,7 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 
 ### 编辑器右键菜单与命令带的两张皮
 
-`MarkdownContextMenu.qml` 是一个 `AMenu`，第一个子项是普通 `Item`——一个 34 px 工具栏，放三个 `AIconButton`（Bold、Code、Bulleted list）——把它与 `AMenuItem` 混排就得到「工具栏在上、条目在下」的形态，中间一条极淡分隔线。动作统一经 `run(action)`：先关菜单、把焦点还给 `editor`，再执行——编辑器的选区与插入必须先拿到焦点，否则输入与选区写入都落不到目标上。同一条纪律管着命令带：两张皮（`WorkbenchRibbon.qml`、`WorkbenchToolbar.qml`）都只转发到窗口的动作层，后者在应用格式或剪贴板操作之前同样先把焦点还给激活的编辑器。
+`MarkdownContextMenu.qml` 是一个 `AMenu`，第一个子项是普通 `Item`——一个 34 px 工具栏，放三个 `AIconButton`（Bold、Code、Bulleted list）——把它与 `AMenuItem` 混排就得到「工具栏在上、条目在下」的形态，中间一条极淡分隔线。动作统一经 `run(action)`：先关菜单、把焦点还给 `editor`，再执行——编辑器的选区与插入必须先拿到焦点，否则输入与选区写入都落不到目标上。同一条纪律管着命令带：两张皮（`WorkbenchRibbon.qml`、`WorkbenchToolbar.qml`）都只转发到页面的动作层，后者在应用格式或剪贴板操作之前同样先把焦点还给激活的编辑器。
 
 ## 后端设计
 
@@ -416,38 +415,38 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 
 ### 草稿防抖与懒加载树
 
-第一张图展示窗口与门面一侧的草稿防抖与懒加载文件树。
+第一张图展示页面与门面一侧的草稿防抖与懒加载文件树。
 
 ```mermaid
 sequenceDiagram
-    participant Window as MarkdownWorkbenchWindow.qml
+    participant Page as MarkdownWorkbenchPage.qml
     participant Facade as ToolsFacade
     participant Store as ToolsStore
     participant Tree as FileTreeModel
     participant Flat as FileTreeFlatModel
 
-    Window->>Facade: window creation reads tools.json
+    Page->>Facade: page creation reads tools.json
     Facade->>Store: load()
     Store-->>Facade: workspaces / current / draft / ribbon
     Facade->>Tree: loadUserIconFile then setRootPath
     Tree-->>Facade: top-level rows (deeper levels lazy)
     Facade->>Flat: setSourceModel(tree)
-    Flat-->>Window: flat rows for the file tree
+    Flat-->>Page: flat rows for the file tree
 
-    Window->>Facade: onTextChanged sets draft
+    Page->>Facade: onTextChanged sets draft
     Facade->>Facade: restart 500 ms debounce timer
     Note over Facade: further keystrokes keep restarting it
     Facade->>Store: persistDraft() on timeout
     Store-->>Facade: tools.json written atomically
 
-    Window->>Flat: single click on a directory row
+    Page->>Flat: single click on a directory row
     Flat->>Tree: fetchChildren(source index)
     Tree-->>Tree: read directory, lazy still below
-    Flat-->>Window: rowsInserted for the subtree
+    Flat-->>Page: rowsInserted for the subtree
 
     Tree->>Tree: directoryChanged debounced 300 ms then refresh()
     Tree->>Flat: refreshed()
-    Flat-->>Window: rebuild keeps expanded paths
+    Flat-->>Page: rebuild keeps expanded paths
 ```
 
 第二张图展示 `FileTreeModel` 内部的增量对账。
@@ -517,7 +516,7 @@ URL 的形状只由 `MarkdownRuntime` 一处决定；`MarkdownRuntimeHandler::ro
 
 ```mermaid
 sequenceDiagram
-    participant Tree as MarkdownWorkbenchWindow.qml
+    participant Tree as MarkdownWorkbenchPage.qml
     participant WC as WorkbenchContext
     participant MC as MarkdownPreviewController
     participant MW as MainWindow.qml Loader
@@ -545,19 +544,19 @@ sequenceDiagram
 
 ### 一个预览面
 
-渲染管线住在 `MarkdownPreviewPane.qml` 后面，仅当 `markdown.available` 时按资源 URL 装载——无 WebEngine 的构建里进程根本不建 `WebEngineView`。窗口里只有一个预览面，它渲染**活跃会话**：文件 tab 或草稿。无能力的构建里预览面缺席、视图切换器不出现（缺席而非灰着——与预览入口同一条原则），草稿的三态退到源码。
+渲染管线住在 `MarkdownPreviewPane.qml` 后面，仅当 `markdown.available` 时按资源 URL 装载——无 WebEngine 的构建里进程根本不建 `WebEngineView`。页面里只有一个预览面，它渲染**活跃会话**：文件 tab 或草稿。无能力的构建里预览面缺席、视图切换器不出现（缺席而非灰着——与预览入口同一条原则），草稿的三态退到源码。
 
 ## 入口与接线
 
 文件树只问，不判断。它的右键菜单里写的是 `visible: workbench.canPreviewMarkdown(treeRow.path)` 与 `onTriggered: workbench.previewMarkdown(treeRow.path)`。后缀清单归预览域管（`isMarkdownPath()`），QML 只对它手上已有的路径问一个结果。`canPreviewMarkdown()` 是**方法**而不是绑定源，这一点有关系：这个表达式不会重算，条目可见性在菜单建出来时就算定了——这里可以接受，因为能力位不可能在进程运行期间改变。
 
-同一个 `previewMarkdown()` 是一切「打开一份 Markdown 文件」意图的落点：文件树、启动页的最近文档行、命令行参数、第二实例消息、资源管理器里双击已关联的文件。一个入口、一套失败路径、一次 MRU 触碰。
+同一个 `previewMarkdown()` 是一切「打开一份 Markdown 文件」意图的落点：文件树、命令行参数、第二实例消息、资源管理器里双击已关联的文件。一个入口、一套失败路径、一次 MRU 触碰。
 
-`WorkbenchContext` 是唯一可以同时点名这两个域的地方（`src/tools` 不许 include `src/markdown`，门禁规则 1）。它持有预览控制器的可空指针，由 `app/main.cpp` 经 `setMarkdownPreview()` 设一次。指针为空——或者控制器自报没有能力——时，`previewMarkdown()` 只发一条带原因的 toast，不做别的，于是失败只有一条解释路径而不是两条。第二个意图 `openMarkdownWorkbench()` 是启动页那个按钮调的：它把窗口以提示词模式打开（或抬到前台）。会话意图——窗口首次创建时的 `restoreMarkdownSession()`、窗口变化背后的 `saveMarkdownSession()`——与文件关联那一对都住在这里，全都挂在 QML 已经对话的那个对象上。
+`WorkbenchContext` 是唯一可以同时点名这两个域的地方（`src/tools` 不许 include `src/markdown`，门禁规则 1）。它持有预览控制器的可空指针，由 `app/main.cpp` 经 `setMarkdownPreview()` 设一次。指针为空——或者控制器自报没有能力——时，`previewMarkdown()` 只发一条带原因的 toast，不做别的，于是失败只有一条解释路径而不是两条。第二个意图 `openMarkdownWorkbench()` 是纯导航（自动打开的启动项也调它）。会话意图——页面首次创建时的 `restoreMarkdownSession()`、页面变化背后的 `saveMarkdownSession()`——与文件关联那一对都住在这里，全都挂在 QML 已经对话的那个对象上。
 
-`MainWindow.qml` 用 `Loader` 承载窗口，并且用 `source`（资源 URL 字符串）而不是 `sourceComponent`（类型名）：命令带与预览面只在跑得动它们的构建里登记进 QML 模块，而按资源 URL 寻址让外壳不掺和这个差异。`Loader` 的 `onLoaded` 写窗口的 `initialPreset` 属性——开窗意图是 `previewMarkdown()` 时给 `"document"`，是 `openMarkdownWorkbench()` 时给 `"prompt"`——窗口在上屏前幂等地应用预设。Loader 加载失败刻意要弹 toast——否则资源漏登记的表现为「右键点了没反应」，比一个错误框难查得多。
+页面按普通页面注册：`BuiltinPages` 把资源 URL 交给 `PageDescriptor::source`（id `tools`、`keepAlive`），`Workspace` 的常驻 Repeater 在首次访问时实例化它。外壳不掺和命令带差异的原因与从前相同：页面里惰性装载的部分（命令带、预览面）仍按 URL 字符串寻址、绝不用类型名——那些文件只在部分构建里登记进模块，类型名引用会在其余构建里留下解析不到的名字。页面的 `Component.onCompleted` 按控制器现状推断起始预设：活跃的是文件会话（预览请求、或恢复出的现场）落在文档形态，否则提示词形态。页面装载失败刻意要弹 toast——否则资源漏登记的表现为「右键点了没反应」，比一个错误框难查得多。
 
-文件关联与自动开窗的启动侧也在 `app/main.cpp`：参数扫描与第二实例消息解码排在引擎装载之后（UI 已就绪，tab 走正常路径开），`markdown.autoOpenWorkbench` 在托盘接线之后发一次开窗意图——与启动页按钮产生的是同一个信号。
+文件关联与自动打开的启动侧也在 `app/main.cpp`：参数扫描与第二实例消息解码排在引擎装载之后（UI 已就绪，tab 走正常路径开），`markdown.autoOpenWorkbench` 在托盘接线之后调一次 `openMarkdownWorkbench()`——一次纯导航。
 
 ## 视图设置、大纲、导出、外部浏览器
 
@@ -591,20 +590,20 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 
 ## 代价与有意的边界
 
-- **永远没有发送路径。** 窗口没有发送动作，除复制之外没有任何交付通道；回车只换行。任何引入发送路径的改动都与这个功能存在的理由相抵触。
+- **永远没有发送路径。** 工作台没有发送动作，除复制之外没有任何交付通道；回车只换行。任何引入发送路径的改动都与这个功能存在的理由相抵触。
 - **一个渲染面。** 切换会话是整篇重建（`setDocument`）；只有活跃会话享受增量编辑。新切到的 tab 的首屏要再付第一趟的钱——「首屏被第一趟限制」的承诺不外延成「切 tab 免费」。
 - **文件 tab 上限 8 个。** 第 9 份被拒绝并说明原因；什么都不静默淘汰。
 - **会话文件存路径，不存正文。** 两次启动之间磁盘上变了的文件按现在的样子重读；会话恢复的是**布局**，不是文本。
 - **双击已关联的文件启动的是完整应用。** 刻意不做轻量查看器进程；诚实的代价是启动时间。
 - **Qt 6 + WebEngine 的二进制里嵌了约 4 MB**，其中 2.6 MB 是 mermaid——只有真的含图表的文档才会加载它。
 - **不渲染内嵌 HTML**（`html: false`）。在一条没有 CSP 兜底的通道上预览别人写的 Markdown，那就是脚本注入面；代价是一份靠 `<br>`、`<details>` 排版的文档会把这些标签显示成正文。
-- **一次只渲染一个面，但可以开很多文档。** 命令队列与 `doc.json` 载荷服务活跃会话；`docId` 资源命名空间对所有活会话解析。窗口复用、内容换掉，绝不池化。
+- **一次只渲染一个面，但可以开很多文档。** 命令队列与 `doc.json` 载荷服务活跃会话；`docId` 资源命名空间对所有活会话解析。预览面复用、内容换掉，绝不池化。
 - **搜索只数已挂载的块**，且匹配不能跨行内标记。
 - **图表超过 40 个就变成点击再画。**
 - **超过 `kOpenCapBytes` 的文件直接拒绝**，不给「渲染一半」。
 - **`content-visibility` 意味着浏览器自己的 Ctrl+F 在这里不可用**，所以搜索必须是个功能，不能是附送。
 - **mermaid 停在 11.x**，直到确认 12.x 的 `dist` 布局仍然出自包含 IIFE bundle。
-- **隐藏窗口不泵 rAF/idle 是个真实约束**：任何等渲染器的测试都必须真的把窗口显示出来。
+- **隐藏的 WebEngineView 不泵 rAF/idle 是个真实约束**：任何等渲染器的测试都必须真的把宿主窗口显示出来。
 - **单行 Ribbon**：没有面板标题、没有大按钮——层级靠分组与顺序表达，文字必须短。
 - **Ribbon 自带字符串在非英文环境下是英文**；它们在本仓翻译管线之外。
 
@@ -615,7 +614,7 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 - **草稿防抖。** 绝不逐字符写 `tools.json`；500 ms 防抖加析构补写是契约。
 - **`awb::core::OpResult` 写全限定名**（门面 invokable）。
 - **`ui.pickFolder` 是选目录入口。** QML 的 `FolderDialog` 是 Qt 6 QuickDialogs2 独有；C++ 原生对话框是 Qt 5/Qt 6 行为一致的唯一路线。
-- **`objectName` 是测试契约。** 交互冒烟按 `objectName` 定位 `promptEditor`、`promptScroll`、`promptScrollBar`、`editorMenu`、`fileTree`、`treeRowMenu`；改名会打断测试。命令带控件由第三方宿主或降级工具栏创建、没有可靠的 `objectName`——动作测试走窗口动作层、门面方法与 `MarkdownEdit` 的纯函数。
+- **`objectName` 是测试契约。** 交互冒烟按 `objectName` 定位 `promptEditor`、`promptScroll`、`promptScrollBar`、`editorMenu`、`fileTree`、`treeRowMenu`；改名会打断测试。命令带控件由第三方宿主或降级工具栏创建、没有可靠的 `objectName`——动作测试走页面动作层、门面方法与 `MarkdownEdit` 的纯函数。
 - **命令带的两张皮只做转发。** `WorkbenchRibbon.qml` 与 `WorkbenchToolbar.qml` 把同一批动作接到同一组窗口函数上；在任一张皮里长出行为就是漂移 bug。
 - **动作只有一处出口。** 一个控件要么在命令带、要么在侧面板、要么在右键菜单——绝不许出现在两处。
 - **会话写盘只走 `saveMarkdownSession()`。** 窗口把状态合成一次交给 `WorkbenchContext`（tab 组取自控制器、预设取自窗口、MRU 取自 context）——从别处写文件会丢掉三个来源之一。
@@ -632,10 +631,10 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 |---|---|
 | `tst_tools` | `ToolsStore` 语义（MRU、上限、草稿防抖、ribbon 段容错、**favorites 生命周期、旧三键文件兼容红线，以及 M2 时代文件上 `editor`/`checks` 取默认值**）、懒加载树模型（角色、取子、增量刷新）、图标映射、门面接线，以及 `TestPromptTemplates`——头部往返/容错、变量提取/求值、库合并（覆盖 + 追加）/检索/存删，以及随包资源真的装着那十条内置模板；`TestPromptChecks`——规则表、空文本干净、确定性、每条规则的正反例，以及估算的稳定性（纯 ASCII、纯中文、混合）与分级阈值 |
 | `tst_markdownedit`（在 `tst_tools` 内） | B1 动作对着真实 `QTextDocument`：每个动作的三种输入形态（空 / 单行 / 跨行选区）、一次撤销回退、标题改级与同级取消、列表类动作的再点去除（编号/任务/引用全已应用时）、有无选区的链接、带语言的围栏、表格骨架与分隔线的空行规范化、若干光标位置上的查询——以及 B2 纯层：正向查找带回卷、大小写与全词开关、替换并前进、全部替换的计数（含替换词里含查找词的自包含用例）与一步撤销 |
-| `tst_toolsui` | 窗口级交互冒烟：装载工作台窗口，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；M2 的用例覆盖内置模板列表、变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、从列表插入收藏、经工具栏真实点击把草稿存进收藏；M3 的用例覆盖 `Ctrl+F` 开草稿查找条（`Esc` 关闭）、工具栏真实点击把草稿格式化成编号列表、体检段与预算标签跑一次后出现 |
+| `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；M2 的用例覆盖内置模板列表、变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、从列表插入收藏、经工具栏真实点击把草稿存进收藏；M3 的用例覆盖 `Ctrl+F` 开草稿查找条（`Esc` 关闭）、工具栏真实点击把草稿格式化成编号列表、体检段与预算标签跑一次后出现 |
 | `tst_markdown` | `MarkdownChunker`（含语料等价性）、`MarkdownDocument`（保形态存盘、两个上限、只读的来源、watcher 语义、**虚拟文档**）、`MarkdownRuntime`（URL、MIME、路由、协议表、主题 → CSS、大纲）、`MarkdownPreviewController`（**会话容器**：开/切/关、路径去重、8 tab 上限、脏隔离、doc.json 跟随活跃会话、活会话的资源解析、草稿会话、关窗保留会话、按 id 存盘不换激活；队列去重、打开/保存/导出、能力判定），以及 vendor 的 sha256 表 |
 | `tst_markdownpreview` | 对着真实 `WebEngineView` 的页面管线：文档挂载、块出现、增量更新落地。大文档用例只在 `AWB_MD_PERF` 下跑 |
-| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchWindow.qml`：能编译加载、命令泵真在跑、find/serialize 往返、开窗关窗的报到契约（仅 Qt 6 + WebEngine） |
+| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（仅 Qt 6 + WebEngine） |
 | `tst_webengine` | scheme 端到端供出资源、字体、`doc.json` 与信标 |
 | `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` 的委派与只报原因不开窗的失败路径；单实例 **open 消息的编解码往返**；文件关联的**注册态判定**（默认与已注册两态，注册表可写的构建上） |
 | `tst_core` | 五个 `markdown.*` 设置键与 `Paths::markdownPreviewDir()` |
@@ -657,7 +656,7 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 ## 相关
 
 - [Skills 浏览器](Skill浏览.md) —— 另一个扫描目录的界面，也是共享 `A*` 组件的第一个消费者。
-- [外壳与导航](外壳与导航.md) —— 页面如何注册与装载，启动页落在哪里。
+- [外壳与导航](外壳与导航.md) —— 页面如何注册与装载，工作台页落在哪里。
 - [workbench 与页面](workbench与页面.md) —— 窗口脚下的跨域接线。
 - [WebEngine 适配层](WebEngine适配层.md) —— 另一个链 WebEngine 的适配器，以及本管线共享的兼容桥模式。
 - [设置](设置.md) —— 本窗口复用的 `A*` 表单控件。

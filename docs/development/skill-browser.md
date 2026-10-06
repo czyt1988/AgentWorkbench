@@ -395,7 +395,7 @@ label appended to `skippedRoots`. One bad root never fails the whole scan;
 
 ## Related
 
-- [Markdown workbench](markdown-workbench.md) — the workbench window, whose file
+- [Markdown workbench](markdown-workbench.md) — the workbench page, whose file
   tree scans a user directory the same way, and the second consumer of the
   shared `A*` components.
 - [Shell and navigation](shell-and-navigation.md) — how `SkillGridPage.qml` is

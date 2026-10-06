@@ -1,26 +1,27 @@
 # Markdown workbench
 
-The Markdown workbench is **one window for two jobs**: writing prompts at your own pace, and reading or tidying Markdown files — several at once, in tabs. **Nothing is ever sent from this window** — pressing Enter only adds a new line, and when the text is ready you copy it and paste it into the agent yourself.
+The Markdown workbench is **one place for two jobs**: writing prompts at your own pace, and reading or tidying Markdown files — several at once, in tabs. **Nothing is ever sent from this place** — pressing Enter only adds a new line, and when the text is ready you copy it and paste it into the agent yourself.
 
-Find it in the sidebar as the row **Markdown**. It replaces the prompt-writing page of earlier versions, and it also takes over the Markdown preview window: one window, two shapes.
+Find it in the sidebar under the **Agent Tools** label, as the row **Prompt Writing**. It is an advanced tool of the Agent Tools family that lives inside the app's main window — not a separate window: it fills the work area between the sidebar and the status bar.
 
-## Opening the window
+## Opening the workbench
 
-- **From the sidebar.** Click **Markdown**. The start page that opens has one job: getting the workbench window on screen. Its **Open the workbench** button opens the window — or, if it is already open, brings it to the front.
-- **From a file.** In the file tree, **right-click a `.md` or `.markdown` file** and choose **Preview Markdown**. The window opens showing that document as a new tab. If the window is already open, the file becomes a new tab in it instead of stacking up a second window.
-- **From a double-click.** Once the app is associated with Markdown files (see [Settings](settings.md)), double-clicking a `.md` file in your file manager opens it here. If the app is already running, the file opens as a new tab and the window comes to the front; otherwise the app starts and shows it. **What starts is the full application** — the whole window with the sidebar — not a lightweight viewer, so give it the usual start-up moment.
-- **Recent documents.** The start page lists the documents you opened most recently (up to six, file name plus the folder it sits in). Click one to open it as a tab.
+- **From the sidebar.** Click **Prompt Writing** (under **Agent Tools**). The workbench fills the work area; the first visit takes a moment to set itself up, after that switching back is instant.
+- **From a file.** In the file tree, **right-click a `.md` or `.markdown` file** and choose **Preview Markdown**. The workbench opens with that document as a new tab.
+- **From a double-click.** Once the app is associated with Markdown files (see [Settings](settings.md)), double-clicking a `.md` file in your file manager opens it here. If the app is already running, the file opens as a new tab and the app comes to the front; otherwise the app starts and shows it. **What starts is the full application** — the whole window with the sidebar — not a lightweight viewer, so give it the usual start-up moment.
 
 **Why is there no Preview Markdown entry?** Two possibilities: the file is not a Markdown file by extension, or this build of the app cannot preview at all — the preview needs the version that embeds a browser engine. When the capability is missing the entry never appears, so there is nothing to discover and fail at.
 
 ## The two shapes
 
-The window opens in one of two shapes, depending on how you got there:
+The workbench shows one of two shapes, depending on what is active:
 
-- **The full shape** — opened from the sidebar. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle. The left side also carries the **Templates** and **Favorites** panels under the file tree.
-- **The compact shape** — opened from a Markdown file. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the window. It is the reading shape; the outline panel appears on the right when you turn the outline on.
+- **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle. The left side also carries the **Templates** and **Favorites** sections under the file tree.
+- **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; the outline section appears in the right panel when you turn the outline on.
 
-While the window is open, each shape remembers its own settings — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style row, last tab, theme following) between sessions. Nothing is locked: the **Full Tools** switch on the ribbon's **View** tab flips between the two shapes, and you can fold or unfold anything at any time.
+Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style row, last tab, theme following) between sessions. Nothing is locked: the **Full Tools** switch on the ribbon's **View** tab flips between the two shapes, and you can fold or unfold anything at any time.
+
+The workbench stays alive while you switch to other pages and back — your text, the undo history, the scroll position and the split proportion are exactly as you left them. It is created on its first visit and lives until the app closes.
 
 ## Tabs: several documents at once
 
@@ -33,9 +34,9 @@ The strip above the middle area holds one tab per open document **and one per dr
 
 ## The ribbon
 
-The ribbon is the band of buttons across the top of the window. Its tabs are:
+The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
-- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the window — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
+- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the workbench — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
 - **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote, **Check Prompt** reviews the draft (see [Prompt checks](#prompt-checks)). See the next two sections.
 - **View** — what you see and how: the **Preview / Split / Source** switch and the outline toggle, **Full Tools** (flip between the two shapes), **Collapse** (fold the whole band away), **Style** (one, two or three button rows), and **Follow Theme** (whether the band's colours track the app's theme).
 
@@ -46,7 +47,7 @@ The ribbon is the band of buttons across the top of the window. Its tabs are:
 ## Writing a prompt
 
 1. Pick a folder from the workspace menu at the top of the file tree, or click the **folder button** (tooltip **Choose a workspace folder**) beside it to add one.
-2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom of the window keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
+2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
 3. Bring in files from the tree: **drag a file row into the editor**, or **double-click a file row**. This inserts a reference to that file, written as `` `./relative/path` ``, at the cursor.
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
@@ -71,13 +72,13 @@ You are not limited to one prompt-in-progress. **New Draft** (the **Start** tab 
 
 While you write, the app quietly keeps versions of each draft — when you copy it, clear it, replace it, or switch to another draft. **Save version** (the **Start** tab) marks one by hand.
 
-The **History** panel on the right lists the current draft's versions, newest first, with the reason each was taken. **Click a version to roll back to it.** A confirmation dialog explains that your current text is saved as a version first, so rolling back never loses anything.
+The **History** section of the right panel lists the current draft's versions, newest first, with the reason each was taken. **Click a version to roll back to it.** A confirmation dialog explains that your current text is saved as a version first, so rolling back never loses anything.
 
 If the app closes unexpectedly, the next start asks once whether to **Restore** the draft text from that session (it becomes a new draft) or **Discard** it.
 
 ## Templates: starting from a skeleton
 
-The **Templates** panel in the left side of the window (labelled **Templates**, under the file tree) is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same list.
+The **Templates** section in the left panel (under the file tree) is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same list.
 
 - **Search** narrows the list as you type — the search matches titles, descriptions, tags and the template text itself.
 - **Click a template** to insert it into your draft at the cursor. Inserting never replaces what you wrote: the skeleton is added at the cursor position, and if text was selected, it becomes the value of the template's `{{selection}}` placeholder.
@@ -88,14 +89,14 @@ The **Templates** panel in the left side of the window (labelled **Templates**, 
 
 ## Favorites: finished prompts
 
-Templates are skeletons with holes to fill; **favorites** are complete prompts you want to use again exactly as they are. The **Favorites** panel sits under the Templates panel (collapsed by default — click it open).
+Templates are skeletons with holes to fill; **favorites** are complete prompts you want to use again exactly as they are. The **Favorites** section sits under the Templates section (collapsed by default — click it open).
 
 - **Save a favorite** with **Save Favorite** (the **Prompt tools** tab, or the toolbar): the whole draft becomes a favorite, its title taken from the first line. A toast confirms it.
 - **Click a favorite** to insert its full text into the draft at the cursor.
 - Hovering a favorite row reveals **copy** (straight to the clipboard, nothing inserted) and **remove**.
 - Favorites live in the app's own settings storage, up to fifty; saving the same text again just refreshes it rather than taking a second slot.
 
-**Which one is which?** If you find yourself deleting the placeholders every time, it is a favorite pretending to be a template. If you fill in the blanks every time, it is a template. The two panels keep them apart so the click does the right thing without asking.
+**Which one is which?** If you find yourself deleting the placeholders every time, it is a favorite pretending to be a template. If you fill in the blanks every time, it is a template. The two sections keep them apart so the click does the right thing without asking.
 
 ## Formatting tools
 
@@ -105,7 +106,7 @@ The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Ital
 - Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`.
 - In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
 
-The only keyboard shortcuts the window adds are `Ctrl+F` (find — see the next section) and `Esc` (close the find bar). Everything else is a button.
+The only keyboard shortcuts the workbench adds are `Ctrl+F` (find — see the next section) and `Esc` (close the find bar). Everything else is a button.
 
 ## Finding and replacing
 
@@ -118,7 +119,7 @@ The only keyboard shortcuts the window adds are `Ctrl+F` (find — see the next 
 
 ## Prompt checks
 
-The **Checks** panel on the right (while the prompt is showing) reviews the draft and returns a list of suggestions — never a score. Click **Check** (or **Check Prompt** on the **Prompt tools** tab) to run it.
+The **Checks** section of the right panel (while the prompt is showing) reviews the draft and returns a list of suggestions — never a score. Click **Check** (or **Check Prompt** on the **Prompt tools** tab) to run it.
 
 - Every finding is one line with a coloured dot: grey for a hint, yellow for a caution, red for a warning.
 - **Click a finding** and the editor jumps to the place it is about, selecting the relevant text (findings about the whole prompt, like a missing acceptance line, have nowhere to jump).
@@ -149,40 +150,40 @@ The buttons on the strip above the middle switch what it shows — for the draft
 
 The strip above the middle carries the reading controls: the **Preview / Split / Source** buttons, the **outline** button, the **search** button, the **text size** and **width** pickers, and the **More actions** menu.
 
-- **Outline.** The panel on the right lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**.
+- **Outline.** The outline section of the right panel lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**.
 - **Text size.** Pick the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
-- **Width.** Pick how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole window.
+- **Width.** Pick how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
 - **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
 
 ## Finding text in the document
 
 Press `Ctrl+F`, or click the search button on the strip. Type your text and use **Next** and **Previous** to step through matches; the label tells you which match you are on (**3 of 17**). Turn on **Match case** (Aa) for a case-sensitive search. `Esc` closes the search bar.
 
-Two things it will not do, both because of how the window renders long files quickly:
+Two things it will not do, both because of how the workbench renders long files quickly:
 
 - It counts only the part that has been laid out. On a very long document, searching immediately after opening it can report fewer matches than it will a moment later — re-run the search once the whole document is rendered.
 - It cannot find text that is split by formatting. Searching for `Markdown` will not match inside `**Mark**down`, because the bold markers break the word into pieces.
 
 ## Editing and saving
 
-Type in **Split** or **Source**. The window asks before discarding your work:
+Type in **Split** or **Source**. The app asks before discarding your work:
 
 - `Ctrl+S` writes the file. A confirmation appears, and the **Unsaved changes** mark goes away.
-- Closing the window with unsaved edits asks: **Save and close**, **Discard changes**, or **Cancel**. With more than one edited document the dialog counts them, and **Save all and close** writes every one of them — not just the tab you are looking at.
+- Exiting the app with unsaved edits asks: **Save and exit**, **Discard changes**, or **Cancel**. With more than one edited document the dialog counts them, and **Save all and exit** writes every one of them — not just the tab you are looking at.
 - If something else changes the file while you have unsaved edits, a dialog appears: **Reload from disk** takes the outside version and drops yours, **Keep my changes** keeps yours and stops asking about that particular change.
 - `F5` re-reads the file from disk. If you have unsaved changes it asks you first, so `F5` cannot quietly throw your editing away.
 
-**Saving preserves the file's shape.** If the file used Windows line endings, or had a byte-order mark at the start, saving keeps those. The window does not "tidy" your file into a different shape.
+**Saving preserves the file's shape.** If the file used Windows line endings, or had a byte-order mark at the start, saving keeps those. The app does not "tidy" your file into a different shape.
 
 A file can be read-only for three reasons, and the status line names the one that applies: it is too big to edit here (previewing is still fine), it is not writable on disk, or its text is not valid UTF-8 — saving that back would permanently damage it, so editing is refused. Very large files (tens of megabytes) are not opened at all rather than opened and left struggling.
 
 ## Coming back to what you had open
 
-Close the window and open it again later **in the same app run**, and everything is as you left it: the same tabs, the same active one, unsaved edits included. Only closing a tab or restarting the app clears anything.
+Switching to another page and back keeps everything as you left it: the same tabs, the same active one, unsaved edits included. Only closing a tab or restarting the app clears anything.
 
-**Restarting brings the tabs back.** The app remembers which documents and drafts were open, which tab was active, and each tab's view setting; reopening the workbench window after a restart restores them. A document whose file has since been moved or deleted — or a draft that was deleted — is simply skipped; the rest still come back. The remembered shapes (full or compact, panels folded or not) come back too.
+**Restarting brings the tabs back.** The app remembers which documents and drafts were open, which tab was active, and each tab's view setting; the first visit to the workbench after a restart restores them. A document whose file has since been moved or deleted — or a draft that was deleted — is simply skipped; the rest still come back. The remembered shapes (full or compact, panels folded or not) come back too.
 
-**The app does not open this window by itself at startup** — the start of the app stays fast and quiet. If you want the workbench (with its last tabs) already open when the app starts, turn on **Open the Markdown workbench on startup** in [Settings → Launchers](settings.md).
+**The app does not open the workbench by itself at startup** — the start of the app stays fast and quiet. If you want the workbench (with its last tabs) already open when the app starts, turn on **Open the Markdown workbench on startup** in [Settings → Launchers](settings.md).
 
 ## Copying, opening elsewhere, exporting
 
@@ -205,7 +206,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 - Formulas written with `$$ … $$`, `\[ … \]` and inline forms render as typeset formulas. A formula with a syntax error is shown in red rather than hidden.
 - A code block whose language is `mermaid` becomes a diagram. Diagrams are drawn as you scroll near them, not all at once — a document with very many diagrams will ask you to click a diagram before drawing it.
 - GitHub-style notice blocks (`> [!NOTE]` and its four relatives) are drawn as coloured callouts.
-- **Embedded HTML is not rendered.** Tags written directly into the Markdown appear as text. This is a deliberate safety choice: this window shows files you did not write, and HTML in a document would otherwise be able to run code inside the app.
+- **Embedded HTML is not rendered.** Tags written directly into the Markdown appear as text. This is a deliberate safety choice: this workbench shows files you did not write, and HTML in a document would otherwise be able to run code inside the app.
 
 ## Using the file tree
 
@@ -236,7 +237,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **A folder disappeared from the list.** Folders are capped at twenty and the least recently used one is dropped when you add another. Add it again if you still need it.
 
-**The file tree is empty.** Check that the selected folder still exists and is not empty. The window says **The workspace folder is empty or unavailable.** in that case. Use the refresh button, or pick another folder.
+**The file tree is empty.** Check that the selected folder still exists and is not empty. The workbench says **The workspace folder is empty or unavailable.** in that case. Use the refresh button, or pick another folder.
 
 **I cannot drag a file into the editor.** Make sure you are dragging a row from the file tree, not text from elsewhere. Dragging from the tree into the editor inserts a reference; dragging text within the editor moves that text.
 
@@ -244,11 +245,11 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **The preview shows nothing.** Check the status line; it names the reason when the file cannot be read. An empty file says **The document is empty** in the preview area, and **Nothing to edit** in the editor.
 
-**A diagram is blank or shows an error.** A diagram that fails to parse says **Diagram could not be drawn**; fix the text in **Source** and the block updates. In a document with a lot of diagrams, a placeholder says **Click to render this diagram** and stays empty until you click it — that is the window refusing to draw dozens of diagrams you were never going to look at.
+**A diagram is blank or shows an error.** A diagram that fails to parse says **Diagram could not be drawn**; fix the text in **Source** and the block updates. In a document with a lot of diagrams, a placeholder says **Click to render this diagram** and stays empty until you click it — that is the workbench refusing to draw dozens of diagrams you were never going to look at.
 
-**Something did not render.** If part of the document fails, a message appears and the rest of the document stays visible — the window never shows a half-blank page in silence.
+**Something did not render.** If part of the document fails, a message appears and the rest of the document stays visible — a half-blank page is never shown in silence.
 
-**The window will not open a ninth document.** The tab strip holds eight documents at most. Close a tab you are done with — the file itself is never touched — and open the next one. Opening the same file twice does not need a second tab: it brings the existing one forward.
+**A ninth document will not open.** The tab strip holds eight documents at most. Close a tab you are done with — the file itself is never touched — and open the next one. Opening the same file twice does not need a second tab: it brings the existing one forward.
 
 **A tab I reopened is empty or gone after a restart.** The remembered tabs are re-opened from their files; a file that has been moved or deleted is skipped (the rest come back), and a file that can no longer be read tells you why in the status line.
 

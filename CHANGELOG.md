@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **The Markdown workbench lives in the main window again.** It is no longer
+  a standalone window: the sidebar's **Agent Tools** group is back, and its
+  **Prompt Writing** entry opens the workbench as a page inside the main
+  window's work area (a resident page, created on first visit — the editor's
+  undo stack, scroll position and split proportion survive page switches).
+  The thin **Markdown** start page is gone; right-clicking a Markdown file
+  still opens it in the workbench, now by navigating to the page. Exiting
+  with unsaved document edits is guarded by the main window's exit flow
+  (save-all / discard / cancel). The right side is one bordered panel again
+  — outline, checks and draft history as clearly separated sections instead
+  of two borderless panels that read as overlapping windows.
+- **The workbench ribbon renders its context tab correctly again.** SARibbon
+  is updated to the upstream dev-3.0 tip (`d3d45d8`), which fixes panel child
+  order scrambling, never-rendering in-panel separators, and hit-test
+  visibility of registered categories; the update hard-requires QWindowKit,
+  which is built in-tree from SARibbon's own nested submodule chain (the
+  workbench keeps its native window frame — no frameless agent is declared).
+  The **Prompt tools** context tab now carries `theme.success` instead of
+  `theme.accent`: SARibbon paints the whole title row in the accent colour,
+  so an accent context colour made the tab and its band invisible — the
+  "context category blends into the other categories" defect.
+
 ### Added
 
 - **Multiple drafts**: the prompt side of the workbench now holds **a set of

@@ -10,7 +10,7 @@ This section is for people **changing the code**. Each user-visible feature has 
 | Embedded web tabs (tab model, memory policy) | [Web tabs](web-tabs.md) | [Web interface](../guide/web-ui.md) |
 | WebEngine adapter (engine quirks, Qt 5/6 compatibility) | [WebEngine adapter](webengine-adapter.md) | [Web interface](../guide/web-ui.md) |
 | Skill browser | [Skill browser](skill-browser.md) | [Skills](../guide/skills.md) |
-| Markdown workbench window (prompt writing + document preview, ribbon, chunked rendering) | [Markdown workbench](markdown-workbench.md) | [Markdown workbench](../guide/markdown-workbench.md) |
+| Markdown workbench page (prompt writing + document preview, ribbon, chunked rendering) | [Markdown workbench](markdown-workbench.md) | [Markdown workbench](../guide/markdown-workbench.md) |
 | Shell, navigation, components | [Shell and navigation](shell-and-navigation.md) | [Getting started](../guide/index.md) |
 | Settings pages and the settings file | [Settings](settings.md) | [Settings](../guide/settings.md) |
 | Theme engine | [Theme engine](theme-engine.md) | [Appearance](../guide/appearance.md) |
@@ -73,7 +73,7 @@ src/
                 awbmd:// URLs, preview controller)
     webengine/  L2 adapter (links Qt WebEngine; the awbmd:// handler — Qt 6 only)
   workbench/    L3: cross-domain intents, built-in pages, environment, plugin services
-                + the Markdown workbench window QML
+                + the Markdown workbench page QML
 cmake/        shared build options (AwbOptions.cmake, AwbTranslations.cmake)
 resources/    built-in theme JSON files
 config/       default_agents.json, default_file_icons.json (bundled as Qt resources)
@@ -91,7 +91,7 @@ Each module owns its QML under `src/<module>/qml/`; the shared `A*` components l
 | Option | Default | Meaning |
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | embedded web views (MSVC only; MinGW + ON fails at configure time with a readable error) |
-| `AWB_ENABLE_RIBBON` | `ON` | build the SARibbon QML module (`third_party/SARibbon`, a git submodule pinned at `f89a02e`) that the Markdown workbench window's ribbon is made of; OFF means the window falls back to a plain toolbar, it never breaks the build |
+| `AWB_ENABLE_RIBBON` | `ON` | build the SARibbon QML module (`third_party/SARibbon`, a git submodule pinned at `d3d45d8`, which hard-requires the QWindowKit chain built in-tree) that the Markdown workbench page's ribbon is made of; OFF means the page falls back to a plain toolbar, it never breaks the build |
 | `BUILD_TESTING` | `ON` | unit test targets (needs the Qt Test module) |
 
 `build.sh` sets `BUILD_TESTING` explicitly for both of its test flags — `--test` configures it `ON`, `--no-tests` (used by `package.sh`) configures it `OFF` — so one build directory keeps working after either was used on it.
@@ -120,7 +120,7 @@ ctest runs one executable per module plus the architecture gate:
 | `tst_tools` | workspace store semantics, lazy tree model (roles/fetch/incremental refresh), icon mapping, facade wiring, QML invokable surface |
 | `tst_markdown` | the pure layer: document byte-fidelity read/save, block chunking and diffing, `awbmd://` URL and MIME mapping, theme-to-CSS strings, controller state — no WebEngine, so it runs in every build |
 | `tst_markdownpreview` | the page in a real engine: module script graph, per-block mounting, KaTeX/mermaid/highlight.js output, incremental replacement, search, serialize (Qt 6 + WebEngine only) |
-| `tst_markdownpreviewui` | the shipped `MarkdownWorkbenchWindow.qml`: it compiles and loads, the command pump runs, find/serialize round-trip, the open/close reporting contract (Qt 6 + WebEngine only) |
+| `tst_markdownpreviewui` | the shipped `MarkdownWorkbenchPage.qml`: it compiles and loads, the command pump runs, find/serialize round-trip, the open-reporting contract and keepAlive residency (Qt 6 + WebEngine only) |
 
 A single case can be run by name, e.g. `./build/tst_core testRoundTrip`.
 

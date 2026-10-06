@@ -10,7 +10,7 @@
 | 内嵌 Web 标签页（标签模型、内存策略） | [Web 标签页](Web标签页.md) | [网页界面](../guide/网页界面.md) |
 | WebEngine 适配层（引擎差异、Qt 5/6 兼容） | [WebEngine 适配层](WebEngine适配层.md) | [网页界面](../guide/网页界面.md) |
 | Skill 浏览 | [Skill 浏览](Skill浏览.md) | [技能](../guide/技能.md) |
-| Markdown 工作台窗口（提示词撰写 + 文档预览、Ribbon、分块渲染） | [Markdown 工作台](Markdown工作台.md) | [Markdown 工作台](../guide/Markdown工作台.md) |
+| Markdown 工作台页（提示词撰写 + 文档预览、Ribbon、分块渲染） | [Markdown 工作台](Markdown工作台.md) | [Markdown 工作台](../guide/Markdown工作台.md) |
 | 外壳、导航与组件 | [外壳与导航](外壳与导航.md) | [入门](../guide/index.md) |
 | 设置页与设置文件 | [设置](设置.md) | [设置](../guide/设置.md) |
 | 主题引擎 | [主题引擎](主题引擎.md) | [外观](../guide/外观.md) |
@@ -71,7 +71,7 @@ src/
   markdown/     L2：Markdown 文档管线（文档读写、分块、awbmd:// URL、预览控制器）
     webengine/  L2 适配器（链接 Qt WebEngine；awbmd:// 的 handler——仅 Qt 6）
   workbench/    L3：跨域意图、内置页面、环境检测、插件服务
-                + Markdown 工作台窗口 QML
+                + Markdown 工作台页 QML
 cmake/        共享构建选项（AwbOptions.cmake、AwbTranslations.cmake）
 resources/    内置主题 JSON
 config/       default_agents.json、default_file_icons.json（打包为 Qt 资源）
@@ -89,7 +89,7 @@ scripts/      build.sh、package.sh、check-architecture.sh、update-ts.sh、wor
 | 选项 | 默认 | 含义 |
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | 内嵌网页视图（仅 MSVC；MinGW 下打开它会在配置期以一段可读的错误失败） |
-| `AWB_ENABLE_RIBBON` | `ON` | 构建 SARibbon 的 QML 模块（`third_party/SARibbon`，git submodule，钉在 `f89a02e`）——Markdown 工作台窗口的 Ribbon 由它组成；关掉时窗口退回普通工具栏，构建不会坏 |
+| `AWB_ENABLE_RIBBON` | `ON` | 构建 SARibbon 的 QML 模块（`third_party/SARibbon`，git submodule，钉在 `d3d45d8`，硬依赖树内构建的 QWindowKit 链）——Markdown 工作台页的 Ribbon 由它组成；关掉时页面退回普通工具栏，构建不会坏 |
 | `BUILD_TESTING` | `ON` | 单元测试目标（需要 Qt Test 模块） |
 
 `build.sh` 对它的两个测试开关都会显式设置 `BUILD_TESTING`——`--test` 配成 `ON`，`--no-tests`（`package.sh` 用的）配成 `OFF`——所以同一个构建目录在两种用法之间来回切都能正常工作。
@@ -118,7 +118,7 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 | `tst_tools` | 工作区记忆语义、懒加载树模型（角色/取子/增量刷新）、图标映射、门面接线、QML 可调用面 |
 | `tst_markdown` | 纯层：文档逐字节读写、分块与差异、`awbmd://` URL 与 MIME 映射、主题转 CSS 字符串、控制器状态——不碰 WebEngine，每个构建都跑 |
 | `tst_markdownpreview` | 真引擎里的页面：模块脚本图、按块挂载、KaTeX/mermaid/highlight.js 的实际产物、增量替换、搜索、序列化（仅 Qt 6 + WebEngine） |
-| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchWindow.qml`：它能编译加载、命令泵真在跑、find/serialize 往返、开窗关窗的报到契约（仅 Qt 6 + WebEngine） |
+| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`：它能编译加载、命令泵真在跑、find/serialize 往返、报到契约与 keepAlive 常驻（仅 Qt 6 + WebEngine） |
 
 单个用例可以按名字跑，例如 `./build/tst_core testRoundTrip`。
 

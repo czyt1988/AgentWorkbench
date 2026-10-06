@@ -38,7 +38,7 @@ Every module is a static library with its own `src/<module>/CMakeLists.txt`. The
 
 Two modules carry a rule that is easy to violate by accident:
 
-- `src/shell` **does not know** about agents, skills, web tabs or tools. It renders pages it is handed and answers "where am I". Business pages are registered *into* it from `src/workbench`. The one thing it hosts outside that pattern is the Markdown workbench window, addressed by resource URL through a `Loader` — see [Layers and dependencies](layers-and-dependencies.md).
+- `src/shell` **does not know** about agents, skills, web tabs or tools. It renders pages it is handed and answers "where am I". Business pages are registered *into* it from `src/workbench` (the Markdown workbench among them, a keepAlive page under the Agent Tools group) — see [Layers and dependencies](layers-and-dependencies.md).
 - `src/workbench` is **the only place allowed to know more than one domain**. Every cross-domain action (open this agent's web UI, open a config folder, notify) is a method on `WorkbenchContext`, not on a domain facade.
 
 ## The system at a glance

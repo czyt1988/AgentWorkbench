@@ -166,7 +166,7 @@ and be adjacent in `order` to — the rows it heads.
 
 `BuiltinPages::registerPages()` is the single place where the built-in sidebar
 rows are declared — the launcher (`agents`), Web (`web`), Skills (`skills`), the
-Markdown start page (`tools`, the thin launcher for the workbench window) and
+Markdown workbench page (`tools`, the keepAlive page under the Agent Tools group) and
 Settings (`settings`). A new built-in page, or a new group label, is added there.
 
 `keepAlive` is not free. A keep-alive page is created once and survives page

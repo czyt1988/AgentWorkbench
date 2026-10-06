@@ -51,7 +51,7 @@ whether each is running.
   a second window: the existing one is brought to the front instead. Takes
   effect at the next start.
 - **Open the Markdown workbench on startup** - for heavy prompt writers: the
-  workbench window is already open when the app starts, restored to the
+  workbench is already open when the app starts, restored to the
   documents you had open. Off by default — the normal start stays fast and
   quiet. Takes effect at the next start.
 - **Associate .md files** - puts this app into the **Open with** list for

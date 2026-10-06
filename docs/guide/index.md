@@ -43,8 +43,8 @@ The window has three parts.
   app.
 - **Skills** - a searchable list of the "skill" instruction files found on your
   computer, with their locations.
-- **Markdown** - the start page that opens the Markdown workbench window: a
-  prompt-composing scratchpad with a file tree beside it, and the window where
+- **Prompt Writing** (under **Agent Tools**) - the Markdown workbench: a
+  prompt-composing scratchpad with a file tree beside it, and the place where
   you read and tidy Markdown files.
 - **Settings** - pinned at the very bottom as an icon. Themes, launchers,
   environment checks, skill folders, browser options, plugins and reset
@@ -92,8 +92,8 @@ In the **Markdown workbench** window: the usual text shortcuts apply in the
 editor (`Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to
 cut, copy and paste); `Ctrl+S` saves the open document, `Ctrl+F` opens the
 in-document search, `Esc` closes that search bar, and `F5` re-reads the file
-from disk. These only apply while the workbench window itself is in front, so
-they cannot steal a `Ctrl+S` from the main window.
+from disk. These only apply while the workbench itself is the page you are
+on, so they cannot steal a `Ctrl+S` from anywhere else.
 
 ## Where your data lives
 

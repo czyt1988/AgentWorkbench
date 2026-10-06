@@ -82,7 +82,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
 - `logging.level` 是落盘的最低级别——`debug`（默认，全部记录）、`info`、`warning`、`critical` 或 `off`，非法值告警后回退 `debug`；`logging.mirrorToStderr`（默认开启）把每行同时镜像到启动它的控制台。两项都在下次启动时生效。
 - `plugins.enabled` 是插件总开关，`disabledIds` 记录逐项禁用；插件在启动时
   加载，开关重启后生效。参见[插件](plugins.md)。
-- `markdown.*` 是 Markdown 工作台窗口记住的状态：`mode` 取 `preview`、
+- `markdown.*` 是 Markdown 工作台记住的状态：`mode` 取 `preview`、
   `split` 或 `source`（新开文档的默认值——每个打开的 tab 记住自己的）；
   `fontSizePx` 为 `0` 时跟随主题正文字号，`contentWidthPx` 为 `0` 时用内置
   栏宽（两者分别钳制 `[0, 48]` 与 `[0, 4000]`）；`showOutline` 决定大纲面板

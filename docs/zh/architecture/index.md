@@ -38,7 +38,7 @@ AgentWorkbench 是一个只有一件事要做的桌面外壳：**启动外部的
 
 有两个模块带有很容易被无意破坏的规则：
 
-- `src/shell` **不认识** agent、skill、web 标签、tools。它只负责渲染被交给它的页面，并回答「我现在在哪」。业务页面是从 `src/workbench` **注册进**它的。这一模式之外只有一处：它承载了 Markdown 工作台窗口，用 `Loader` 按资源 URL 加载——原因见[分层与依赖](分层与依赖.md)。
+- `src/shell` **不认识** agent、skill、web 标签、tools。它只负责渲染被交给它的页面，并回答「我现在在哪」。业务页面是从 `src/workbench` **注册进**它的（Markdown 工作台也在其中——Agent Tools 分组下的一个 keepAlive 页）——见[分层与依赖](分层与依赖.md)。
 - `src/workbench` 是**全工程唯一允许同时认识多个领域的地方**。任何跨域动作（打开这个 agent 的网页界面、打开它的配置目录、弹一条通知）都是 `WorkbenchContext` 上的方法，而不是某个领域门面上的方法。
 
 ## 系统全景

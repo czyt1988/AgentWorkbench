@@ -36,10 +36,10 @@ make the "untouched root" check fail forever.
 |---|---|---|---|
 | `agents.json` | launcher page / Settings | user agents plus the root-level `removed` list | `AgentRepository` |
 | `agent_state.json` | one-time setup | which agents finished their `setupCommand` | `AgentStateStore` |
-| `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench window's remembered document view and its startup behaviour | `core::Settings` — the only entry point |
+| `settings.json` | Settings page, Markdown workbench | all application settings, including the workbench's remembered document view and its startup behaviour | `core::Settings` — the only entry point |
 | `tools.json` | Markdown workbench | workspace MRU list (max 20), current workspace, the drafts (up to 20, refused beyond — never silently dropped), each draft's version snapshots, the crash recovery copy, window interface state, and the favorites (finished prompts, max 50) | `ToolsStore` via `ToolsFacade` |
 | `prompt_templates/` | you | user prompt templates — one Markdown file each, with a minimal header; a file sharing a built-in's `id` overrides it | `PromptTemplateLibrary` (read/merge), hand-edited at will |
-| `markdown_session.json` | Markdown workbench | the workbench window's last scene: open tabs (file paths or draft ids, each with its view mode), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths and draft ids only, no content** | `MarkdownSessionStore` via `WorkbenchContext` |
+| `markdown_session.json` | Markdown workbench | the workbench's last scene: open tabs (file paths or draft ids, each with its view mode), the active tab, the preset and panel collapse states, and a recent-documents MRU (max 20) — **local paths and draft ids only, no content** | `MarkdownSessionStore` via `WorkbenchContext` |
 | `skills_cache.json` | the skill scanner | last scan result, for first-screen rendering | `SkillCache` |
 | `environment_cache.json` | the runtime probe | last Python/Node verdict (version, install path, or "nothing usable on PATH"), for first-screen rendering | `EnvironmentCache` |
 | `file_icons.json` | you | icon-table overrides / additions | `FileIcons` (via `FileTreeModel`) |
