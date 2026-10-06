@@ -6,8 +6,11 @@ import AgentWorkbench.App
 
 // 工作区宿主：同一时刻只显示一个页面，按导航模型给的 source 装载。切换
 // 即销毁旧页——必须跨页存活的状态放在 C++（页面可毁掉重建是默认契约）。
-// 例外是 keepAlive 页（Web 页——WebEngineView 的状态搬不进 C++，销毁即
-// 整页重载）：由下方常驻 Repeater 实例化一次，别的页面在前面时仅隐藏。
+// 例外是 keepAlive 页（Web 页与提示词工作台页——WebEngineView 的页面
+// 状态、编辑器的撤销栈与分屏比例都搬不进 C++，销毁即丢）：常驻 Repeater
+// 托管，但**首次访问才实例化**（active 绑「来过一次」），别的页面在前面
+// 时仅隐藏。代价：keepAlive 页以 0x0 创建、首次显示才拿到真实尺寸（布
+// 局约束见 designs.md「右侧主区规则」）。
 Rectangle {
     id: workspace
 
@@ -24,8 +27,16 @@ Rectangle {
 
             anchors.fill: parent
             visible: nav.currentPageId === pageId
-            active: true
+            // 去过一次就常驻：没去过的页不付常驻的代价——冷启动不该为
+            // 「还没点开过的工具页」预热 WebEngineView 或恢复整个 tab 组。
+            // 一旦访问过（active 期间），此后仅隐藏不销毁。
+            active: visited
+            property bool visited: false
             source: modelData.source
+            // 初值：上一页恢复可能直接落在本页（创建时 visible 已为真，
+            // 不会再有变化事件）；运行中的切页走 onVisibleChanged。
+            Component.onCompleted: if (visible) visited = true
+            onVisibleChanged: if (visible) visited = true
             onStatusChanged: {
                 if (status === Loader.Error) {
                     console.error("Workspace: failed to load page",

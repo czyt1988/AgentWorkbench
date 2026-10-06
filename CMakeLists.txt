@@ -77,13 +77,17 @@ set(SINGLEAPPLICATION_INSTALL OFF)
 set(SINGLEAPPLICATION_DOCUMENTATION OFF)
 add_subdirectory(third_party/SingleApplication EXCLUDE_FROM_ALL)
 
-# Third-party: SARibbon, the ribbon UI of the Markdown workbench window. It is
+# Third-party: SARibbon, the ribbon UI of the Markdown workbench page. It is
 # a git submodule (same convention as spdlog; offline init via
 # scripts/worktree-add.sh, which clones from a populated checkout). Pinned to
-# f89a02e — the last commit whose QML module links only Core/Gui/Qml/Quick/
-# QuickControls2 + SARibbonCore; the next commit (c7f9bfd) forces QWindowKit
-# into the QML module, a dependency this integration deliberately does not
-# take (the workbench window keeps the native window frame).
+# the upstream dev-3.0 tip d3d45d8 (2026-10-07) — it carries the ribbon fixes
+# this integration needs: panel child order scrambling, in-panel separators
+# never rendering, hit-test visibility of registered categories. From c7f9bfd
+# the QML module hard-requires QWindowKit; SARibbon's CMake builds it in-tree
+# from its own nested submodule (3rdparty/qwindowkit — init it offline from
+# C:/src/Qt/SARibbon/3rdparty/qwindowkit, see below). Linking QWK does NOT
+# make the frameless window mandatory: the page keeps the native window frame
+# (no RibbonWindowAgent is declared anywhere).
 #
 # Only the QML module is built (SARIBBON_BUILD_WIDGETS=OFF keeps the QWidget
 # stack out of the binary); static libs avoid a third DLL next to the exe.
@@ -98,6 +102,18 @@ if (AWB_ENABLE_RIBBON)
             "  git submodule update --init third_party/SARibbon\n"
             "(on this machine's intranet, use bash scripts/worktree-add.sh, "
             "which clones it offline from the main worktree)")
+    endif()
+    if (NOT EXISTS
+            "${CMAKE_SOURCE_DIR}/third_party/SARibbon/3rdparty/qwindowkit/CMakeLists.txt")
+        message(FATAL_ERROR
+            "SARibbon's nested qwindowkit submodule is missing (the QML "
+            "module hard-requires it since c7f9bfd). Run inside "
+            "third_party/SARibbon:\n"
+            "  git -c submodule.3rdparty/qwindowkit.url="
+            "<populated qwindowkit checkout> \\\n"
+            "    submodule update --init 3rdparty/qwindowkit\n"
+            "(offline: point the URL at C:/src/Qt/SARibbon/3rdparty/"
+            "qwindowkit)")
     endif()
     set(SARIBBON_BUILD_QML ON)
     set(SARIBBON_BUILD_WIDGETS OFF)

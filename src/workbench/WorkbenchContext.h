@@ -87,27 +87,28 @@ public:
     // 重启 agent（离线遮罩、启动器卡片）
     Q_INVOKABLE void launchAgent(const QString &agentId);
 
-    // --- Markdown 预览（跨域：Tools 页的文件树 → 预览窗口） ----------------
-    // 打开一份 Markdown 的独立预览窗口。成功与失败都给 toast：失败的原因来自
-    // 预览域（过大、非 UTF-8、本构建没有预览能力），QML 不重复解释一遍。
+    // --- Markdown 工作台（跨域：Tools 页的文件树 → 工作台页） --------------
+    // 在工作台页里打开一份 Markdown（装载走预览控制器，随后导航到页）。
+    // 成功与失败都给 toast：失败的原因来自预览域（过大、非 UTF-8、本构建
+    // 没有预览能力），QML 不重复解释一遍。
     Q_INVOKABLE void previewMarkdown(const QString &path);
     // 文件树右键菜单据此决定「预览」这一项出不出场——没有预览能力的构建里
     // 它恒为假，条目根本不出现。
     Q_INVOKABLE bool canPreviewMarkdown(const QString &path) const;
-    // 打开（或唤醒）Markdown 工作台窗口，落在提示词模式。与 previewMarkdown()
-    // 是同一扇窗的两条入口：这里不需要预览能力，纯 QML 编辑器照常可用。
+    // 导航到 Markdown 工作台页（Agent Tools 分组下的 tools 条目）。工作台
+    // 是常驻页面而非独立窗口；这里不需要预览能力，纯 QML 编辑器照常可用。
     Q_INVOKABLE void openMarkdownWorkbench();
 
-    // --- 会话（E3：关窗重开找回上次的 tab 组） ----------------------------
-    // 恢复上次的现场（tab 组/激活位/每 tab 三态/预设开合）。窗口在本轮应用
-    // 第一次创建时调用一次；返回 {restored, preset, promptLeftOpen,
-    // documentLeftOpen, documentRibbonCollapsed}，restored 为假时窗口按自己
+    // --- 会话（E3：重开找回上次的 tab 组） ----------------------------------
+    // 恢复上次的现场（tab 组/激活位/每 tab 三态/预设开合）。工作台页在本轮
+    // 应用第一次创建时调用一次；返回 {restored, preset, promptLeftOpen,
+    // documentLeftOpen, documentRibbonCollapsed}，restored 为假时页面按自己
     // 的初值走。
     Q_INVOKABLE QVariantMap restoreMarkdownSession();
-    // 把窗口现场写进会话文件（tab 结构/预设/开合变化时调用；tab 组与激活位
+    // 把页面现场写进会话文件（tab 结构/预设/开合变化时调用；tab 组与激活位
     // 从控制器取，MRU 由本类在每次打开文档时维护）。
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &windowState);
-    // 最近文档 MRU（新在前；启动页的「最近文档」列表）。
+    // 最近文档 MRU（新在前；会话文件的「最近文档」列表）。
     Q_INVOKABLE QStringList recentMarkdownDocuments() const;
 
     // --- .md 文件关联（E2） -----------------------------------------------
@@ -173,10 +174,6 @@ Q_SIGNALS:
      * @brief legacy 导入提示变化时发射
      */
     void legacyImportNoticeChanged();
-    /**
-     * @brief 请求打开 Markdown 工作台窗口（MainWindow 的 Loader 监听它）
-     */
-    void markdownWorkbenchRequested();
 
 private:
     shell::NavigationModel *m_nav;          ///< 导航（页面注册与当前页）

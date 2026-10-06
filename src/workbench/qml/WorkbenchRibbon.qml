@@ -20,7 +20,7 @@ import SARibbon 3.0
 Item {
     id: commandBar
 
-    /// 宿主窗口（MarkdownWorkbenchWindow）：动作与状态的唯一来源。
+    /// 宿主页面（MarkdownWorkbenchPage）：动作与状态的唯一来源。
     property var win: null
 
     implicitHeight: ribbonBar.implicitHeight
@@ -368,10 +368,17 @@ Item {
         // --- 标签页 2 · 提示词：模板与收藏（上下文页，仅提示词预设） ---------
         // 决策 D-2：文档模式（双击 .md）下这个 tab 不出现——模板与收藏是
         // 草稿的工具，别人的文档不往里插。挂 RibbonContextCategory。
+        //
+        // contextColor 不能用 theme.accent：SARibbon 的标题行底色就是
+        // RibbonTheme.accent（主题桥把应用 accent 推了进去），上下文页的
+        // 色带与 tab 文字都按 contextColor 画——同色等于全部隐形，看起来
+        // 就是「context 页和普通页混叠在一起」（2026-10 用户报告）。绿色
+        // 在深浅两套主题下都与 accent 蓝可区分，也是 Office 上下文页的
+        // 惯例用色。
         RibbonContextCategory {
             id: promptContext
             contextTitle: qsTr("Prompt tools")
-            contextColor: theme.accent
+            contextColor: theme.success
             active: win ? win.preset === "prompt" : false
 
             RibbonCategory {

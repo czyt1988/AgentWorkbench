@@ -37,9 +37,9 @@ cmake --build build
 - 需要 Qt 6.5+，或 Qt 5.15.16 LTS 兜底（模块同名：Core、Gui、Qml、Quick、QuickControls2、Network、LinguistTools；内嵌 Web 另需 WebEngineQuick——Qt 5 里组件叫 WebEngine）。两个大版本的差异全部集中在 `cmake/AwbQtCompat.cmake` 与 `#if QT_VERSION` 分支：Qt 5 路线的验证基准是 **5.15.16 LTS**（内嵌 Web 依赖的 lifecycleState/对话框请求等 WebEngine backport 在 LTS 补丁版里，开源 5.15.0/2 未必齐全）。Qt 5 构建的 QML 源在配置期自动改写补上 import 版本号（Qt 5 编译器要求库 import 带版本），资源/qmldir 用生成的 qrc 镜像 Qt 6 的 `/qt/qml/AgentWorkbench/` URL。
 - 需要 CMake 3.16+，C++17。
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
-- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`AWB_ENABLE_RIBBON`（默认 ON，构建 `third_party/SARibbon` 的 QML 模块——Markdown 工作台窗口的 Ribbon；关掉时窗口退回普通工具栏）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
+- 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`AWB_ENABLE_RIBBON`（默认 ON，构建 `third_party/SARibbon` 的 QML 模块——Markdown 工作台页的 Ribbon，自 dev-3.0 起硬依赖树内构建的 QWindowKit 链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）；关掉时页面退回普通工具栏）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
-- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与窗口层，仅 `AWB_ENABLE_WEBENGINE=ON` 且 Qt 6）、`tst_workbench`、`tst_ribbonui`（仅 `AWB_ENABLE_RIBBON=ON` 时构建——命令条 QML 装载冒烟：qrc 初始化、命令式注册时机、叶子创建）与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
+- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与宿主层，仅 `AWB_ENABLE_WEBENGINE=ON` 且 Qt 6）、`tst_workbench`、`tst_ribbonui`（仅 `AWB_ENABLE_RIBBON=ON` 时构建——命令条 QML 装载冒烟与上下文页色带断言：qrc 初始化、命令式注册时机、叶子创建、contextColor 与 accent 可区分、色带只覆盖自己的 tab）与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
 
@@ -50,14 +50,14 @@ src/
   plugin_api/    L0 插件 ABI（仅头文件；外部仓库链接它）
   theme/         L1 主题引擎：ThemeFile/ThemeLoader/ThemeRegistry/Theme
   agentcatalog/  L2：外部 agent 工具的目录（只编目与启动，不是 agent 实现）：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
-  shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web/markdown/tools；唯一例外是按资源 URL 装载 workbench 域的 Markdown 工作台窗口，见 docs/architecture/分层与依赖.md）
+  shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web/markdown/tools；所有业务页面——含 workbench 域的 Markdown 工作台页——都经 NavigationModel 以资源 URL 注册，见 docs/architecture/分层与依赖.md）
   skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
   tools/         L2：提示词撰写域：ToolsStore（工作区记忆 + 草稿 + ribbon 段，tools.json）、FileTreeModel（懒加载文件树 + watcher + 增量刷新）、FileIcons（名字/后缀 → 图标）、ToolsFacade、MarkdownEdit/MarkdownHighlighter + qml/（编辑器右键菜单）
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（链接 Qt WebEngine 的两个目标之一，含 WebEngineSurface.qml）
   markdown/      L2：Markdown 预览域：MarkdownDocument（逐字节读写）、MarkdownChunker（分块 + 差异）、MarkdownRuntime（awbmd:// URL、MIME、主题串）、MarkdownPreviewController + qml/（预览渲染面 MarkdownPreviewPane，仅能力构建注册）
     webengine/   L2 适配器（另一个链接 Qt WebEngine 的目标：scheme handler 与预览 profile，仅 Qt 6）
-  workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices + qml/（MarkdownWorkbenchWindow：提示词与预览合体的工作台窗口，命令条 Ribbon/工具栏两形态）
+  workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices + qml/（MarkdownWorkbenchPage：提示词与预览合体的工作台页（Agent Tools 分组下的 keepAlive 页），命令条 Ribbon/工具栏两形态）
 cmake/         AwbOptions.cmake、AwbTranslations.cmake（可翻译源清单）
 resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json、default_file_icons.json（打包为 Qt 资源）

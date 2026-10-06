@@ -60,10 +60,10 @@ BuiltinPages::BuiltinPages(shell::NavigationModel *nav,
 }
 
 /**
- * @brief 注册五个内置页面
+ * @brief 注册五个内置页面与侧栏的分组标签
  *
- * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径；「Markdown」
- * 条目背后是启动页薄壳，编辑器本体在独立的工作台窗口里。
+ * web/skills 等后来阶段加入的页面也走同一条 registerPage 路径；分组标签
+ * （NavKind::Header）同样经它注册——它在侧栏占一行，但不是一页。
  */
 void BuiltinPages::registerPages()
 {
@@ -102,22 +102,36 @@ void BuiltinPages::registerPages()
     skillsPage.order = 30;
     m_nav->registerPage(skillsPage);
 
-    // The prompt page grew into the Markdown workbench window (an independent
-    // window spanning tools + markdown domains, see
-    // src/workbench/qml/MarkdownWorkbenchWindow.qml). The sidebar keeps one
-    // entry under the same registration id the old page used, so a remembered
-    // last-page lands on the start page instead of dangling; the entry itself
-    // is the thin launcher page - the editor lives in the window, which stays
-    // alive across page switches.
-    shell::PageDescriptor markdownPage;
-    markdownPage.id = QStringLiteral("tools");
-    markdownPage.title = QCoreApplication::translate("BuiltinPages", "Markdown");
-    markdownPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
-    markdownPage.source = QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/shell/MarkdownStartPage.qml");
-    markdownPage.section = QStringLiteral("main");
-    markdownPage.order = 40;
-    m_nav->registerPage(markdownPage);
+    // Agent Tools 是侧栏的分组标签（NavKind::Header）：不可点击、不进
+    // Ctrl+1..9、当不了当前页；它给下面那串「面向 agent 的工具页」起名。
+    // order 与成员相邻（相邻性只由 order 决定）。首个成员是提示词编辑
+    // （Markdown 工作台，2026-10 从独立窗口收回为页面——工作台是 Agent
+    // Tools 的高级功能，不是一扇独立的应用窗）。
+    shell::PageDescriptor toolsGroup;
+    toolsGroup.id = QStringLiteral("tools-group");
+    toolsGroup.title = QCoreApplication::translate("BuiltinPages", "Agent Tools");
+    toolsGroup.section = QStringLiteral("main");
+    toolsGroup.order = 40;
+    toolsGroup.kind = shell::NavKind::Header;
+    m_nav->registerPage(toolsGroup);
+
+    // 提示词编辑页：Markdown 工作台本体（workbench 域，横跨 tools 与
+    // markdown 两个域，只有 L3 可以同时认识两者）。keepAlive：编辑器的
+    // 撤销栈、滚动位置与分屏比例搬不进 C++，切页销毁等于清空写作现场；
+    // Workspace 对 keepAlive 页首次访问后常驻、其余时间仅隐藏。注册 id
+    // 沿用 "tools"，settings.json 里记住的 lastPage 不会失效。
+    shell::PageDescriptor toolsPage;
+    toolsPage.id = QStringLiteral("tools");
+    toolsPage.title =
+        QCoreApplication::translate("BuiltinPages", "Prompt Writing");
+    toolsPage.iconSource = QStringLiteral("qrc:/icons/tools.svg");
+    toolsPage.source = QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml");
+    toolsPage.section = QStringLiteral("main");
+    toolsPage.order = 41;
+    toolsPage.level = 1;
+    toolsPage.keepAlive = true;
+    m_nav->registerPage(toolsPage);
 
     shell::PageDescriptor settings;
     settings.id = QStringLiteral("settings");

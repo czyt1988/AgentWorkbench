@@ -13,7 +13,7 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
                SettingsAppearancePage SettingsLaunchersPage
                SettingsEnvironmentPage SettingsSkillsPage SettingsWebPage
                SettingsPluginsPage SettingsAdvancedPage
-               MarkdownStartPage)
+)
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AConfirmDialog AAlertDialog AEmptyState ASectionHeader
                    AToastStack AStatusDot ATextField AFormLabel AListRow
@@ -23,14 +23,14 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml MarkdownContextMenu)
-# The Markdown workbench window lives in the workbench domain: it spans the
+# The Markdown workbench page lives in the workbench domain: it spans the
 # tools (draft, workspace tree) and markdown (preview session) domains, so
 # only L3 may reference both. Registered in EVERY build — the prompt mode is
 # a plain QML editor and works without WebEngine (the preview pane is loaded
 # by URL only where it exists, see _markdown_pane_qml below).
-set(_workbench_qml MarkdownWorkbenchWindow WorkbenchToolbar)
+set(_workbench_qml MarkdownWorkbenchPage WorkbenchToolbar)
 # The SARibbon command bar exists only in AWB_ENABLE_RIBBON builds. When the
-# URL is absent the window's command-bar Loader fails and falls back to
+# URL is absent the page's command-bar Loader fails and falls back to
 # WorkbenchToolbar.qml, which is always registered.
 set(_workbench_ribbon_qml WorkbenchRibbon)
 set(_web_qml WebTabsPage)
@@ -97,7 +97,7 @@ endif()
 # The preview pane is registered only where the feature can actually run:
 # Qt 6 + WebEngine, the same condition as the /markdown runtime embed below and
 # MarkdownRuntime::isSupportedBuild(). Elsewhere the file is not in the binary
-# at all — not a broken half of it. The workbench window reaches it by resource
+# at all — not a broken half of it. The workbench page reaches it by resource
 # URL (see its Loader), so an unregistered pane degrades to prompt mode only.
 if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
     foreach(name IN LISTS _markdown_pane_qml)
@@ -149,7 +149,7 @@ if (AWB_ENABLE_WEBENGINE)
     endif()
 endif()
 
-# The ribbon of the Markdown workbench window (AWB_ENABLE_RIBBON, see the root
+# The ribbon of the Markdown workbench page (AWB_ENABLE_RIBBON, see the root
 # CMakeLists). The app target is the single link point: domain libraries never
 # link SARibbon, QML just does `import SARibbon` after main.cpp registered the
 # types imperatively before engine.load().

@@ -4,8 +4,8 @@ import QtQuick.Layouts
 import AgentWorkbench
 import AgentWorkbench.App
 
-// 工作台窗口命令条的降级形态：一条普通工具栏。AWB_ENABLE_RIBBON 关闭的
-// 构建里 WorkbenchRibbon.qml 根本不进资源清单，窗口的 Loader 装载它失败
+// 工作台页面命令条的降级形态：一条普通工具栏。AWB_ENABLE_RIBBON 关闭的
+// 构建里 WorkbenchRibbon.qml 根本不进资源清单，页面的 Loader 装载它失败
 // 后换装载本文件；单测引擎（没注册 SARibbon 类型）同样走到这里。
 //
 // 与 WorkbenchRibbon.qml 是同一批动作的两份皮：都只把点击转发给
@@ -15,7 +15,7 @@ import AgentWorkbench.App
 Rectangle {
     id: commandToolbar
 
-    /// 宿主窗口（MarkdownWorkbenchWindow）：动作与状态的唯一来源。
+    /// 宿主页面（MarkdownWorkbenchPage）：动作与状态的唯一来源。
     property var win: null
 
     implicitHeight: 40

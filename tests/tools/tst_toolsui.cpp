@@ -7,6 +7,7 @@
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -19,11 +20,12 @@
 #include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
-// tst_toolsui — Markdown 工作台窗口（提示词模式那条面）的交互级冒烟：
+// tst_toolsui — Markdown 工作台页（提示词模式那条面）的交互级冒烟：
 // 真实鼠标点击与键盘输入驱动。按页面加载的冒烟从不点击、从不开窗口，
 // 抓不到「handler 抛错整段中止」这类缺陷；本套件补上交互层
-// （tst_webengine 加载真实 QML 的同款做法：窗口与组件以与 app 相同的
-// 模块 URL/别名嵌进本二进制）。
+// （tst_webengine 加载真实 QML 的同款做法：页面与组件以与 app 相同的
+// 模块 URL/别名嵌进本二进制，页面装进 QQuickView 宿主——工作台页住在
+// 主窗工作区里，不再是独立窗口，测试的宿主窗口就是它的工作区替身）。
 //
 // 五个回归锚点：
 // 1. 打字 + Ctrl+Z / Ctrl+Y：编辑器 undo/redo（TextControl 标准键链路）；
@@ -81,7 +83,7 @@ public:
     {
         previewed.append(path);
     }
-    // 会话恢复/落盘：窗口 onCompleted 与关窗会调；桩给「无可恢复」的空
+    // 会话恢复/落盘：页面 onCompleted 会调；桩给「无可恢复」的空
     // 现场，saveMarkdownSession 只吞掉（本套件不测持久化）。
     Q_INVOKABLE QVariantMap restoreMarkdownSession()
     {
@@ -90,11 +92,19 @@ public:
         return result;
     }
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
+    // 导出落地回调（onMarkupWritten 用）；本套件不触发导出，只为名字
+    // 解析完整。
+    Q_INVOKABLE void openLocalFileExternal(const QString &) {}
+};
 
-Q_SIGNALS:
-    // 真身（WorkbenchContext）有这条信号，窗口的 Connections 监听它；
-    // 桩跟着声明，免得 Connections 报「找不到信号」的噪声。
-    void markdownWorkbenchRequested();
+// nav 桩：工作台页是 keepAlive 页，快捷键与回页复查门控在读
+// nav.currentPageId——桩恒答「当前页就是工作台页」，页面全程在场。
+class NavStub : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString currentPageId READ currentPageId CONSTANT)
+public:
+    QString currentPageId() const { return QStringLiteral("tools"); }
 };
 
 class UiStub : public QObject
@@ -102,6 +112,7 @@ class UiStub : public QObject
     Q_OBJECT
 public:
     Q_INVOKABLE QString pickFolder(const QString &) { return QString(); }
+    Q_INVOKABLE void revealFile(const QString &) {}
 };
 
 class TestToolsUi : public QObject
@@ -138,6 +149,7 @@ private Q_SLOTS:
         // 依赖），所以「有/没有预览能力」必须是两次独立的装配。
         m_workbench->previewCapable = m_previewCapable;
         m_ui = std::make_unique<UiStub>();
+        m_nav = std::make_unique<NavStub>();
 
         m_engine = std::make_unique<QQmlEngine>();
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -163,44 +175,52 @@ private Q_SLOTS:
         m_context->setContextProperty(QStringLiteral("workbench"),
                                        m_workbench.get());
         m_context->setContextProperty(QStringLiteral("ui"), m_ui.get());
+        m_context->setContextProperty(QStringLiteral("nav"), m_nav.get());
         m_context->setContextProperty(QStringLiteral("markdown"),
                                        m_markdown.get());
 
+        // 页面根是普通 Item（工作台页住在主窗工作区里）：装进 QQuickView
+        // 宿主——它本身就是 QQuickWindow，事件注入与 findChild 照旧。
         QQmlComponent component(m_engine.get(), QUrl(QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml")));
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml")));
         if (component.status() == QQmlComponent::Error) {
             *errorOut = component.errorString();
             return false;
         }
-        // 窗口根是 ApplicationWindow（QQuickWindow 子类），不再是页面 Item。
-        m_window.reset(qobject_cast<QQuickWindow *>(
-            component.create(m_context.get())));
-        if (!m_window) {
+        std::unique_ptr<QQuickItem> page(
+            qobject_cast<QQuickItem *>(component.create(m_context.get())));
+        if (!page) {
             *errorOut = QStringLiteral(
-                "the workbench window root is not a QQuickWindow: ")
+                "the workbench page root is not a QQuickItem: ")
                 + component.errorString();
             return false;
         }
-        m_window->resize(1200, 800);
-        m_window->setTitle(QStringLiteral("tst_toolsui"));
-        m_window->show();
-        if (!QTest::qWaitForWindowExposed(m_window.get())) {
+        m_view = std::make_unique<QQuickView>(m_engine.get(), nullptr);
+        m_view->setResizeMode(QQuickView::SizeRootObjectToView);
+        // 收养创建好的页面：setContent 接管所有权，上下文仍是上面那份。
+        m_view->setContent(QUrl(), nullptr, page.release());
+        m_view->resize(1200, 800);
+        m_view->setTitle(QStringLiteral("tst_toolsui"));
+        m_view->show();
+        if (!QTest::qWaitForWindowExposed(m_view.get())) {
             *errorOut = QStringLiteral("window never became exposed");
             return false;
         }
-        QTest::qWaitForWindowActive(m_window.get());
-        QTest::qWait(100);
+        if (!QTest::qWaitForWindowActive(m_view.get())) {
+            *errorOut = QStringLiteral("window never became active");
+            return false;
+        }
 
-        *windowOut = m_window.get();
+        *windowOut = m_view.get();
         *toolsOut = m_tools.get();
         return true;
     }
 
     void cleanup()
     {
-        // 先销毁窗口再销毁对象图：窗口还在渲染时拆掉 C++ 单例会让
+        // 先销毁宿主窗口再销毁对象图：窗口还在渲染时拆掉 C++ 单例会让
         // 渲染帧解引用悬挂指针。
-        m_window.reset();
+        m_view.reset();
         m_engine.reset();
         m_context.reset();
         m_markdown.reset();
@@ -481,6 +501,11 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
+        // 页面根（工作台页装在宿主视图里）：调它的 QML 函数要经根
+        // 对象——宿主窗口上没有那些方法。
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
+
         // 直接调窗口的 insertTemplate（行点击的视觉冒烟交给与表单同一条
         // 链路：先锁「点击模板 → 表单弹出 → 确认 → 产物落草稿」这条主线；
         // 行的可点击性由列表宽度契约保证，并入后续手动验证）。
@@ -489,7 +514,7 @@ private Q_SLOTS:
         const QString firstId = templates.at(0).toMap()
                 .value(QStringLiteral("id")).toString();
         QVERIFY(!firstId.isEmpty());
-        QVERIFY(QMetaObject::invokeMethod(window, "insertTemplate",
+        QVERIFY(QMetaObject::invokeMethod(pageRoot, "insertTemplate",
                                           Q_ARG(QVariant, QVariant(firstId))));
 
         // 变量表单弹出（fix-a-bug 有变量，一定走表单）。
@@ -544,6 +569,11 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
+        // 页面根（工作台页装在宿主视图里）：调它的 QML 函数要经根
+        // 对象——宿主窗口上没有那些方法。
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
+
         // 数据层直接存一条（UI 存入路径的工具栏按钮冒烟在下面）。
         tools->addFavorite(QStringLiteral("Fav title"),
                            QStringLiteral("Favorite body text."));
@@ -582,7 +612,7 @@ private Q_SLOTS:
             // 直接调窗口的插入函数：行点击的 TapHandler 是否触发，
             // 由「函数本身可用 + 点击坐标命中行」两条分开锁。
             QVERIFY(QMetaObject::invokeMethod(
-                window, "insertTextAtCursor",
+                pageRoot, "insertTextAtCursor",
                 Q_ARG(QVariant,
                       QVariant(QStringLiteral("Favorite body text.")))));
             QTest::qWait(100);
@@ -763,6 +793,11 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
+        // 页面根（工作台页装在宿主视图里）：调它的 QML 函数要经根
+        // 对象——宿主窗口上没有那些方法。
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
+
         QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
         QVERIFY2(editor, "promptEditor not found by objectName");
@@ -797,7 +832,7 @@ private Q_SLOTS:
         // 切回第一条：正文回来。
         const QString firstId = before.at(0).toMap()
                 .value(QStringLiteral("id")).toString();
-        QVERIFY(QMetaObject::invokeMethod(window, "switchDraftTo",
+        QVERIFY(QMetaObject::invokeMethod(pageRoot, "switchDraftTo",
                                           Q_ARG(QVariant,
                                                 QVariant(firstId))));
         QTRY_VERIFY2_WITH_TIMEOUT(
@@ -815,6 +850,11 @@ private Q_SLOTS:
         QQuickWindow *window = nullptr;
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // 页面根（工作台页装在宿主视图里）：调它的 QML 函数要经根
+        // 对象——宿主窗口上没有那些方法。
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
 
         QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
@@ -855,7 +895,7 @@ private Q_SLOTS:
         const double createdAt = snapshots.at(0).toMap()
                 .value(QStringLiteral("createdAt")).toDouble();
         QVERIFY(QMetaObject::invokeMethod(
-            window, "rollbackDraftVersion",
+            pageRoot, "rollbackDraftVersion",
             Q_ARG(QVariant, QVariant(createdAt))));
 
         // 回滚确认弹窗出现，真实点 Roll back。
@@ -1094,9 +1134,10 @@ private:
     std::unique_ptr<MarkdownPreviewController> m_markdown;
     std::unique_ptr<WorkbenchStub> m_workbench;
     std::unique_ptr<UiStub> m_ui;
+    std::unique_ptr<NavStub> m_nav;
     std::unique_ptr<QQmlEngine> m_engine;
     std::unique_ptr<QQmlContext> m_context;
-    std::unique_ptr<QQuickWindow> m_window;
+    std::unique_ptr<QQuickView> m_view;
 };
 
 // QQuickWindow 交互需要 QGuiApplication（共享注册表的 QCoreApplication

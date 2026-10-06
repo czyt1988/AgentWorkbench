@@ -64,7 +64,8 @@ public Q_SLOTS:
 /**
  * @brief 注册 WorkbenchContext 要在其间导航的页面
  *
- * "agents" 必须也注册——NavigationModel 拒绝未知 id。
+ * "agents" 与 "tools" 必须也注册——NavigationModel 拒绝未知 id，而
+ * previewMarkdown / openMarkdownWorkbench 都会导航到 tools。
  *
  * @param nav 目标导航模型
  */
@@ -76,12 +77,15 @@ void registerNavPages(NavigationModel *nav)
     PageDescriptor webPage;
     webPage.id = QStringLiteral("web");
     QVERIFY2(nav->registerPage(webPage), "web page");
+    PageDescriptor toolsPage;
+    toolsPage.id = QStringLiteral("tools");
+    QVERIFY2(nav->registerPage(toolsPage), "tools page");
 }
 
 /// 测 workbench::WorkbenchContext 的跨域意图：openWeb 建标签并切页、外置
 /// 表面策略不建标签也不切页、split-button 的外置路线把最终 URL（含 token
-/// 片段）交给系统浏览器、previewMarkdown 把开窗交给预览控制器而自己只报失败
-/// 原因。
+/// 片段）交给系统浏览器、previewMarkdown/openMarkdownWorkbench 装载后导航
+/// 到工作台页而失败时只报原因。
 class TestWorkbenchContext : public QObject
 {
     Q_OBJECT
@@ -230,6 +234,8 @@ private Q_SLOTS:
         WorkbenchContext workbench(&nav, &ui, &notifications, &agents,
                                    &web, &settings);
         MarkdownPreviewController markdown(&settings, nullptr);
+        // previewMarkdown / openMarkdownWorkbench 都会导航到 tools 页。
+        registerNavPages(&nav);
 
         const QString docPath = QDir(tmp.path()).filePath(QStringLiteral("note.md"));
         QFile doc(docPath);
@@ -262,19 +268,27 @@ private Q_SLOTS:
             QSKIP("Markdown preview is compiled out in this build");
         }
 
-        // 能力齐了：菜单项为真，调用让控制器发出 windowRequested（主窗的 Loader
-        // 据此建窗），且成功不产生任何 toast。
+        // 能力齐了：菜单项为真，调用让控制器发出 windowRequested（页面据此
+        // 落文档预设）并把用户带到工作台页，且成功不产生任何 toast。
         QVERIFY(workbench.canPreviewMarkdown(docPath));
         QSignalSpy requested(&markdown,
                              &MarkdownPreviewController::windowRequested);
         workbench.previewMarkdown(docPath);
         QCOMPARE(requested.count(), 1);
         QCOMPARE(notifications.rowCount(), 0);
-        // 窗口还没建：控制器不该自己认领「有窗口」，否则命令会排进没人泵的空队列
+        // 导航是这条意图的另一半：用户被带到 Agent Tools 下的工作台页。
+        QCOMPARE(nav.currentPageId(), QStringLiteral("tools"));
+        // 页面还没建：控制器不该自己认领「有页面」，否则命令会排进没人泵的空队列
         QVERIFY(!markdown.active());
         // 比对的是载入时归一化过的绝对路径：MarkdownDocument::load 存进去的是
         // QFileInfo::absoluteFilePath()，而不是调用方给的那个串。
         QCOMPARE(markdown.filePath(), QFileInfo(docPath).absoluteFilePath());
+
+        // openMarkdownWorkbench 同样落在导航上（工作台页是它的唯一目的地），
+        // 不再有「开窗」这条路径。
+        nav.setCurrentPageId(QStringLiteral("agents"));
+        workbench.openMarkdownWorkbench();
+        QCOMPARE(nav.currentPageId(), QStringLiteral("tools"));
     }
 
     /// 单实例 open 消息的编解码往返：路径数组进、路径数组出；

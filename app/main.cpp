@@ -444,21 +444,23 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(!tray.available());
 
     // 「启动时自动打开工作台」（默认关，决策 D-10）：重度的写手开应用就
-    // 是要写。放在引擎装载成功之后发意图——MainWindow 的 Connections
-    // 已经在场，窗口的创建/恢复走的是用户点击的同一条路。
+    // 是要写。放在引擎装载成功之后导航——工作台是 Agent Tools 分组下的
+    // 常驻页面，openMarkdownWorkbench 切过去并触发首次实例化/现场恢复，
+    // 与用户点侧栏条目走的是同一条路。
     if (settings.markdownOptions().autoOpenWorkbench) {
-        Q_EMIT workbench.markdownWorkbenchRequested();
+        workbench.openMarkdownWorkbench();
     }
 
     // 文件关联的 argv 半边（E2）：双击 .md 冷启动到这里，逐条开 tab
-    // （previewMarkdown 内部开窗 + 触 MRU；无能力构建在它那里如实报因）。
+    // （previewMarkdown 内部装载会话 + 导航到工作台页 + 触 MRU；无能力
+    // 构建在它那里如实报因）。
     const QStringList argPaths = markdownPathsFromArguments(argc, argv);
     for (const QString &path : argPaths) {
         workbench.previewMarkdown(path);
     }
 
     // 单实例的另一半：第二实例的消息在这里接。open:<json> 携带打开请求
-    // ——逐条开 tab，工作台窗口由 previewMarkdown 的信号链唤起；纯
+    // ——逐条开 tab，工作台页由 previewMarkdown 的导航链唤起；纯
     // "raise" 只把主窗唤回前台（正收在托盘里时也一并解除隐藏）。
     QObject::connect(
         &app, &SingleApplication::receivedMessage, &tray,

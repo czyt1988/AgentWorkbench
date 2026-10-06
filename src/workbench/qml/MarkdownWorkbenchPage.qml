@@ -1,43 +1,41 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Window
 import AgentWorkbench
 import AgentWorkbench.App
 
-// Markdown 工作台窗口：提示词撰写与文档预览合体后的那扇独立窗。
+// Markdown 工作台页面：提示词撰写与文档预览的合体，住在主窗工作区里
+//（Agent Tools 分组下的「提示词编辑」条目）。曾经是独立窗口，2026-10
+// 按原始设计收回到主窗容器内——工作台是 Agent Tools 的一个高级功能，
+// 不是一扇独立的应用窗。
 //
 // 两种「预设」是同一套代码的两份界面配置，不是两个应用：
-//   提示词模式（prompt）——左侧工作区文件树全开、草稿编辑区为主体，
-//     Ribbon 展开；这是从提示词页（原 ToolsPage）整体迁进来的形态。
-//   文档模式（document）——侧栏收起、Ribbon 折叠，中间区渲染磁盘上
-//     那份 .md（预览窗 MarkdownPreviewWindow 演化来的形态）。
-// 用户视角里没有「模式」概念，只有「工具多一点少一点」；切预设的入口
-// 是视图区的「完整工具」开关。
+//   提示词模式（prompt）——左侧工作区文件树全开、草稿编辑区为主体。
+//   文档模式（document）——侧栏收起，中间区渲染磁盘上那份 .md。
+// 切预设的入口是视图区的「完整工具」开关与 tab 条；页面创建时按控制器
+// 里的活跃会话推断起点（活跃的是文件会话 = 文档模式，否则提示词模式）。
 //
-// 这里只有「窗口」的知识：布局、快捷键、怎么问用户。文档状态与命令队列
+// 这里只有「页面」的知识：布局、快捷键、怎么问用户。文档状态与命令队列
 // 在 `markdown` 单例（MarkdownPreviewController）里，草稿与工作区在
 // `tools` 单例（ToolsFacade）里，渲染面在 MarkdownPreviewPane.qml（按
-// 资源 URL 惰性装载——本窗口要在没有 WebEngine 的构建里照常加载）。
+// 资源 URL 惰性装载——本页面要在没有 WebEngine 的构建里照常加载）。
 //
-// 与 Web 页的表面有意不共用组件，理由见 MarkdownPreviewPane.qml 的头注释。
-// 与主窗同型用 ApplicationWindow（根部那行 font.family 需要 ApplicationWindow
-// 才有），字体挂在窗口级才覆盖菜单与对话框。
-ApplicationWindow {
+// 本页注册为 keepAlive：编辑器的撤销栈、滚动位置与分屏比例搬不进 C++，
+// 切页销毁会让写作现场清零。因此页面常驻，快捷键一律门控 pageCurrent。
+Item {
     id: workbenchWindow
 
-    // --- 开窗意图与预设 -----------------------------------------------------
-    // 主窗的 Loader 在 onLoaded 里写这个属性：previewMarkdown() 的流程给
-    // "document"，openMarkdownWorkbench() 给 "prompt"。onCompleted 与
-    // onInitialPresetChanged 都走 applyPreset（幂等），装载完成前的默认
-    // 值与装载后的写入发生在同一轮事件里，窗口上屏前就定形。
-    property string initialPreset: "prompt"
+    // --- 预设 --------------------------------------------------------------
     // 当前预设：prompt | document。文档模式要求控制器里有一份能渲染的
-    // 文档，拿不到时 applyPreset 会退回提示词模式。
+    // 文档，拿不到时 applyPreset 会退回提示词模式。切换入口：tab 点击、
+    // 「完整工具」开关、右键预览（页面在场时）与生命周期开头的推断。
     property string preset: "prompt"
 
-    // 两套预设的界面状态各自独立、互不污染（窗口存活期内）：
-    // 提示词模式两侧全开；文档模式两侧收起（窄边可展开）。
+    // 本页是不是当前页（keepAlive 页的非激活期要闭嘴：快捷键、轮询）。
+    readonly property bool pageCurrent: nav.currentPageId === "tools"
+
+    // 两套预设的界面状态各自独立、互不污染（页面存活期内）：
+    // 提示词模式左侧全开；文档模式左侧收起（窄边可展开）。
     property bool promptLeftOpen: true
     property bool documentLeftOpen: false
     // 文档模式的 Ribbon 折叠位（提示词模式的折叠位持久化在
@@ -50,18 +48,15 @@ ApplicationWindow {
                                             ? tools.ribbonCollapsed
                                             : documentRibbonCollapsed
 
-    // --- 窗口自己的状态（活不过一次开窗） ---------------------------------
+    // --- 页面自己的状态 ----------------------------------------------------
     // 搜索条状态。命中数由页面经信标报回（findResult），这边只镜像。
     property bool searchOpen: false
     property bool searchForward: true
     property bool caseSensitive: false
     property int findTotal: 0
     property int findActive: 0
-    // 两栏布局里编辑区占的比例。窗口内状态，不进设置：拖一下不该落盘。
+    // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
-    // 关窗批准位：有未保存改动时 onClosing 会挡一道，只有经
-    // approveClose() 才放行。
-    property bool closeApproved: false
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
     property int landingPolls: 0
@@ -80,21 +75,6 @@ ApplicationWindow {
     readonly property var activeEditor: preset === "prompt"
                                         ? promptEditor
                                         : (markdown.canEdit ? editorArea : null)
-
-    width: 1180
-    height: 820
-    minimumWidth: 720
-    minimumHeight: 460
-    visible: true
-    color: theme.windowBg
-    // 文档名在前：任务栏与窗口切换器里认的是文件名。分隔符单列一处，
-    // 别和 qsTr 挤在同一物理行——i18n 门禁按行检查 ASCII。
-    readonly property string titleDash: " — "
-    title: (preset === "document" && markdown.fileTitle.length > 0
-            ? markdown.fileTitle + workbenchWindow.titleDash : "")
-           + qsTr("Markdown workbench")
-    // 全局字体与主窗一致（Controls2 的字体继承链的根在窗口上）
-    font.family: theme.family.length > 0 ? theme.family : undefined
 
     // --- 模板与收藏（M2 动作层） -------------------------------------------
     // 「动作只有一处出口」：Ribbon、降级工具栏、左栏条目都只转发到这里。
@@ -438,8 +418,6 @@ ApplicationWindow {
         }
     }
 
-    onInitialPresetChanged: applyPreset(initialPreset)
-
     // --- 动作层（Ribbon 与降级工具栏转发的就是这一批） ---------------------
     function copyPrompt() {
         if (tools.draft.length === 0) {
@@ -758,34 +736,9 @@ ApplicationWindow {
         searchField.text = ""
     }
 
-    function approveClose() {
-        // 只放行，报到交给 onClosing：两条关闭路径（点 × 与这里的对话框）都
-        // 从那里过，状态放一次就够。
-        closeApproved = true
-        workbenchWindow.close()
-    }
-
-    // 关窗守卫的「全部保存」：逐个按 id 存，不换激活（中途失败就地报因，
-    // 剩下的下一轮再存）。返回是否全部成功。
-    function saveAllDirtySessions() {
-        let allOk = true
-        for (let i = 0; i < markdown.tabs.length; ++i) {
-            const tab = markdown.tabs[i]
-            if (!tab.dirty)
-                continue
-            const result = markdown.saveSession(tab.docId)
-            if (!result.ok) {
-                allOk = false
-                workbench.notify("error", qsTr("Could not save"),
-                                 tab.title + " — " + result.error)
-            }
-        }
-        return allOk
-    }
-
-    // 会话落盘：把窗口现场（预设/开合）交给 workbench 合成（tab 组与激活位
+    // 会话落盘：把页面现场（预设/开合）交给 workbench 合成（tab 组与激活位
     // 从控制器取）。结构变化立即的「立即」是防抖 800 ms——脏标记翻转也会
-    // 触发 tabsChanged，逐键落盘没必要；关窗走 flushSession() 的不加防抖版。
+    // 触发 tabsChanged，逐键落盘没必要。
     function scheduleSessionSave() {
         sessionSaveTimer.restart()
     }
@@ -811,11 +764,12 @@ ApplicationWindow {
         onTriggered: workbenchWindow.flushSession()
     }
 
-    // 开窗即向控制器报到：从此它才往外排命令（窗口不在时命令一律不排）。
-    // 一条草稿都没有（全新安装）时先建一条——提示词形态需要一个可写的
-    // 主体；之后草稿会话由 applyPreset 携带正文打开。
-    // 本轮应用的第一次开窗顺带恢复上次的 tab 组（E3，含草稿 tab）：之后
-    // 窗口的销毁重建走控制器内存里的会话，不需要再恢复。
+    // 建页即向控制器报到：从此它才往外排命令（页面不在时命令一律不排，
+    // 页面常驻到应用退出为止）。一条草稿都没有（全新安装）时先建一条
+    // ——提示词形态需要一个可写的主体。
+    // 控制器里已有会话（argv 双击 .md / 单实例打开后按需建页）时**不**做
+    // 会话恢复、不动活跃位：活跃会话就是用户要看的，预设据此落位。tab
+    // 组恢复只在控制器全空（本轮应用的第一次建页）时做。
     Component.onCompleted: {
         markdown.notifyWindowOpened()
         if (tools.activeDraftId.length === 0)
@@ -827,12 +781,14 @@ ApplicationWindow {
             promptLeftOpen = restored.promptLeftOpen
             documentLeftOpen = restored.documentLeftOpen
             documentRibbonCollapsed = restored.documentRibbonCollapsed
-            applyPreset(restored.preset === "document" ? "document"
+        }
+        // 预设起点按控制器现状推断：活跃的是文件会话（恢复现场重开的、
+        // 或预览请求刚装载的）= 文档模式；否则提示词模式（草稿会话由此
+        // 激活）。restoreMarkdownSession 已把记录的激活位落在控制器里，
+        // 这里的推断与它天然一致。
+        applyPreset(!markdown.draftActive
+                    && markdown.activeDocId.length > 0 ? "document"
                                                        : "prompt")
-        }
-        else {
-            applyPreset(initialPreset)
-        }
         if (!markdown.canEdit && markdown.mode === "source")
             markdown.setMode("preview")
         // 崩溃恢复（D6）：有未恢复的副本就问一次（新对话框，不挡正常
@@ -844,43 +800,14 @@ ApplicationWindow {
             recoveryDialog.open()
     }
 
-    // 没有关闭事件也要把状态位放下来：主窗退出、Loader 被直接关掉都会跳过
-    // onClosing。控制器里的 m_windowOpen 有幂等守卫。
-    Component.onDestruction: {
-        draftSyncTimer.stop()
-        markdown.notifyWindowClosed()
-    }
-
-    // --- 关闭语义 ----------------------------------------------------------
-    // 只读文档不能 Ctrl+S，但「只读」挡不住别的 tab 脏：守卫看的是全部文件
-    // 会话，不只有激活的那个——静默丢掉一个后台 tab 的改动是这个窗口能犯的
-    // 最贵的错。
-    onClosing: function (close) {
-        if (closeApproved || dirtyFileTabs.length === 0) {
-            closeApproved = false
-            // 最后一次现场落盘（不加防抖：进程可能马上就没了）。
-            flushSession()
-            // 关窗必须报到：QML 的 Window 关掉只是藏起来，对象还活着。不报
-            // 的话 `markdown.active` 永远为真，主窗那个 Loader 的 active 不会
-            // 翻转，第二次请求就只剩一次 raise 打在一扇已经隐藏的窗上。
-            // 顺序要紧：先让控制器把窗口态放下，窗口随后才销毁（会话保留）。
-            markdown.notifyWindowClosed()
-            return
-        }
-        // 有未保存的文件时不静默丢弃：这扇窗的存盘键是 Ctrl+S，用户完全
-        // 可能改完直接点 ×。
-        close.accepted = false
-        unsavedDialog.open()
-    }
-
     // --- 快捷键 ------------------------------------------------------------
-    // context 用 ApplicationShortcut + enabled 绑本窗激活：Chromium 会吃掉
-    // 普通窗口作用域的按键，而限定 active 又保证不会在用户回到主窗时抢下
-    // Ctrl+S / Ctrl+F。
+    // context 用 ApplicationShortcut + enabled 绑 pageCurrent（本页是当前
+    // 页）：Chromium 会吃掉普通作用域的按键，而本页常驻（keepAlive），
+    // 不门控就会在用户切到别的页面后继续抢 Ctrl+S / Ctrl+F。
     Shortcut {
         sequence: "Ctrl+S"
         context: Qt.ApplicationShortcut
-        enabled: workbenchWindow.active && preset === "document"
+        enabled: pageCurrent && preset === "document"
                  && markdown.canEdit
         onActivated: workbenchWindow.saveDocument()
     }
@@ -890,7 +817,7 @@ ApplicationWindow {
         // 同一个键两种去向：文档模式查预览渲染区（既有搜索条），提示词
         // 模式查草稿源码（B2 的编辑区查找条）。草稿查找条开着时 Ctrl+F
         // 把焦点送回搜索字段（连续查找的肌肉记忆）。
-        enabled: workbenchWindow.active
+        enabled: pageCurrent
         onActivated: {
             if (preset === "document")
                 workbenchWindow.openSearch()
@@ -903,7 +830,7 @@ ApplicationWindow {
         context: Qt.ApplicationShortcut
         // Esc 的就近对象：草稿查找条 > 文档搜索条。都没有时静默（不
         // 抢弹层/菜单的 Esc）。
-        enabled: workbenchWindow.active
+        enabled: pageCurrent
                  && (draftFindBar.visible || searchOpen)
         onActivated: {
             if (draftFindBar.visible)
@@ -917,7 +844,7 @@ ApplicationWindow {
     Shortcut {
         sequence: "F5"
         context: Qt.ApplicationShortcut
-        enabled: workbenchWindow.active && preset === "document"
+        enabled: pageCurrent && preset === "document"
         onActivated: {
             if (markdown.dirty)
                 diskChangedDialog.open()
@@ -2403,20 +2330,40 @@ ApplicationWindow {
                 }
             }
 
-            // --- 右侧：大纲（活跃会话的查阅面板） -------------------------
-            // 大纲对草稿同样成立（它也是一份有标题的正文）。
+            // --- 右侧：查阅与体检（一个带边框的右栏，内部分段） -----------------
+            // 大纲、体检与草稿历史曾经是两块并列的裸面板——各靠一条 1px
+            // 分隔线与编辑区隔开、彼此之间没有任何可见边界，两种「右侧」
+            // 混叠在一起读不出来（2026-10 用户报告右侧像两个窗口叠着）。
+            // 现在合并成一个整面板：外框与左侧属性区同形（surfaceBg +
+            // borderSubtle 全边框），内部三段经段头与分隔线区隔：
+            //   大纲（跟随全局大纲开关，两种预设都可用——草稿也是一份
+            //   有标题的正文）；体检 + 草稿历史（提示词预设的质量工具，
+            //   文件 tab 上不占位）。整个面板在「没有一段在场」时收起。
             Rectangle {
+                id: rightPanel
+                objectName: "checksPanel"
+
+                // 体检与历史属提示词预设；大纲跟全局开关。
+                readonly property bool promptTools:
+                    workbenchWindow.preset === "prompt"
+
                 Layout.fillHeight: true
-                Layout.preferredWidth: 232
-                visible: markdown.showOutline
+                Layout.preferredWidth: 265
+                visible: promptTools || markdown.showOutline
                 color: theme.surfaceBg
+                border.color: theme.borderSubtle
+                border.width: 1
+                clip: true
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: theme.spacingS
                     spacing: theme.spacingXs
 
+                    // --- 段 1 · 大纲（活跃会话的标题导航） ----------------
                     Label {
+                        visible: markdown.showOutline
+                        Layout.fillWidth: true
                         text: qsTr("Outline")
                         color: theme.textMuted
                         font.pixelSize: theme.fontSizeCaption
@@ -2428,6 +2375,7 @@ ApplicationWindow {
                     // 会把那一块的解析插队到分片队列前面。
                     ListView {
                         id: outlineList
+                        visible: markdown.showOutline
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -2484,35 +2432,22 @@ ApplicationWindow {
                             font.pixelSize: theme.fontSizeCaption
                         }
                     }
-                }
 
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: 1
-                    color: theme.separator
-                }
-            }
+                    // --- 段间分隔线：大纲 | 体检 ----------------------------
+                    Rectangle {
+                        visible: markdown.showOutline
+                                 && rightPanel.promptTools
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: theme.separator
+                    }
 
-            // --- 右侧：体检结果（提示词预设的检查面板，B9） ----------------
-            // 体检是提示词质量工具，不是 Markdown 语法工具——只在提示词
-            // 预设出现（文件 tab 上不占位）。清单不评分：分数会诱导为
-            // 分数写作，清单引导补全信息。
-            Rectangle {
-                id: checksPanel
-                objectName: "checksPanel"
-                Layout.fillHeight: true
-                Layout.preferredWidth: 264
-                visible: workbenchWindow.preset === "prompt"
-                color: theme.surfaceBg
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: theme.spacingS
-                    spacing: theme.spacingXs
-
+                    // --- 段 2 · 体检结果（提示词预设，B9） ------------------
+                    // 体检是提示词质量工具，不是 Markdown 语法工具——只在
+                    // 提示词预设出现（文件 tab 上不占位）。清单不评分：分数
+                    // 会诱导为分数写作，清单引导补全信息。
                     RowLayout {
+                        visible: rightPanel.promptTools
                         Layout.fillWidth: true
                         spacing: theme.spacingS
 
@@ -2537,6 +2472,7 @@ ApplicationWindow {
                     ListView {
                         id: checkList
                         objectName: "checkList"
+                        visible: rightPanel.promptTools
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -2571,15 +2507,18 @@ ApplicationWindow {
                             TapHandler {
                                 // 区间可定位（start >= 0）才可跳转；规则级
                                 // 的命中（如缺验收标准）没有对应区间。
+                                // promptEditor 用文件级 id 直接解析——写成
+                                // workbenchWindow.promptEditor 是在根对象上
+                                // 找不存在的属性，静默 undefined（原文件在这
+                                // 里犯过：跳转从未生效）。
                                 onSingleTapped: {
                                     if (checkRow.modelData.start >= 0
-                                            && workbenchWindow.promptEditor) {
-                                        workbenchWindow.promptEditor.select(
+                                            && promptEditor) {
+                                        promptEditor.select(
                                             checkRow.modelData.start,
                                             checkRow.modelData.start
                                             + checkRow.modelData.length)
-                                        workbenchWindow.promptEditor
-                                            .forceActiveFocus()
+                                        promptEditor.forceActiveFocus()
                                     }
                                 }
                             }
@@ -2638,10 +2577,11 @@ ApplicationWindow {
                         }
                     }
 
-                    // --- 草稿历史（M4 D2：快照与回滚） -------------------
-                    // 只在草稿会话激活时出现（文件没有快照）。点一版 = 回滚
-                    // （先确认——回滚是破坏性替换；当前版会被自动存成
-                    // rollback 快照，两头都留退路）。
+                    // --- 段 3 · 草稿历史（M4 D2：快照与回滚） ----------------
+                    // 只在草稿会话激活时出现（文件没有快照；草稿激活本身就
+                    // 意味着提示词预设）。点一版 = 回滚（先确认——回滚是
+                    // 破坏性替换；当前版会被自动存成 rollback 快照，两头都
+                    // 留退路）。
                     ColumnLayout {
                         visible: markdown.draftActive
                         Layout.fillWidth: true
@@ -2760,28 +2700,19 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: 1
-                    color: theme.separator
-                }
             }
         }
     }
 
-    // --- 与控制器、工作台意图之间的全部信号 --------------------------------
+    // --- 与控制器之间的全部信号 --------------------------------
     Connections {
         target: markdown
 
-        // 窗口已经活着时再次右键预览：控制器只会再发一次 windowRequested
-        // 信号，主窗那边的 Loader 状态不变，把窗口抬起来并切到文档预设
-        // 这两件事只有这里能做。
+        // 右键预览 / 双击 .md：控制器把文件会话装载好并发信号。页面
+        // 已常驻在场，这里只切预设（文件会话此刻已激活）——把用户带到
+        // 页面上是导航侧的事（WorkbenchContext::previewMarkdown 会一并
+        // 切到本页）。
         function onWindowRequested() {
-            workbenchWindow.raise()
-            workbenchWindow.requestActivate()
             workbenchWindow.applyPreset("document")
         }
 
@@ -2881,18 +2812,6 @@ ApplicationWindow {
         }
     }
 
-    Connections {
-        target: workbench
-
-        // 工作台意图（侧栏启动页的主按钮）：已开着的窗口抬起来并回到
-        // 提示词预设；没开时这个信号由主窗的 Loader 消费。
-        function onMarkdownWorkbenchRequested() {
-            workbenchWindow.raise()
-            workbenchWindow.requestActivate()
-            workbenchWindow.applyPreset("prompt")
-        }
-    }
-
     // --- 与 tools 门面之间的信号（M4：草稿集驱动编辑器与会话） --------------
     Connections {
         target: tools
@@ -2925,10 +2844,10 @@ ApplicationWindow {
         }
     }
 
-    // 外部改动的窗口激活期复查：QFileSystemWatcher 在 Windows 上会静默丢掉
-    // 「删除后重建」的文件，光靠监视器有漏报，回到窗口时再问一次。
-    onActiveChanged: {
-        if (active && preset === "document")
+    // 外部改动的回页复查：QFileSystemWatcher 在 Windows 上会静默丢掉
+    // 「删除后重建」的文件，光靠监视器有漏报，回到本页时再问一次。
+    onPageCurrentChanged: {
+        if (pageCurrent && preset === "document")
             markdown.refreshDiskState()
     }
 
@@ -3260,63 +3179,6 @@ ApplicationWindow {
             onRejected: promptEditor.forceActiveFocus()
         }
 
-    // 「保存 / 放弃 / 取消」三态：AConfirmDialog 只有两个按钮，所以直接基于
-    // ADialog 写（与主窗的退出确认同形，见 designs.md）。守卫覆盖**所有**
-    // 脏的文件会话，不只是激活的那个——静默丢掉一个后台 tab 的改动是这个
-    // 窗口能犯的最贵的错。
-    ADialog {
-        id: unsavedDialog
-        width: 440
-        closePolicy: Popup.NoAutoClose
-        titleText: qsTr("Unsaved changes")
-
-        ColumnLayout {
-            width: unsavedDialog.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                Layout.fillWidth: true
-                text: dirtyFileTabs.length === 1
-                      ? qsTr("Save the changes to %1 before closing?")
-                            .arg(dirtyFileTabs[0].title)
-                      : qsTr("%1 documents have unsaved changes. Save them before closing?")
-                            .arg(dirtyFileTabs.length)
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                AButton {
-                    Layout.fillWidth: true
-                    variant: "primary"
-                    text: dirtyFileTabs.length === 1
-                          ? qsTr("Save and close")
-                          : qsTr("Save all and close")
-                    onClicked: {
-                        unsavedDialog.close()
-                        if (workbenchWindow.saveAllDirtySessions())
-                            workbenchWindow.approveClose()
-                    }
-                }
-                AButton {
-                    Layout.fillWidth: true
-                    text: qsTr("Discard changes")
-                    onClicked: {
-                        unsavedDialog.close()
-                        workbenchWindow.approveClose()
-                    }
-                }
-                AButton {
-                    Layout.fillWidth: true
-                    text: qsTr("Cancel")
-                    onClicked: unsavedDialog.close()
-                }
-            }
-        }
-    }
 
     // 全部替换的一次确认（规划 03 §三：替换条数要可见，动作不可逆时
     // 先问一声）。Esc/Cancel 走 ADialog 的 reject。
@@ -3331,7 +3193,7 @@ ApplicationWindow {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Replace every occurrence of “%1” in the draft?")
+                text: qsTr("Replace every occurrence of '%1' in the draft?")
                             .arg(draftFindField.text)
                 color: theme.textPrimary
                 font.pixelSize: theme.fontSizeBody
@@ -3449,7 +3311,7 @@ ApplicationWindow {
 
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Delete “%1” and its version history? This cannot be undone.")
+                text: qsTr("Delete '%1' and its version history? This cannot be undone.")
                             .arg(workbenchWindow.draftTitleById(
                                      tools.activeDraftId))
                 color: theme.textPrimary

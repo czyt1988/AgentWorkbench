@@ -30,19 +30,6 @@ ApplicationWindow {
     // Markdown 预览的状态门面（每个构建都在，能力位由 available 决定）。
     readonly property var markdown: Markdown
 
-    // 工作台窗口的开关。窗口本体归 workbench 域（提示词 + 预览合体后的
-    // 独立窗），装载条件不含 markdown.available——提示词模式是纯 QML
-    // 编辑器，没有 WebEngine 的构建里照常可用，预览面由窗口按能力位
-    // 自己裁剪。唯一置真的来源是两条意图信号（预览文档 / 打开工作台），
-    // 唯一置假的来源是 markdown.active 变假（窗口自己报到关闭）。窗口
-    // 活不长——关掉即由 Loader 销毁，WebEngineView 是渲染进程与合成层
-    // 的入口，常驻会让每次启动都付这份钱。
-    property bool markdownWindowOpen: false
-    // 本轮开窗的意图：previewMarkdown() 给 "document"（主窗 Loader 的
-    // onLoaded 写进窗口的 initialPreset），openMarkdownWorkbench() 给
-    // "prompt"。窗口自身在提示词/文档两种预设间切换另有入口。
-    property string pendingWorkbenchMode: "prompt"
-
     visible: true
     // 恢复的窗口尺寸按可用屏幕区域钳制：在大屏上保存过的窗口换到小屏打开
     // 会超出屏幕，被裁掉的下缘（状态栏、页面尾部）永远够不着。
@@ -66,6 +53,9 @@ ApplicationWindow {
     // 用户在退出确认弹窗里点过「退出」后置真，onClosing 据此放行关闭、
     // 不再重复弹窗。
     property bool exitConfirmed: false
+    // 本轮退出已过「脏文档」关（保存或放弃过一次）：requestExit 只放行
+    // 一轮，取消退出后由 exitNow 复位。
+    property bool exitDocsDiscarded: false
 
     // 关闭选择未记住时，× 先显示一个二选一对话框。记住后才按保存的动作
     // 分流；退出路径仍保留后台终端确认。托盘可用期间 main.cpp 关掉了
@@ -74,11 +64,30 @@ ApplicationWindow {
         if (stopAgents)
             agents.stopAll()
         exitConfirmed = true
+        exitDocsDiscarded = false
         close()
         workbench.quit()
     }
 
+    // 脏的文件会话数（草稿自动落盘不算脏；只数文件 tab）。工作台页收进
+    // 主窗后，退出前有未保存文档的守卫由这里承担——页是常驻的，没有自己
+    // 的 onClosing 可挡。
+    function markdownDirtyCount() {
+        const tabs = markdown.tabs
+        let count = 0
+        for (let i = 0; i < tabs.length; ++i) {
+            if (tabs[i].dirty && !tabs[i].draft)
+                ++count
+        }
+        return count
+    }
+
     function requestExit() {
+        // 本轮退出已过「脏文档」关（放弃或已保存）才不再拦。
+        if (!exitDocsDiscarded && markdownDirtyCount() > 0) {
+            unsavedDocsDialog.open()
+            return
+        }
         if (agents.hasLaunchedAgents())
             exitConfirmPopup.open()
         else
@@ -97,19 +106,14 @@ ApplicationWindow {
             requestExit()
     }
 
-    // 托盘菜单点「退出」：与点窗口 × 走同一条路（含后台终端确认）。窗口
-    // 还收在托盘里就先唤回，确认弹窗才有地方显示。
+    // 托盘菜单点「退出」：与点窗口 × 走同一条路（含脏文档与后台终端的
+    // 两道确认）。窗口还收在托盘里就先唤回，确认弹窗才有地方显示。
     Connections {
         target: tray
         function onQuitRequested() {
             if (tray.hidden)
                 tray.showWindow()
-            if (!exitConfirmed && agents.hasLaunchedAgents()) {
-                exitConfirmPopup.open()
-            }
-            else {
-                window.exitNow(false)
-            }
+            window.requestExit()
         }
     }
 
@@ -127,15 +131,13 @@ ApplicationWindow {
             tray.hideToTray()
             return
         }
-        if (agents.hasLaunchedAgents()) {
-            close.accepted = false
-            exitConfirmPopup.open()
-            return
-        }
-        // 无需确认的普通关闭也必须显式退出：托盘在场时
-        // quitOnLastWindowClosed 已被 main.cpp 关掉，放行 close 只会收掉
-        // 窗口而留下事件循环（仅托盘可达）。托盘不可用时再调 quit() 无害。
-        workbench.quit()
+        // 剩下的退出路径（后台终端确认 / 无需确认的普通关闭）统一经
+        // requestExit：脏文档守卫在它里面，不在这里再判一遍。无需确认的
+        // 关闭也必须显式退出——托盘在场时 quitOnLastWindowClosed 已被
+        // main.cpp 关掉，放行 close 只会收掉窗口而留下事件循环（仅托盘
+        // 可达）。托盘不可用时再调 quit() 无害。
+        close.accepted = false
+        window.requestExit()
     }
 
     // --- 全局快捷键 -----------------------------------------
@@ -194,62 +196,6 @@ ApplicationWindow {
 
     // toast 宿主：锚定在窗口右下角（逻辑在它自己的文件里）。
     Toasts {}
-
-    // --- Markdown 工作台窗口（按需创建，关掉即销毁） -------------------------
-    // 挂在这里而不是页面里：Loader 是主窗的内联对象，被它创建的窗口因此继承
-    // 主窗的 QML 上下文，窗口文件里的 `theme` / `markdown` / `tools` /
-    // `workbench` 别名才解析得到（与各页面用别名的方式一致）。
-    //
-    // 用 source（URL 字符串）而不是 sourceComponent（类型名）：窗口里惰性
-    // 装载的预览面与命令条同理——那些 .qml 只在部分构建里登记进模块，
-    // 写成类型名会在其余构建里留下一个解析不到的引用；字符串的代价要到
-    // 真正加载时才付，由窗口按能力位自己处理装载失败。
-    Loader {
-        id: markdownWindowLoader
-        active: window.markdownWindowOpen
-        source: "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml"
-        onLoaded: item.initialPreset = window.pendingWorkbenchMode
-        // 与 Workspace 的页面 Loader 同一做法：加载失败要喊出来。这里失败的表现
-        // 不是白屏而是什么都没弹出来——右键点了没反应，比一个错误弹窗难查得多。
-        onStatusChanged: {
-            if (status === Loader.Error) {
-                console.error("workbench: failed to load the workbench window",
-                              source)
-                workbench.notify("error", qsTr("Workbench failed to open"),
-                                 String(source))
-                // 失败的 Loader 留在 active 上没有意义：它没有内容，而
-                // markdown.active 也永远不会变真，下一次请求同样不开窗。
-                window.markdownWindowOpen = false
-            }
-        }
-    }
-
-    Connections {
-        target: markdown
-
-        // 预览文档的请求：开窗落在文档模式（文档由控制器先行装载）。
-        function onWindowRequested() {
-            window.pendingWorkbenchMode = "document"
-            window.markdownWindowOpen = true
-        }
-
-        // 窗口报到关闭 / 销毁 → 放下 Loader，连带释放渲染进程那一侧的一切。
-        function onActiveChanged() {
-            if (!markdown.active)
-                window.markdownWindowOpen = false
-        }
-    }
-
-    Connections {
-        target: workbench
-
-        // 打开工作台的请求（启动页主按钮）：开窗落在提示词模式；窗口已
-        // 开着时由窗口自己接管（raise + 切预设）。
-        function onMarkdownWorkbenchRequested() {
-            window.pendingWorkbenchMode = "prompt"
-            window.markdownWindowOpen = true
-        }
-    }
 
     // --- 窗口关闭选择 --------------------------------------------------------
     ADialog {
@@ -346,6 +292,93 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
                     onClicked: exitConfirmPopup.close()
+                }
+            }
+        }
+    }
+
+    // --- 脏文档守卫（工作台页的文件 tab 未保存时的退出拦截） -----------------
+    // 「保存 / 放弃 / 取消」三态：AConfirmDialog 只有两个按钮，所以直接基于
+    // ADialog 写（与退出确认同形，见 designs.md）。守卫覆盖**所有**脏的文件
+    // 会话，不只是激活的那个——静默丢掉一个后台 tab 的改动是这个应用能犯的
+    // 最贵的错。工作台还是独立窗口的时期这条守卫在它自己的 onClosing 里；
+    // 页面化之后统一收进主窗的退出路径。
+    ADialog {
+        id: unsavedDocsDialog
+        width: 440
+        closePolicy: Popup.NoAutoClose
+        titleText: qsTr("Unsaved changes")
+
+        property var dirtyTabs: {
+            const dirty = []
+            const tabs = markdown.tabs
+            for (let i = 0; i < tabs.length; ++i) {
+                if (tabs[i].dirty && !tabs[i].draft)
+                    dirty.push(tabs[i])
+            }
+            return dirty
+        }
+
+        // 逐个按 id 存，不换激活（中途失败就地报因，剩下的不丢——用户
+        // 取消退出还能补救）。
+        function saveAllDirty() {
+            let allOk = true
+            for (let i = 0; i < dirtyTabs.length; ++i) {
+                const result = markdown.saveSession(dirtyTabs[i].docId)
+                if (!result.ok) {
+                    allOk = false
+                    workbench.notify(
+                        "error", qsTr("Could not save"),
+                        dirtyTabs[i].title + " — " + result.error)
+                }
+            }
+            return allOk
+        }
+
+        ColumnLayout {
+            width: unsavedDocsDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: unsavedDocsDialog.dirtyTabs.length === 1
+                      ? qsTr("Save the changes to %1 before exiting?")
+                            .arg(unsavedDocsDialog.dirtyTabs[0].title)
+                      : qsTr("%1 documents have unsaved changes. Save them before exiting?")
+                            .arg(unsavedDocsDialog.dirtyTabs.length)
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    Layout.fillWidth: true
+                    variant: "primary"
+                    text: unsavedDocsDialog.dirtyTabs.length === 1
+                          ? qsTr("Save and exit")
+                          : qsTr("Save all and exit")
+                    onClicked: {
+                        unsavedDocsDialog.close()
+                        if (unsavedDocsDialog.saveAllDirty())
+                            window.requestExit()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Discard changes")
+                    onClicked: {
+                        window.exitDocsDiscarded = true
+                        unsavedDocsDialog.close()
+                        window.requestExit()
+                    }
+                }
+                AButton {
+                    Layout.fillWidth: true
+                    text: qsTr("Cancel")
+                    onClicked: unsavedDocsDialog.close()
                 }
             }
         }

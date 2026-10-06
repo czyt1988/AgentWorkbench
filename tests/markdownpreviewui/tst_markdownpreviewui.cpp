@@ -1,26 +1,26 @@
-// tst_markdownpreviewui — Markdown 工作台窗口（文档模式那条面）那份 QML 的
+// tst_markdownpreviewui — Markdown 工作台页（文档模式那条面）那份 QML 的
 // 真实加载与往返。
 //
-// 这个目标存在的理由：MarkdownWorkbenchWindow.qml 是「窗口」那一层的代码，它
+// 这个目标存在的理由：MarkdownWorkbenchPage.qml 是「页面」那一层的代码，它
 // 同时引用主题令牌、A* 组件、C++ 单例（含 tools 域）与经 Loader 惰性装载的
 // WebEngine 预览面，而这四样在纯层测试里都不存在。tst_markdown 证明控制器算
 // 得出块与命令，tst_markdownpreview 证明页面渲染得对，两者都碰不到这一段：
 //   1. 文件本身能不能编译——引用不存在的组件属性、跨 Qt 版本不存在的信号名，
 //      在这里会以 QQmlComponent 的加载错误当场暴露（这类错误在生产里表现为
 //      「右键点了没反应」，页面冒烟从不点击，抓不到）；
-//   2. 命令泵是不是真的在跑——pump() 只在窗口里存在，而 find / serialize 的
+//   2. 命令泵是不是真的在跑——pump() 只在页面里存在，而 find / serialize 的
 //      往返必须穿过它才谈得上「导出有了文件」「搜索报出命中数」；
-//   3. 窗口与控制器之间的报到契约——notifyWindowOpened / Closed 的时序错了，
-//      下一次预览就打不开窗。
+//   3. 页面与控制器之间的报到契约——notifyWindowOpened 没在 onCompleted 里
+//      调到，控制器就永远不排命令（下一次预览什么也不会发生）。
 //
 // 与 tst_markdownpreview 的分工：那边用内联 QML 造一个裸视图直接问页面（页面层），
-// 这边加载**产品那份 .qml**（窗口层）。因此本目标要把窗口引用的组件、图标与
+// 这边加载**产品那份 .qml**（窗口层）。因此本目标要把页面引用的组件、图标与
 // 运行时资源按 app/CMakeLists.txt 的同款别名嵌进来——嵌错了测的就是另一份代码。
 //
 // 只在 Qt 6 + WebEngine 的构建里存在（tests/CMakeLists.txt 的条件）。
 //
 // workbench 与 ui 用替身：真实实现要把整个 app 装配进来（nav、shell、
-// notifications、agents、webTabs），而窗口只用到它们的三个动作。替身把用户
+// notifications、agents、webTabs），而页面只用到它们的几个动作。替身把用户
 // 可见的后果（toast、剪贴板、外链、reveal）留在 C++ 侧可断言，同时不让本目标
 // 依赖 UI 框架层。小写别名经上下文属性提供——测试工具的做法，app 侧禁用
 // setContextProperty（见 tst_toolsui 的同款说明）。
@@ -32,6 +32,8 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QPointer>
+#include <QQuickItem>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QQuickStyle>
 #include <QQmlComponent>
@@ -76,15 +78,15 @@ The distinct needle word lives in this paragraph.
 - [x] a checked task
 )MD";
 
-// 与 MainWindow.qml 同构的宿主：Loader 按需创建工作台窗口，开关由控制器
-// 的 windowRequested / activeChanged 两个信号驱动，开窗意图（文档模式）
-// 经 onLoaded 写进窗口的 initialPreset——与产品那条链一致。
+// 与 Workspace.qml 同构的宿主：keepAlive Loader 在第一次 windowRequested
+// 时实例化工作台页，此后常驻——与产品那条链一致（产品里导航到 tools 页
+// 或右键预览都会把「来过一次」置真）。
 //
-// 这份内联 QML 存在的理由是：产品里工作台窗从来不是直接 createObject
-// 出来的，而是被主窗内容项里的 Loader 创建——窗口因此是一个「有父项的
-// Window」，布局与生命周期都走的是另一条路。只用 createObject 的用例
-// 看不见这两条路上的任何缺陷（内容区塌成 0 高、关掉之后第二次打不开都
-// 在这一层），所以这里连宿主一起复刻，让被测的时序与真实入口一致。
+// 这份内联 QML 存在的理由是：产品里工作台页从来不是直接 createObject 出来
+// 的，而是被工作区里的 Loader 创建——keepAlive 页以 0x0 创建、变可见后才拿到
+// 真实尺寸，布局走的是另一条路。只用 createObject 的用例看不见这条路上的
+// 缺陷（内容区塌成 0 高），所以这里连宿主一起复刻，让被测的时序与真实入口
+// 一致。
 const char *kHostQml = R"QML(
 import QtQuick
 import QtQuick.Controls
@@ -94,28 +96,23 @@ ApplicationWindow {
     width: 900
     height: 600
     visible: true
-    property bool markdownWindowOpen: false
-    property string pendingWorkbenchMode: "prompt"
 
     Loader {
-        id: markdownWindowLoader
-        objectName: "markdownWindowLoader"
-        active: host.markdownWindowOpen
-        source: "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml"
-        onLoaded: item.initialPreset = host.pendingWorkbenchMode
-    }
+        id: workbenchPageLoader
+        objectName: "workbenchPageLoader"
+        anchors.fill: parent
+        active: visited
+        property bool visited: false
+        source: "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml"
 
-    Connections {
-        target: markdown
+        Connections {
+            target: markdown
 
-        function onWindowRequested() {
-            host.pendingWorkbenchMode = "document"
-            host.markdownWindowOpen = true
-        }
-
-        function onActiveChanged() {
-            if (!markdown.active)
-                host.markdownWindowOpen = false
+            // 预览请求：页面第一次被需要时实例化（产品里由导航触发，
+            // 这里用信号直接驱动，装配面更小而时序相同）。
+            function onWindowRequested() {
+                workbenchPageLoader.visited = true
+            }
         }
     }
 }
@@ -156,7 +153,7 @@ public:
         return false;
     }
     Q_INVOKABLE void previewMarkdown(const QString &) {}
-    // 会话恢复/落盘：窗口 onCompleted 与关窗会调；桩给「无可恢复」的空
+    // 会话恢复/落盘：页面 onCompleted 会调；桩给「无可恢复」的空
     // 现场，save 只吞掉（持久化由 workbench 域自己的用例覆盖）。
     Q_INVOKABLE QVariantMap restoreMarkdownSession()
     {
@@ -166,14 +163,20 @@ public:
     }
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
 
-    Q_SIGNALS:
-    // 真身（WorkbenchContext）有这条信号，窗口的 Connections 监听它。
-    void markdownWorkbenchRequested();
-
 public:
     QStringList notices;    ///< 每次 notify 的 level|title|text
     QString copied;         ///< 最后一次复制的文本
     QUrl external;          ///< 最后一次交给外部浏览器的地址
+};
+
+// nav 桩：工作台页是 keepAlive 页，快捷键与回页复查门控在读
+// nav.currentPageId——桩恒答「当前页就是工作台页」。
+class NavStub : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString currentPageId READ currentPageId CONSTANT)
+public:
+    QString currentPageId() const { return QStringLiteral("tools"); }
 };
 
 /**
@@ -202,9 +205,9 @@ public:
 } // namespace
 
 /**
- * @brief 一个用例一套完整现场：控制器 + 提供者 + 引擎 + 产品那份窗口
+ * @brief 一个用例一套完整现场：控制器 + 提供者 + 引擎 + 产品那份页面
  *
- * 现场对象由 init()/cleanup() 成对建拆（见那两个函数的注释）：窗口挂着
+ * 现场对象由 init()/cleanup() 成对建拆（见那两个函数的注释）：页面挂着
  * WebEngineView，必须最先销毁，然后是上下文与引擎，最后才是 provider 与它
  * 引用到的控制器。
  */
@@ -216,8 +219,8 @@ private Q_SLOTS:
     void init();
     void cleanup();
 
-    void testWindowLoadsAndTakesOwnership();
-    void testLoaderHostedWindowFillsTheWindowAndReopens();
+    void testPageLoadsAndTakesOwnership();
+    void testLoaderHostedPageFillsAndStaysResident();
     void testSearchRoundTripFindsTheRenderedText();
     void testExportWritesTheRenderedMarkup();
 
@@ -242,13 +245,15 @@ private:
     }
 
     /**
-     * @brief 装配现场并加载产品那份 MarkdownPreviewWindow.qml
+     * @brief 装配现场并加载产品那份 MarkdownWorkbenchPage.qml
      * @param error 输出：失败原因（含 QML 的完整错误串）
-     * @return 文档已打开且窗口对象已创建则为真
+     * @return 文档已打开且页面已装进宿主窗口则为真
      *
-     * 先 openFile 再建窗口，与真实入口同序（ToolsPage 的右键 →
-     * workbench.previewMarkdown → 控制器发 windowRequested → MainWindow 的
-     * Loader 创建窗口）。顺序反了窗口会在「还没有文档」的状态下加载页面。
+     * 先 openFile 再建页面，与真实入口同序（文件树右键 →
+     * workbench.previewMarkdown → 控制器装载会话 → 导航到工作台页，
+     * Loader 这才实例化）。页面 onCompleted 按控制器里的活跃文件会话
+     * 推断出文档预设——顺序反了页面会在「还没有文档」的状态下落成提示词
+     * 预设。
      */
     bool load(QString *error)
     {
@@ -276,46 +281,52 @@ private:
         m_context->setContextProperty(QStringLiteral("markdown"), m_controller.get());
         m_context->setContextProperty(QStringLiteral("workbench"), &m_workbench);
         m_context->setContextProperty(QStringLiteral("ui"), &m_ui);
+        m_context->setContextProperty(QStringLiteral("nav"), &m_nav);
         m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
 
         QQmlComponent component(m_engine.get());
         component.loadUrl(QUrl(QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchWindow.qml")));
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml")));
         if (component.isError()) {
             *error = component.errorString();
             return false;
         }
-        // 开窗意图随创建写入（产品里由主窗 Loader 的 onLoaded 在同一轮
-        // 事件里完成）：这里走文档模式，预览面与三态都在场。
-        QObject *created = component.createWithInitialProperties(
-            {{QStringLiteral("initialPreset"), QStringLiteral("document")}},
-            m_context.get());
-        if (!created) {
-            *error = component.errorString();
+        // 页面根是普通 Item：装进 QQuickView 宿主（页面在产品里住在主窗
+        // 工作区，这里用宿主窗口复刻那个容器）。
+        std::unique_ptr<QQuickItem> page(
+            qobject_cast<QQuickItem *>(component.create(m_context.get())));
+        if (!page) {
+            *error = QStringLiteral("the workbench page root is not a QQuickItem: ")
+                     + component.errorString();
             return false;
         }
-        m_window.reset(qobject_cast<QQuickWindow *>(created));
-        if (!m_window) {
-            *error = QStringLiteral("the preview window root is not a QQuickWindow: ")
-                     + created->metaObject()->className();
-            delete created;
+        m_page = page.get();
+        m_view.reset(new QQuickView(m_engine.get(), nullptr));
+        m_view->setResizeMode(QQuickView::SizeRootObjectToView);
+        m_view->setContent(QUrl(), nullptr, page.release());
+        m_view->resize(900, 600);
+        m_view->show();
+        if (!QTest::qWaitForWindowExposed(m_view.get())) {
+            *error = QStringLiteral("the host window never became exposed");
             return false;
         }
-        m_view = m_window->findChild<QObject *>(QStringLiteral("markdownPreviewView"));
-        if (!m_view) {
-            *error = QStringLiteral("no WebEngineView in the loaded window");
+        m_previewView = m_view->findChild<QObject *>(
+            QStringLiteral("markdownPreviewView"));
+        if (!m_previewView) {
+            *error = QStringLiteral("no WebEngineView in the loaded page");
             return false;
         }
         return true;
     }
 
     /**
-     * @brief 建出与主窗同构的宿主，并按真实信号时序开第一扇预览窗
+     * @brief 建出与工作区同构的宿主，并按真实信号时序第一次实例化页面
      * @param error 输出：失败原因
      * @return 宿主已建、文档已交给控制器则为真
      *
-     * 与 load() 的区别只在「谁创建窗口」：这里由宿主的 Loader 在收到
-     * windowRequested 之后创建，产品路径就是这一条。
+     * 与 load() 的区别只在「谁创建页面」：这里由宿主的 keepAlive Loader
+     * 在收到 windowRequested 之后创建，产品路径就是这一条（0x0 创建、
+     * 变可见后才拿到真实尺寸的布局路径也只有这条能测到）。
      */
     bool loadHost(QString *error)
     {
@@ -336,6 +347,7 @@ private:
                                       m_controller.get());
         m_context->setContextProperty(QStringLiteral("workbench"), &m_workbench);
         m_context->setContextProperty(QStringLiteral("ui"), &m_ui);
+        m_context->setContextProperty(QStringLiteral("nav"), &m_nav);
         m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
 
         QQmlComponent component(m_engine.get());
@@ -357,9 +369,9 @@ private:
             return false;
         }
         m_loader = m_host->findChild<QObject *>(
-            QStringLiteral("markdownWindowLoader"));
+            QStringLiteral("workbenchPageLoader"));
         if (!m_loader) {
-            *error = QStringLiteral("the host has no preview Loader");
+            *error = QStringLiteral("the host has no workbench Loader");
             return false;
         }
         m_windowRequested.reset(new QSignalSpy(m_controller.get(),
@@ -373,10 +385,10 @@ private:
     }
 
     /**
-     * @brief 取宿主 Loader 当前创建出来的那扇预览窗
-     * @return 窗口对象；Loader 关着（没有内容项）时为空
+     * @brief 取宿主 Loader 当前创建出来的那份工作台页
+     * @return 页面对象；Loader 还没激活（没有内容项）时为空
      */
-    QPointer<QObject> hostedWindow() const
+    QPointer<QObject> hostedPage() const
     {
         if (!m_loader) {
             return nullptr;
@@ -385,8 +397,8 @@ private:
     }
 
     /**
-     * @brief 等预览视图拿到与窗口相称的高度
-     * @param window 预览窗
+     * @brief 等预览视图拿到与宿主窗口相称的高度
+     * @param window 承载页面的宿主窗口
      * @param reason 输出：失败时视图与窗口的实测尺寸
      * @return 视图高度不为 0 且至少占窗口高度一半则为真
      *
@@ -437,16 +449,19 @@ private:
         QElapsedTimer clock;
         clock.start();
         while (clock.elapsed() < kBootTimeoutMs) {
-            if (m_window->property("previewReady").toBool()) {
+            if (m_page && m_page->property("previewReady").toBool()) {
                 return true;
             }
             QTest::qWait(100);
         }
         *reason = QStringLiteral("the preview page never became ready;"
                                  " url=%1 loading=%2 progress=%3")
-                      .arg(m_view->property("url").toString())
-                      .arg(m_view->property("loading").toBool())
-                      .arg(m_view->property("loadProgress").toInt());
+                      .arg(m_previewView ? m_previewView->property("url").toString()
+                                         : QString())
+                      .arg(m_previewView
+                               ? m_previewView->property("loading").toBool() : false)
+                      .arg(m_previewView
+                               ? m_previewView->property("loadProgress").toInt() : 0);
         return false;
     }
 
@@ -480,10 +495,10 @@ private:
             QTest::qWait(150);
         }
         *reason = QStringLiteral("find('%1') never matched; last total=%2, "
-                                 "window open=%3, view found=%4")
+                                 "page open=%3, view found=%4")
                       .arg(word).arg(total).arg(m_controller->active())
-                      .arg(m_view ? QStringLiteral("yes")
-                                  : QStringLiteral("no"));
+                      .arg(m_previewView ? QStringLiteral("yes")
+                                         : QStringLiteral("no"));
         return false;
     }
 
@@ -503,13 +518,16 @@ private:
     std::unique_ptr<awb::tools::MarkdownEdit> m_markdownEdit;
     WorkbenchStub m_workbench;
     UiStub m_ui;
+    NavStub m_nav;
     std::unique_ptr<QQmlContext> m_context;
-    std::unique_ptr<QQuickWindow> m_window;
-    std::unique_ptr<QQuickWindow> m_host;   ///< 复刻主窗结构的宿主窗（Loader 在它里面）
-    QObject *m_loader = nullptr;    ///< 宿主的预览 Loader（归宿主所有）
+    // load() 路径：宿主视图（QQuickView 即 QQuickWindow）+ 它收养的工作台页。
+    std::unique_ptr<QQuickView> m_view;
+    QPointer<QQuickItem> m_page;
+    std::unique_ptr<QQuickWindow> m_host;   ///< 复刻工作区结构的宿主窗（Loader 在它里面）
+    QObject *m_loader = nullptr;    ///< 宿主的工作台 Loader（归宿主所有）
     QString m_docPath;              ///< 夹具写出的文档路径
     std::unique_ptr<QSignalSpy> m_windowRequested;
-    QObject *m_view = nullptr;      ///< 窗口里的那块视图（归窗口所有）
+    QObject *m_previewView = nullptr;   ///< 页面里的那块视图（归页面所有）
     std::unique_ptr<QTemporaryDir> m_dir;   ///< 文档与导出目录
 };
 
@@ -557,12 +575,13 @@ void TestMarkdownPreviewUi::init()
  */
 void TestMarkdownPreviewUi::cleanup()
 {
-    m_view = nullptr;
-    // 宿主先走：Loader 创建出来的那扇预览窗是它的子对象，反序会让宿主拿着一个
-    // 已经随引擎死掉的 item。
+    m_previewView = nullptr;
+    m_page.clear();
+    // 宿主先走：Loader 创建出来的那份工作台页是它的子对象，反序会让宿主
+    // 拿着一个已经随引擎死掉的 item。
     m_host.reset();
     m_loader = nullptr;
-    m_window.reset();
+    m_view.reset();
     m_context.reset();
     m_windowRequested.reset();
     m_engine.reset();
@@ -576,17 +595,17 @@ void TestMarkdownPreviewUi::cleanup()
 }
 
 /**
- * @brief 那份 QML 编译得动、开得了窗、也把状态交回控制器
+ * @brief 那份 QML 编译得动、装得进宿主、也把状态交回控制器
  *
- * 只有「加载成功」这一件事就值一个用例：窗口文件引用了十余个共享组件与两个
+ * 只有「加载成功」这一件事就值一个用例：页面文件引用了十余个共享组件与两个
  * C++ 单例，任何一处写错都是整份文件加载失败，而界面上只表现为右键没反应。
  */
-void TestMarkdownPreviewUi::testWindowLoadsAndTakesOwnership()
+void TestMarkdownPreviewUi::testPageLoadsAndTakesOwnership()
 {
     QString error;
     QVERIFY2(load(&error), qPrintable(error));
 
-    // 窗口在 Component.onCompleted 里向控制器报到；这条链断了，控制器就永远
+    // 页面在 Component.onCompleted 里向控制器报到；这条链断了，控制器就永远
     // 以为没有窗口，命令一律不排（下一次预览什么也不会发生）。
     QCOMPARE(m_controller->active(), true);
     QCOMPARE(m_windowRequested->count(), 1);
@@ -594,67 +613,71 @@ void TestMarkdownPreviewUi::testWindowLoadsAndTakesOwnership()
     QVERIFY2(!m_controller->outline().isEmpty(),
              "the outline never reached the controller after opening");
 
-    // 视图建出来了但还没加载完，此时窗口不许报错：三态默认 preview，只读与否
+    // 视图建出来了但还没加载完，此时页面不许报错：三态默认 preview，只读与否
     // 由文档决定。
     QCOMPARE(m_controller->mode(), QStringLiteral("preview"));
     QCOMPARE(m_controller->dirty(), false);
 
-    // 布局自查：内容区要真的拿到与窗口相称的高度。上一版缺陷的表现正是工具栏
-    // 把自己撑成整扇窗、正文只剩 15 px，而对象一个不少——只有量尺寸看得见。
+    // 布局自查：内容区要真的拿到与宿主相称的高度。上一版缺陷的表现正是工具栏
+    // 把自己撑成整窗、正文只剩 15 px，而对象一个不少——只有量尺寸看得见。
     QString contentError;
-    QVERIFY2(waitContentHeight(m_window.get(), &contentError),
+    QVERIFY2(waitContentHeight(m_view.get(), &contentError),
              qPrintable(contentError));
 }
 
 /**
- * @brief 由 Loader 创建的预览窗要真的撑开内容区，关掉之后还得能再开
+ * @brief 由 keepAlive Loader 创建的工作台页要真的撑开内容区，且常驻不灭
  *
- * 两条判据各挡一类真实缺陷，且都只在「窗口被宿主创建」这条路径上才存在：
- *   1. 内容区塌陷——窗口作为 Loader 的内容项时，布局与直接 createObject 不
- *      同；产品里的表现是只看到工具栏、正文看不见，而对象一个不少，只有量
- *      高度才看得见；
- *   2. 关掉再预览——用户点 × 之后，控制器必须把 active 放下、宿主必须把窗口
- *      销毁，否则下一次 windowRequested 只是把已经为真的开关再写一遍真，界面
- *      上就是「第二次右键没反应」。
+ * 两条判据各挡一类真实缺陷，且都只在「页面被工作区 Loader 创建」这条路径上
+ * 才存在：
+ *   1. 内容区塌陷——页面作为 Loader 的内容项时以 0x0 创建、变可见后才拿到
+ *      真实尺寸，布局与直接 createObject 不同；产品里的表现是只看到工具栏、
+ *      正文看不见，而对象一个不少，只有量高度才看得见；
+ *   2. 常驻性——第二次预览（第二次 windowRequested）不得重建页面：keepAlive
+ *      页一旦访问过就只在应用退出时销毁，重建等于丢掉编辑现场（这扇窗在
+ *      独立窗口时期「关掉再开」的语义，页面化后由常驻性取代）。
  */
-void TestMarkdownPreviewUi::testLoaderHostedWindowFillsTheWindowAndReopens()
+void TestMarkdownPreviewUi::testLoaderHostedPageFillsAndStaysResident()
 {
     QString error;
     QVERIFY2(loadHost(&error), qPrintable(error));
 
     QPointer<QObject> first;
-    QTRY_VERIFY_WITH_TIMEOUT(!(first = hostedWindow()).isNull(), kBootTimeoutMs);
-    QObject *firstRaw = first.data();
-    QQuickWindow *firstWindow = qobject_cast<QQuickWindow *>(firstRaw);
-    QVERIFY2(firstWindow, "the Loader's content item is not a window");
-    QVERIFY2(firstWindow->isVisible(),
-             "the hosted preview window is not visible");
-    QVERIFY2(firstWindow->height() >= 400,
-             qPrintable(QStringLiteral("the hosted window was shrunk to height=")
-                        + QString::number(firstWindow->height())));
-    QVERIFY2(waitContentHeight(firstWindow, &error), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(!(first = hostedPage()).isNull(), kBootTimeoutMs);
+    QQuickItem *firstPage = qobject_cast<QQuickItem *>(first.data());
+    QVERIFY2(firstPage, "the Loader's content item is not an Item");
+    QTRY_VERIFY2_WITH_TIMEOUT(firstPage->width() > 100
+                                  && firstPage->height() > 100,
+                              "the hosted page never got a real size",
+                              kBootTimeoutMs);
+    QVERIFY2(waitContentHeight(m_host.get(), &error), qPrintable(error));
     QCOMPARE(m_controller->active(), true);
+    QObject *const firstView = m_host->findChild<QObject *>(
+        QStringLiteral("markdownPreviewView"));
+    QVERIFY2(firstView, "no WebEngineView inside the hosted page");
 
-    // 用户点 ×：走 Qt 的关闭事件，与产品里那一下点击同一条路径。
-    QMetaObject::invokeMethod(firstWindow, "close");
-    QTRY_VERIFY_WITH_TIMEOUT(!m_controller->active(), kBootTimeoutMs);
-    QTRY_VERIFY_WITH_TIMEOUT(hostedWindow().isNull(), kBootTimeoutMs);
-
-    // 第二次预览同一份文件：必须重新开出一扇窗口，而不是留着那个已经看不见的。
-    const awb::core::OpResult again = m_controller->openFile(m_docPath);
+    // 第二次预览另一份文件：页面必须还是同一个对象（常驻），并跟着换到
+    // 新文档——keepAlive 的全部意义就在这里。
+    const QString secondDoc = QDir(m_dir->path()).filePath(
+        QStringLiteral("second.md"));
+    {
+        QFile file(secondDoc);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("# Second Probe\n\nmore text\n");
+        file.close();
+    }
+    const awb::core::OpResult again = m_controller->openFile(secondDoc);
     QVERIFY2(again, qPrintable(again.error));
-    QPointer<QObject> second;
-    QTRY_VERIFY_WITH_TIMEOUT(!(second = hostedWindow()).isNull(), kBootTimeoutMs);
-    QVERIFY2(second.data() != firstRaw,
-             "the second preview reused the window object that was closed");
-    QQuickWindow *secondWindow = qobject_cast<QQuickWindow *>(second.data());
-    QVERIFY2(secondWindow && secondWindow->isVisible(),
-             "the second preview window never became visible");
-    QVERIFY2(waitContentHeight(secondWindow, &error), qPrintable(error));
+    QTest::qWait(200);
+    QTRY_VERIFY_WITH_TIMEOUT(!hostedPage().isNull(), kBootTimeoutMs);
+    QVERIFY2(hostedPage().data() == first.data(),
+             "the keepAlive page was rebuilt instead of staying resident");
+    QVERIFY2(waitContentHeight(m_host.get(), &error), qPrintable(error));
+    QCOMPARE(m_controller->filePath(), secondDoc);
 }
 
 /**
- * @brief 搜索的完整往返：控制器排队 → 窗口泵 → 页面 → 信标 → 控制器信号
+ * @brief 搜索的完整往返：控制器排队 → 页面泵 → 渲染面 → 信标 → 控制器信号
  *
  * 命中的文本只存在于页面渲染出来的 DOM 里，所以「搜到一处」同时证明了：视图
  * 真的加载了 shell.html、doc.json 取到了载荷、分片管线把正文挂进了 DOM、
@@ -677,7 +700,7 @@ void TestMarkdownPreviewUi::testSearchRoundTripFindsTheRenderedText()
  * @brief 导出的完整往返：serialize 走 runJavaScript 的返回值落回磁盘
  *
  * 这是全功能里唯一一条「结果不经过信标」的路径（导出件远超信标能放的量），
- * 而它由窗口里 pump() 的那个回调负责交回控制器——这条接线错了，导出会永远
+ * 而它由页面里 pump() 的那个回调负责交回控制器——这条接线错了，导出会永远
  * 静默地什么都不写。
  */
 void TestMarkdownPreviewUi::testExportWritesTheRenderedMarkup()
@@ -725,9 +748,9 @@ void TestMarkdownPreviewUi::testExportWritesTheRenderedMarkup()
 // QGuiApplication。注册晚于 initialize() 时引擎拒绝写入 scheme 表，provider
 // 会把 available 落成假，于是每个用例都在 load() 里报出同一个原因。
 //
-// 三个 Chromium 开关的原因同 tst_markdownpreview：本套件的窗口在测试期间会被
+// 三个 Chromium 开关的原因同 tst_markdownpreview：本套件的宿主窗口在测试期间会被
 // 其它窗口压住、也可能没有输入焦点，而 Chromium 对「被遮挡 / 后台」的渲染进程
-// 冻住 requestAnimationFrame——窗口的挂载收尾正排在它上面。
+// 冻住 requestAnimationFrame——预览面的挂载收尾正排在它上面。
 int main(int argc, char *argv[])
 {
     QStandardPaths::setTestModeEnabled(true);

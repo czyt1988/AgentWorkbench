@@ -210,12 +210,13 @@ void WorkbenchContext::launchAgent(const QString &agentId)
 }
 
 /**
- * @brief 跨域意图：把一份 Markdown 开成独立预览窗口
+ * @brief 跨域意图：在 Markdown 工作台里打开一份文档
  *
  * @param path 磁盘路径（文件树右键的那一行）
  *
- * 开窗本身在预览域里：MarkdownPreviewController::openFile() 校验、读盘、切块，
- * 成功后发 windowRequested()。这里只把失败原因说给用户一次——同一个原因在
+ * 打开文档本身在预览域里：MarkdownPreviewController::openFile() 校验、读盘、
+ * 切块，成功后发 windowRequested()。这里再把用户带到工作台页（页面在场时
+ * 预设跟随刚激活的文件会话）。失败原因只说给用户一次——同一个原因在
  * 菜单项、控制器与这里各解释一遍，就会变成三个互相漂移的版本。
  */
 void WorkbenchContext::previewMarkdown(const QString &path)
@@ -242,6 +243,9 @@ void WorkbenchContext::previewMarkdown(const QString &path)
     }
     // 打开成功即触 MRU：会话文件里「最近文档」的唯一来源。
     touchRecentDocument(path);
+    // 文档已装载：把用户带到工作台页（常驻时页面经 windowRequested 落
+    // 在文档预设；首次实例化时按控制器里的活跃文件会话推断出同一结果）。
+    showPage(QStringLiteral("tools"));
 }
 
 /**
@@ -439,16 +443,17 @@ void WorkbenchContext::touchRecentDocument(const QString &path)
 }
 
 /**
- * @brief 打开 Markdown 工作台窗口（提示词模式）
+ * @brief 打开 Markdown 工作台（提示词模式）
  *
- * 与 previewMarkdown()（文档模式，经预览控制器开文档）互为两条入口：
- * 这里只发 markdownWorkbenchRequested() 意图，窗口本体由 MainWindow 的
- * Loader 按信号创建——跨域动作不经过 QML 拼接。已在开着的窗口由窗口
- * 自己 raise（它同样监听这个信号）。
+ * 工作台是 Agent Tools 分组下的常驻页面（见 BuiltinPages 的 tools 条目），
+ * 不是独立窗口：这里只做导航。页面没访问过时由 Workspace 首次实例化并
+ * 按控制器现状落预设；已经常驻时切过去即恢复原样（预设留在上次的状态，
+ * 用户要回草稿点 tab 条即可）。调用方是启动项「自动打开工作台」
+ *（main.cpp 的 autoOpenWorkbench 设置）。
  */
 void WorkbenchContext::openMarkdownWorkbench()
 {
-    Q_EMIT markdownWorkbenchRequested();
+    showPage(QStringLiteral("tools"));
 }
 
 /**

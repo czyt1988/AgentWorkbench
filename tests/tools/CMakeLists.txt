@@ -157,7 +157,7 @@ awb_add_resources(tst_toolsui "toolsui_test_resources"
 # Loader 装载失败后换 WorkbenchToolbar.qml——降级路径正是本套件冒烟的
 # 那一条（无 Ribbon 构建的用户看到的形态）。
 set(_tst_toolsui_qml
-    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
@@ -177,8 +177,8 @@ set(_tst_toolsui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
-    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchWindow.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml

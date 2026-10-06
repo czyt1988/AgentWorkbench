@@ -104,7 +104,7 @@ awb_add_resources(tst_markdownpreviewui "previewui_icons"
 # 新引用一个组件就把它加进下面两处：漏嵌时本目标以「unknown type」失败，
 # 而那正是产品在运行时打不开窗口的原因。
 set(_tst_markdownpreviewui_qml
-    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
+    ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
@@ -125,8 +125,8 @@ set(_tst_markdownpreviewui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchWindow.qml
-    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchWindow.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
+    PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
