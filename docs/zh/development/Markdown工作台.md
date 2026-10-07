@@ -301,7 +301,7 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 
 | 文件 | 类 / 组件 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/workbench/qml/MarkdownWorkbenchPage.qml` | `MarkdownWorkbenchPage` | 页面（`keepAlive` 的 `Item`，首次进入后常驻）：命令带槽位、侧面板（左栏三段可折叠：工作区树、模板库、收藏夹；右栏三段：大纲、体检、历史，共享一个带边框面板）、文件 tab 条、草稿/文档中间区（一套两栏结构服务两种预设）、**草稿查找条**（B2）、搜索条、状态行（含 C4/E6 的 token 估算）、对话框（变量表单、存为模板、清空草稿确认、全部替换确认）、快捷键（`Ctrl+F` 按预设分流，全部门控在 `pageCurrent`）、会话保存与恢复（由原 `MarkdownPreviewWindow.qml` 演化而来；资源别名从 `markdown/` 挪到 `workbench/`） | `ToolsFacade`、`Markdown`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench`、`theme`、`nav` |
+| `src/workbench/qml/MarkdownWorkbenchPage.qml` | `MarkdownWorkbenchPage` | 页面（`keepAlive` 的 `Item`，首次进入后常驻）：命令带槽位、侧面板（左栏三段可折叠：工作区树、模板库、收藏夹；右栏两段：体检、历史，共享一个带边框面板；大纲悬浮在渲染窗上）、文件 tab 条、草稿/文档中间区（一套两栏结构服务两种预设）、**草稿查找条**（B2）、搜索条、状态行（含 C4/E6 的 token 估算）、对话框（变量表单、存为模板、清空草稿确认、全部替换确认）、快捷键（`Ctrl+F` 按预设分流，全部门控在 `pageCurrent`）、会话保存与恢复（由原 `MarkdownPreviewWindow.qml` 演化而来；资源别名从 `markdown/` 挪到 `workbench/`） | `ToolsFacade`、`Markdown`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench`、`theme`、`nav` |
 | `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | SARibbon 命令带：**开始**、**Prompt tools**（`RibbonContextCategory`，仅提示词预设可见，`contextColor: theme.success`）与 **视图** 三个标签页、默认单行、样式档取自 `tools.ribbonStyle`、单向主题桥；对页面动作层纯转发 | 页面 QML、`RibbonTheme`、`tools.*` |
 | `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | 无 Ribbon 的降级形态：一条普通工具栏、同一批动作（含 Insert Template / Save as Template / Save Favorite，草稿激活时可用），ribbon 文件缺席时装载它 | 页面 QML |
 | `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | 预览面（`WebEngineView` 及其接线），仅在有能力的构建里按资源 URL 装载 | `Markdown`、页面 QML |
@@ -341,7 +341,7 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 │ 命令带：WorkbenchRibbon.qml（SARibbon）或工具栏降级；            │
 │  标签页：开始 · 提示词工具（仅提示词预设）· 视图                  │
 ├───────────────┬──────────────────────────┬────────┬───────────┤
-│ 左侧面板       │ 中间区                    │ 大纲    │ 体检段     │
+│ 左侧面板       │ 中间区                    │ 体检段 │ 历史段     │
 │ 工作区         │ 文件 tab 条（脏圆点）      │ 面板    │（仅提示词  │
 │ + 文件树       │ 查找条 · 编辑器 / 预览     │        │  预设）    │
 │ 模板库         │ · 状态行                  │        │           │
@@ -350,7 +350,7 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 ```
 
 - 左侧面板是**三个可折叠段**，各自带 `ASectionHeader`：工作区/文件树（迁过来的提示词页树面板：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）、**模板库**（检索框 + 上限列表，提示词形态默认展开）、**收藏夹**（默认收起）。面板与编辑器在相接处都不带圆角——直角齐平。两个列表的行是 `AListRow`，由 `ObjectModel` 从门面重建驱动——这意味着行的 `width` 必须显式跟列表（见坑与约定）。
-- 右侧面板是大纲，跟在大纲开关后面，服务**活跃会话**——草稿也有标题，所以它不再是文档模式专属。它旁边（仅提示词预设）是**体检段**：Check 按钮、带严重度色点的命中清单、点击跳区间，以及逐条命中的「不再提醒此类」×。体检是提示词质量工具，文档形态下这段不占位。
+- 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题，所以它不再是文档模式专属。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。右侧面板（仅提示词预设）是**体检段**：Check 按钮、带严重度色点的命中清单、点击跳区间，以及逐条命中的「不再提醒此类」×。体检是提示词质量工具，文档形态下这段不占位。
 - 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件会话一个 tab，带标题、脏圆点与关闭按钮；条上还有视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单。切换器两种预设都服务——草稿与文件走同一条渲染管线。
 - 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
 - 中间区底部是**状态行**：提示词模式显示草稿的字符数、行数**与 token 估算**（「~N tokens (estimated)」，颜色跟分级走，tooltip 写明上下文窗口基数——见「编辑动作、体检与预算」一节）；文档模式显示文件路径、**有未保存的改动** 标记、只读原因（若有）、文件大小、渲染器版本号**与同一估算对文件文本的数字**。状态永远不只靠颜色——脏与只读都写成文字。

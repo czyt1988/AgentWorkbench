@@ -521,6 +521,28 @@ private Q_SLOTS:
         QVERIFY2(checksPanel->height() > 100,
                  "the right panel collapsed vertically");
 
+        // 右栏分段不再互相挤压（2026-10 用户报告「体检下面小字被盖住、
+        // 段间距二三十像素」）：体检列表是主弹性段但有保底，历史段是
+        // 内容段但有封顶——两个数字都在这里钉住，谁越界谁红。挤扁的
+        // 机制是两个 fillHeight 竞争 + 历史段的隐式高把 preferredHeight
+        // 顶穿（实测 148 段长到 702、列表剩 4px）。
+        QQuickItem *const checkList = findItemByName(
+            page, QStringLiteral("checkList"));
+        QVERIFY2(checkList, "the page has no check list");
+        QTRY_VERIFY2_WITH_TIMEOUT(checkList->height() >= 140,
+                                  qPrintable(QStringLiteral(
+                                      "the check list was crushed to %1px")
+                                      .arg(checkList->height())),
+                                  5000);
+        QQuickItem *const historySection = findItemByName(
+            page, QStringLiteral("historySection"));
+        QVERIFY2(historySection, "the page has no history section");
+        QVERIFY2(historySection->isVisible()
+                     && historySection->height() <= 220,
+                 qPrintable(QStringLiteral(
+                     "the history section grew past its cap (%1px)")
+                     .arg(historySection->height())));
+
         // delegate 作用域（2026-10 首显缺陷 b）：模板行与 tab 行的处理器
         // 都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
         // ReferenceError（消息钩子抓到即失败）。先点一行模板：这会驱动

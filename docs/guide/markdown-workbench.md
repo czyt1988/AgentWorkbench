@@ -17,7 +17,7 @@ Find it in the sidebar under the **Agent Tools** label, as the row **Prompt Writ
 The workbench shows one of two shapes, depending on what is active:
 
 - **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle. The left side also carries the **Templates** and **Favorites** sections under the file tree.
-- **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; the outline section appears in the right panel when you turn the outline on.
+- **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; a floating outline panel appears over the right edge of the rendered page when you turn the outline on.
 
 Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style row, last tab, theme following) between sessions. Nothing is locked: the **Full Tools** switch on the ribbon's **View** tab flips between the two shapes, and you can fold or unfold anything at any time.
 
@@ -150,7 +150,7 @@ The **Preview / Split / Source** buttons live in the **View** group of the ribbo
 
 The strip above the middle answers one question — *which document am I on*: the tabs, the **outline** button, the **search** button and the **More actions** menu. The reading options that are not about *where* but about *how* sit with the three views on the **Start** tab:
 
-- **Outline.** The outline section of the right panel lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**.
+- **Outline.** A floating panel over the rendered page's right edge lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**. It takes no space from the prompt tools on the right, and it is only present while a rendered view is.
 - **Text size.** The **Font Size** menu on the **Start** tab picks the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
 - **Width.** The **Width** menu on the **Start** tab picks how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
 - **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.

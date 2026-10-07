@@ -812,6 +812,7 @@ Item {
     }
 
 
+
     // --- 快捷键 ------------------------------------------------------------
     // context 用 ApplicationShortcut + enabled 绑 pageCurrent（本页是当前
     // 页）：Chromium 会吃掉普通作用域的按键，而本页常驻（keepAlive），
@@ -2213,6 +2214,109 @@ Item {
                                 }
                             }
                         }
+
+                        // --- 悬浮大纲：渲染窗自己的导航（2026-10 自右栏迁来） --
+                        // 大纲是「正在读的这份文档」的导航，住在渲染窗右缘、
+                        // 悬浮于内容之上：不占布局（塞进右栏会与体检/历史
+                        // 挤扁彼此），也不改分栏比例。纯源码态没有渲染窗，
+                        // 大纲随之退场（锚点跳转本来就作用于渲染页）。
+                        // 面板自身可见性翻转是安全的（容器级，见左栏三段
+                        // 的教训）；列表在里面恒可见。
+                        Rectangle {
+                            id: outlineFloat
+                            objectName: "outlineFloat"
+
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.margins: theme.spacingS
+                            width: 224
+                            visible: markdown.showOutline && docArea.showsView
+                            // 高不透明：悬浮在正文之上，文字要稳读。
+                            color: theme.alpha(theme.surfaceBg, 0.93)
+                            border.color: theme.borderSubtle
+                            border.width: 1
+                            radius: theme.radiusControl
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: theme.spacingS
+                                spacing: theme.spacingXs
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: qsTr("Outline")
+                                    color: theme.textMuted
+                                    font.pixelSize: theme.fontSizeCaption
+                                    font.bold: true
+                                }
+
+                                // 数据是控制器算好的（level / text / anchor /
+                                // blockIndex），这里只画。点一条走
+                                // scrollToAnchor——页面会把那一块的解析插队
+                                // 到分片队列前面。
+                                ListView {
+                                    id: outlineList
+                                    objectName: "outlineList"
+
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    model: markdown.outline
+
+                                    ScrollBar.vertical: AScrollBar {}
+
+                                    delegate: Item {
+                                        id: outlineRow
+
+                                        required property var modelData
+                                        required property int index
+
+                                        width: outlineList.width
+                                        height: 26
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: theme.radiusControl
+                                            color: theme.surfaceHoverBg
+                                            visible: outlineHover.hovered
+                                        }
+
+                                        HoverHandler {
+                                            id: outlineHover
+                                        }
+
+                                        TapHandler {
+                                            onSingleTapped: markdown.scrollToAnchor(
+                                                outlineRow.modelData.anchor,
+                                                outlineRow.modelData.blockIndex)
+                                        }
+
+                                        Label {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            // 缩进按标题级别：level 1 不缩进。
+                                            x: theme.spacingS
+                                               + Math.max(0, outlineRow.modelData.level - 1)
+                                                 * theme.spacingM
+                                            width: parent.width - x - theme.spacingS
+                                            text: outlineRow.modelData.text
+                                            color: theme.textPrimary
+                                            font.pixelSize: theme.fontSizeBody
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    Label {
+                                        anchors.centerIn: parent
+                                        visible: outlineList.count === 0
+                                        text: qsTr("No headings")
+                                        color: theme.textMuted
+                                        font.pixelSize: theme.fontSizeCaption
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -2379,7 +2483,7 @@ Item {
 
                 Layout.fillHeight: true
                 Layout.preferredWidth: 265
-                visible: promptTools || markdown.showOutline
+                visible: promptTools
                 color: theme.surfaceBg
                 border.color: theme.borderSubtle
                 border.width: 1
@@ -2388,91 +2492,16 @@ Item {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: theme.spacingS
-                    spacing: theme.spacingXs
+                    spacing: theme.spacingS
 
-                    // --- 段 1 · 大纲（活跃会话的标题导航） ----------------
-                    Label {
-                        visible: markdown.showOutline
-                        Layout.fillWidth: true
-                        text: qsTr("Outline")
-                        color: theme.textMuted
-                        font.pixelSize: theme.fontSizeCaption
-                        font.bold: true
-                    }
+                    // 大纲曾经也住在这条栏里（2026-10 之前）：它与体检列表
+                    // 两个 fillHeight 在 265px 的窄栏里互相挤压、历史段又钉着
+                    // 固定高——总高一紧三段全扁、文字叠字（用户报告「体检下面
+                    // 一小节小字被盖住、段间距只有二三十像素」）。大纲是
+                    // 「正在读的这份文档」的导航，属于渲染窗口——现在是
+                    // docArea 里的悬浮面板（见 outlineFloat）。
 
-                    // 大纲：数据是控制器算好的（level / text / anchor /
-                    // blockIndex），这里只画。点一条走 scrollToAnchor——页面
-                    // 会把那一块的解析插队到分片队列前面。
-                    ListView {
-                        id: outlineList
-                        visible: markdown.showOutline
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        model: markdown.outline
-
-                        ScrollBar.vertical: AScrollBar {}
-
-                        delegate: Item {
-                            id: outlineRow
-
-                            required property var modelData
-                            required property int index
-
-                            width: outlineList.width
-                            height: 26
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: theme.radiusControl
-                                color: theme.surfaceHoverBg
-                                visible: outlineHover.hovered
-                            }
-
-                            HoverHandler {
-                                id: outlineHover
-                            }
-
-                            TapHandler {
-                                onSingleTapped: markdown.scrollToAnchor(
-                                    outlineRow.modelData.anchor,
-                                    outlineRow.modelData.blockIndex)
-                            }
-
-                            Label {
-                                anchors.verticalCenter: parent.verticalCenter
-                                // 缩进按标题级别：level 1 不缩进。
-                                x: theme.spacingS
-                                   + Math.max(0, outlineRow.modelData.level - 1)
-                                     * theme.spacingM
-                                width: parent.width - x - theme.spacingS
-                                text: outlineRow.modelData.text
-                                color: theme.textPrimary
-                                font.pixelSize: theme.fontSizeBody
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            visible: outlineList.count === 0
-                            text: qsTr("No headings")
-                            color: theme.textMuted
-                            font.pixelSize: theme.fontSizeCaption
-                        }
-                    }
-
-                    // --- 段间分隔线：大纲 | 体检 ----------------------------
-                    Rectangle {
-                        visible: markdown.showOutline
-                                 && rightPanel.promptTools
-                        Layout.fillWidth: true
-                        implicitHeight: 1
-                        color: theme.separator
-                    }
-
-                    // --- 段 2 · 体检结果（提示词预设，B9） ------------------
+                    // --- 段 1 · 体检结果（提示词预设，B9） ------------------
                     // 体检是提示词质量工具，不是 Markdown 语法工具——只在
                     // 提示词预设出现（文件 tab 上不占位）。清单不评分：分数
                     // 会诱导为分数写作，清单引导补全信息。
@@ -2505,6 +2534,10 @@ Item {
                         visible: rightPanel.promptTools
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        // 265px 窄栏里两个弹性段竞争时，输家会被压到几个
+                        // 像素（实测 h=4，命中行连字都盖住）：给体检列表
+                        // 一个「至少放得下三条命中」的底。
+                        Layout.minimumHeight: 140
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         model: workbenchWindow.draftCheckResults || []
@@ -2603,15 +2636,22 @@ Item {
                         }
                     }
 
-                    // --- 段 3 · 草稿历史（M4 D2：快照与回滚） ----------------
+                    // --- 段 2 · 草稿历史（M4 D2：快照与回滚） ----------------
                     // 只在草稿会话激活时出现（文件没有快照；草稿激活本身就
                     // 意味着提示词预设）。点一版 = 回滚（先确认——回滚是
                     // 破坏性替换；当前版会被自动存成 rollback 快照，两头都
                     // 留退路）。
                     ColumnLayout {
+                        id: historySection
+                        objectName: "historySection"
                         visible: markdown.draftActive
                         Layout.fillWidth: true
                         Layout.preferredHeight: 148
+                        // preferredHeight 只是期望值：段内 ListView 的隐式
+                        // 高随快照数增长，能把段从 148 撑到数百像素、把上方
+                        // 的体检列表挤成几像素（2026-10 实测 702 vs 4）。
+                        // 上限钉死，段的高度语义才是「一小段」。
+                        Layout.maximumHeight: 220
                         spacing: theme.spacingXs
 
                         Rectangle {
@@ -2645,7 +2685,9 @@ Item {
                             objectName: "snapshotList"
 
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            // 按内容给高并封顶（不用 fillHeight：它会让段的
+                            // 隐式高随快照数增长，preferredHeight 拦不住）。
+                            implicitHeight: Math.min(contentHeight, 96)
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             spacing: 2
