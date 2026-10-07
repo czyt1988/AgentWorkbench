@@ -597,6 +597,14 @@ Item {
         draftCheckResults = tools.runChecks(tools.draft)
     }
 
+    // 选中草稿编辑器的一段区间并聚焦（体检命中行的跳转落点）。
+    function selectDraftRange(start, length) {
+        if (!promptEditor)
+            return
+        promptEditor.select(start, start + length)
+        promptEditor.forceActiveFocus()
+    }
+
     function editorAction(action) {
         const editor = activeEditor
         if (!editor)
@@ -1339,7 +1347,10 @@ Item {
                             model: ObjectModel {
                                 id: templateModel
 
-                                // 检索结果 → 行对象（上限 30）。
+                                // 检索结果 → 行对象（上限 30）。createObject
+                                // 的 QObject 父必须给 null：给模型对象（非
+                                // Item）时对象不在场景里，启动即刷一串
+                                // 「not placed in the graphics scene」。
                                 function rebuild() {
                                     while (count > 0)
                                         remove(0)
@@ -1347,54 +1358,62 @@ Item {
                                                 templateSearch.text, "")
                                     const cap = Math.min(filtered.length, 30)
                                     for (let i = 0; i < cap; ++i) {
-                                        append(rowComponent.createObject(
-                                                   templateModel, {
+                                        append(templateRowComponent.createObject(
+                                                   null, {
                                                        "entry": filtered[i]
                                                    }))
                                     }
                                 }
+                            }
 
-                                Component {
-                                    id: rowComponent
+                            // 行模板声明在列表的资源子项里（不是 ObjectModel
+                            // 的子项）：Component 放进 ObjectModel 会被当成
+                            // 一行数据，ListView 报「Delegate must be of Item
+                            // type」且多出一个空行。
+                            Component {
+                                id: templateRowComponent
 
-                                    AListRow {
-                                        id: templateRow
-                                        required property var entry
+                                AListRow {
+                                    id: templateRow
+                                    required property var entry
 
-                                        // ObjectModel 的行是视图直接摆放的
-                                        // 对象：宽度必须显式跟列表（AListRow
-                                        // 只有 height 没有 implicitWidth，
-                                        // 不设就是 0 宽——点击永远落空）。
-                                        width: templateList.width
-                                        rowHeight: 40
+                                    // 页面作用域显式传入：delegate/模板行
+                                    // 里的信号处理器直接解析文档根 id
+                                    //（workbenchWindow）在编译型 QML 里会
+                                    // ReferenceError，经属性走对象作用域链
+                                    // 两条路都成立（见 fileTab 的说明）。
+                                    property var scope: workbenchWindow
 
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: theme.spacingS
-                                            anchors.rightMargin: theme.spacingS
-                                            spacing: theme.spacingS
+                                    // ObjectModel 的行是视图直接摆放的
+                                    // 对象：宽度必须显式跟列表（AListRow
+                                    // 只有 height 没有 implicitWidth，
+                                    // 不设就是 0 宽——点击永远落空）。
+                                    width: templateList.width
+                                    rowHeight: 40
 
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: templateRow.entry.title
-                                                color: theme.textPrimary
-                                                font.pixelSize: theme.fontSizeCaption
-                                                elide: Text.ElideMiddle
-                                            }
+                                    // 行内容直接注入（AListRow 的内容
+                                    // RowLayout 负责摆位）——不再包一层带
+                                    // anchors 的 RowLayout：Layout 管理的
+                                    // 子项配 anchors 是未定义行为。
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: templateRow.entry.title
+                                        color: theme.textPrimary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
 
-                                            // 内置徽标：subtle 的 APill，与
-                                            // 文件 tab 的来源徽标同一形态。
-                                            APill {
-                                                visible: templateRow.entry.builtin
-                                                text: qsTr("built-in")
-                                            }
-                                        }
+                                    // 内置徽标：subtle 的 APill，与
+                                    // 文件 tab 的来源徽标同一形态。
+                                    APill {
+                                        visible: templateRow.entry.builtin
+                                        text: qsTr("built-in")
+                                    }
 
-                                        TapHandler {
-                                            onSingleTapped:
-                                                workbenchWindow.insertTemplate(
-                                                    templateRow.entry.id)
-                                        }
+                                    TapHandler {
+                                        onSingleTapped:
+                                            scope.insertTemplate(
+                                                templateRow.entry.id)
                                     }
                                 }
                             }
@@ -1470,64 +1489,67 @@ Item {
                             model: ObjectModel {
                                 id: favoriteModel
 
+                                // 同模板列表：createObject 的 QObject 父给
+                                // null，行对象由 append 收进模型。
                                 function rebuild() {
                                     while (count > 0)
                                         remove(0)
                                     const favorites = tools.favorites
                                     for (let i = 0; i < favorites.length; ++i) {
                                         append(favoriteRow.createObject(
-                                                   favoriteModel, {
+                                                   null, {
                                                        "entry": favorites[i]
                                                    }))
                                     }
                                 }
+                            }
 
-                                Component {
-                                    id: favoriteRow
+                            // 同模板列表：行模板声明在列表的资源子项里，
+                            // 不进 ObjectModel（理由见 templateRowComponent）。
+                            Component {
+                                id: favoriteRow
 
-                                    AListRow {
-                                        id: favRow
-                                        required property var entry
+                                AListRow {
+                                    id: favRow
+                                    required property var entry
 
-                                        // 同模板行：宽度显式跟列表。
-                                        width: favoriteList.width
-                                        rowHeight: 40
+                                    // 同模板行：作用域显式传入（见
+                                    // templateRowComponent 的说明）。
+                                    property var scope: workbenchWindow
 
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: theme.spacingS
-                                            spacing: theme.spacingS
+                                    // 同模板行：宽度显式跟列表。
+                                    width: favoriteList.width
+                                    rowHeight: 40
 
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: favRow.entry.title
-                                                color: theme.textPrimary
-                                                font.pixelSize: theme.fontSizeCaption
-                                                elide: Text.ElideMiddle
-                                            }
+                                    // 行内容直接注入（同模板行）。
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: favRow.entry.title
+                                        color: theme.textPrimary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
 
-                                            // 行内动作：复制与删除（悬停可见）。
-                                            AIconButton {
-                                                iconSource: "qrc:/icons/copy.svg"
-                                                tooltip: qsTr("Copy this favorite")
-                                                onClicked:
-                                                    workbench.copyText(favRow.entry.body)
-                                            }
-                                            AIconButton {
-                                                iconSource: "qrc:/icons/close.svg"
-                                                tooltip: qsTr("Remove this favorite")
-                                                onClicked:
-                                                    tools.removeFavorite(
-                                                        favRow.entry.title,
-                                                        favRow.entry.body)
-                                            }
-                                        }
+                                    // 行内动作：复制与删除（悬停可见）。
+                                    AIconButton {
+                                        iconSource: "qrc:/icons/copy.svg"
+                                        tooltip: qsTr("Copy this favorite")
+                                        onClicked:
+                                            workbench.copyText(favRow.entry.body)
+                                    }
+                                    AIconButton {
+                                        iconSource: "qrc:/icons/close.svg"
+                                        tooltip: qsTr("Remove this favorite")
+                                        onClicked:
+                                            tools.removeFavorite(
+                                                favRow.entry.title,
+                                                favRow.entry.body)
+                                    }
 
-                                        TapHandler {
-                                            onSingleTapped:
-                                                workbenchWindow.insertTextAtCursor(
-                                                    favRow.entry.body)
-                                        }
+                                    TapHandler {
+                                        onSingleTapped:
+                                            scope.insertTextAtCursor(
+                                                favRow.entry.body)
                                     }
                                 }
                             }
@@ -1578,6 +1600,10 @@ Item {
 
                             delegate: Item {
                                 id: fileTab
+                                // 测试锚点（tst_ribbonui 经真实点击驱动
+                                // TapHandler）：tab 会随会话增减，名字只标
+                                // 类别不标序号。
+                                objectName: "fileTab"
                                 required property var modelData
                                 required property int index
 
@@ -1586,6 +1612,16 @@ Item {
                                 //（AGENTS.md QML 契约）。
                                 readonly property bool isActive:
                                     fileTab.modelData.active
+
+                                // 作用域显式传入：点 tab 要调页面动作层的
+                                // applyPreset/switchDraftTo，而编译 QML 的
+                                // delegate 信号处理器里直接写文档根 id
+                                //（workbenchWindow）会 ReferenceError——上下
+                                // 文件作用域的名字（markdown 等）经作用域链
+                                // 照常可达，id 却解析不到。挂成 delegate 根
+                                // 的属性后，处理器经对象作用域链取它，解释
+                                // 与编译两条路都成立。
+                                property var scope: workbenchWindow
 
                                 implicitWidth: tabRow.implicitWidth + theme.spacingS * 2
                                 implicitHeight: 34
@@ -1654,52 +1690,23 @@ Item {
                                 TapHandler {
                                     onSingleTapped: {
                                         if (fileTab.modelData.draft) {
-                                            workbenchWindow.switchDraftTo(
+                                            scope.switchDraftTo(
                                                         fileTab.modelData.docId)
-                                            workbenchWindow.applyPreset(
-                                                        "prompt")
+                                            scope.applyPreset("prompt")
                                         }
                                         else {
                                             markdown.activateSession(
                                                 fileTab.modelData.docId)
-                                            workbenchWindow.applyPreset(
-                                                        "document")
+                                            scope.applyPreset("document")
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // 三态是「当前在哪」，用 variant 表达选中。两种预设
-                        // 都在场：文档模式对文件，提示词模式对草稿——渲染管
-                        // 线吃文本不吃文件，草稿同样有 Preview/Split。
-                        RowLayout {
-                            visible: markdown.available
-                            spacing: theme.spacingXs
-
-                            Repeater {
-                                model: [
-                                    { key: "preview", label: qsTr("Preview") },
-                                    { key: "split", label: qsTr("Split") },
-                                    { key: "source", label: qsTr("Source") }
-                                ]
-                                delegate: AButton {
-                                    required property var modelData
-                                    required property int index
-
-                                    text: modelData.label
-                                    Layout.preferredWidth: 72
-                                    variant: markdown.mode === modelData.key
-                                             ? "primary" : "ghost"
-                                    // 只读文档没有源码可编：Split / Source
-                                    // 直接禁用，而不是让人切到一个只能看
-                                    // 的编辑框。
-                                    enabled: modelData.key === "preview"
-                                             || markdown.splitAvailable
-                                    onClicked: markdown.setMode(modelData.key)
-                                }
-                            }
-                        }
+                        // tab 条只回答「在哪份文档」：三态切换、字号与默认
+                        // 宽度是「怎么看」的视图选项，住在命令条（Ribbon
+                        // 的「视图」页 / 降级工具栏）里，不混进 tab 条。
 
                         AIconButton {
                             iconSource: "qrc:/icons/bullet-list.svg"
@@ -1720,30 +1727,6 @@ Item {
                                     return
                                 }
                                 workbenchWindow.openSearch()
-                            }
-                        }
-
-                        AComboBox {
-                            Layout.preferredWidth: 120
-                            // 标签与值同序：0 = 跟随主题的 fontSizeBody。
-                            property var values: [0, 12, 13, 14, 16, 18, 20, 24]
-                            model: [qsTr("Theme size"), "12 px", "13 px",
-                                    "14 px", "16 px", "18 px", "20 px", "24 px"]
-                            currentIndex: values.indexOf(markdown.fontSizePx)
-                            onActivated: function (index) {
-                                markdown.setFontSizePx(values[index])
-                            }
-                        }
-
-                        AComboBox {
-                            Layout.preferredWidth: 120
-                            // 0 = 内置基准。末项是「尽量满栏」。
-                            property var values: [0, 640, 760, 900, 1200, 4000]
-                            model: [qsTr("Default width"), "640 px", "760 px",
-                                    "900 px", "1200 px", qsTr("Full width")]
-                            currentIndex: values.indexOf(markdown.contentWidthPx)
-                            onActivated: function (index) {
-                                markdown.setContentWidthPx(values[index])
                             }
                         }
 
@@ -2487,6 +2470,10 @@ Item {
                             required property var modelData
                             required property int index
 
+                            // 同 fileTab：作用域显式传入（编译型 QML 的
+                            // delegate 处理器里文档根 id 会 ReferenceError）。
+                            property var scope: workbenchWindow
+
                             width: checkList.width
                             // 两行文字 + 关闭按钮的行高；消息长短不定，
                             // 按内容给（最大三行封顶）。
@@ -2507,19 +2494,11 @@ Item {
                             TapHandler {
                                 // 区间可定位（start >= 0）才可跳转；规则级
                                 // 的命中（如缺验收标准）没有对应区间。
-                                // promptEditor 用文件级 id 直接解析——写成
-                                // workbenchWindow.promptEditor 是在根对象上
-                                // 找不存在的属性，静默 undefined（原文件在这
-                                // 里犯过：跳转从未生效）。
                                 onSingleTapped: {
-                                    if (checkRow.modelData.start >= 0
-                                            && promptEditor) {
-                                        promptEditor.select(
+                                    if (checkRow.modelData.start >= 0)
+                                        scope.selectDraftRange(
                                             checkRow.modelData.start,
-                                            checkRow.modelData.start
-                                            + checkRow.modelData.length)
-                                        promptEditor.forceActiveFocus()
-                                    }
+                                            checkRow.modelData.length)
                                 }
                             }
 
@@ -2560,7 +2539,7 @@ Item {
                                     disabled.push(checkRow.modelData.ruleId)
                                     tools.disabledCheckIds = disabled
                                     // 关掉即重跑：该类命中从当前清单消失。
-                                    workbenchWindow.runDraftChecks()
+                                    scope.runDraftChecks()
                                 }
                             }
                         }
@@ -2627,7 +2606,8 @@ Item {
                             model: ObjectModel {
                                 id: historyModel
 
-                                // 按当前草稿重建快照清单（新在前）。
+                                // 按当前草稿重建快照清单（新在前）。同上两处
+                                // 列表：createObject 的 QObject 父给 null。
                                 function rebuild() {
                                     while (count > 0)
                                         remove(0)
@@ -2637,53 +2617,51 @@ Item {
                                     const entries = tools.snapshots(id)
                                     for (let i = 0; i < entries.length; ++i) {
                                         append(snapshotRow.createObject(
-                                                   historyModel, {
+                                                   null, {
                                                        "entry": entries[i]
                                                    }))
                                     }
                                 }
+                            }
 
-                                Component {
-                                    id: snapshotRow
+                            // 同上两处列表：行模板在列表的资源子项里。
+                            Component {
+                                id: snapshotRow
 
-                                    AListRow {
-                                        id: histRow
-                                        required property var entry
+                                AListRow {
+                                    id: histRow
+                                    required property var entry
 
-                                        width: snapshotList.width
-                                        rowHeight: 30
+                                    // 同模板行：作用域显式传入。
+                                    property var scope: workbenchWindow
 
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.leftMargin: theme.spacingS
-                                            anchors.rightMargin: theme.spacingS
-                                            spacing: theme.spacingS
+                                    width: snapshotList.width
+                                    rowHeight: 30
 
-                                            Label {
-                                                Layout.fillWidth: true
-                                                // 时间（HH:mm）+ 原因。
-                                                text: {
-                                                    const when = new Date(
-                                                        histRow.entry.createdAt)
-                                                    const hh = ("0" + when.getHours()).slice(-2)
-                                                    const mm = ("0" + when.getMinutes()).slice(-2)
-                                                    return hh + ":" + mm
-                                                           + "  ·  "
-                                                           + histRow.entry.reason
-                                                           + "  ·  "
-                                                           + histRow.entry.charCount
-                                                }
-                                                color: theme.textSecondary
-                                                font.pixelSize: theme.fontSizeCaption
-                                                elide: Text.ElideMiddle
-                                            }
+                                    // 行内容直接注入（同模板行）。
+                                    Label {
+                                        Layout.fillWidth: true
+                                        // 时间（HH:mm）+ 原因。
+                                        text: {
+                                            const when = new Date(
+                                                histRow.entry.createdAt)
+                                            const hh = ("0" + when.getHours()).slice(-2)
+                                            const mm = ("0" + when.getMinutes()).slice(-2)
+                                            return hh + ":" + mm
+                                                   + "  ·  "
+                                                   + histRow.entry.reason
+                                                   + "  ·  "
+                                                   + histRow.entry.charCount
                                         }
+                                        color: theme.textSecondary
+                                        font.pixelSize: theme.fontSizeCaption
+                                        elide: Text.ElideMiddle
+                                    }
 
-                                        TapHandler {
-                                            onSingleTapped:
-                                                workbenchWindow.rollbackDraftVersion(
-                                                    histRow.entry.createdAt)
-                                        }
+                                    TapHandler {
+                                        onSingleTapped:
+                                            scope.rollbackDraftVersion(
+                                                histRow.entry.createdAt)
                                     }
                                 }
                             }

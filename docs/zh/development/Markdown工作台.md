@@ -43,9 +43,9 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 命令带有三个标签页：**开始**、**提示词工具** 与 **视图**。
 
-- **开始** 装着日常编辑全集：**Copy Prompt**（交付路径——标题行的快速访问栏里还有第二个 **Copy**）、剪贴板组 **Paste / Cut / Copy Text**、**Undo / Redo**、字符格式 **Bold / Italic / Strike / Code**（四个都 `checkable`，`checked` 绑 `MarkdownEdit` 的光标查询——查询侧是 checkable 的入场券）、**Link**、段落组 **Heading**（菜单：1/2/3 与取消）、**Bullets / Numbered / Task List / Quote / Divider**、插入组 **Fence**（语言菜单：无、C++、Python、JavaScript、QML、Bash）与 **Table**（3 列），外加 **Find**（按预设分流——文档形态开预览搜索，提示词形态开草稿查找条）、**Save**（文档形态、可编辑文件）与 **Clear**（提示词形态、草稿非空：确认 + 可撤销守卫）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
+- **开始** 装着日常编辑全集：**Copy Prompt**（交付路径——标题行的快速访问栏里还有第二个 **Copy**）、剪贴板组 **Paste / Cut / Copy Text**、**Undo / Redo**、字符格式 **Bold / Italic / Strike / Code**（四个都 `checkable`，`checked` 绑 `MarkdownEdit` 的光标查询——查询侧是 checkable 的入场券）、**Link**、段落组 **Heading**（菜单：1/2/3 与取消）、**Bullets / Numbered / Task List / Quote / Divider**、插入组 **Fence**（语言菜单：无、C++、Python、JavaScript、QML、Bash）与 **Table**（3 列），外加 **View** 分组——**Preview / Split / Source** 三态（对**活跃会话**生效——草稿也渲染）与 **Font Size** / **Width** 菜单（原 tab 条上的字号与栏宽下拉，2026-10 收进命令条：tab 条回答「在哪份文档」，「怎么看」住在这里）、**Find**（按预设分流——文档形态开预览搜索，提示词形态开草稿查找条）、**Save**（文档形态、可编辑文件）与 **Clear**（提示词形态、草稿非空：确认 + 可撤销守卫）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
 - **提示词工具** 是工作台的第一个**上下文标签页**——一个 `RibbonContextCategory`，`active` 跟随提示词预设；文档形态下它整个不出现（决策 D-2：模板与收藏是草稿的工具，别人的文档不是往里插东西的地方）。它装着 **Insert Template**（展开左栏的模板段并聚焦检索框——左栏就是选择器）、**Save as Template**、**Save Favorite**，以及 **Check Prompt**（B9 的触发；命中清单在右栏）。它的 `contextColor` 是 `theme.success`，刻意不用 `theme.accent`：SARibbon 把整条标题行涂成 `RibbonTheme.accent`（主题桥把应用 accent 推了进去），上下文色与 accent 相同会让色带与 tab 文字全部隐形——2026-10 本集成踩过的「上下文页与普通页混叠」缺陷正是这么来的。
-- **视图** 装着开关：**Preview / Split / Source** 三态与大纲开关（对**活跃会话**生效——草稿也渲染）、**Full Tools**（预设切换：开 = 提示词模式，关 = 文档模式）、**Collapse**（把整条功能带折叠成 tab 行）、**Style**（单行 / 两行 / 三行）、**Follow Theme**（功能带的颜色是否跟随应用主题）。
+- **视图** 装着开关：大纲开关、**Full Tools**（预设切换：开 = 提示词模式，关 = 文档模式）、**Collapse**（把整条功能带折叠成 tab 行）、**Style**（单行 / 两行 / 三行）、**Follow Theme**（功能带的颜色是否跟随应用主题）。三态与字号/栏宽选择曾住在这里，2026-10 的 tab 条清理时随 **View** 分组一起搬去了**开始**页。
 
 单行是默认样式档，它的后果在加按钮前值得知道：面板标题隐藏，所有按钮不论 `proportion` 一律按小尺寸渲染——层级靠分组与按钮顺序表达，文字必须短。`minimumMode` 把功能带折叠成一行 tab；文档模式预设默认折叠，点 tab 行即再展开。
 
@@ -119,7 +119,7 @@ sequenceDiagram
 
 ## 文件 tab 条
 
-中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则）。右侧依次是视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单——按当前能力出场，而切换器如今**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线。
+中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则），处理器经 delegate 根上的 `scope` 属性调页面动作层——编译型页面（qmlcachegen）里 delegate 信号处理器直接写文档根 id（`workbenchWindow`）会抛 `ReferenceError`（2026-10 缺陷：解释器与编译引擎对此不一致，UI 测试因此漏抓）。右侧是大纲与搜索按钮、**More actions** 菜单。阅读控件——**Preview / Split / Source** 三态（**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线）与字号、栏宽选择——2026-10 收进命令条的**开始**页：tab 条只回答「在哪份文档」，不回答「怎么看」。
 
 草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。页面把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
 

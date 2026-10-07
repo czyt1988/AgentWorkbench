@@ -246,16 +246,19 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        // 三态与面板开关（文档模式才有意义）。
+        // 三态与面板开关：两种预设都在场（渲染管线吃文本不吃文件，草稿
+        // 会话同样有 Preview/Split）——与 Ribbon「开始」页的视图选项面板
+        // 同一语义（2026-10 从 tab 条收进命令条）。字号/默认宽度菜单是
+        // Ribbon 形态的控件，降级工具栏保持高频集不加。
         AButton {
-            visible: win && win.preset === "document"
+            visible: markdown.available
             text: qsTr("Preview")
             Layout.preferredWidth: 72
             variant: markdown.mode === "preview" ? "primary" : "ghost"
             onClicked: markdown.setMode("preview")
         }
         AButton {
-            visible: win && win.preset === "document"
+            visible: markdown.available
             text: qsTr("Split")
             Layout.preferredWidth: 64
             variant: markdown.mode === "split" ? "primary" : "ghost"
@@ -263,7 +266,7 @@ Rectangle {
             onClicked: markdown.setMode("split")
         }
         AButton {
-            visible: win && win.preset === "document"
+            visible: markdown.available
             text: qsTr("Source")
             Layout.preferredWidth: 72
             variant: markdown.mode === "source" ? "primary" : "ghost"

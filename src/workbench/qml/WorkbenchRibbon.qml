@@ -1,5 +1,6 @@
 import QtQuick
 import SARibbon 3.0
+import AgentWorkbench.App
 
 // 工作台窗口的命令条：SARibbon 形态（单行模式）。
 //
@@ -8,6 +9,11 @@ import SARibbon 3.0
 // 换 WorkbenchToolbar.qml——同一批动作、同一套 win.* 入口，两份实现不许
 // 各自长出不同的行为（「动作只有一处出口」的纪律：两份文件都只做转发，
 // 逻辑全在窗口的动作层）。
+//
+// MarkdownEdit 单例（AgentWorkbench.App）供「开始」页格式按钮的 checkable
+// 状态查询（isBoldAt 等光标态）：单例名与 theme/tools/markdown 这类经上下
+// 文件作用域解析的页面别名不同，必须经 import 引入，否则绑定报
+// ReferenceError 且四个按钮的选中态永远不亮（0.5.0 首显缺陷之一）。
 //
 // 单行模式的代价（见规划的事实清单）：proportion 失效（一律小按钮）、
 // 面板标题隐藏、按钮文字要短（英文源串 ≤ 12 字符）。主次靠标签页归类
@@ -321,6 +327,147 @@ Item {
                 }
             }
 
+            // 视图选项（原 tab 条的控件，2026-10 按用户反馈收进命令条）：
+            // 三态 + 预览字号 + 默认宽度。tab 条只回答「在哪份文档」，
+            // 「怎么看」的选项住在这里。两种预设都在场——渲染管线吃文本
+            // 不吃文件，草稿会话同样有 Preview/Split。
+            RibbonPanel {
+                panelTitle: qsTr("View")
+
+                RibbonToolButton {
+                    text: qsTr("Preview")
+                    iconSource: "qrc:/icons/web.svg"
+                    checkable: true
+                    checked: markdown.mode === "preview"
+                    enabled: markdown.available
+                    onClicked: markdown.setMode("preview")
+                }
+                RibbonToolButton {
+                    text: qsTr("Split")
+                    iconSource: "qrc:/icons/menu.svg"
+                    checkable: true
+                    checked: markdown.mode === "split"
+                    // 只读文档没有源码可编：Split/Source 直接禁用，而不是
+                    // 让人切到一个只能看的编辑框。
+                    enabled: markdown.available
+                             && markdown.splitAvailable
+                    onClicked: markdown.setMode("split")
+                }
+                RibbonToolButton {
+                    text: qsTr("Source")
+                    iconSource: "qrc:/icons/code.svg"
+                    checkable: true
+                    checked: markdown.mode === "source"
+                    enabled: markdown.available
+                             && markdown.splitAvailable
+                    onClicked: markdown.setMode("source")
+                }
+
+                // 预览字号：菜单单选（与 Style 按钮同一形态；SARibbon 的
+                // 组合框是另一套视觉，先不引入）。值表与原 tab 条下拉同序：
+                // 0 = 跟随主题的 fontSizeBody。
+                RibbonToolButton {
+                    text: qsTr("Font Size")
+                    iconSource: "qrc:/icons/bold.svg"
+                    popupMode: Ribbon.MenuButtonPopup
+                    menuItems: [
+                        RibbonMenuItem {
+                            text: qsTr("Theme size")
+                            checkable: true
+                            checked: markdown.fontSizePx === 0
+                            onTriggered: markdown.setFontSizePx(0)
+                        },
+                        RibbonMenuItem {
+                            text: "12 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 12
+                            onTriggered: markdown.setFontSizePx(12)
+                        },
+                        RibbonMenuItem {
+                            text: "13 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 13
+                            onTriggered: markdown.setFontSizePx(13)
+                        },
+                        RibbonMenuItem {
+                            text: "14 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 14
+                            onTriggered: markdown.setFontSizePx(14)
+                        },
+                        RibbonMenuItem {
+                            text: "16 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 16
+                            onTriggered: markdown.setFontSizePx(16)
+                        },
+                        RibbonMenuItem {
+                            text: "18 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 18
+                            onTriggered: markdown.setFontSizePx(18)
+                        },
+                        RibbonMenuItem {
+                            text: "20 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 20
+                            onTriggered: markdown.setFontSizePx(20)
+                        },
+                        RibbonMenuItem {
+                            text: "24 px"
+                            checkable: true
+                            checked: markdown.fontSizePx === 24
+                            onTriggered: markdown.setFontSizePx(24)
+                        }
+                    ]
+                }
+
+                // 正文列默认宽度：0 = 内置基准，末项是「尽量满栏」。
+                RibbonToolButton {
+                    text: qsTr("Width")
+                    iconSource: "qrc:/icons/menu.svg"
+                    popupMode: Ribbon.MenuButtonPopup
+                    menuItems: [
+                        RibbonMenuItem {
+                            text: qsTr("Default width")
+                            checkable: true
+                            checked: markdown.contentWidthPx === 0
+                            onTriggered: markdown.setContentWidthPx(0)
+                        },
+                        RibbonMenuItem {
+                            text: "640 px"
+                            checkable: true
+                            checked: markdown.contentWidthPx === 640
+                            onTriggered: markdown.setContentWidthPx(640)
+                        },
+                        RibbonMenuItem {
+                            text: "760 px"
+                            checkable: true
+                            checked: markdown.contentWidthPx === 760
+                            onTriggered: markdown.setContentWidthPx(760)
+                        },
+                        RibbonMenuItem {
+                            text: "900 px"
+                            checkable: true
+                            checked: markdown.contentWidthPx === 900
+                            onTriggered: markdown.setContentWidthPx(900)
+                        },
+                        RibbonMenuItem {
+                            text: "1200 px"
+                            checkable: true
+                            checked: markdown.contentWidthPx === 1200
+                            onTriggered: markdown.setContentWidthPx(1200)
+                        },
+                        RibbonMenuItem {
+                            text: qsTr("Full width")
+                            checkable: true
+                            checked: markdown.contentWidthPx === 4000
+                            onTriggered: markdown.setContentWidthPx(4000)
+                        }
+                    ]
+                }
+            }
+
             // 草稿管理（M4）：放「开始」页而不是提示词上下文页——
             // E4（从文档新建草稿）在文档预设下才有意义，开始页两种
             // 预设都在场。
@@ -424,41 +571,11 @@ Item {
             }
         }
 
-        // --- 标签页 3 · 视图：三态、面板与 ribbon 自己的开关 ---------------
+        // --- 标签页 3 · 视图：面板与 ribbon 自己的开关 -----------------------
+        // 三态/字号/默认宽度已收进「开始」页（2026-10：tab 条不再混视图
+        // 选项，命令条是唯一出处）；这里只留大纲、预设与 ribbon 自身。
         RibbonCategory {
             title: qsTr("View")
-
-            RibbonPanel {
-                RibbonToolButton {
-                    text: qsTr("Preview")
-                    iconSource: "qrc:/icons/web.svg"
-                    checkable: true
-                    checked: win && win.preset === "document"
-                             && markdown.mode === "preview"
-                    enabled: win && win.preset === "document"
-                    onClicked: markdown.setMode("preview")
-                }
-                RibbonToolButton {
-                    text: qsTr("Split")
-                    iconSource: "qrc:/icons/menu.svg"
-                    checkable: true
-                    checked: win && win.preset === "document"
-                             && markdown.mode === "split"
-                    enabled: win && win.preset === "document"
-                             && markdown.splitAvailable
-                    onClicked: markdown.setMode("split")
-                }
-                RibbonToolButton {
-                    text: qsTr("Source")
-                    iconSource: "qrc:/icons/code.svg"
-                    checkable: true
-                    checked: win && win.preset === "document"
-                             && markdown.mode === "source"
-                    enabled: win && win.preset === "document"
-                             && markdown.splitAvailable
-                    onClicked: markdown.setMode("source")
-                }
-            }
 
             RibbonPanel {
                 RibbonToolButton {

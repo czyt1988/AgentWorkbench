@@ -36,7 +36,7 @@ The strip above the middle area holds one tab per open document **and one per dr
 
 The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
-- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the workbench — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
+- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the workbench — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has the **View** group with the **Preview / Split / Source** switch, the **Font Size** and **Width** menus (see [Reading a document](#reading-a-document)), **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
 - **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote, **Check Prompt** reviews the draft (see [Prompt checks](#prompt-checks)). See the next two sections.
 - **View** — what you see and how: the **Preview / Split / Source** switch and the outline toggle, **Full Tools** (flip between the two shapes), **Collapse** (fold the whole band away), **Style** (one, two or three button rows), and **Follow Theme** (whether the band's colours track the app's theme).
 
@@ -138,7 +138,7 @@ The status line at the bottom shows `~1,240 tokens (estimated)` for the draft (a
 
 ## The three views
 
-The buttons on the strip above the middle switch what it shows — for the draft or for the active document tab:
+The **Preview / Split / Source** buttons live in the **View** group of the ribbon's **Start** tab (on the plain toolbar, at its right end). They switch what the middle shows — for the draft or for the active document tab:
 
 - **Preview** — the rendered result only.
 - **Split** — the plain text on the left, the rendering on the right.
@@ -148,11 +148,11 @@ The buttons on the strip above the middle switch what it shows — for the draft
 
 ## Reading a document
 
-The strip above the middle carries the reading controls: the **Preview / Split / Source** buttons, the **outline** button, the **search** button, the **text size** and **width** pickers, and the **More actions** menu.
+The strip above the middle answers one question — *which document am I on*: the tabs, the **outline** button, the **search** button and the **More actions** menu. The reading options that are not about *where* but about *how* sit with the three views on the **Start** tab:
 
 - **Outline.** The outline section of the right panel lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**.
-- **Text size.** Pick the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
-- **Width.** Pick how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
+- **Text size.** The **Font Size** menu on the **Start** tab picks the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
+- **Width.** The **Width** menu on the **Start** tab picks how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
 - **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
 
 ## Finding text in the document

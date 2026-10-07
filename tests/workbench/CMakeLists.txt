@@ -75,6 +75,12 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/config/default_file_icons.json)
     set_source_files_properties(${_tst_ribbonui_default_icons}
         PROPERTIES QT_RESOURCE_ALIAS "config/default_file_icons.json")
+    # 内置模板表：第三个用例装载整页，模板段要真有行可数（tst_toolsui
+    # 同款——ToolsFacade 的内置模板从这份 qrc 读）。
+    set(_tst_ribbonui_default_templates
+        ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json)
+    set_source_files_properties(${_tst_ribbonui_default_templates}
+        PROPERTIES QT_RESOURCE_ALIAS "config/default_prompt_templates.json")
     set(_tst_ribbonui_icons
         ${CMAKE_SOURCE_DIR}/icons/copy.svg
         ${CMAKE_SOURCE_DIR}/icons/paste.svg
@@ -87,7 +93,15 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/icons/search.svg
         ${CMAKE_SOURCE_DIR}/icons/download.svg
         ${CMAKE_SOURCE_DIR}/icons/web.svg
-        ${CMAKE_SOURCE_DIR}/icons/menu.svg)
+        ${CMAKE_SOURCE_DIR}/icons/menu.svg
+        ${CMAKE_SOURCE_DIR}/icons/close.svg
+        ${CMAKE_SOURCE_DIR}/icons/plus.svg
+        ${CMAKE_SOURCE_DIR}/icons/file.svg
+        ${CMAKE_SOURCE_DIR}/icons/folder.svg
+        ${CMAKE_SOURCE_DIR}/icons/refresh.svg
+        ${CMAKE_SOURCE_DIR}/icons/chevron-left.svg
+        ${CMAKE_SOURCE_DIR}/icons/chevron-right.svg
+        ${CMAKE_SOURCE_DIR}/icons/external-link.svg)
     foreach(_icon IN LISTS _tst_ribbonui_icons)
         get_filename_component(_name ${_icon} NAME)
         set_source_files_properties(${_icon}
@@ -98,14 +112,51 @@ if (AWB_ENABLE_RIBBON)
         FILES
             ${_tst_ribbonui_themes}
             ${_tst_ribbonui_default_icons}
+            ${_tst_ribbonui_default_templates}
             ${_tst_ribbonui_icons}
     )
 
-    # 被测的那份 QML 按与 app 相同的 URL/别名嵌入。
+    # 被测的那份 QML 按与 app 相同的 URL/别名嵌入。第三个用例装载整份
+    # MarkdownWorkbenchPage.qml（清单与 tst_toolsui 同款：页面、降级工具
+    # 栏、右键菜单与全部 A* 组件）——「页面 + SARibbon」的组合只有本目标
+    # 覆盖（其余 QML 测试刻意不链 SARibbon，页面在它们那里走降级工具栏），
+    # 首显 category、delegate 作用域与 ObjectModel 用法都压在这里。
     set(_tst_ribbonui_qml
-        ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml)
-    set_source_files_properties(${_tst_ribbonui_qml}
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+        ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextArea.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextField.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AEmptyState.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AScrollBar.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/APill.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ADialog.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AConfirmDialog.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASectionHeader.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AListRow.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchRibbon.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
+        PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
+        PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+        PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+    foreach(_comp AButton AIconButton ATextArea ATextField AEmptyState AScrollBar
+                 ASearchField APill ADialog AConfirmDialog ASectionHeader AListRow
+                 AMenu AMenuItem AMenuSeparator AComboBox)
+        set_source_files_properties(
+            ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
+            PROPERTIES QT_RESOURCE_ALIAS "components/${_comp}.qml")
+    endforeach()
 
     awb_add_qml_module(tst_ribbonui
         URI AgentWorkbench

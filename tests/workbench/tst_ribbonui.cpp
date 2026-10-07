@@ -8,17 +8,21 @@
 #include <QQmlExpression>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <SARibbonQml/SARibbonQmlGlobal.h>
+#include <SARibbonQml/SARibbonQmlBar.h>
+#include <SARibbonQml/SARibbonQmlCategory.h>
 
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "markdown/MarkdownPreviewController.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
+#include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
 // tst_ribbonui — SARibbon 命令条的运行期冒烟（仅 AWB_ENABLE_RIBBON 构建）。
@@ -43,17 +47,32 @@
 // theme.accent 造成的——SARibbon 的标题行底色就是 RibbonTheme.accent，
 // 同色的色带与 tab 文字全部隐形），且色带只覆盖自己的 tab 区间（x >= 0、
 // 宽度有限），而不是横贯整条标题行。
+//
+// 第三个用例装载整份 MarkdownWorkbenchPage.qml（页面里的 Loader 自己去
+// 装 WorkbenchRibbon.qml）。「页面 + SARibbon」的组合只有这里覆盖，压的
+// 是 2026-10 的三个首显缺陷：
+//   a. 首次显示时 category 行不出现（只有 tab 行）——以 bar 的隐式高度
+//      包含 categoryRowY 且有可见 category 落位该行断言；
+//   b. delegate 信号处理器里引用文档根 id（workbenchWindow）抛
+//      ReferenceError——页面已改为经 scope 属性传递，这里用真实点击驱动
+//      fileTab 的 TapHandler；
+//   c. ObjectModel 的用法回退（Component 声明为模型子项、createObject 的
+//      父给模型对象）刷「Delegate must be of Item type」与「not placed in
+//      the graphics scene」——消息钩子一律拦下算失败。
 
 using awb::core::Settings;
 using awb::markdown::MarkdownPreviewController;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
+using awb::tools::MarkdownEdit;
 using awb::tools::ToolsFacade;
 
 namespace {
 
-// SARibbon 侧的告警一律算失败：叶子资源缺失、宿主找不到引擎这类问题都
-// 只以 qWarning 的形式存在，对象图看起来一切正常。
+// 命令条与页面侧的 QML 告警一律算失败：SARibbon 的叶子资源缺失、引擎
+// 不可达，以及页面的 ReferenceError（import 缺失、delegate 外部 id）、
+// ObjectModel 用法回退，都只以 qWarning 的形式存在，对象图看起来一切
+// 正常。
 QStringList g_ribbonWarnings;
 QtMessageHandler g_previousHandler = nullptr;
 
@@ -62,7 +81,11 @@ void ribbonMessageHandler(QtMsgType type, const QMessageLogContext &context,
 {
     if ((type == QtWarningMsg || type == QtCriticalMsg)
         && (message.contains(QLatin1String("SARibbonQml"))
-            || message.contains(QLatin1String("leaf resource missing")))) {
+            || message.contains(QLatin1String("leaf resource missing"))
+            || message.contains(QLatin1String("ReferenceError"))
+            || message.contains(QLatin1String("Delegate must be of Item type"))
+            || message.contains(
+                   QLatin1String("not placed in the graphics scene")))) {
         g_ribbonWarnings.append(message);
     }
     if (g_previousHandler) {
@@ -82,6 +105,62 @@ public:
     QString preset() const { return QStringLiteral("prompt"); }
     bool ribbonCollapsed() const { return false; }
 };
+
+// workbench/ui/nav 桩（第三个用例装整页时用，桩面与 tst_toolsui 同款）：
+// 页面经上下文名消费它们，行为不在断言范围内。
+class WorkbenchStub : public QObject
+{
+    Q_OBJECT
+public:
+    Q_INVOKABLE void notify(const QString &, const QString &, const QString &) {}
+    Q_INVOKABLE void copyText(const QString &) {}
+    Q_INVOKABLE bool canPreviewMarkdown(const QString &) { return false; }
+    Q_INVOKABLE void previewMarkdown(const QString &) {}
+    // 会话恢复/落盘：页面 onCompleted 会调；桩给「无可恢复」的空现场，
+    // saveMarkdownSession 只吞掉（本套件不测持久化）。
+    Q_INVOKABLE QVariantMap restoreMarkdownSession()
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("restored"), false);
+        return result;
+    }
+    Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
+    Q_INVOKABLE void openLocalFileExternal(const QString &) {}
+};
+
+class NavStub : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString currentPageId READ currentPageId CONSTANT)
+public:
+    QString currentPageId() const { return QStringLiteral("tools"); }
+};
+
+class UiStub : public QObject
+{
+    Q_OBJECT
+public:
+    Q_INVOKABLE QString pickFolder(const QString &) { return QString(); }
+};
+
+// 视觉树递归查找（objectName 匹配）：Repeater 的 delegate 只设视觉父
+//（QObject 父为 null），findChild 的 QObject 树搜不到——页面里按
+// objectName 定位的 delegate 一律走这里。
+QQuickItem *findItemByName(QQuickItem *root, const QString &name)
+{
+    if (!root) {
+        return nullptr;
+    }
+    if (root->objectName() == name) {
+        return root;
+    }
+    for (QQuickItem *child : root->childItems()) {
+        if (QQuickItem *hit = findItemByName(child, name)) {
+            return hit;
+        }
+    }
+    return nullptr;
+}
 
 } // namespace
 
@@ -138,11 +217,20 @@ private Q_SLOTS:
         Theme theme(&settings, &registry);
         theme.applyTheme(QStringLiteral("mocha-dark"));
         ToolsFacade tools(dataRoot.path());
+        MarkdownEdit markdownEdit(&theme);
         MarkdownPreviewController markdown(&settings, &theme);
 
         QQmlEngine engine;
         // 注册必须先于任何加载——这正是产品 main.cpp 的那一行。
         saRibbonRegisterQmlTypes(&engine);
+        // main.cpp 同款单例注册：命令条经 import AgentWorkbench.App 引用
+        // MarkdownEdit（格式按钮的光标态查询），缺了它整份文件装不起来。
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
+                                     &theme);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                     &tools);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                     "MarkdownEdit", &markdownEdit);
 
         // 小写别名经上下文属性提供（MainWindow 根部属性在测试里的等价物）。
         QQmlContext context(engine.rootContext());
@@ -208,11 +296,18 @@ private Q_SLOTS:
         Theme theme(&settings, &registry);
         theme.applyTheme(QStringLiteral("mocha-dark"));
         ToolsFacade tools(dataRoot.path());
+        MarkdownEdit markdownEdit(&theme);
         MarkdownPreviewController markdown(&settings, &theme);
         WinStub win;
 
         QQmlEngine engine;
         saRibbonRegisterQmlTypes(&engine);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
+                                     &theme);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                     &tools);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                     "MarkdownEdit", &markdownEdit);
 
         QQmlContext context(engine.rootContext());
         context.setContextProperty(QStringLiteral("theme"), &theme);
@@ -290,6 +385,162 @@ private Q_SLOTS:
 
         QVERIFY2(g_ribbonWarnings.isEmpty(),
                  qPrintable(QStringLiteral("SARibbon warnings during load: ")
+                            + g_ribbonWarnings.join(QLatin1Char(';'))));
+    }
+
+    // 整页首显（2026-10 三个缺陷的复现现场）：页面 + 真 Ribbon 路径。
+    // 页面里的 Loader 装载 WorkbenchRibbon.qml（不是测试直接建命令条），
+    // 首屏就要看到 category 行——tab 行在场、面板区缺失正是用户报的
+    // 「第一次进去看不到 Ribbon 的 category，点一下 tab 才出现」。
+    void testPageShowsRibbonCategoryOnFirstShow()
+    {
+        QTemporaryDir dataRoot;
+        QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
+        QVERIFY2(seedThemes(), "seeding the builtin themes failed");
+        Settings settings;
+        ThemeRegistry registry;
+        Theme theme(&settings, &registry);
+        theme.applyTheme(QStringLiteral("mocha-dark"));
+        ToolsFacade tools(dataRoot.path());
+        MarkdownEdit markdownEdit(&theme);
+        // 纯层控制器：available 恒为假——页面停在提示词模式（previewPane
+        // 的 Loader 因此不装载，WebEngine 不进这个测试）。
+        MarkdownPreviewController markdown(&settings, &theme);
+        WorkbenchStub workbench;
+        NavStub nav;
+        UiStub ui;
+
+        QQmlEngine engine;
+        saRibbonRegisterQmlTypes(&engine);
+        // main.cpp 同款单例注册（页面与命令条都 import AgentWorkbench.App）。
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
+                                     &theme);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                     &tools);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                     "MarkdownEdit", &markdownEdit);
+
+        // 小写别名经上下文属性提供（MainWindow 根部属性在测试里的等价物，
+        // tst_toolsui 同款做法）。
+        QQmlContext context(engine.rootContext());
+        context.setContextProperty(QStringLiteral("theme"), &theme);
+        context.setContextProperty(QStringLiteral("tools"), &tools);
+        context.setContextProperty(QStringLiteral("markdown"), &markdown);
+        context.setContextProperty(QStringLiteral("workbench"), &workbench);
+        context.setContextProperty(QStringLiteral("nav"), &nav);
+        context.setContextProperty(QStringLiteral("ui"), &ui);
+
+        g_ribbonWarnings.clear();
+        g_previousHandler = qInstallMessageHandler(ribbonMessageHandler);
+        QQmlComponent component(&engine, QUrl(QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml")));
+        QVERIFY2(!component.isError(),
+                 qPrintable(component.errorString()));
+        std::unique_ptr<QQuickItem> pageOwner(
+            qobject_cast<QQuickItem *>(component.create(&context)));
+        QVERIFY2(pageOwner != nullptr,
+                 qPrintable(QStringLiteral("the page root is not a ")
+                            + QStringLiteral("QQuickItem: ")
+                            + component.errorString()));
+        // 裸指针留着后面用（setContent 收养后 pageOwner 已空）。
+        QQuickItem *const page = pageOwner.get();
+
+        QQuickView view(&engine, nullptr);
+        view.setResizeMode(QQuickView::SizeRootObjectToView);
+        // setContent 接管 page 的所有权（tst_toolsui 同款）。
+        view.setContent(QUrl(), nullptr, pageOwner.release());
+        view.resize(1200, 800);
+        view.show();
+        QVERIFY2(QTest::qWaitForWindowExposed(&view),
+                 "the page window never became exposed");
+
+        // 命令条必须走真 Ribbon：页面里的 Loader 成功装载了
+        // WorkbenchRibbon.qml（装载失败会换降级工具栏——那就没有
+        // RibbonBar 可找）。QObject 树上直接找（Loader 的 item 也是
+        // QObject 子链）。
+        SARibbonQml::RibbonBar *bar = nullptr;
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            (bar = page->findChild<SARibbonQml::RibbonBar *>()) != nullptr,
+            "the page never produced a RibbonBar (ribbon path not taken)",
+            5000);
+
+        // 首显断言：bar 的隐式高度必须包含 category 行——minimumMode 为
+        // 假（tools.json 默认）时高度 = categoryRowY + category 高，
+        // 只有 categoryRowY 说明面板区没画出来（用户报的首显缺陷）。
+        QTRY_VERIFY2_WITH_TIMEOUT(bar->implicitHeight() > 0,
+                                  "the ribbon bar never produced a height",
+                                  5000);
+        const int categoryRowY = bar->categoryRowY();
+        QVERIFY2(bar->implicitHeight() > categoryRowY + 8,
+                 qPrintable((QStringLiteral("the bar height (%1) does not ")
+                             + QStringLiteral("include the category row (y=%2)"))
+                                .arg(bar->implicitHeight())
+                                .arg(categoryRowY)));
+
+        // 当前 category 落位且可见：Start 页在首屏就要在场。
+        bool sawVisibleCategory = false;
+        const auto categories = bar->findChildren<SARibbonQml::RibbonCategory *>();
+        for (SARibbonQml::RibbonCategory *category : categories) {
+            if (category->isVisible() && category->height() > 0) {
+                sawVisibleCategory = true;
+                QVERIFY2(category->y() >= categoryRowY - 1,
+                         "a visible category sits above the category row");
+            }
+        }
+        QVERIFY2(sawVisibleCategory,
+                 "no visible ribbon category on the first show");
+
+        // delegate 作用域（2026-10 首显缺陷 b）：模板行与 tab 行的处理器
+        // 都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
+        // ReferenceError（消息钩子抓到即失败）。先点一行模板：这会驱动
+        // scope.insertTemplate → applyPreset → 草稿会话建立 → tab 出现；
+        // 再点那个 tab：驱动 fileTab 处理器里的 scope.switchDraftTo /
+        // scope.applyPreset（正是用户日志里 1665 行报错的那条路径）。
+        QQuickItem *const templateList = page->findChild<QQuickItem *>(
+            QStringLiteral("templateList"));
+        QVERIFY2(templateList != nullptr,
+                 "the page has no template list");
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            templateList->property("count").toInt() > 0,
+            "the template list never filled with rows", 5000);
+        QQuickItem *const contentItem = templateList->property("contentItem")
+                                             .value<QQuickItem *>();
+        QVERIFY2(contentItem != nullptr,
+                 "the template list has no content item");
+        QVERIFY2(!contentItem->childItems().isEmpty(),
+                 "the template list has no rows instantiated");
+        QQuickItem *const firstRow = contentItem->childItems().constFirst();
+        const QPointF rowCenter = firstRow->mapToScene(
+            QPointF(firstRow->width() / 2, firstRow->height() / 2));
+        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
+                          rowCenter.toPoint());
+        // 模板插入后草稿会话在场 → tab 出现。注意 Repeater 的 delegate 只
+        // 有视觉父（QObject 父为 null），findChild 的 QObject 树找不
+        // 到——按视觉树找（itemAt 经 QMetaObject，页面 QML 侧的解析
+        // 路径同一条）。
+        QQuickItem *fileTab = nullptr;
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            (fileTab = findItemByName(page, QStringLiteral("fileTab")))
+                != nullptr,
+            "the draft tab never appeared after inserting a template",
+            5000);
+        const QPointF tabCenter = fileTab->mapToScene(
+            QPointF(fileTab->width() / 2, fileTab->height() / 2));
+        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
+                          tabCenter.toPoint());
+        QTRY_COMPARE(page->property("preset").toString(),
+                     QStringLiteral("prompt"));
+        QVERIFY2(markdown.property("draftActive").toBool(),
+                 "the draft session is not active after clicking its tab");
+
+        // 消息钩子全程无告警：ReferenceError（import/scope）、ObjectModel
+        // 用法（Delegate must be of Item type / not placed in the
+        // graphics scene）、SARibbon 侧问题都不允许出现。
+        qInstallMessageHandler(g_previousHandler);
+        g_previousHandler = nullptr;
+        QVERIFY2(g_ribbonWarnings.isEmpty(),
+                 qPrintable(QStringLiteral("QML warnings during the page ")
+                            + QStringLiteral("first-show: ")
                             + g_ribbonWarnings.join(QLatin1Char(';'))));
     }
 };
