@@ -204,6 +204,74 @@ public:
 
 } // namespace
 
+// tab 点击用例的消息钩子：ReferenceError 只以 qWarning 的形式存在，对象图
+// 一切正常——不装钩子就静默漏过（tst_ribbonui 的同款理由）。
+QStringList g_pageWarnings;
+QtMessageHandler g_previousMessageHandler = nullptr;
+
+void pageMessageHandler(QtMsgType type, const QMessageLogContext &context,
+                        const QString &message)
+{
+    if ((type == QtWarningMsg || type == QtCriticalMsg)
+        && (message.contains(QLatin1String("ReferenceError"))
+            || message.contains(QLatin1String("TypeError"))
+            || message.contains(QLatin1String("is not a function")))) {
+        g_pageWarnings.append(message);
+    }
+    if (g_previousMessageHandler) {
+        g_previousMessageHandler(type, context, message);
+    }
+}
+
+// 视觉树递归查找（objectName 匹配）：Repeater 的 delegate 只有视觉父
+//（QObject 父为 null），findChild 的 QObject 树搜不到——tab 条的 fileTab
+// 一律走这里（tst_ribbonui 的同款做法）。
+QQuickItem *findItemByName(QQuickItem *root, const QString &name)
+{
+    if (!root) {
+        return nullptr;
+    }
+    if (root->objectName() == name) {
+        return root;
+    }
+    for (QQuickItem *child : root->childItems()) {
+        if (QQuickItem *hit = findItemByName(child, name)) {
+            return hit;
+        }
+    }
+    return nullptr;
+}
+
+// 同名全部收齐：tab 条的每个 delegate 都叫 fileTab（名字只标类别不标序号），
+// 草稿与文件 tab 靠 modelData.draft 区分。
+void collectItemsByName(QQuickItem *root, const QString &name,
+                        QList<QQuickItem *> *out)
+{
+    if (!root) {
+        return;
+    }
+    if (root->objectName() == name) {
+        out->append(root);
+    }
+    for (QQuickItem *child : root->childItems()) {
+        collectItemsByName(child, name, out);
+    }
+}
+
+// 当前在场的「文件」tab（modelData.draft 为假那个）；没有文件 tab 时为空。
+QQuickItem *fileTabItem(QQuickItem *root)
+{
+    QList<QQuickItem *> tabs;
+    collectItemsByName(root, QStringLiteral("fileTab"), &tabs);
+    for (QQuickItem *tab : tabs) {
+        if (!tab->property("modelData").toMap()
+                 .value(QStringLiteral("draft")).toBool()) {
+            return tab;
+        }
+    }
+    return nullptr;
+}
+
 /**
  * @brief 一个用例一套完整现场：控制器 + 提供者 + 引擎 + 产品那份页面
  *
@@ -223,6 +291,7 @@ private Q_SLOTS:
     void testLoaderHostedPageFillsAndStaysResident();
     void testSearchRoundTripFindsTheRenderedText();
     void testExportWritesTheRenderedMarkup();
+    void testFileTabClickSwitchesPresetWithoutScopeError();
 
 private:
     /**
@@ -694,6 +763,95 @@ void TestMarkdownPreviewUi::testSearchRoundTripFindsTheRenderedText()
     QVERIFY2(waitLoaded(&reason), qPrintable(reason));
     QVERIFY2(findAtLeastOne(QStringLiteral("needle"), &reason), qPrintable(reason));
     QCOMPARE(renderFailed.count(), 0);
+}
+
+/**
+ * @brief 点文件 tab：处理器走完、预设切换、没有任何 ReferenceError
+ *
+ * 2026-10 用户报告的缺陷：点文件 tab 抛 ReferenceError: scope is not defined
+ *（页面 1700 行附近），applyPreset 死在 handler 半路——preset 留在 prompt、
+ * leftOpen 却跟着 preset 的另一套状态走，左栏整个消失。机制：TapHandler 的
+ * 处理器先调 markdown.activateSession()，它同步发 tabsChanged，tab 条的
+ * Repeater 随之重建 delegate，当前 delegate 的作用域当场失效，其后对 scope
+ * 的解析即抛错。修复把页面引用先取进局部变量（活在 JS 栈上，不受 delegate
+ * 销毁影响）。
+ *
+ * 本用例按用户的操作序列驱动：页面先落在文档预设（load 打开了文件）→
+ * 点草稿 tab 切去提示词预设 → 再点文件 tab 切回文档预设。两次点击各经过
+ * 一条分支，消息钩子全程盯着 ReferenceError——这类错误不崩测试、不挂断言，
+ * 只有钩子看得见（产品里它的表现就是静默的布局错乱）。
+ */
+void TestMarkdownPreviewUi::testFileTabClickSwitchesPresetWithoutScopeError()
+{
+    QString error;
+    QVERIFY2(load(&error), qPrintable(error));
+
+    // 页面按控制器的活跃文件会话推断出文档预设；草稿会话此时还没有建——
+    // 先经页面动作切到提示词预设（等价命令条上的 Full Tools：applyPreset
+    // 会把当前草稿的会话激活、草稿 tab 出现在条上）。
+    QTRY_COMPARE(m_page->property("preset").toString(),
+                 QStringLiteral("document"));
+    QVERIFY2(QMetaObject::invokeMethod(m_page, "applyPreset",
+                                       Q_ARG(QVariant,
+                                             QStringLiteral("prompt"))),
+             "applyPreset is not invokable on the page root");
+    QTRY_VERIFY_WITH_TIMEOUT(m_controller->isDraftActive(), 5000);
+    QTRY_COMPARE(m_page->property("preset").toString(), QStringLiteral("prompt"));
+    // 草稿会话的建立让 tab 条整个重建：旧 delegate 走 deleteLater，还会在
+    // 视觉树上停留一小会儿——按它们的位置点击会打到旁边的 tab。等重建
+    // 收尾再定位，点击才落在草稿 tab 本体上。
+    QTest::qWait(500);
+
+    g_pageWarnings.clear();
+    g_previousMessageHandler = qInstallMessageHandler(pageMessageHandler);
+
+    // 用户序列：点草稿 tab（这条分支调 switchDraftTo + applyPreset，草稿已
+    // 激活时是幂等空转，但处理器的 scope 解析路径被真实走了一遍）。
+    QList<QQuickItem *> allTabs;
+    collectItemsByName(m_page, QStringLiteral("fileTab"), &allTabs);
+    QQuickItem *draftRow = nullptr;
+    for (QQuickItem *tab : allTabs) {
+        if (tab->property("modelData").toMap()
+                .value(QStringLiteral("draft")).toBool()) {
+            draftRow = tab;
+            break;
+        }
+    }
+    QVERIFY2(draftRow != nullptr, "no draft tab on the strip");
+    QVERIFY2(!draftRow->childItems().isEmpty(),
+             "the draft tab has no visual content to click");
+    QVERIFY2(draftRow->isVisible() && draftRow->width() > 10,
+             "the draft tab is not visible or too small to click");
+
+    const QPointF draftCenter = draftRow->mapToScene(
+        QPointF(draftRow->width() * 0.25, draftRow->height() / 2));
+    QTest::mouseClick(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      draftCenter.toPoint());
+    QTRY_COMPARE_WITH_TIMEOUT(m_page->property("preset").toString(),
+                              QStringLiteral("prompt"), 5000);
+
+    // 文件 tab：切回文档预设——这正是用户日志里抛 scope 错的那条分支。
+    // 点击前重新定位：草稿会话的建立已把 tab 条重建过一轮（点在 tab 左
+    // 侧四分之一处，避开右缘的关闭按钮）。
+    QQuickItem *fileRowNow = nullptr;
+    QTRY_VERIFY2_WITH_TIMEOUT(
+        (fileRowNow = fileTabItem(m_page)) != nullptr,
+        "the file tab is not on the strip after the rebuild", 5000);
+    const QPointF fileCenter = fileRowNow->mapToScene(
+        QPointF(fileRowNow->width() * 0.25, fileRowNow->height() / 2));
+    QTest::mouseClick(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      fileCenter.toPoint());
+    QTRY_COMPARE_WITH_TIMEOUT(m_page->property("preset").toString(),
+                              QStringLiteral("document"), 5000);
+    QVERIFY2(!m_controller->isDraftActive(),
+             "clicking the file tab did not activate the file session");
+    QVERIFY(!m_controller->filePath().isEmpty());
+
+    qInstallMessageHandler(g_previousMessageHandler);
+    g_previousMessageHandler = nullptr;
+    QVERIFY2(g_pageWarnings.isEmpty(),
+             qPrintable(QStringLiteral("QML warnings during the tab clicks: ")
+                        + g_pageWarnings.join(QLatin1Char(';'))));
 }
 
 /**

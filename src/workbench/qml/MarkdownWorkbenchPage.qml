@@ -1687,17 +1687,25 @@ Item {
                                 // tab 的编辑对象也要跟过去（门面侧换当前
                                 // 草稿）。点关闭按钮不该走到这里——
                                 // AIconButton 自己吃点击。
+                                // 页面引用一律在触碰模型之前先取进局部
+                                // 变量：activateSession/switchDraftTo 会同步
+                                // 发 tabsChanged，tab 条的 Repeater 随之重建，
+                                // 本 delegate 的作用域当场失效——此后再解析
+                                // scope 就抛 ReferenceError，预设切换静默死
+                                // 在 handler 半路（2026-10 用户报告的
+                                // 「点文件 tab 左栏整个收起」）。局部变量活在
+                                // JS 栈上，不受 delegate 销毁影响。
                                 TapHandler {
                                     onSingleTapped: {
-                                        if (fileTab.modelData.draft) {
-                                            scope.switchDraftTo(
-                                                        fileTab.modelData.docId)
-                                            scope.applyPreset("prompt")
+                                        const page = scope
+                                        const tab = fileTab.modelData
+                                        if (tab.draft) {
+                                            page.switchDraftTo(tab.docId)
+                                            page.applyPreset("prompt")
                                         }
                                         else {
-                                            markdown.activateSession(
-                                                fileTab.modelData.docId)
-                                            scope.applyPreset("document")
+                                            markdown.activateSession(tab.docId)
+                                            page.applyPreset("document")
                                         }
                                     }
                                 }

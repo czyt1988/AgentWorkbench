@@ -490,6 +490,37 @@ private Q_SLOTS:
         QVERIFY2(sawVisibleCategory,
                  "no visible ribbon category on the first show");
 
+        // 布局不叠窗（2026-10 用户报告右侧像两个窗口叠着）：命令条的装载
+        // 高度必须把 RibbonBar 的隐式高度原样带给 ColumnLayout——包装 Item
+        // 的 implicitHeight 若与 bar 实际内容高度脱节（首显缺陷的另一种形
+        // 态），面板区会越出 Loader 的高度压住下方的 tab 条与右栏顶部。
+        // 判据取几何而不是像素：右栏与 tab 条的顶部都在命令条底部之下。
+        QQuickItem *const commandBarLoader = bar->parentItem()
+            ? bar->parentItem()->parentItem() : nullptr;
+        QVERIFY2(commandBarLoader != nullptr,
+                 "the RibbonBar is not hosted by the command bar Loader");
+        const qreal commandBarBottom = commandBarLoader->y()
+            + commandBarLoader->height();
+        QVERIFY2(commandBarLoader->height() >= bar->implicitHeight() - 1,
+                 qPrintable(QStringLiteral("the loader height (%1) dropped ")
+                            + QStringLiteral("below the bar's implicit ")
+                            + QStringLiteral("height (%2) — ribbon content ")
+                            + QStringLiteral("would overlap the page below")
+                              .arg(commandBarLoader->height())
+                              .arg(bar->implicitHeight())));
+        QQuickItem *const checksPanel = findItemByName(
+            page, QStringLiteral("checksPanel"));
+        QVERIFY2(checksPanel != nullptr, "the page has no right panel");
+        QVERIFY2(checksPanel->mapToScene(QPointF(0, 0)).y()
+                     >= commandBarBottom - 1,
+                 qPrintable(QStringLiteral("the right panel top (%1) is at ")
+                            + QStringLiteral("or above the command bar ")
+                            + QStringLiteral("bottom (%2) — the panels overlap")
+                              .arg(checksPanel->mapToScene(QPointF(0, 0)).y())
+                              .arg(commandBarBottom)));
+        QVERIFY2(checksPanel->height() > 100,
+                 "the right panel collapsed vertically");
+
         // delegate 作用域（2026-10 首显缺陷 b）：模板行与 tab 行的处理器
         // 都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
         // ReferenceError（消息钩子抓到即失败）。先点一行模板：这会驱动

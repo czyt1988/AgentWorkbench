@@ -119,7 +119,7 @@ sequenceDiagram
 
 ## 文件 tab 条
 
-中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则），处理器经 delegate 根上的 `scope` 属性调页面动作层——编译型页面（qmlcachegen）里 delegate 信号处理器直接写文档根 id（`workbenchWindow`）会抛 `ReferenceError`（2026-10 缺陷：解释器与编译引擎对此不一致，UI 测试因此漏抓）。右侧是大纲与搜索按钮、**More actions** 菜单。阅读控件——**Preview / Split / Source** 三态（**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线）与字号、栏宽选择——2026-10 收进命令条的**开始**页：tab 条只回答「在哪份文档」，不回答「怎么看」。
+中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则），处理器经 delegate 根上的 `scope` 属性调页面动作层——编译型页面（qmlcachegen）里 delegate 信号处理器直接写文档根 id（`workbenchWindow`）会抛 `ReferenceError`（2026-10 缺陷：解释器与编译引擎对此不一致，UI 测试因此漏抓）。**页面引用要在触碰模型之前先取进局部变量**：`activateSession` / `switchDraftTo` 同步发 `tabsChanged`，tab 条的 Repeater 随之重建、当前 delegate 的作用域当场失效——模型变更之后再解析 `scope` 同样抛 `ReferenceError`（2026-10 用户报的「点文件 tab 左栏整个收起」就是它：预设切换死在 handler 半路）；局部变量活在 JS 栈上，不受 delegate 销毁影响。右侧是大纲与搜索按钮、**More actions** 菜单。阅读控件——**Preview / Split / Source** 三态（**两种预设都服务**：提示词形态把草稿喂进同一条渲染管线）与字号、栏宽选择——2026-10 收进命令条的**开始**页：tab 条只回答「在哪份文档」，不回答「怎么看」。
 
 草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。页面把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
 
@@ -506,7 +506,7 @@ URL 的形状只由 `MarkdownRuntime` 一处决定；`MarkdownRuntimeHandler::ro
 三个机制刻意分开：
 
 1. **分趟。** 解析每占用满 `PASS_BUDGET_MS`（48 ms，卡在 50 ms 长任务门槛之下，再大就开始丢输入）就让出事件循环；第一趟另给更宽裕的 `FIRST_BUDGET_MS`，另有 `SLICE_BLOCKS` 上限，防止一块病态内容独占一趟。
-2. **攒批挂载。** DOM 的代价按「上树次数」算，不按块数算。块先攒进 batch，攒够 `MOUNT_BATCH_BLOCKS`、或解析已排空、或一批已经等了 `MOUNT_MAX_WAIT_MS` 才上树——最后那条是兜底，别让短文档的内容瘫在半路。
+2. **攒批挂载。** DOM 的代价按「上树次数」算，不按块数算。块先攒进 batch，攒够 `MOUNT_BATCH_BLOCKS`、或解析已排空、或一批已经等了 `MOUNT_MAX_WAIT_MS` 才上树——最后那条是兜底，别让短文档的内容瘫在半路。乱序批插入时参照点只认**已在树上**的节点：batch 里的块「已解析、未挂载」，拿它们当 `insertBefore` 的参照点会抛 `NotFoundError`、打断整个 flush 任务，批内其余块从此既不在 DOM 也不在 pending——永久丢块（2026-10 用户报的编辑后顶部内容消失；参照点须核对 `parentNode === root`）。
 3. **CSS `content-visibility`** 跳过屏外块的布局与绘制（在 `theme.css`）。这才是「布局几乎不要钱」的原因，也正是**不做 JS 窗口虚拟化**的原因：虚拟化会废掉文本选区、原生滚动定位与文本可访问性。
 
 调度是自己滚定时器的，没有用 `requestIdleCallback` 也没有用 `requestAnimationFrame`：同一份工作放在 idle 回调下要慢一个数量级（回调数上千之后 Chromium 给的 idle 预算会饿死），放在帧回调下则被帧率而不是时间预算卡住。编辑态走 `updateBlocks`：C++ 侧按块摘要算出最小替换区间（`MarkdownChunker::diff()`），页面只重渲染那几个 `<section>`——敲一个字不重排全篇。

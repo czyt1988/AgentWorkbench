@@ -195,9 +195,16 @@ export function createRenderer(options)
             appendCursor = index + 1;
             return;
         }
-        // 中间插入：找后面第一个已挂载的块当参照点，插到它前面
+        // 中间插入：找后面第一个「已在树上」的块当参照点，插到它前面。
+        // 参照点必须核对 parentNode：parseSlice 会先填 nodes[] 再把元素
+        // 攒进 batch 等批量上树，这批元素「已解析但未挂载」，insertBefore
+        // 拿它们当参照点会抛 NotFoundError（不是 root 的子节点）——那个
+        // 未捕获异常会打断整个 flush 宏任务，batch 里的其余块从此既不在
+        // DOM 也不在 pending，页面就此缺块（2026-10 用户报告的顶部内容
+        // 丢失）。跳过未挂载的参照点是安全的：批内元素随后仍按各自下标
+        // 走同一套 place() 定位。
         for (let j = index + 1; j < nodes.length; j += 1) {
-            if (nodes[j]) {
+            if (nodes[j] && nodes[j].parentNode === root) {
                 root.insertBefore(element, nodes[j]);
                 return;
             }

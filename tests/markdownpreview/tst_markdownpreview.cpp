@@ -662,6 +662,82 @@ private Q_SLOTS:
     }
 
     /**
+     * @brief 中段一块拆成两块：非连续批的参照点必须是「已挂载」的节点
+     *
+     * 2026-10 用户报告的渲染丢块：源码区编辑后页面顶部内容消失，页面侧报
+     * Uncaught NotFoundError: Failed to execute 'insertBefore'。机制：一处
+     * 中段编辑（删 1 块插 2 块）让 pending 里出现非连续下标（2、3），它们
+     * 同一趟解析进 batch——flush 的乱序分支里 place(2) 向后找参照点时命中了
+     * **同批未挂载**的 nodes[3]（已解析、还没上树），insertBefore 对非子节点
+     * 抛 NotFoundError，整个 flush 宏任务被打断，batch 里的剩余块从此既不在
+     * DOM 也不在 pending——永久丢失。修复让参照点核对 parentNode。
+     *
+     * 断言不依赖微观调度（无法保证「批里恰好攒着两个乱序块」）：编辑后等
+     * 挂载数回到块总数，再核对每一段正文都在 DOM 里——丢块的表现正是
+     * 「中间某段没了」，而 stats 的 mounted 只数 nodes[]，元素没上树它也
+     * 照样数满，只有按文字找才暴露。
+     */
+    void testMidEditSplitKeepsEveryBlockMounted()
+    {
+        // 四块文档：中段（下标 2）将被拆成两块——removeCount=1、inserted=2，
+        // 正是乱序 flush 的最小触发形状。
+        const char *document = R"MD(# Head
+
+First paragraph.
+
+Second paragraph to be split.
+
+Fourth paragraph.
+)MD";
+        Page page;
+        QString error;
+        QVERIFY2(page.open(QString::fromUtf8(document), &error),
+                 qPrintable(error));
+
+        QString reason;
+        QVERIFY2(page.waitMounted(page.state()->blocks().size(), &reason),
+                 qPrintable(reason));
+        const int blocksBefore = page.state()->blocks().size();
+
+        // 编辑面里把中段一分为二。
+        const QString needle = QStringLiteral("Second paragraph to be split.");
+        QString edited = page.state()->editorText();
+        QVERIFY(edited.contains(needle));
+        edited.replace(needle,
+                       QStringLiteral("Second paragraph, part one.\n\n"
+                                      "Second paragraph, part two."));
+        page.state()->setEditorText(edited);
+        page.pumpCommands();
+
+        QVERIFY2(page.waitMounted(blocksBefore + 1, &reason),
+                 qPrintable(reason));
+
+        QVERIFY2(page.probeOk(QStringLiteral("allText"),
+                              "(function () {"
+                              "  var miss = [];"
+                              "  var body = document.body.textContent;"
+                              "  ['First paragraph.',"
+                              "   'Second paragraph, part one.',"
+                              "   'Second paragraph, part two.',"
+                              "   'Fourth paragraph.'].forEach("
+                              "      function (t) {"
+                              "    if (body.indexOf(t) < 0) {"
+                              "      miss.push(t);"
+                              "    }"
+                              "  });"
+                              "  var mounted = document.querySelectorAll("
+                              "      'section.awb-block').length;"
+                              "  if (mounted !== AWB.stats().blocks) {"
+                              "    miss.push('dom ' + mounted + ' != blocks '"
+                              "               + AWB.stats().blocks);"
+                              "  }"
+                              "  return miss;"
+                              "})()",
+                              &reason),
+                 qPrintable(reason));
+    }
+
+    /**
      * @brief 大文档的挂载耗时（只在 AWB_MD_PERF=1 时跑）
      *
      * 它存在的原因是计划里的 S2：分片管线的收益必须能在一个几百 KB 的真实形状
