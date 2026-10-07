@@ -811,6 +811,7 @@ Item {
             recoveryDialog.open()
     }
 
+
     // --- 快捷键 ------------------------------------------------------------
     // context 用 ApplicationShortcut + enabled 绑 pageCurrent（本页是当前
     // 页）：Chromium 会吃掉普通作用域的按键，而本页常驻（keepAlive），
@@ -1083,6 +1084,14 @@ Item {
                             }
                         }
 
+                        // 内容容器：收起时整块隐藏（树与两个空态都在里面；
+                        // ListView 自己不许挂 visible，理由见 templateSection）。
+                        ColumnLayout {
+                            visible: workspaceSectionExpanded
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: theme.spacingXs
+
                         // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
                         // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
                         // 统一用 ListView + depth/expanded role 渲染同一份数据。
@@ -1094,7 +1103,6 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             visible: tools.currentWorkspace.length > 0
-                                     && workspaceSectionExpanded
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             model: tools.model
@@ -1268,10 +1276,9 @@ Item {
                     // 树的空态与未选态也收进工作区段（段收起时一起藏）。
                     Label {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: workspaceSectionExpanded ? 60 : 0
+                        Layout.preferredHeight: 60
                         visible: tools.currentWorkspace.length > 0
                                  && tools.model.visibleCount === 0
-                                 && workspaceSectionExpanded
                         Layout.margins: theme.spacingM
                         text: qsTr("The workspace folder is empty or unavailable.")
                         color: theme.textMuted
@@ -1283,15 +1290,15 @@ Item {
 
                     AEmptyState {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: workspaceSectionExpanded ? 160 : 0
+                        Layout.preferredHeight: 160
                         visible: tools.currentWorkspace.length === 0
-                                 && workspaceSectionExpanded
                         iconSource: "qrc:/icons/folder.svg"
                         title: qsTr("No workspace selected")
                         description: qsTr("Add a folder to browse its files and insert references into the prompt.")
                         actionText: qsTr("Add Folder...")
                         onActionClicked: workbenchWindow.addWorkspaceViaDialog()
                     }
+                        }   // 内容容器收尾
 
                     // workspaceSection 的收尾（段内容到此为止）。
                     }
@@ -1300,8 +1307,14 @@ Item {
                     // 既是浏览器也是选择器：Ribbon 的 Insert Template 引导到
                     // 这里（openTemplatePicker），不在 Ribbon 里再造一份
                     // 列表——SARibbon 的 gallery/menuItems 是静态
-                    // listProperty，绑不了模型。段容器常驻、只藏内容
-                    //（收起后段头高由 preferredHeight 的 -1 回落隐式高度）。
+                    // listProperty，绑不了模型。
+                    //
+                    // 段壳常驻、内容容器整体收起（2026-10 两次缺陷的定案）：
+                    // 段头是折叠态唯一的还原入口，必须永远在屏上；而折叠的
+                    // 动作要落在**内容容器**上——不许给 ListView/TextField 自
+                    // 己挂 visible：视图自身的可见性翻转在段布局重排时会无
+                    // 限递归到栈溢出（用户实测「点展开即崩」，dist/
+                    // Backtrace1.txt）。容器级翻转是旧形态验证过的安全路径。
                     ColumnLayout {
                         id: templateSection
                         objectName: "templateSection"
@@ -1326,13 +1339,17 @@ Item {
                             }
                         }
 
+                        // 内容容器：收起时整块隐藏（检索框与列表都在里面）。
+                        ColumnLayout {
+                            visible: templateSectionExpanded
+                            Layout.fillWidth: true
+                            spacing: theme.spacingXs
+
                         // 检索框：实时过滤（filteredTemplates 的空+空=全部）。
-                        // 与列表一起按展开态显隐（段常驻后由内容自己收）。
                         ASearchField {
                             id: templateSearch
                             objectName: "templateSearch"
 
-                            visible: templateSectionExpanded
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingXs
                             Layout.rightMargin: theme.spacingXs
@@ -1348,7 +1365,6 @@ Item {
                             id: templateList
                             objectName: "templateList"
 
-                            visible: templateSectionExpanded
                             implicitHeight: Math.min(contentHeight, 220)
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingXs
@@ -1439,15 +1455,19 @@ Item {
 
                             Component.onCompleted: templateModel.rebuild()
 
-                            onVisibleChanged: {
-                                if (visible)
-                                    templateModel.rebuild()
-                            }
+                            // 刻意不在 onVisibleChanged 里 rebuild：列表的
+                            // visible 变化发生在段展开的可见性传播中途，
+                            // 此时对 ObjectModel 做 remove/append 会撞进
+                            // 条件视图的内部更新窗口。数据变化本来就有
+                            // Connections 兜着（不可见也重建），这里没有要补
+                            // 的洞。
                         }
+                        }   // 内容容器收尾
                     }
 
                     // --- 段 3 · 收藏夹（可折叠段，默认收起） ----------------
-                    // 同上两段：段容器常驻、只藏内容（默认收起时只剩段头）。
+                    // 同上两段：段壳常驻（段头=还原入口），内容容器整体收起
+                    //（ListView 自己不许挂 visible，理由见 templateSection）。
                     ColumnLayout {
                         id: favoriteSection
                         objectName: "favoriteSection"
@@ -1472,13 +1492,18 @@ Item {
                             }
                         }
 
+                        // 内容容器：默认收起（收藏是低频段）。
+                        ColumnLayout {
+                            visible: favoriteSectionExpanded
+                            Layout.fillWidth: true
+                            spacing: theme.spacingXs
+
                         // 空态：一行弱化提示（收藏是成稿，模板是骨架）。
                         Label {
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingS
                             Layout.rightMargin: theme.spacingS
-                            visible: favoriteSectionExpanded
-                                     && tools.favorites.length === 0
+                            visible: tools.favorites.length === 0
                             text: qsTr("Save finished prompts here")
                             color: theme.textMuted
                             font.pixelSize: theme.fontSizeCaption
@@ -1489,7 +1514,6 @@ Item {
                             id: favoriteList
                             objectName: "favoriteList"
 
-                            visible: favoriteSectionExpanded
                             // fillHeight 对零内容的列表量不出高度（段
                             // 展开时高度仍为 0，行被裁掉）；收藏夹给内容
                             // 高度，段高由 preferredHeight 兜住上限。
@@ -1578,11 +1602,11 @@ Item {
 
                             Component.onCompleted: favoriteModel.rebuild()
 
-                            onVisibleChanged: {
-                                if (visible)
-                                    favoriteModel.rebuild()
-                            }
+                            // 同模板列表：不在 onVisibleChanged 里 rebuild
+                            //（可见性传播中途动 ObjectModel 即崩，理由见
+                            // templateList 的说明）；数据变化由 Connections 兜底。
                         }
+                        }   // 内容容器收尾
                     }
                 }
             }

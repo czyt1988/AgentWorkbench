@@ -542,6 +542,11 @@ private Q_SLOTS:
                                   4000);
 
         // --- 收藏段（默认收起，验证另一半：从收起态展开再收回） -----------
+        // 先放一条真数据再展开：展开触发列表的可见性翻转，「带行的
+        // ObjectModel 在可见性传播中途重建」正是 2026-10 展开即崩的形态
+        //（空列表的展开踩不到它——前一轮用例因此漏抓）。
+        tools->addFavorite(QStringLiteral("Collapse probe"),
+                           QStringLiteral("Favorite body for the toggle."));
         QQuickItem *const favorites = window->findChild<QQuickItem *>(
             QStringLiteral("favoriteSection"));
         QQuickItem *const favoritesToggle = window->findChild<QQuickItem *>(
@@ -560,6 +565,14 @@ private Q_SLOTS:
         QTRY_VERIFY2_WITH_TIMEOUT(favorites->height() > 100,
                                   "the favorites section did not expand",
                                   4000);
+        {
+            QObject *const list = window->findChild<QObject *>(
+                QStringLiteral("favoriteList"));
+            QVERIFY2(list, "favoriteList not found by objectName");
+            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() == 1,
+                                      "the favorites list lost its row over "
+                                      "the expand", 4000);
+        }
 
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                           favoritesToggle->mapToScene(QPointF(
@@ -570,6 +583,48 @@ private Q_SLOTS:
                                   "back", 4000);
         QVERIFY2(favoritesToggle->isVisible(),
                  "the favorites toggle must survive its own collapse");
+
+        // --- 模板段（默认展开且已有内置行：收起 → 展开 = 完整复现用户
+        // 「点展开崩溃」的序列——10+ 行的 ObjectModel 在可见性传播中途
+        // 被同步重建是那次崩溃的直接诱因） -------------------------------
+        QQuickItem *const templates = window->findChild<QQuickItem *>(
+            QStringLiteral("templateSection"));
+        QQuickItem *const templatesToggle = window->findChild<QQuickItem *>(
+            QStringLiteral("templateSectionToggle"));
+        QVERIFY2(templates, "templateSection not found by objectName");
+        QVERIFY2(templatesToggle, "the templates header has no toggle");
+        {
+            QObject *const list = window->findChild<QObject *>(
+                QStringLiteral("templateList"));
+            QVERIFY2(list, "templateList not found by objectName");
+            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
+                                      "the template list had no rows before "
+                                      "the round trip", 4000);
+        }
+
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          templatesToggle->mapToScene(QPointF(
+                              templatesToggle->width() / 2.0,
+                              templatesToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(templates->height() < 120,
+                                  "the templates section did not collapse",
+                                  4000);
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          templatesToggle->mapToScene(QPointF(
+                              templatesToggle->width() / 2.0,
+                              templatesToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(templates->height() > 200,
+                                  "the templates section did not expand back",
+                                  4000);
+        {
+            // 展开后行还在：崩溃之外也要保证不丢内容。
+            QObject *const list = window->findChild<QObject *>(
+                QStringLiteral("templateList"));
+            QVERIFY2(list, "templateList not found by objectName");
+            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
+                                      "the template list lost its rows over "
+                                      "the collapse/expand round trip", 4000);
+        }
     }
 
     // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。
