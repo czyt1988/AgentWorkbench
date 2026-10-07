@@ -123,6 +123,13 @@ if (AWB_ENABLE_RIBBON)
     set(SARIBBON_INSTALL_IN_CURRENT_DIR OFF)
     set(SARIBBON_BUILD_STATIC_LIBS ON)
     add_subdirectory(third_party/SARibbon EXCLUDE_FROM_ALL)
+    # qmsetup's forwarding headers use ../../ chains anchored at the build
+    # directory; in deep shadow build dirs (Qt Creator's default) the path
+    # cl.exe must open exceeds MAX_PATH and every QWK compile dies with a
+    # bogus C1083. Rewrite them to absolute paths — see the function docs.
+    include(cmake/AwbThirdParty.cmake)
+    awb_absolutize_forwarding_headers(
+        "${CMAKE_BINARY_DIR}/third_party/SARibbon")
 endif()
 
 # Layered modules, bottom-up:

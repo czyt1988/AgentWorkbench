@@ -35,6 +35,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 - SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `d3d45d8`**（上游 dev-3.0 顶端，2026-10-07）——它带着本集成需要的 ribbon 修复：面板子项顺序错乱、面板内分隔线从不渲染、注册 category 的 hit-test 可见性。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
 - `AWB_ENABLE_RIBBON`（默认 `ON`，声明在 `cmake/AwbOptions.cmake`）负责接线：`SARIBBON_BUILD_QML=ON`、`SARIBBON_BUILD_WIDGETS` / `SARIBBON_BUILD_EXAMPLES` / `SARIBBON_BUILD_TESTS` / `SARIBBON_INSTALL` = `OFF`、静态库。只编 QML 模块——SARibbon 的 QWidget 部分永远进不了二进制。
+- qmsetup（QWindowKit 的构建系统）会在构建树里生成转发头，其 `../../` 链以构建目录为锚点。在深层影子构建目录——Qt Creator 默认的 `<父目录>/build/Desktop_<kit>-<配置>`——里，`cl.exe` 要打开的路径超过 `MAX_PATH`（260），而它不支持长路径，于是 QWK 的每个编译单元都报一条指向「实际存在文件」的误导性 `C1083`。因此根 `CMakeLists.txt` 在 `add_subdirectory(third_party/SARibbon)` 之后把这些单行相对 include 改写为绝对路径（`cmake/AwbThirdParty.cmake` 的 `awb_absolutize_forwarding_headers`）；树内 `build/` 目录本就不受影响，但改写对两种目录同样执行。
 - `app/main.cpp` 在 `engine.load()` **之前**调 `saRibbonRegisterQmlTypes(&engine)`。注册是命令式的（没有 qmldir 插件）；函数自带重复调用守卫。
 - 领域库不链 SARibbon。`awb_tools` 与 `awb_markdown` 照旧只依赖 `awb_core` + `awb_theme`；集成点在 `app/`（CMake 链接 + 注册）与命令带 QML（`import SARibbon`）。第三方模块因此进不了领域层。
 
