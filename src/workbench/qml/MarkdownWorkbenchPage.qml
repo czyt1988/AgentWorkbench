@@ -84,6 +84,9 @@ Item {
     property var pendingTemplate: null
 
     // 左栏段的折叠态（窗口内存：会话文件存预设级开合，段级是浏览态）。
+    // 三段都遵守同一条纪律：**段容器常驻、只藏内容**——段头上的开关是
+    // 折叠态唯一的还原入口，把它藏掉等于把段焊死在收起态（2026-10 缺陷）。
+    property bool workspaceSectionExpanded: true
     property bool templateSectionExpanded: true
     property bool favoriteSectionExpanded: false
 
@@ -1050,28 +1053,33 @@ Item {
                     }
 
                     // --- 段 1 · 工作区与文件树（可折叠段，默认展开） --------
+                    // 段容器常驻可见：收起只藏内容，段头（连同它的开关）留在
+                    // 原地——段头是折叠态唯一的还原入口。旧版把 visible 绑在
+                    // 段上，收起连段头一起藏掉，页面上再没有任何控件能把段
+                    // 展开（2026-10 用户报告「收起后无法还原」）。
                     ColumnLayout {
                         id: workspaceSection
                         objectName: "workspaceSection"
 
+                        // 展开时树吃掉全部剩余高度；收起时段缩到段头高，
+                        // 空间留白给下方（不另设弹簧项）。
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        Layout.fillHeight: workspaceSectionExpanded
                         spacing: theme.spacingXs
-                        visible: true
 
                         ASectionHeader {
                             Layout.fillWidth: true
                             text: qsTr("Workspace")
 
                             AIconButton {
-                                iconSource: workspaceSection.visible
-                                        ? "qrc:/icons/chevron-left.svg"
-                                        : "qrc:/icons/chevron-right.svg"
-                                tooltip: workspaceSection.visible
+                                objectName: "workspaceSectionToggle"
+                                iconSource: "qrc:/icons/chevron-right.svg"
+                                rotation: workspaceSectionExpanded ? 90 : 0
+                                tooltip: workspaceSectionExpanded
                                         ? qsTr("Hide the file tree")
                                         : qsTr("Show the file tree")
                                 onClicked:
-                                    workspaceSection.visible = !workspaceSection.visible
+                                    workspaceSectionExpanded = !workspaceSectionExpanded
                             }
                         }
 
@@ -1086,7 +1094,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             visible: tools.currentWorkspace.length > 0
-                                     && workspaceSection.visible
+                                     && workspaceSectionExpanded
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             model: tools.model
@@ -1260,10 +1268,10 @@ Item {
                     // 树的空态与未选态也收进工作区段（段收起时一起藏）。
                     Label {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: workspaceSection.visible ? 60 : 0
+                        Layout.preferredHeight: workspaceSectionExpanded ? 60 : 0
                         visible: tools.currentWorkspace.length > 0
                                  && tools.model.visibleCount === 0
-                                 && workspaceSection.visible
+                                 && workspaceSectionExpanded
                         Layout.margins: theme.spacingM
                         text: qsTr("The workspace folder is empty or unavailable.")
                         color: theme.textMuted
@@ -1275,9 +1283,9 @@ Item {
 
                     AEmptyState {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: workspaceSection.visible ? 160 : 0
+                        Layout.preferredHeight: workspaceSectionExpanded ? 160 : 0
                         visible: tools.currentWorkspace.length === 0
-                                 && workspaceSection.visible
+                                 && workspaceSectionExpanded
                         iconSource: "qrc:/icons/folder.svg"
                         title: qsTr("No workspace selected")
                         description: qsTr("Add a folder to browse its files and insert references into the prompt.")
@@ -1292,14 +1300,14 @@ Item {
                     // 既是浏览器也是选择器：Ribbon 的 Insert Template 引导到
                     // 这里（openTemplatePicker），不在 Ribbon 里再造一份
                     // 列表——SARibbon 的 gallery/menuItems 是静态
-                    // listProperty，绑不了模型。
+                    // listProperty，绑不了模型。段容器常驻、只藏内容
+                    //（收起后段头高由 preferredHeight 的 -1 回落隐式高度）。
                     ColumnLayout {
                         id: templateSection
                         objectName: "templateSection"
 
                         Layout.fillWidth: true
-                        Layout.preferredHeight: templateSectionExpanded ? 260 : 0
-                        visible: templateSectionExpanded
+                        Layout.preferredHeight: templateSectionExpanded ? 260 : -1
                         spacing: theme.spacingXs
 
                         ASectionHeader {
@@ -1307,6 +1315,7 @@ Item {
                             text: qsTr("Templates")
 
                             AIconButton {
+                                objectName: "templateSectionToggle"
                                 iconSource: "qrc:/icons/chevron-right.svg"
                                 rotation: templateSectionExpanded ? 90 : 0
                                 tooltip: templateSectionExpanded
@@ -1318,10 +1327,12 @@ Item {
                         }
 
                         // 检索框：实时过滤（filteredTemplates 的空+空=全部）。
+                        // 与列表一起按展开态显隐（段常驻后由内容自己收）。
                         ASearchField {
                             id: templateSearch
                             objectName: "templateSearch"
 
+                            visible: templateSectionExpanded
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingXs
                             Layout.rightMargin: theme.spacingXs
@@ -1337,6 +1348,7 @@ Item {
                             id: templateList
                             objectName: "templateList"
 
+                            visible: templateSectionExpanded
                             implicitHeight: Math.min(contentHeight, 220)
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingXs
@@ -1435,13 +1447,13 @@ Item {
                     }
 
                     // --- 段 3 · 收藏夹（可折叠段，默认收起） ----------------
+                    // 同上两段：段容器常驻、只藏内容（默认收起时只剩段头）。
                     ColumnLayout {
                         id: favoriteSection
                         objectName: "favoriteSection"
 
                         Layout.fillWidth: true
-                        Layout.preferredHeight: favoriteSectionExpanded ? 200 : 0
-                        visible: favoriteSectionExpanded
+                        Layout.preferredHeight: favoriteSectionExpanded ? 200 : -1
                         spacing: theme.spacingXs
 
                         ASectionHeader {
@@ -1449,6 +1461,7 @@ Item {
                             text: qsTr("Favorites")
 
                             AIconButton {
+                                objectName: "favoriteSectionToggle"
                                 iconSource: "qrc:/icons/chevron-right.svg"
                                 rotation: favoriteSectionExpanded ? 90 : 0
                                 tooltip: favoriteSectionExpanded
@@ -1464,7 +1477,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: theme.spacingS
                             Layout.rightMargin: theme.spacingS
-                            visible: tools.favorites.length === 0
+                            visible: favoriteSectionExpanded
+                                     && tools.favorites.length === 0
                             text: qsTr("Save finished prompts here")
                             color: theme.textMuted
                             font.pixelSize: theme.fontSizeCaption
@@ -1475,6 +1489,7 @@ Item {
                             id: favoriteList
                             objectName: "favoriteList"
 
+                            visible: favoriteSectionExpanded
                             // fillHeight 对零内容的列表量不出高度（段
                             // 展开时高度仍为 0，行被裁掉）；收藏夹给内容
                             // 高度，段高由 preferredHeight 兜住上限。

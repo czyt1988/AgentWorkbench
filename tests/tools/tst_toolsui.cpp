@@ -485,10 +485,91 @@ private Q_SLOTS:
                                   "template list never showed the builtins",
                                   4000);
 
-        // favoriteSection 也在（默认收起，可见但高度 0——只要对象在）。
+        // favoriteSection 也在（默认收起：段头常驻，只藏内容——同一条
+        // 「收起可还原」纪律，展开/收回的往返在专门用例里压）。
         QObject *const favorites = window->findChild<QObject *>(
             QStringLiteral("favoriteSection"));
         QVERIFY2(favorites, "favoriteSection not found by objectName");
+    }
+
+    // 左栏段的收起必须可以还原（2026-10 用户报告「收起键一点整个段消失，
+    // 没有任何办法再展开」）：段容器常驻、只藏内容，段头上的开关是折叠态
+    // 唯一的还原入口。断言两层：收起后段对象仍然可见（旧缺陷把 visible
+    // 绑在段上，收起即整段消失）、段高缩到段头；再点一次开关段高回来。
+    void testSectionCollapseKeepsHeaderAndRestores()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        // --- 工作区段（默认展开，无工作区时空态占位） ----------------------
+        QQuickItem *const workspace = window->findChild<QQuickItem *>(
+            QStringLiteral("workspaceSection"));
+        QQuickItem *const workspaceToggle = window->findChild<QQuickItem *>(
+            QStringLiteral("workspaceSectionToggle"));
+        QVERIFY2(workspace, "workspaceSection not found by objectName");
+        QVERIFY2(workspaceToggle, "the workspace header has no toggle");
+
+        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height() > 80,
+                                  "the workspace section did not start "
+                                  "expanded", 4000);
+        const qreal workspaceExpanded = workspace->height();
+
+        // 点收起：段可见、开关可见（还原入口还在）、段缩到段头。
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          workspaceToggle->mapToScene(QPointF(
+                              workspaceToggle->width() / 2.0,
+                              workspaceToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height()
+                                      < workspaceExpanded - 40,
+                                  "the workspace section did not collapse",
+                                  4000);
+        QVERIFY2(workspace->isVisible(),
+                 "the collapsed workspace section is invisible — its toggle "
+                 "is gone with it and nothing can expand it again");
+        QVERIFY2(workspaceToggle->isVisible()
+                     && workspaceToggle->height() > 0,
+                 "the workspace toggle must stay visible to re-expand");
+
+        // 再点一次：内容回来。
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          workspaceToggle->mapToScene(QPointF(
+                              workspaceToggle->width() / 2.0,
+                              workspaceToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height() > 80,
+                                  "the workspace section did not expand back",
+                                  4000);
+
+        // --- 收藏段（默认收起，验证另一半：从收起态展开再收回） -----------
+        QQuickItem *const favorites = window->findChild<QQuickItem *>(
+            QStringLiteral("favoriteSection"));
+        QQuickItem *const favoritesToggle = window->findChild<QQuickItem *>(
+            QStringLiteral("favoriteSectionToggle"));
+        QVERIFY2(favorites, "favoriteSection not found by objectName");
+        QVERIFY2(favoritesToggle, "the favorites header has no toggle");
+        QVERIFY2(favorites->isVisible(),
+                 "a collapsed-by-default section must still show its header");
+        QVERIFY2(favorites->height() < 80,
+                 "the favorites section should start collapsed (header only)");
+
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          favoritesToggle->mapToScene(QPointF(
+                              favoritesToggle->width() / 2.0,
+                              favoritesToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(favorites->height() > 100,
+                                  "the favorites section did not expand",
+                                  4000);
+
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          favoritesToggle->mapToScene(QPointF(
+                              favoritesToggle->width() / 2.0,
+                              favoritesToggle->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(favorites->height() < 80,
+                                  "the favorites section did not collapse "
+                                  "back", 4000);
+        QVERIFY2(favoritesToggle->isVisible(),
+                 "the favorites toggle must survive its own collapse");
     }
 
     // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。
