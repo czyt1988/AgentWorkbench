@@ -24,6 +24,15 @@
   颜色从 `theme.accent` 换成 `theme.success`：SARibbon 把整条标题行涂成
   accent 色，上下文色与之相同会让标签页与色带全部隐形——「上下文页与
   其它标签页混叠」的缺陷正源于此。
+- **Ribbon 菜单跟随 SARibbon 3.0 的 QAction 命令层。** submodule 钉子沿
+  dev-3.0 线前移（`423b8e8`），越过退役 2.x `RibbonMenuItem` 类型的重构
+  ——命令条上的五个菜单按钮（标题、围栏代码、预览字号、正文宽度、Ribbon
+  样式）改为以 `menuActions` 的 QAction 列表声明，Ribbon 重新装载得起来，
+  不再静默退回普通工具栏。
+- **Markdown 工作台页面在 Qt 5.15 车道重新装载得起来。** 它的三个上限
+  列表（模板、收藏、草稿历史）用了 `ObjectModel`——Qt 6.5+ 才有的类型，
+  Qt 5 兜底车道上「ObjectModel is not a type」直接整页打挂；现在改为普通
+  JS 数组模型，两条车道行为一致。
 
 ### 新增
 

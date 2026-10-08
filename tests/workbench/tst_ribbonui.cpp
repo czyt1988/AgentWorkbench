@@ -16,7 +16,9 @@
 #include <SARibbonQml/SARibbonQmlGlobal.h>
 #include <SARibbonQml/SARibbonQmlBar.h>
 #include <SARibbonQml/SARibbonQmlCategory.h>
+#include <SARibbonQml/SARibbonQmlToolButton.h>
 
+#include "core/OpResult.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "markdown/MarkdownPreviewController.h"
@@ -40,6 +42,10 @@
 //
 // 动作逻辑不在这里测：两份命令条都只把点击转发给页面动作层（页面的
 // 动作由 tst_toolsui 经真实点击覆盖），这里只回答「装得起来、排得出来」。
+// 例外是第四个用例：menuActions 菜单链（SARibbon 3.0 把 2.x 的
+// RibbonMenuItem 类型退役，菜单项改为 QAction 列表）是 Ribbon 形态独有
+// 的声明面，降级工具栏没有对应物——它经宿主的 activateMenuItem 直取
+// QAction::trigger，断言命令真的落到 ToolsFacade 的持久化状态上。
 //
 // 第二个用例把 win 桩接进来（preset = "prompt"），让上下文页真正激活，
 // 然后读 RibbonBar 的 contextBands：色带颜色必须与主题 accent 可区分
@@ -388,6 +394,74 @@ private Q_SLOTS:
                             + g_ribbonWarnings.join(QLatin1Char(';'))));
     }
 
+    // menuActions 菜单链（SARibbon 3.0）：菜单项是 QAction 列表、激活经
+    // activateMenuItem 中转。压的是「声明 → 触发 → 门面状态」整条链：
+    // RibbonMenuItem 残留时 WorkbenchRibbon.qml 装载失败整条用例就挂。
+    void testMenuActionsDriveToolsState()
+    {
+        QTemporaryDir dataRoot;
+        QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
+        Settings settings;
+        ThemeRegistry registry;
+        Theme theme(&settings, &registry);
+        theme.applyTheme(QStringLiteral("mocha-dark"));
+        ToolsFacade tools(dataRoot.path());
+        MarkdownEdit markdownEdit(&theme);
+        MarkdownPreviewController markdown(&settings, &theme);
+        WinStub win;
+
+        QQmlEngine engine;
+        saRibbonRegisterQmlTypes(&engine);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
+                                     &theme);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                     &tools);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                     "MarkdownEdit", &markdownEdit);
+
+        QQmlContext context(engine.rootContext());
+        context.setContextProperty(QStringLiteral("theme"), &theme);
+        context.setContextProperty(QStringLiteral("tools"), &tools);
+        context.setContextProperty(QStringLiteral("markdown"), &markdown);
+
+        QQmlComponent component(&engine, QUrl(QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchRibbon.qml")));
+        QVERIFY2(!component.isError(),
+                 qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create(&context));
+        QVERIFY2(!root.isNull(), qPrintable(component.errorString()));
+        QQuickItem *const item = qobject_cast<QQuickItem *>(root.data());
+        QVERIFY2(item, "the ribbon root is not a QQuickItem");
+        // 同第二用例：宿主经根对象的 win 属性接桩（上下文属性会被组件
+        // 根自己的同名 property 遮蔽）。
+        QVERIFY2(item->setProperty("win", QVariant::fromValue(&win)),
+                 "the ribbon root has no win property");
+
+        // Style 菜单按钮（View 标签页）：三档样式，单选持久化在
+        // tools.json。按 text 找结构宿主（三个 category 都静态声明，
+        // 装载即在 QObject 树上，与当前 tab 无关）。
+        SARibbonQml::RibbonToolButton *styleButton = nullptr;
+        const auto buttons
+                = item->findChildren<SARibbonQml::RibbonToolButton *>();
+        for (SARibbonQml::RibbonToolButton *button : buttons) {
+            if (button->text() == QStringLiteral("Style")) {
+                styleButton = button;
+                break;
+            }
+        }
+        QVERIFY2(styleButton, "no Style menu button in the ribbon");
+        QCOMPARE(styleButton->menuActionCount(), 3);
+
+        // 激活走 QAction::trigger（onTriggered 写 ToolsFacade，同步
+        // 执行），两档往返验证单选语义。
+        styleButton->activateMenuItem(1);
+        QCOMPARE(tools.ribbonStyle(), QStringLiteral("two-row"));
+        styleButton->activateMenuItem(2);
+        QCOMPARE(tools.ribbonStyle(), QStringLiteral("three-row"));
+        styleButton->activateMenuItem(0);
+        QCOMPARE(tools.ribbonStyle(), QStringLiteral("single"));
+    }
+
     // 整页首显（2026-10 三个缺陷的复现现场）：页面 + 真 Ribbon 路径。
     // 页面里的 Loader 装载 WorkbenchRibbon.qml（不是测试直接建命令条），
     // 首屏就要看到 category 行——tab 行在场、面板区缺失正是用户报的
@@ -412,6 +486,17 @@ private Q_SLOTS:
 
         QQmlEngine engine;
         saRibbonRegisterQmlTypes(&engine);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        // main.cpp 在 Qt 5 上补的模块导入路径（生成的 qmldir 在
+        // qrc:/qt/qml 下）：页面 import AgentWorkbench 取 A* 组件走的是
+        // 文件模块，Qt 5 引擎的默认导入路径不含 qrc:/qt/qml（Qt 6 默认
+        // 有），漏了它页面报「module AgentWorkbench is not installed」。
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
+        // main.cpp 同款 gadget 注册：页面动作层调 tools.createDraft 等
+        // 返回 OpResult 的 Q_INVOKABLE——metatype 没注册时 QML 报
+        // 「Unknown method return type」、动作静默失效。
+        qRegisterMetaType<awb::core::OpResult>();
         // main.cpp 同款单例注册（页面与命令条都 import AgentWorkbench.App）。
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
                                      &theme);

@@ -202,20 +202,20 @@ Item {
                     iconSource: "qrc:/icons/bold.svg"
                     popupMode: Ribbon.MenuButtonPopup
                     // 三级 + 文本判定：同级再点 = 去标题（菜单里独立条目）。
-                    menuItems: [
-                        RibbonMenuItem {
+                    menuActions: [
+                        RibbonAction {
                             text: qsTr("Heading 1")
                             onTriggered: if (win) win.applyFormat("heading1")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Heading 2")
                             onTriggered: if (win) win.applyFormat("heading2")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Heading 3")
                             onTriggered: if (win) win.applyFormat("heading3")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Remove heading")
                             onTriggered: if (win) win.applyFormat("heading0")
                         }
@@ -259,28 +259,28 @@ Item {
                     text: qsTr("Fence")
                     iconSource: "qrc:/icons/code.svg"
                     popupMode: Ribbon.MenuButtonPopup
-                    menuItems: [
-                        RibbonMenuItem {
+                    menuActions: [
+                        RibbonAction {
                             text: qsTr("No language")
                             onTriggered: if (win) win.applyFence("")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "C++"
                             onTriggered: if (win) win.applyFence("cpp")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "Python"
                             onTriggered: if (win) win.applyFence("python")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "JavaScript"
                             onTriggered: if (win) win.applyFence("javascript")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "QML"
                             onTriggered: if (win) win.applyFence("qml")
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "Bash"
                             onTriggered: if (win) win.applyFence("bash")
                         }
@@ -370,50 +370,50 @@ Item {
                     text: qsTr("Font Size")
                     iconSource: "qrc:/icons/bold.svg"
                     popupMode: Ribbon.MenuButtonPopup
-                    menuItems: [
-                        RibbonMenuItem {
+                    menuActions: [
+                        RibbonAction {
                             text: qsTr("Theme size")
                             checkable: true
                             checked: markdown.fontSizePx === 0
                             onTriggered: markdown.setFontSizePx(0)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "12 px"
                             checkable: true
                             checked: markdown.fontSizePx === 12
                             onTriggered: markdown.setFontSizePx(12)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "13 px"
                             checkable: true
                             checked: markdown.fontSizePx === 13
                             onTriggered: markdown.setFontSizePx(13)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "14 px"
                             checkable: true
                             checked: markdown.fontSizePx === 14
                             onTriggered: markdown.setFontSizePx(14)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "16 px"
                             checkable: true
                             checked: markdown.fontSizePx === 16
                             onTriggered: markdown.setFontSizePx(16)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "18 px"
                             checkable: true
                             checked: markdown.fontSizePx === 18
                             onTriggered: markdown.setFontSizePx(18)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "20 px"
                             checkable: true
                             checked: markdown.fontSizePx === 20
                             onTriggered: markdown.setFontSizePx(20)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "24 px"
                             checkable: true
                             checked: markdown.fontSizePx === 24
@@ -427,38 +427,38 @@ Item {
                     text: qsTr("Width")
                     iconSource: "qrc:/icons/menu.svg"
                     popupMode: Ribbon.MenuButtonPopup
-                    menuItems: [
-                        RibbonMenuItem {
+                    menuActions: [
+                        RibbonAction {
                             text: qsTr("Default width")
                             checkable: true
                             checked: markdown.contentWidthPx === 0
                             onTriggered: markdown.setContentWidthPx(0)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "640 px"
                             checkable: true
                             checked: markdown.contentWidthPx === 640
                             onTriggered: markdown.setContentWidthPx(640)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "760 px"
                             checkable: true
                             checked: markdown.contentWidthPx === 760
                             onTriggered: markdown.setContentWidthPx(760)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "900 px"
                             checkable: true
                             checked: markdown.contentWidthPx === 900
                             onTriggered: markdown.setContentWidthPx(900)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: "1200 px"
                             checkable: true
                             checked: markdown.contentWidthPx === 1200
                             onTriggered: markdown.setContentWidthPx(1200)
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Full width")
                             checkable: true
                             checked: markdown.contentWidthPx === 4000
@@ -534,7 +534,7 @@ Item {
                 RibbonPanel {
                     RibbonToolButton {
                         // 左栏模板库就是选择器（openTemplatePicker）：
-                        // SARibbon 的 gallery/menuItems 是静态
+                        // SARibbon 的 gallery/menuActions 是静态
                         // listProperty 绑不了模型，不在 Ribbon 里
                         // 造第二份列表。
                         text: qsTr("Insert Template")
@@ -610,20 +610,20 @@ Item {
                     text: qsTr("Style")
                     iconSource: "qrc:/icons/menu.svg"
                     popupMode: Ribbon.MenuButtonPopup
-                    menuItems: [
-                        RibbonMenuItem {
+                    menuActions: [
+                        RibbonAction {
                             text: qsTr("Single row")
                             checkable: true
                             checked: tools.ribbonStyle === "single"
                             onTriggered: tools.ribbonStyle = "single"
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Two rows")
                             checkable: true
                             checked: tools.ribbonStyle === "two-row"
                             onTriggered: tools.ribbonStyle = "two-row"
                         },
-                        RibbonMenuItem {
+                        RibbonAction {
                             text: qsTr("Three rows")
                             checkable: true
                             checked: tools.ribbonStyle === "three-row"

@@ -29,6 +29,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `theme.accent`: SARibbon paints the whole title row in the accent colour,
   so an accent context colour made the tab and its band invisible — the
   "context category blends into the other categories" defect.
+- **The ribbon menus follow SARibbon 3.0's QAction command layer.** The
+  submodule pin moves further up the dev-3.0 line (`423b8e8`), past the
+  refactor that retires the 2.x `RibbonMenuItem` type — the command bar's
+  five menu buttons (headings, code fences, preview font size, content
+  width, ribbon style) now author their entries as `menuActions` QAction
+  lists, so the ribbon loads again instead of silently falling back to the
+  plain toolbar.
+- **The Markdown workbench page loads again on the Qt 5.15 lane.** Its three
+  capped lists (templates, favourites, draft history) used `ObjectModel`, a
+  Qt 6.5+ type that left the Qt 5 fallback lane with "ObjectModel is not a
+  type" and took the whole page down at startup; they run on plain JS-array
+  models now, identical on both Qt lanes.
 
 ### Added
 

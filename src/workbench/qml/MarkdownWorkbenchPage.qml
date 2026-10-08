@@ -305,7 +305,7 @@ Item {
         }
         // 门面把激活位顺延到下一条草稿；渲染会话跟上。
         activateActiveDraftSession()
-        historyModel.rebuild()
+        snapshotList.rebuild()
     }
 
     // 关掉当前草稿的 tab（关视图不删草稿——与文件 tab 同一语义）。
@@ -330,7 +330,7 @@ Item {
         if (tools.activeDraftId.length === 0 || !promptEditor)
             return
         tools.addSnapshot(tools.activeDraftId, promptEditor.text, "manual")
-        historyModel.rebuild()
+        snapshotList.rebuild()
         workbench.notify("success", qsTr("Version saved"),
                          qsTr("It is in the draft's history list."))
     }
@@ -352,7 +352,7 @@ Item {
             draftSyncTimer.restart()
         }
         rollbackConfirm.close()
-        historyModel.rebuild()
+        snapshotList.rebuild()
     }
 
     // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
@@ -1356,7 +1356,7 @@ Item {
                             Layout.rightMargin: theme.spacingXs
                             placeholderText: qsTr("Search templates")
 
-                            onTextChanged: templateModel.rebuild()
+                            onTextChanged: templateList.rebuild()
                         }
 
                         // 列表上限 30：检索后一般够用；全部模板走目录管理。
@@ -1373,38 +1373,28 @@ Item {
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             spacing: 2
-                            model: ObjectModel {
-                                id: templateModel
 
-                                // 检索结果 → 行对象（上限 30）。createObject
-                                // 的 QObject 父必须给 null：给模型对象（非
-                                // Item）时对象不在场景里，启动即刷一串
-                                // 「not placed in the graphics scene」。
-                                function rebuild() {
-                                    while (count > 0)
-                                        remove(0)
-                                    const filtered = tools.filteredTemplates(
-                                                templateSearch.text, "")
-                                    const cap = Math.min(filtered.length, 30)
-                                    for (let i = 0; i < cap; ++i) {
-                                        append(templateRowComponent.createObject(
-                                                   null, {
-                                                       "entry": filtered[i]
-                                                   }))
-                                    }
-                                }
+                            // 行数据用 JS 数组模型：ObjectModel 是
+                            // Qt 6.5+ 才有的类型，Qt 5 车道「不是类型」
+                            // 直接把整页打挂（三处列表同坑）。数组整体
+                            // 重新赋值即模型重置，行随 delegate 重建。
+                            property var rows: []
+                            function rebuild() {
+                                const filtered = tools.filteredTemplates(
+                                            templateSearch.text, "")
+                                rows = filtered.length > 30
+                                        ? filtered.slice(0, 30) : filtered
                             }
 
-                            // 行模板声明在列表的资源子项里（不是 ObjectModel
-                            // 的子项）：Component 放进 ObjectModel 会被当成
-                            // 一行数据，ListView 报「Delegate must be of Item
-                            // type」且多出一个空行。
+                            model: rows
+                            delegate: templateRowComponent
+
                             Component {
                                 id: templateRowComponent
 
                                 AListRow {
                                     id: templateRow
-                                    required property var entry
+                                    required property var modelData
 
                                     // 页面作用域显式传入：delegate/模板行
                                     // 里的信号处理器直接解析文档根 id
@@ -1413,10 +1403,9 @@ Item {
                                     // 两条路都成立（见 fileTab 的说明）。
                                     property var scope: workbenchWindow
 
-                                    // ObjectModel 的行是视图直接摆放的
-                                    // 对象：宽度必须显式跟列表（AListRow
-                                    // 只有 height 没有 implicitWidth，
-                                    // 不设就是 0 宽——点击永远落空）。
+                                    // AListRow 只有 height 没有
+                                    // implicitWidth，不显式跟列表就是 0 宽
+                                    // ——点击永远落空。
                                     width: templateList.width
                                     rowHeight: 40
 
@@ -1426,7 +1415,7 @@ Item {
                                     // 子项配 anchors 是未定义行为。
                                     Label {
                                         Layout.fillWidth: true
-                                        text: templateRow.entry.title
+                                        text: templateRow.modelData.title
                                         color: theme.textPrimary
                                         font.pixelSize: theme.fontSizeCaption
                                         elide: Text.ElideMiddle
@@ -1435,14 +1424,14 @@ Item {
                                     // 内置徽标：subtle 的 APill，与
                                     // 文件 tab 的来源徽标同一形态。
                                     APill {
-                                        visible: templateRow.entry.builtin
+                                        visible: templateRow.modelData.builtin
                                         text: qsTr("built-in")
                                     }
 
                                     TapHandler {
                                         onSingleTapped:
                                             scope.insertTemplate(
-                                                templateRow.entry.id)
+                                                templateRow.modelData.id)
                                     }
                                 }
                             }
@@ -1450,18 +1439,17 @@ Item {
                             Connections {
                                 target: tools
                                 function onTemplatesChanged() {
-                                    templateModel.rebuild()
+                                    templateList.rebuild()
                                 }
                             }
 
-                            Component.onCompleted: templateModel.rebuild()
+                            Component.onCompleted: templateList.rebuild()
 
                             // 刻意不在 onVisibleChanged 里 rebuild：列表的
                             // visible 变化发生在段展开的可见性传播中途，
-                            // 此时对 ObjectModel 做 remove/append 会撞进
-                            // 条件视图的内部更新窗口。数据变化本来就有
-                            // Connections 兜着（不可见也重建），这里没有要补
-                            // 的洞。
+                            // 此时重置模型会撞进条件视图的内部更新窗口。
+                            // 数据变化本来就有 Connections 兜着（不可见
+                            // 也重建），这里没有要补的洞。
                         }
                         }   // 内容容器收尾
                     }
@@ -1526,32 +1514,22 @@ Item {
                             boundsBehavior: Flickable.StopAtBounds
                             spacing: 2
 
-                            model: ObjectModel {
-                                id: favoriteModel
-
-                                // 同模板列表：createObject 的 QObject 父给
-                                // null，行对象由 append 收进模型。
-                                function rebuild() {
-                                    while (count > 0)
-                                        remove(0)
-                                    const favorites = tools.favorites
-                                    for (let i = 0; i < favorites.length; ++i) {
-                                        append(favoriteRow.createObject(
-                                                   null, {
-                                                       "entry": favorites[i]
-                                                   }))
-                                    }
-                                }
+                            // 同模板列表：JS 数组模型（ObjectModel 是
+                            // Qt 6.5+ 类型，见 templateList 的说明）。
+                            property var rows: []
+                            function rebuild() {
+                                rows = tools.favorites
                             }
 
-                            // 同模板列表：行模板声明在列表的资源子项里，
-                            // 不进 ObjectModel（理由见 templateRowComponent）。
+                            model: rows
+                            delegate: favoriteRow
+
                             Component {
                                 id: favoriteRow
 
                                 AListRow {
                                     id: favRow
-                                    required property var entry
+                                    required property var modelData
 
                                     // 同模板行：作用域显式传入（见
                                     // templateRowComponent 的说明）。
@@ -1564,7 +1542,7 @@ Item {
                                     // 行内容直接注入（同模板行）。
                                     Label {
                                         Layout.fillWidth: true
-                                        text: favRow.entry.title
+                                        text: favRow.modelData.title
                                         color: theme.textPrimary
                                         font.pixelSize: theme.fontSizeCaption
                                         elide: Text.ElideMiddle
@@ -1575,21 +1553,21 @@ Item {
                                         iconSource: "qrc:/icons/copy.svg"
                                         tooltip: qsTr("Copy this favorite")
                                         onClicked:
-                                            workbench.copyText(favRow.entry.body)
+                                            workbench.copyText(favRow.modelData.body)
                                     }
                                     AIconButton {
                                         iconSource: "qrc:/icons/close.svg"
                                         tooltip: qsTr("Remove this favorite")
                                         onClicked:
                                             tools.removeFavorite(
-                                                favRow.entry.title,
-                                                favRow.entry.body)
+                                                favRow.modelData.title,
+                                                favRow.modelData.body)
                                     }
 
                                     TapHandler {
                                         onSingleTapped:
                                             scope.insertTextAtCursor(
-                                                favRow.entry.body)
+                                                favRow.modelData.body)
                                     }
                                 }
                             }
@@ -1597,15 +1575,16 @@ Item {
                             Connections {
                                 target: tools
                                 function onFavoritesChanged() {
-                                    favoriteModel.rebuild()
+                                    favoriteList.rebuild()
                                 }
                             }
 
-                            Component.onCompleted: favoriteModel.rebuild()
+                            Component.onCompleted: favoriteList.rebuild()
 
                             // 同模板列表：不在 onVisibleChanged 里 rebuild
-                            //（可见性传播中途动 ObjectModel 即崩，理由见
-                            // templateList 的说明）；数据变化由 Connections 兜底。
+                            //（可见性传播中途重置模型会撞进条件视图的
+                            // 内部更新窗口，理由见 templateList 的说明）；
+                            // 数据变化由 Connections 兜底。
                         }
                         }   // 内容容器收尾
                     }
@@ -2692,26 +2671,17 @@ Item {
                             boundsBehavior: Flickable.StopAtBounds
                             spacing: 2
 
-                            model: ObjectModel {
-                                id: historyModel
-
-                                // 按当前草稿重建快照清单（新在前）。同上两处
-                                // 列表：createObject 的 QObject 父给 null。
-                                function rebuild() {
-                                    while (count > 0)
-                                        remove(0)
-                                    const id = tools.activeDraftId
-                                    if (id.length === 0)
-                                        return
-                                    const entries = tools.snapshots(id)
-                                    for (let i = 0; i < entries.length; ++i) {
-                                        append(snapshotRow.createObject(
-                                                   null, {
-                                                       "entry": entries[i]
-                                                   }))
-                                    }
-                                }
+                            // 同上两处列表：JS 数组模型（ObjectModel 是
+                            // Qt 6.5+ 类型，见 templateList 的说明）。
+                            property var rows: []
+                            function rebuild() {
+                                // 按当前草稿重建快照清单（新在前）。
+                                const id = tools.activeDraftId
+                                rows = id.length === 0 ? [] : tools.snapshots(id)
                             }
+
+                            model: rows
+                            delegate: snapshotRow
 
                             // 同上两处列表：行模板在列表的资源子项里。
                             Component {
@@ -2719,7 +2689,7 @@ Item {
 
                                 AListRow {
                                     id: histRow
-                                    required property var entry
+                                    required property var modelData
 
                                     // 同模板行：作用域显式传入。
                                     property var scope: workbenchWindow
@@ -2733,14 +2703,14 @@ Item {
                                         // 时间（HH:mm）+ 原因。
                                         text: {
                                             const when = new Date(
-                                                histRow.entry.createdAt)
+                                                histRow.modelData.createdAt)
                                             const hh = ("0" + when.getHours()).slice(-2)
                                             const mm = ("0" + when.getMinutes()).slice(-2)
                                             return hh + ":" + mm
                                                    + "  ·  "
-                                                   + histRow.entry.reason
+                                                   + histRow.modelData.reason
                                                    + "  ·  "
-                                                   + histRow.entry.charCount
+                                                   + histRow.modelData.charCount
                                         }
                                         color: theme.textSecondary
                                         font.pixelSize: theme.fontSizeCaption
@@ -2750,7 +2720,7 @@ Item {
                                     TapHandler {
                                         onSingleTapped:
                                             scope.rollbackDraftVersion(
-                                                histRow.entry.createdAt)
+                                                histRow.modelData.createdAt)
                                     }
                                 }
                             }
@@ -2895,7 +2865,7 @@ Item {
                 draftSyncTimer.stop()
             }
             workbenchWindow.activateActiveDraftSession()
-            historyModel.rebuild()
+            snapshotList.rebuild()
             workbenchWindow.draftCheckResults = null
         }
 
@@ -2907,7 +2877,7 @@ Item {
                 markdown.setDraftTitle(tools.activeDraftId,
                                        workbenchWindow.draftTitleById(
                                            tools.activeDraftId))
-            historyModel.rebuild()
+            snapshotList.rebuild()
         }
     }
 

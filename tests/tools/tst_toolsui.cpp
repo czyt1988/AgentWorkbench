@@ -12,8 +12,10 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 
+#include "core/OpResult.h"
 #include "core/Settings.h"
 #include "markdown/MarkdownPreviewController.h"
+#include "markdown/MarkdownRuntime.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
 #include "tools/FileTreeModel.h"
@@ -157,6 +159,10 @@ private Q_SLOTS:
         // qrc:/qt/qml 下）。
         m_engine->addImportPath(QStringLiteral("qrc:/qt/qml"));
 #endif
+        // main.cpp 同款 gadget 注册：页面的动作层调 tools.createDraft 等
+        // 返回 OpResult 的 Q_INVOKABLE——metatype 没注册时 QML 报
+        // 「Unknown method return type」、整个动作静默失效。
+        qRegisterMetaType<awb::core::OpResult>();
         // main.cpp 同款单例注册：窗口经 import AgentWorkbench.App 引用的名字。
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
                                      m_theme.get());
@@ -1073,6 +1079,12 @@ private Q_SLOTS:
     /// 命令没人泵，只是不显示）。
     void testNewDraftFromDocument()
     {
+        // openFile 要预览能力撑着（available = surfaceReady 且本构建带
+        // WebEngine 的 Qt 6）——纯层上没有它时文档预设链路整个不可达，
+        // 这条用例属于 Qt 6 车道（tst_markdown 里 openFile 系列同款 SKIP）。
+        if (!awb::markdown::MarkdownRuntime::isSupportedBuild()) {
+            QSKIP("Markdown preview is compiled out in this build");
+        }
         QString error;
         QQuickWindow *window = nullptr;
         ToolsFacade *tools = nullptr;

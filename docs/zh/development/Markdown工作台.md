@@ -33,7 +33,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 ### SARibbon 怎么引入
 
-- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `d3d45d8`**（上游 dev-3.0 顶端，2026-10-07）——它带着本集成需要的 ribbon 修复：面板子项顺序错乱、面板内分隔线从不渲染、注册 category 的 hit-test 可见性。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
+- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `423b8e8`**（上游 dev-3.0 顶端，2026-10-08）——已越过 3.0 的 QAction 命令层重构：`RibbonMenuItem` 退役，ribbon 菜单改以 `menuActions`（`RibbonAction` 声明的 QAction 列表）编写；这个 pin 同时带着本集成需要的修复（面板子项顺序、面板内分隔线、注册 category 的 hit-test 可见性）。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
 - `AWB_ENABLE_RIBBON`（默认 `ON`，声明在 `cmake/AwbOptions.cmake`）负责接线：`SARIBBON_BUILD_QML=ON`、`SARIBBON_BUILD_WIDGETS` / `SARIBBON_BUILD_EXAMPLES` / `SARIBBON_BUILD_TESTS` / `SARIBBON_INSTALL` = `OFF`、静态库。只编 QML 模块——SARibbon 的 QWidget 部分永远进不了二进制。
 - qmsetup（QWindowKit 的构建系统）会在构建树里生成转发头，其 `../../` 链以构建目录为锚点。在深层影子构建目录——Qt Creator 默认的 `<父目录>/build/Desktop_<kit>-<配置>`——里，`cl.exe` 要打开的路径超过 `MAX_PATH`（260），而它不支持长路径，于是 QWK 的每个编译单元都报一条指向「实际存在文件」的误导性 `C1083`。因此根 `CMakeLists.txt` 在 `add_subdirectory(third_party/SARibbon)` 之后把这些单行相对 include 改写为绝对路径（`cmake/AwbThirdParty.cmake` 的 `awb_absolutize_forwarding_headers`）；树内 `build/` 目录本就不受影响，但改写对两种目录同样执行。
 - `app/main.cpp` 在 `engine.load()` **之前**调 `saRibbonRegisterQmlTypes(&engine)`。注册是命令式的（没有 qmldir 插件）；函数自带重复调用守卫。
@@ -58,7 +58,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 - ribbon 是独立组件，由页面经 `Loader` **按资源 URL** 装载——与预览面同一个模式。`WorkbenchRibbon.qml` 只在 `AWB_ENABLE_RIBBON` 的构建里登记进资源清单；装载失败（开关关着，或没注册过 SARibbon 类型的测试引擎）时页面改载 `WorkbenchToolbar.qml`。装载发生在页面创建那一刻、绝不按需反复切换：SARibbon 的叶子在 `Component.onCompleted` 期间创建，按需创建的 bar 会因上下文早死而亡。
 - 两张皮都是对同一页面动作层的纯转发——谁都不许长自己的行为，否则两种构建各自漂移。按钮集与右键菜单、两个 ribbon 标签页对齐。
 - 不在 `RibbonPanel` 里声明 `Popup`/`Dialog`/`Menu`——bar 的 `componentComplete` 期间创建的弹窗会变成独立原生窗口、毁掉窗口场景。凡是弹窗形状的都经 `Loader` 创建。
-- Ribbon 菜单只收 `RibbonMenuItem`；`AMenu` 家族留给工作台内的上下文菜单。一个动作只有一处出口——同一个动作不许同时出现在命令带标签页和侧面板里，否则文案与启用态必然漂移。
+- Ribbon 菜单以 `menuActions` 编写——`RibbonAction` 声明的 QAction 列表（SARibbon 3.0 退役了 2.x 的 `RibbonMenuItem` 类型）；`AMenu` 家族留给工作台内的上下文菜单。一个动作只有一处出口——同一个动作不许同时出现在命令带标签页和侧面板里，否则文案与启用态必然漂移。
 - SARibbon 自带的字符串不进本仓 `.ts`，中文环境下是英文。工作台除这条 bar 本体外不引入任何 ribbon 自带界面。
 
 ## 会话：一个容器，一个渲染面
@@ -220,7 +220,7 @@ description: My own shape for bug reports.
 - **变量表单**（`variableForm`，一个 `ADialog`）只在所选模板有待填变量时出现：每个变量一行（名字 + 预填默认值的 `ATextField`），`Enter` 确认，`Esc` 取消，**留空 = 跳过**——副行文案就是这么说的，占位符留在正文里。Tab 在字段间跳；整个流程键盘优先。
 - **Save as Template**（ribbon 与工具栏都有）弹一个小对话框：标题（预填草稿首行、去掉 markdown 记号）、分类（默认 "My templates"）与描述；`saveAsTemplate()` 从标题派生文件名 slug，**撞名自动加序号**——绝不静默覆盖既有文件。覆盖内置是用户在模板目录里手改一个同 id 文件的事，一个显式动作。
 - **Ribbon 的第一个上下文标签页。****Prompt tools** 是一个 `RibbonContextCategory`，`active` 跟随 `preset === "prompt"`——决策 D-2 的首次落地：文档形态下这个 tab 整个消失。它的面板装 **Insert Template** 与 **Save as Template**（第二个面板是 **Save Favorite**）；降级工具栏带同样的三个按钮，仅草稿激活且有内容时可用。
-- **左栏就是选择器。**Insert Template 不打开第二份列表——它展开模板段并聚焦检索框。SARibbon 的 `RibbonGallery.groups` 与 `menuItems` 是静态 `QQmlListProperty`，绑不了模型；在 ribbon 里另造一份列表等于对着「选中了什么」撒谎。模板段既是浏览器也是选择器。
+- **左栏就是选择器。**Insert Template 不打开第二份列表——它展开模板段并聚焦检索框。SARibbon 的 `RibbonGallery.groups` 与 `menuActions` 是静态 `QQmlListProperty`，绑不了模型；在 ribbon 里另造一份列表等于对着「选中了什么」撒谎。模板段既是浏览器也是选择器。
 
 ### `tools.json` 新增 `favorites`
 
@@ -349,7 +349,7 @@ UI 是一条从编辑区顶部滑入的横条，不是对话框：查找框、�
 └───────────────┴──────────────────────────┴────────┴───────────┘
 ```
 
-- 左侧面板是**三个可折叠段**，各自带 `ASectionHeader`：工作区/文件树（迁过来的提示词页树面板：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）、**模板库**（检索框 + 上限列表，提示词形态默认展开）、**收藏夹**（默认收起）。面板与编辑器在相接处都不带圆角——直角齐平。两个列表的行是 `AListRow`，由 `ObjectModel` 从门面重建驱动——这意味着行的 `width` 必须显式跟列表（见坑与约定）。
+- 左侧面板是**三个可折叠段**，各自带 `ASectionHeader`：工作区/文件树（迁过来的提示词页树面板：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）、**模板库**（检索框 + 上限列表，提示词形态默认展开）、**收藏夹**（默认收起）。面板与编辑器在相接处都不带圆角——直角齐平。两个列表的行是 `AListRow`，由 JS 数组模型从门面重建驱动——这意味着行的 `width` 必须显式跟列表（见坑与约定）。
 - 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题，所以它不再是文档模式专属。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。右侧面板（仅提示词预设）是**体检段**：Check 按钮、带严重度色点的命中清单、点击跳区间，以及逐条命中的「不再提醒此类」×。体检是提示词质量工具，文档形态下这段不占位。
 - 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件会话一个 tab，带标题、脏圆点与关闭按钮；条上还有视图切换器、大纲与搜索按钮、字号与栏宽选择、**More actions** 菜单。切换器两种预设都服务——草稿与文件走同一条渲染管线。
 - 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
@@ -622,7 +622,8 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 - **多类套件与 `-o`。** `awbRunRegisteredTests()` 现在把 `-o <文件>` 透传给每个类的 `qExec`；这个参数曾被当成用例过滤器吞掉，套件静默跳过全部类还报成功。调试多类套件时按名字跑单个用例，并确认它真的跑了。
 - **Dialog 直接声明，不经 Loader。** `variableForm` 与 `saveTemplateDialog` 是窗口的普通 `ADialog` 子项，不是 `Loader` 创建的：从 `Loader` 的 `sourceComponent` 实例化的 Popup 会在弹层重定父子期间踩进已释放内存（实测崩溃，`feeefeee` 模式——三种规避形状都试过）。没 `open()` 的弹窗零开销，惰性在这里买不到任何东西。
 - **QML JavaScript 没有 `.trimmed()`。** 有 `String.prototype.trim()`；没有 `.trimmed()`。存模板对话框的标题预填在剥掉 markdown 记号后手工 trim。
-- **`ObjectModel` 的行必须显式给宽度。** 视图直接摆放这些对象；`AListRow` 没有 `implicitWidth`，不绑宽度就是 0 宽、点击落空。行上绑 `width: theList.width`。
+- **`AListRow` 行必须显式给宽度。** `AListRow` 没有 `implicitWidth`，不绑宽度就是 0 宽、点击落空——旧的 `ObjectModel` 手工行如此，delegate 行同样如此。行上绑 `width: theList.width`。
+- **不用 `ObjectModel`：上限列表是 JS 数组模型。** `ObjectModel` 是 Qt 6.5+ 的类型——Qt 5 车道解析不到它、整页打挂（`ObjectModel is not a type`，页面永远装载失败，2026-10）。每个上限列表持一个 `rows` 数组属性，`rebuild()` 整体重新赋值；数组就是模型，行是读 `modelData` 的 delegate。整体赋值即模型重置，与旧的 remove/append 循环同为全量重建。
 - **测试资源同目录不许重名。** `qt_add_resources` 给同一目录里的所有目标写一份共享的 `.qt/rcc/<名字>.qrc`——`tst_tools` 与 `tst_toolsui` 都叫 `test_resources` 时，图标清单静默胜出、模板资源永远进不了二进制。给资源名加目标前缀。
 - **纯层的字符串要 `QT_TRANSLATE_NOOP`。** `PromptChecks` 从自由函数返回英文建议——没有 QObject，没有 `tr()` 上下文。字符串声明为 `QT_TRANSLATE_NOOP("PromptChecks", "…")`，lupdate 才能抽到、界面层才能在显示时用同一上下文翻译。没有这个模式，纯层的用户可见文案会永远静默不可翻译。
 

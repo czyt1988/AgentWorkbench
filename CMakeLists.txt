@@ -80,11 +80,13 @@ add_subdirectory(third_party/SingleApplication EXCLUDE_FROM_ALL)
 # Third-party: SARibbon, the ribbon UI of the Markdown workbench page. It is
 # a git submodule (same convention as spdlog; offline init via
 # scripts/worktree-add.sh, which clones from a populated checkout). Pinned to
-# the upstream dev-3.0 tip d3d45d8 (2026-10-07) — it carries the ribbon fixes
-# this integration needs: panel child order scrambling, in-panel separators
-# never rendering, hit-test visibility of registered categories. From c7f9bfd
-# the QML module hard-requires QWindowKit; SARibbon's CMake builds it in-tree
-# from its own nested submodule (3rdparty/qwindowkit — init it offline from
+# the upstream dev-3.0 tip 423b8e8 (2026-10-08) — past the 3.0 QAction command
+# layer refactor (plans 05/06): RibbonMenuItem is retired, menus are authored
+# as menuActions (QAction lists, WorkbenchRibbon.qml migrated accordingly);
+# it also keeps the fixes the integration needs (panel child order, in-panel
+# separators, hit-test visibility). From c7f9bfd the QML module hard-requires
+# QWindowKit; SARibbon's CMake builds it in-tree from its own nested
+# submodule (3rdparty/qwindowkit — init it offline from
 # C:/src/Qt/SARibbon/3rdparty/qwindowkit, see below). Linking QWK does NOT
 # make the frameless window mandatory: the page keeps the native window frame
 # (no RibbonWindowAgent is declared anywhere).
