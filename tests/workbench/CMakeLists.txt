@@ -47,6 +47,15 @@ if (AWB_ENABLE_RIBBON)
 
     target_include_directories(tst_ribbonui PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    # seedThemes() 要在 ThemeRegistry 构造前从源码树把内置主题 JSON 拷进测试
+    # 数据目录，靠的是 QT_TESTCASE_SOURCEDIR。Qt 6 的测试体系自带这个定义，
+    # Qt 5 的 Qt5::Test 只给 QT_TESTCASE_BUILDDIR（见 Qt5TestConfigExtras.cmake），
+    # 缺了它在 Qt 5 上整个文件编不过，这里按同名语义补上。
+    if (QT_VERSION_MAJOR EQUAL 5)
+        target_compile_definitions(tst_ribbonui PRIVATE
+            QT_TESTCASE_SOURCEDIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+
     target_link_libraries(tst_ribbonui PRIVATE
         SARibbon::Qml
         awb_tools
