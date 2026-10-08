@@ -258,7 +258,9 @@ void TestMarkdownDocument::testInvalidUtf8BecomesReadOnly()
  */
 void TestMarkdownDocument::testNulBytesBecomesReadOnly()
 {
-    const QString path = filePath(QStringLiteral("nul.md"));
+    // 文件名不能叫 nul.md：Win32 的设备名解析把去掉扩展名后等于保留名
+    // 的尾段当设备（写进 NUL 设备、读不回内容），名字与内容无关。
+    const QString path = filePath(QStringLiteral("nul-bytes.md"));
     writeFile(path, QByteArray("text\0more\n", 9));
 
     MarkdownDocument doc;
