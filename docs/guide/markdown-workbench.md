@@ -16,10 +16,10 @@ Find it in the sidebar under the **Agent Tools** label, as the row **Prompt Writ
 
 The workbench shows one of two shapes, depending on what is active:
 
-- **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle. The left side also carries the **Templates** and **Favorites** sections under the file tree.
+- **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle.
 - **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; a floating outline panel appears over the right edge of the rendered page when you turn the outline on.
 
-Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style row, last tab, theme following) between sessions. Nothing is locked: the **Full Tools** switch on the ribbon's **View** tab flips between the two shapes, and you can fold or unfold anything at any time.
+Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style, last tab, theme following) between sessions. Nothing is locked: clicking a draft tab or a document tab flips between the two shapes, and you can fold or unfold anything at any time. The templates and favorites you used to find in the left panel live on the ribbon's **Prompt** tab now, and the checks and history that used to fill the right side open as small floating windows.
 
 The workbench stays alive while you switch to other pages and back — your text, the undo history, the scroll position and the split proportion are exactly as you left them. It is created on its first visit and lives until the app closes.
 
@@ -36,9 +36,9 @@ The strip above the middle area holds one tab per open document **and one per dr
 
 The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
-- **Start** — the everyday actions: **Copy Prompt** (this is how a prompt leaves the workbench — a second **Copy** sits in the small bar on the title row), the clipboard actions **Paste**, **Cut** and **Copy Text**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Strike**, **Code**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** and **Table** (see [Formatting tools](#formatting-tools)), and the draft actions **New Draft**, **From Document**, **Rename**, **Duplicate** and **Save version** (see [Drafts: several at once](#drafts-several-at-once)). This tab also has the **View** group with the **Preview / Split / Source** switch, the **Font Size** and **Width** menus (see [Reading a document](#reading-a-document)), **Find** (see [Finding and replacing](#finding-and-replacing)), **Save** (while a document tab is active) and **Clear** (while the prompt is showing).
-- **Prompt tools** — appears only while you are on the prompt (it disappears when you switch to a document): **Insert Template** opens the template library, **Save as Template** and **Save Favorite** store what you wrote, **Check Prompt** reviews the draft (see [Prompt checks](#prompt-checks)). See the next two sections.
-- **View** — what you see and how: the **Preview / Split / Source** switch and the outline toggle, **Full Tools** (flip between the two shapes), **Collapse** (fold the whole band away), **Style** (one, two or three button rows), and **Follow Theme** (whether the band's colours track the app's theme).
+- **Start** — the everyday actions: the clipboard actions **Paste**, **Cut**, **Undo** and **Redo**, the formatting buttons **Bold**, **Italic**, **Underline**, **Strikethrough**, **Link**, **Heading**, **Bullets**, **Numbered**, **Task List**, **Quote** and **Divider** (see [Formatting tools](#formatting-tools)), the insert buttons **Inline Code**, **Code Block** and **Table**, and **Copy Prompt** — this is how a prompt leaves the workbench. The find field also lives here (see [Finding](#finding)).
+- **Prompt** — the library and the review tools: the **templates** and **favorites** galleries (click an entry to insert it), **Save as Template** and **Save Favorite** to store what you wrote, **Check Prompt** to review the draft, and **History** to browse its versions (see [Prompt checks](#prompt-checks) and [Version history](#version-history)). The floating windows it opens never block your writing — leave them open as long as you like.
+- **View** — what you see and how: the **Preview / Split / Source** switch, the **Font Size** and **Width** pickers, the outline toggle, **Collapse** (fold the whole band away), **Style** (compact or loose), and **Follow Theme** (whether the band's colours track the app's theme).
 
 - **Folding.** The ribbon can be folded down to its row of tab names to give the document more room — click the row to unfold it again. The compact shape starts folded.
 - **Colours.** The ribbon follows the application's appearance theme automatically; **Follow Theme** can turn that off, and the band then keeps its own colours.
@@ -59,67 +59,59 @@ The draft has a rendered view too, like any document — use the **Preview / Spl
 
 ## Drafts: several at once
 
-You are not limited to one prompt-in-progress. **New Draft** (the **Start** tab of the ribbon, or the toolbar's plus button) starts a fresh draft in a new tab; the previous one stays in its own tab, text and all. Switch drafts by clicking their tabs — each draft keeps its own undo history, so undo never reaches into a draft you were writing before.
+You are not limited to one prompt-in-progress. The **+ button at the right end of the tab strip** starts a fresh draft in a new tab; the previous one stays in its own tab, text and all. Switch drafts by clicking their tabs — each draft keeps its own undo history, so undo never reaches into a draft you were writing before.
 
-- **Rename** a draft from the **Start** tab; the title shows in the tab.
-- **Duplicate** copies the current draft and switches to the copy — a "keep this version" move.
-- **Delete** asks first and cannot be undone: the draft's text, its saved versions and its crash-recovery copy all go together.
+- **Rename** a draft from its tab's right-click menu; the title shows in the tab.
+- **Delete** (also in the right-click menu) asks first and cannot be undone: the draft's text, its saved versions and its crash-recovery copy all go together.
 - **Closing a draft's tab is not deleting it**: the draft lives in the app's own storage and comes back when you open it again.
 
-**From a document:** **From Document** (the **Start** tab, enabled while a document tab is open) takes the document's text as a new draft and switches you to the prompt form. It is one-way — the draft is yours to edit, and saving it never writes back into the original file.
+## Version history
 
-## Versions and recovery
-
-While you write, the app quietly keeps versions of each draft — when you copy it, clear it, replace it, or switch to another draft. **Save version** (the **Start** tab) marks one by hand.
-
-The **History** section of the right panel lists the current draft's versions, newest first, with the reason each was taken. **Click a version to roll back to it.** A confirmation dialog explains that your current text is saved as a version first, so rolling back never loses anything.
+While you write, the app quietly keeps versions of each draft — when you copy it or switch to another draft. The **History** button on the ribbon's **Prompt** tab opens a small floating window that lists the current draft's versions, newest first, with the reason each was taken; **Save version** in the same window marks one by hand. **Click a version to roll back to it.** A confirmation dialog explains that your current text is saved as a version first, so rolling back never loses anything. The window never blocks your writing — leave it open or close it at any time.
 
 If the app closes unexpectedly, the next start asks once whether to **Restore** the draft text from that session (it becomes a new draft) or **Discard** it.
 
 ## Templates: starting from a skeleton
 
-The **Templates** section in the left panel (under the file tree) is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same list.
+The **templates gallery** on the ribbon's **Prompt** tab is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same shelf, grouped by their category (the chevrons at the gallery's top page between groups, and the strip scrolls sideways — the mouse wheel works).
 
-- **Search** narrows the list as you type — the search matches titles, descriptions, tags and the template text itself.
 - **Click a template** to insert it into your draft at the cursor. Inserting never replaces what you wrote: the skeleton is added at the cursor position, and if text was selected, it becomes the value of the template's `{{selection}}` placeholder.
 - **Placeholders.** A template's text contains fields like `{{symptom}}` or `{{symptom:What visibly goes wrong}}`. If the template has any, a small form opens: one field per placeholder, pre-filled with the default when there is one. `Tab` moves between the fields, `Enter` inserts, `Esc` cancels. **A field you leave empty is a skip** — the placeholder stays in your text as `{{symptom}}`, so you can find it later instead of the prompt quietly shipping half-filled. The same placeholder appearing twice is filled once, everywhere.
 - Two placeholders are filled for you and never asked: the current **workspace** path and today's **date**.
 
-**Saving your own template:** with the prompt written the way you like it, use **Save as Template** (the **Prompt tools** tab of the ribbon, or the toolbar). You get a small form — the title (pre-filled from the first line of your draft), a category, a one-line description — and the template lands in your library immediately. Templates you save are ordinary files in the app's data folder, one file per template: you can edit them with any text editor, back them up, or drop them in a colleague's folder. A shipped template can be overridden by giving your file the same name.
+**Saving your own template:** with the prompt written the way you like it, use **Save as Template** (the **Prompt** tab of the ribbon, or the toolbar). You get a small form — the title (pre-filled from the first line of your draft), a category, a one-line description — and the template lands in your library immediately. Templates you save are ordinary files in the app's data folder, one file per template: you can edit them with any text editor, back them up, or drop them in a colleague's folder. A shipped template can be overridden by giving your file the same name.
 
 ## Favorites: finished prompts
 
-Templates are skeletons with holes to fill; **favorites** are complete prompts you want to use again exactly as they are. The **Favorites** section sits under the Templates section (collapsed by default — click it open).
+Templates are skeletons with holes to fill; **favorites** are complete prompts you want to use again exactly as they are. The **favorites gallery** sits beside the templates gallery on the **Prompt** tab.
 
-- **Save a favorite** with **Save Favorite** (the **Prompt tools** tab, or the toolbar): the whole draft becomes a favorite, its title taken from the first line. A toast confirms it.
+- **Save a favorite** with **Save Favorite** (the **Prompt** tab, or the toolbar): the whole draft becomes a favorite, its title taken from the first line. A toast confirms it.
 - **Click a favorite** to insert its full text into the draft at the cursor.
-- Hovering a favorite row reveals **copy** (straight to the clipboard, nothing inserted) and **remove**.
 - Favorites live in the app's own settings storage, up to fifty; saving the same text again just refreshes it rather than taking a second slot.
 
-**Which one is which?** If you find yourself deleting the placeholders every time, it is a favorite pretending to be a template. If you fill in the blanks every time, it is a template. The two sections keep them apart so the click does the right thing without asking.
+**Which one is which?** If you find yourself deleting the placeholders every time, it is a favorite pretending to be a template. If you fill in the blanks every time, it is a template. The two galleries keep them apart so the click does the right thing without asking.
 
 ## Formatting tools
 
-The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Strike** and **Code** (these four light up to show what is already true at the cursor — click to toggle), **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Fence** (a code block, with a menu of common languages) and **Table**.
+The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Underline**, **Strikethrough** and **Inline Code** (these five light up to show what is already true at the cursor — click to toggle), **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Code Block** (with a menu of common languages) and **Table**.
 
 - Everything is **one undo step**: press `Ctrl+Z` right after any of them and the whole change reverts.
 - Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`.
 - In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
 
-The only keyboard shortcuts the workbench adds are `Ctrl+F` (find — see the next section) and `Esc` (close the find bar). Everything else is a button.
+The only keyboard shortcut the workbench adds is `Ctrl+F` (find — see the next section). Everything else is a button.
 
-## Finding and replacing
+## Finding
 
-**In the prompt**, press `Ctrl+F` or click **Find** on the **Start** tab: a find bar slides in above the editor. Type what you are looking for; **Next** jumps to a match and selects it (a toast tells you when the search has wrapped back to the start), **Replace** swaps the current match and moves to the next one, **All** asks once and then swaps every match, telling you how many it replaced.
+A find field sits at the end of the **Start** tab, and `Ctrl+F` jumps to it from anywhere. Type what you are looking for and press `Enter`: the first match is found and selected. Press `Enter` again to jump to the next match (a toast tells you when the search has wrapped back to the start).
 
-- **Aa** makes the search case-sensitive; **Whole** matches whole words only. The two settings stick between sessions.
-- One undo step reverts an entire **All** sweep.
-- `Esc` closes the bar.
-- **In a document tab**, `Ctrl+F` finds in the rendered page instead (see [Finding text in the document](#finding-text-in-the-document)). The two are different searches for different things: the prompt one searches your draft text, the document one searches the rendered page.
+- In a document tab the same field searches the rendered page; in the prompt it searches your draft text — you never have to think about which one, the field routes itself (see [Finding text in the document](#finding-text-in-the-document)).
+- The **×** in the field clears it and hands focus back to the editor; `Esc` does the same while the caret is in the field.
+- The search is case-insensitive (and whole-word off) by default; the case setting you may have set in an older version still applies.
 
 ## Prompt checks
 
-The **Checks** section of the right panel (while the prompt is showing) reviews the draft and returns a list of suggestions — never a score. Click **Check** (or **Check Prompt** on the **Prompt tools** tab) to run it.
+The **Check Prompt** button on the **Prompt** tab opens a small floating window that reviews the draft and returns a list of suggestions — never a score. Opening the window runs the check automatically.
 
 - Every finding is one line with a coloured dot: grey for a hint, yellow for a caution, red for a warning.
 - **Click a finding** and the editor jumps to the place it is about, selecting the relevant text (findings about the whole prompt, like a missing acceptance line, have nowhere to jump).
@@ -157,7 +149,7 @@ The strip above the middle answers one question — *which document am I on*: th
 
 ## Finding text in the document
 
-Press `Ctrl+F`, or click the search button on the strip. Type your text and use **Next** and **Previous** to step through matches; the label tells you which match you are on (**3 of 17**). Turn on **Match case** (Aa) for a case-sensitive search. `Esc` closes the search bar.
+Press `Ctrl+F` — the find field on the **Start** tab takes the caret. Type your text and press `Enter` to jump through the matches on the rendered page.
 
 Two things it will not do, both because of how the workbench renders long files quickly:
 
@@ -231,7 +223,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 - A good bug report is mostly structure — start from the bug-report template and fill the fields; save your own shape as a template once you have tuned it.
 - Prompts you keep re-typing belong in **Favorites**; prompts whose shape you keep re-typing belong in **Templates**.
 - Long prompt? Run **Check Prompt** before copying — the findings usually name the one thing missing.
-- The find bar's **Aa** and **Whole** settings stick: set them once for your case habits and forget them.
+- The find field remembers nothing between searches — type and go.
 
 ## Troubleshooting
 
@@ -255,7 +247,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **Double-clicking a `.md` file opens something else.** The association only puts this app in the **Open with** list — the default app is chosen in Windows Settings. Right-click the file, choose **Open with**, and pick this app there (or set it as the default).
 
-**The Prompt tools tab is missing.** It appears only while the prompt is what you are working on. Switch back with **Full Tools** on the **View** tab and it returns.
+**The Prompt tab's galleries are empty.** The templates need nothing to show — the built-ins are always there. If the strip looks empty, page the group chevrons or scroll the strip sideways (the wheel works); templates you saved appear under their own category group.
 
 **A template inserted text with `{{placeholders}}` still in it.** That is what an empty field in the form means — the skipped field is left visible on purpose. Fill it in the draft, or re-insert the template and fill the field this time.
 
@@ -265,7 +257,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **I turned a check off and want it back.** The off-switch list lives in the app's `tools.json` file (the `checks` section, under `disabled`): remove the rule's name from that list and the advice returns. There is no settings screen for it yet.
 
-**`Ctrl+F` found nothing in my prompt but the text is right there.** The prompt's find bar searches the draft's source text; the document tab's `Ctrl+F` searches the rendered page. Make sure the right one is open for what you are looking for — and check the **Aa** and **Whole** toggles.
+**`Ctrl+F` found nothing but the text is right there.** The field searches the draft's source text in the prompt, and the rendered page in a document tab — the routing is automatic, but the rendered page is what the renderer produced (collapsed details, generated diagrams' alt text and so on can differ from the source).
 
 **The token estimate looks wrong.** It is an estimate — see [The token estimate](#the-token-estimate). If the magnitude is consistently off for how you work, the window size it is measured against can be changed in `tools.json` (`editor` → `contextWindowTokens`).
 
