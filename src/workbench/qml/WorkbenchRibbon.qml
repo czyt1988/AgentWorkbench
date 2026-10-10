@@ -13,8 +13,9 @@ import "RibbonIcons.js" as RibbonIcons
 // 逻辑全在窗口的动作层）。
 //
 // 三个标签页（2026-10 重组）：
-//   开始——编辑动作：剪贴板、行内格式、列表与块、标题、插入、复制
-//     提示词、查找（输入框常驻面板，回车查找/再回车下一个）；
+//   开始——编辑动作：剪贴板、格式与列表（十枚 icon-only 同一面板）、
+//     标题、插入、复制提示词、查找（输入框常驻面板，回车查找/再回车
+//     下一个）；
 //   提示词——模板与收藏（普通 category，不再是上下文页：模板库是常驻
 //     工具，不随预设出现/消失）、体检与历史（点击开页面上的悬浮窗，
 //     动作与浮窗都由页面持有）；
@@ -161,8 +162,9 @@ Item {
                 }
             }
 
-            // 行内格式：icon-only；checkable 的状态源是 MarkdownEdit 的
-            // 光标查询（没有查询侧的动作不许设 checkable——按钮不许骗人）。
+            // 行内格式与列表（任务字面结构的 Panel 2：十枚 icon-only 同
+            // 一面板）；checkable 的状态源是 MarkdownEdit 的光标查询
+            //（没有查询侧的动作不许设 checkable——按钮不许骗人）。
             RibbonPanel {
                 panelTitle: qsTr("Format")
 
@@ -218,12 +220,6 @@ Item {
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("link")
                 }
-            }
-
-            // 列表与块：icon-only。
-            RibbonPanel {
-                panelTitle: qsTr("Lists")
-
                 RibbonToolButton {
                     text: qsTr("Bullets")
                     toolButtonStyle: Ribbon.IconOnly
