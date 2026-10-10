@@ -89,7 +89,7 @@ scripts/      build.sh、package.sh、check-architecture.sh、update-ts.sh、wor
 | 选项 | 默认 | 含义 |
 |---|---|---|
 | `AWB_ENABLE_WEBENGINE` | `ON` | 内嵌网页视图（仅 MSVC；MinGW 下打开它会在配置期以一段可读的错误失败） |
-| `AWB_ENABLE_RIBBON` | `ON` | 构建 SARibbon 的 QML 模块（`third_party/SARibbon`，git submodule，钉在 `423b8e8`，硬依赖树内构建的 QWindowKit 链）——Markdown 工作台页的 Ribbon 由它组成；关掉时页面退回普通工具栏，构建不会坏 |
+| `AWB_ENABLE_RIBBON` | `ON` | 构建 SARibbon 的 QML 模块（`third_party/SARibbon`，git submodule，钉在 `7ecf2e6`，硬依赖树内构建的 QWindowKit 链）——Markdown 工作台页的 Ribbon 由它组成；关掉时页面退回普通工具栏，构建不会坏 |
 | `BUILD_TESTING` | `ON` | 单元测试目标（需要 Qt Test 模块） |
 
 `build.sh` 对它的两个测试开关都会显式设置 `BUILD_TESTING`——`--test` 配成 `ON`，`--no-tests`（`package.sh` 用的）配成 `OFF`——所以同一个构建目录在两种用法之间来回切都能正常工作。

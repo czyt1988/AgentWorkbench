@@ -36,6 +36,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   width, ribbon style) now author their entries as `menuActions` QAction
   lists, so the ribbon loads again instead of silently falling back to the
   plain toolbar.
+- **The ribbon tabs pick up the upstream 3.0 tab behaviours.** The
+  submodule pin moves up the dev-3.0 line again (`7ecf2e6`): double-
+  clicking a tab now toggles minimum mode and clicking a tab while
+  collapsed previews that category, context tab titles render correctly
+  again, and the in-tree QWindowKit dependency is the pristine upstream
+  `1.5.0` release (the dropped local patch guarded a destructor-order
+  segfault that cannot happen here — no frameless agent is declared).
 - **The Markdown workbench page loads again on the Qt 5.15 lane.** Its three
   capped lists (templates, favourites, draft history) used `ObjectModel`, a
   Qt 6.5+ type that left the Qt 5 fallback lane with "ObjectModel is not a
