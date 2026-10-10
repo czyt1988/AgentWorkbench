@@ -15,6 +15,50 @@ import { installAlerts, installMath, installTaskCheckbox } from "./math-rule.js"
 
 const MERMAID_LANGS = ["mermaid"];
 
+const UNDERLINE_OPEN = "<u>";
+const UNDERLINE_CLOSE = "</u>";
+
+/**
+ * 下划线窄白名单：html:false 关掉了所有内联 HTML 的解析，但 <u> 是
+ * markdown 里唯一可移植的下划线记号（编辑器的下划线动作写它）。这条
+ * 规则装在 text 之前、只认 "<u>" 与 "</u>" 两个精确串，且**要求同段内
+ * 配对**：开标记要在本段找到闭标记才放行，反之亦然——打字中间态（只
+ * 输入了 "<u>"）与落单闭标记都照旧走 text 规则转义，预览不会把段落
+ * 剩余内容整体拖进下划线。命中时手工构造 html_inline token——内容是
+ * 常量、不经任何输入拼接，renderer 对该 token 原样输出；其余 HTML 的
+ * 注入面没有扩大。
+ */
+function installUnderline(md)
+{
+    md.inline.ruler.before("text", "awb_underline", function (state, silent) {
+        const rest = state.src.slice(state.pos, state.posMax);
+        if (rest.startsWith(UNDERLINE_OPEN)) {
+            const closeAt = state.src.indexOf(UNDERLINE_CLOSE,
+                                             state.pos + UNDERLINE_OPEN.length);
+            if (closeAt < 0 || closeAt >= state.posMax) {
+                return false;
+            }
+            if (!silent) {
+                state.push("html_inline", "", 0).content = UNDERLINE_OPEN;
+            }
+            state.pos += UNDERLINE_OPEN.length;
+            return true;
+        }
+        if (rest.startsWith(UNDERLINE_CLOSE)) {
+            const openAt = state.src.lastIndexOf(UNDERLINE_OPEN, state.pos - 1);
+            if (openAt < 0) {
+                return false;
+            }
+            if (!silent) {
+                state.push("html_inline", "", 0).content = UNDERLINE_CLOSE;
+            }
+            state.pos += UNDERLINE_CLOSE.length;
+            return true;
+        }
+        return false;
+    });
+}
+
 function escapeHtml(value)
 {
     return String(value)
@@ -133,6 +177,8 @@ export function createMarkdown(options)
     installMath(md);
     installTaskCheckbox(md);
     installAlerts(md);
+    // 下划线窄白名单（见函数头注释）：必须在 text 之前接管精确串。
+    installUnderline(md);
 
     // 标题**不**生成 slug id：`[章节](#某标题)` 这类站内链接点下去不会动。
     // 原因是逐块重渲染：slug 的去重计数得跨块维护，改一次文就漂一次，

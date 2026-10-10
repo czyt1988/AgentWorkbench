@@ -50,6 +50,10 @@ public:
     // 选区加删除线（~~）；空选区时插入 ~~~~ 并把光标放到中间
     Q_INVOKABLE void applyStrike(QObject *textArea);
 
+    // 选区加 <u></u>（markdown 没有下划线标记，窄白名单 HTML 是唯一可移植
+    // 写法）；空选区时插入空元素并把光标放到中间
+    Q_INVOKABLE void applyUnderline(QObject *textArea);
+
     // 行首切换 #/##/###；该行已是标题时改为目标级（不叠加），目标级与
     // 当前级相同时去掉标题（再点一次回到普通行）
     Q_INVOKABLE void applyHeading(QObject *textArea, int level);
@@ -84,6 +88,7 @@ public:
     Q_INVOKABLE bool isBoldAt(QObject *textArea) const;
     Q_INVOKABLE bool isItalicAt(QObject *textArea) const;
     Q_INVOKABLE bool isStrikeAt(QObject *textArea) const;
+    Q_INVOKABLE bool isUnderlineAt(QObject *textArea) const;
     Q_INVOKABLE bool isCodeAt(QObject *textArea) const;
     // 光标所在行的标题级数：0 = 不是标题
     Q_INVOKABLE int headingLevelAt(QObject *textArea) const;
@@ -93,6 +98,7 @@ public:
     static void applyBoldToCursor(QTextCursor &cursor);
     static void applyItalicToCursor(QTextCursor &cursor);
     static void applyStrikeToCursor(QTextCursor &cursor);
+    static void applyUnderlineToCursor(QTextCursor &cursor);
     static void applyCodeToCursor(QTextCursor &cursor);
     static void applyBulletToCursor(QTextCursor &cursor);
     static void applyHeadingToCursor(QTextCursor &cursor, int level);
@@ -109,6 +115,7 @@ public:
     static bool isBoldAtCursor(const QTextCursor &cursor);
     static bool isItalicAtCursor(const QTextCursor &cursor);
     static bool isStrikeAtCursor(const QTextCursor &cursor);
+    static bool isUnderlineAtCursor(const QTextCursor &cursor);
     static bool isCodeAtCursor(const QTextCursor &cursor);
     static int headingLevelAtCursor(const QTextCursor &cursor);
 

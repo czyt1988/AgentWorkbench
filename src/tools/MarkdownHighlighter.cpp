@@ -30,6 +30,8 @@ const QRegularExpression kReInlineCode(QStringLiteral("`([^`\\n]+)`"));
 const QRegularExpression kReBold(QStringLiteral("\\*\\*.+?\\*\\*|__.+?__"));
 /** 删除线：~~text~~。 */
 const QRegularExpression kReStrike(QStringLiteral("~~.+?~~"));
+/** 下划线：<u>text</u>（窄白名单 HTML，内容不含 < 与换行、不嵌套）。 */
+const QRegularExpression kReUnderline(QStringLiteral("<u>[^<\\n]+?</u>"));
 /** 链接：[text](url)。 */
 const QRegularExpression kReLink(QStringLiteral("\\[([^\\]\\n]+)\\]\\(([^()\\n]*)\\)"));
 /** 斜体：*text*。前后不能贴着字词字符（挡掉 foo*bar*baz），内部不含星号。 */
@@ -245,6 +247,24 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
         marker.setFontStrikeOut(true);
         setFormat(match.capturedStart(), 2, marker);
         setFormat(match.capturedEnd() - 2, 2, marker);
+        consumed.append(spanOf(match));
+    }
+
+    // 下划线：整段加下划线字形，<u></u> 标记对上强调色（标记不对称，
+    // 长度各是 3 与 4）。同样自带属性防 setFormat 覆盖丢字形。
+    it = kReUnderline.globalMatch(text);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch match = it.next();
+        if (intersects(consumed, match.capturedStart(), match.capturedEnd()))
+            continue;
+        QTextCharFormat whole;
+        whole.setFontUnderline(true);
+        setFormat(match.capturedStart(), match.capturedLength(), whole);
+        QTextCharFormat marker;
+        marker.setForeground(m_colors.emphasis);
+        marker.setFontUnderline(true);
+        setFormat(match.capturedStart(), 3, marker);
+        setFormat(match.capturedEnd() - 4, 4, marker);
         consumed.append(spanOf(match));
     }
 

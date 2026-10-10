@@ -298,6 +298,21 @@ void MarkdownEdit::applyStrike(QObject *textArea)
 }
 
 /**
+ * @brief 给编辑器的选区加下划线标记
+ *
+ * markdown 没有下划线的纯文本标记（GFM 把 _ 留给斜体），<u> 是唯一
+ * 跨渲染器可移植的写法；预览侧对它做窄白名单放行（见
+ * markdown-config.js），html:false 的注入面不因此扩大。
+ *
+ * @param textArea 目标编辑器
+ * @sa applyUnderlineToCursor
+ */
+void MarkdownEdit::applyUnderline(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::applyUnderlineToCursor);
+}
+
+/**
  * @brief 给编辑器的选区加代码标记（行内或围栏）
  * @param textArea 目标编辑器
  * @sa applyCodeToCursor
@@ -452,6 +467,45 @@ void MarkdownEdit::applyItalicToCursor(QTextCursor &cursor)
 void MarkdownEdit::applyStrikeToCursor(QTextCursor &cursor)
 {
     wrapSelectionToCursor(cursor, QStringLiteral("~~"));
+}
+
+/**
+ * @brief 给选区加 <u></u> 标记对（下划线）
+ *
+ * markdown 没有下划线的纯文本标记，<u> 是唯一可移植写法。包裹逻辑与
+ * 斜体/删除线同一条（wrapSelectionToCursor），只是标记串不对称——
+ * 开标记 <u> 与闭标记 </u> 长度不同，光标/选区偏移按闭标记长度（7）
+ * 收敛，与对称标记的行为语义一致（重选中原内容）。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::applyUnderlineToCursor(QTextCursor &cursor)
+{
+    const QString open = QStringLiteral("<u>");
+    const QString close = QStringLiteral("</u>");
+    if (!cursor.hasSelection()) {
+        const int position = cursor.position();
+        cursor.beginEditBlock();
+        cursor.insertText(open + close);
+        cursor.setPosition(position + open.length());
+        cursor.endEditBlock();
+        return;
+    }
+
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
+
+    cursor.beginEditBlock();
+    const int wrapStart = selectionStart + trimmed.start;
+    const int wrapEnd = wrapStart + trimmed.length;
+    cursor.setPosition(wrapStart);
+    cursor.insertText(open);
+    cursor.setPosition(wrapEnd + open.length());
+    cursor.insertText(close);
+    cursor.setPosition(wrapStart + open.length());
+    cursor.setPosition(wrapEnd + open.length(), QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
 }
 
 /**
@@ -1392,6 +1446,17 @@ bool MarkdownEdit::isStrikeAt(QObject *textArea) const
 }
 
 /**
+ * @brief 光标处是否处于下划线内
+ *
+ * @param textArea 目标编辑器
+ * @return 命中为真
+ */
+bool MarkdownEdit::isUnderlineAt(QObject *textArea) const
+{
+    return queryTextAreaBool(textArea, &MarkdownEdit::isUnderlineAtCursor);
+}
+
+/**
  * @brief 光标处是否处于行内代码/代码块内
  *
  * 判据：fontFixedPitch。markdown 的 `code` 与围栏块都会落在这个格式上。
@@ -1502,6 +1567,62 @@ bool MarkdownEdit::isItalicAtCursor(const QTextCursor &cursor)
 bool MarkdownEdit::isStrikeAtCursor(const QTextCursor &cursor)
 {
     return insideMarker(cursor, QLatin1Char('~'), true);
+}
+
+/**
+ * @brief 光标处是否处于下划线内（<u>..</u> 内容区间）
+ *
+ * <u> 是三字符开标记 + 四字符闭标记，与单字符标记表（inlineMarkerRanges）
+ * 不同形，这里按块文本独立配对：`<u>` 开、`</u>` 闭，交替配对（未闭合的
+ * 开标记配上其后的下一个闭标记，宽松处理打字中间态）。判据同
+ * insideMarker：光标/选区与内容区间相交即真。
+ */
+bool MarkdownEdit::isUnderlineAtCursor(const QTextCursor &cursor)
+{
+    const QTextBlock block = cursor.block();
+    if (!block.isValid()) {
+        return false;
+    }
+    const int blockStart = block.position();
+    const QString text = block.text();
+
+    const QString open = QStringLiteral("<u>");
+    const QString close = QStringLiteral("</u>");
+    const int start = cursor.selectionStart();
+    const int end = cursor.selectionEnd();
+
+    int scan = 0;
+    // 当前配对的内容区间起点（开标记之后的文档位置）；-1 = 还在标记外。
+    int contentStart = -1;
+    while (scan < text.length()) {
+        if (contentStart >= 0) {
+            const int closeHit = text.indexOf(close, scan);
+            if (closeHit < 0) {
+                break;
+            }
+            const int contentEnd = blockStart + closeHit;
+            if (!cursor.hasSelection()) {
+                if ((start > contentStart && start <= contentEnd)
+                    || (start >= contentStart && start < contentEnd)) {
+                    return true;
+                }
+            } else {
+                if (end > contentStart && start < contentEnd) {
+                    return true;
+                }
+            }
+            scan = closeHit + close.length();
+            contentStart = -1;
+        } else {
+            const int openHit = text.indexOf(open, scan);
+            if (openHit < 0) {
+                break;
+            }
+            contentStart = blockStart + openHit + open.length();
+            scan = openHit + open.length();
+        }
+    }
+    return false;
 }
 
 /**

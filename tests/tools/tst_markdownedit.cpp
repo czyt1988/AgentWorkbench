@@ -201,6 +201,41 @@ private Q_SLOTS:
         QVERIFY(!cursor.hasSelection());
     }
 
+    void testUnderlineWrapsSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello world"), 6, 11,
+              &MarkdownEdit::applyUnderlineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("hello <u>world</u>"));
+        QCOMPARE(cursor.selectionStart(), 9);
+        QCOMPARE(cursor.selectionEnd(), 14);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("world"));
+    }
+
+    void testUnderlineTrimsWhitespace()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("xx word yy"), 2, 8,
+              &MarkdownEdit::applyUnderlineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("xx <u>word</u> yy"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("word"));
+    }
+
+    void testUnderlineWithoutSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello"), 2, 2,
+              &MarkdownEdit::applyUnderlineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("he<u></u>llo"));
+        QCOMPARE(cursor.position(), 5);
+        QVERIFY(!cursor.hasSelection());
+    }
+
     void testCodeSingleLine()
     {
         QTextDocument document;
@@ -551,6 +586,36 @@ private Q_SLOTS:
         QCOMPARE(MarkdownEdit::headingLevelAtCursor(probe), 0);
     }
 
+    void testQueryUnderlineAtCursor()
+    {
+        // <u>..</u> 内容区间命中即真；开闭标记不对称（3/4 字符），配对
+        // 按文本先后交替。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("plain <u>under</u> tail"));
+        QTextCursor probe(&document);
+
+        probe.setPosition(10);  // “under”内部（7..13 区间）
+        QVERIFY(MarkdownEdit::isUnderlineAtCursor(probe));
+        probe.setPosition(2);   // 纯文本内
+        QVERIFY(!MarkdownEdit::isUnderlineAtCursor(probe));
+        // 选区跨纯文本与下划线：任一命中即真。
+        probe.setPosition(4);
+        probe.setPosition(10, QTextCursor::KeepAnchor);
+        QVERIFY(MarkdownEdit::isUnderlineAtCursor(probe));
+        // 未闭合的开标记不命中（打字中间态不算下划线内）。
+        document.setPlainText(QStringLiteral("half <u>open"));
+        probe = QTextCursor(&document);
+        probe.setPosition(10);
+        QVERIFY(!MarkdownEdit::isUnderlineAtCursor(probe));
+        // 两对下划线：各自独立配对，第二对之后才是纯文本。
+        document.setPlainText(QStringLiteral("<u>a</u> mid <u>b</u>"));
+        probe = QTextCursor(&document);
+        probe.setPosition(16);  // 第二对的 b 内部（13..14 区间）
+        QVERIFY(MarkdownEdit::isUnderlineAtCursor(probe));
+        probe.setPosition(10);  // mid 内（两对之间）
+        QVERIFY(!MarkdownEdit::isUnderlineAtCursor(probe));
+    }
+
     void testNewActionsAreOneUndoStep()
     {
         QTextDocument document;
@@ -803,6 +868,25 @@ private Q_SLOTS:
         QVERIFY(!formatAt(block, 2).format.fontItalic());
         QCOMPARE(formatAt(block, 2).format.fontWeight(),
                  static_cast<int>(QFont::Bold));
+    }
+
+    void testUnderlineRule()
+    {
+        // <u>..</u>：整段下划线字形，开（3 字符）闭（4 字符）标记各上
+        // 强调色；未闭合的开标记不高亮。
+        const MarkdownColors colors = distinctColors();
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("<u>word</u> open<u>"));
+        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        highlighter.rehighlight();
+
+        const QTextBlock block = document.firstBlock();
+        QCOMPARE(formatAt(block, 0).format.foreground().color(), colors.emphasis);
+        QCOMPARE(formatAt(block, 0).format.fontUnderline(), true);
+        QVERIFY(formatAt(block, 3).format.fontUnderline());
+        QCOMPARE(formatAt(block, 8).format.foreground().color(), colors.emphasis);
+        // 尾部未闭合的 <u>：没有命中区间，保持普通格式。
+        QCOMPARE(formatAt(block, 16).length, 0);
     }
 
     void testColorSwapRehighlight()
