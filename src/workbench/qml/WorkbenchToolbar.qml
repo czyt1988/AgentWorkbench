@@ -10,8 +10,9 @@ import AgentWorkbench.App
 //
 // 与 WorkbenchRibbon.qml 是同一批动作的两份皮：都只把点击转发给
 // win.*（窗口的动作层），不许在这里长逻辑——两处各写一份行为的漂移
-// 比少一个按钮更糟。按钮集对齐右键菜单（MarkdownContextMenu）与
-// Ribbon「开始 / 视图」两页的现有动作。
+// 比少一个按钮更糟。按钮集与 Ribbon 的三个标签页对齐：格式动作、模板
+// 与收藏（菜单形态承载 gallery 的插入入口）、体检与历史（开页面的悬浮
+// 窗）、查找（输入框常驻）、视图选项。
 Rectangle {
     id: commandToolbar
 
@@ -21,12 +22,25 @@ Rectangle {
     implicitHeight: 40
     color: theme.chromeBg
 
+    // Ctrl+F 的落点：焦点进查找框并全选。
+    function focusFind() {
+        toolbarFindField.forceActiveFocus()
+        toolbarFindField.selectAll()
+    }
+
+    // 工具栏形态没有标签页；跨页跳转的转发入口保持两份皮同签名（页面
+    // 的 setRibbonTab 经命令条调用，Ribbon 形态才有实际切换）。
+    function setTabIndex(index) {
+        // 无事可做：保留签名对齐（见上）。
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: theme.spacingS
         anchors.rightMargin: theme.spacingS
         spacing: theme.spacingXs
 
+        // --- 格式动作（icon-only，与 Ribbon「开始」页同集） -----------
         AIconButton {
             iconSource: "qrc:/icons/bold.svg"
             tooltip: qsTr("Bold")
@@ -41,34 +55,21 @@ Rectangle {
         }
         AIconButton {
             iconSource: "qrc:/icons/bold.svg"
+            tooltip: qsTr("Underline")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.applyFormat("underline")
+        }
+        AIconButton {
+            iconSource: "qrc:/icons/bold.svg"
             tooltip: qsTr("Strikethrough")
             enabled: win && win.activeEditor
             onClicked: if (win) win.applyFormat("strike")
         }
         AIconButton {
             iconSource: "qrc:/icons/code.svg"
-            tooltip: qsTr("Code")
+            tooltip: qsTr("Inline code")
             enabled: win && win.activeEditor
             onClicked: if (win) win.applyFormat("code")
-        }
-
-        Rectangle {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.leftMargin: theme.spacingXs
-            Layout.rightMargin: theme.spacingXs
-            implicitWidth: 1
-            implicitHeight: 24
-            color: theme.separator
-        }
-
-        // 段落与块（B1）：标题/编号/任务/引用/表格/分隔线。工具栏一条
-        // 放不下全部菜单形态，收最高频的；完整清单在 Ribbon（或右键
-        // 菜单）里，这里与它们共用同一批 win.* 动作。
-        AIconButton {
-            iconSource: "qrc:/icons/bold.svg"
-            tooltip: qsTr("Heading")
-            enabled: win && win.activeEditor
-            onClicked: if (win) win.applyFormat("heading2")
         }
         AIconButton {
             objectName: "numberedButton"
@@ -85,7 +86,7 @@ Rectangle {
         }
         AIconButton {
             iconSource: "qrc:/icons/code.svg"
-            tooltip: qsTr("Quote")
+            tooltip: qsTr("Block quote")
             enabled: win && win.activeEditor
             onClicked: if (win) win.applyFormat("quote")
         }
@@ -94,12 +95,6 @@ Rectangle {
             tooltip: qsTr("Table")
             enabled: win && win.activeEditor
             onClicked: if (win) win.applyFormat("table")
-        }
-        AIconButton {
-            iconSource: "qrc:/icons/close.svg"
-            tooltip: qsTr("Divider")
-            enabled: win && win.activeEditor
-            onClicked: if (win) win.applyFormat("divider")
         }
 
         Rectangle {
@@ -111,6 +106,19 @@ Rectangle {
             color: theme.separator
         }
 
+        // --- 主交付与剪贴板 ---------------------------------------------
+        AButton {
+            text: qsTr("Copy Prompt")
+            variant: "primary"
+            onClicked: if (win) win.copyPrompt()
+        }
+
+        AIconButton {
+            iconSource: "qrc:/icons/paste.svg"
+            tooltip: qsTr("Paste")
+            enabled: win && win.activeEditor && win.activeEditor.canPaste
+            onClicked: if (win) win.editorAction("paste")
+        }
         AIconButton {
             iconSource: "qrc:/icons/undo.svg"
             tooltip: qsTr("Undo")
@@ -123,26 +131,6 @@ Rectangle {
             enabled: win && win.activeEditor && win.activeEditor.canRedo
             onClicked: if (win) win.editorAction("redo")
         }
-        AIconButton {
-            iconSource: "qrc:/icons/cut.svg"
-            tooltip: qsTr("Cut")
-            enabled: win && win.activeEditor
-                     && win.activeEditor.selectedText.length > 0
-            onClicked: if (win) win.editorAction("cut")
-        }
-        AIconButton {
-            iconSource: "qrc:/icons/copy.svg"
-            tooltip: qsTr("Copy")
-            enabled: win && win.activeEditor
-                     && win.activeEditor.selectedText.length > 0
-            onClicked: if (win) win.editorAction("copy")
-        }
-        AIconButton {
-            iconSource: "qrc:/icons/paste.svg"
-            tooltip: qsTr("Paste")
-            enabled: win && win.activeEditor && win.activeEditor.canPaste
-            onClicked: if (win) win.editorAction("paste")
-        }
 
         Rectangle {
             Layout.alignment: Qt.AlignVCenter
@@ -153,20 +141,12 @@ Rectangle {
             color: theme.separator
         }
 
-        // 主交付动作：整份草稿进剪贴板。
-        AButton {
-            text: qsTr("Copy Prompt")
-            variant: "primary"
-            onClicked: if (win) win.copyPrompt()
-        }
-
-        // 模板与收藏（M2；与 Ribbon 提示词页同一批 win.* 入口）。
+        // --- 模板与收藏（菜单承载 gallery 的插入入口） -------------------
         AIconButton {
             objectName: "insertTemplateButton"
             iconSource: "qrc:/icons/file.svg"
             tooltip: qsTr("Insert a template")
-            enabled: win && markdown.draftActive
-            onClicked: if (win) win.openTemplatePicker()
+            onClicked: templateMenu.popup()
         }
         AIconButton {
             objectName: "saveTemplateButton"
@@ -185,71 +165,39 @@ Rectangle {
             onClicked: if (win) win.saveCurrentToFavorites()
         }
 
+        // --- 体检与历史：开页面的悬浮窗 ----------------------------------
         AIconButton {
             objectName: "checkPromptToolbarButton"
             iconSource: "qrc:/icons/search.svg"
             tooltip: qsTr("Check the prompt")
-            enabled: win && win.preset === "prompt"
-            onClicked: if (win) win.runDraftChecks()
+            active: win && win.checksVisible
+            enabled: win
+            onClicked: if (win) win.toggleChecksWindow()
+        }
+        AIconButton {
+            objectName: "historyToolbarButton"
+            iconSource: "qrc:/icons/refresh.svg"
+            tooltip: qsTr("Draft history")
+            active: win && win.historyVisible
+            enabled: win
+            onClicked: if (win) win.toggleHistoryWindow()
         }
 
-        // 查找：文档模式查预览区（既有搜索条），提示词模式开草稿
-        // 查找条（B2）——与 Ribbon 的 Find 按钮同一分流。
-        AIconButton {
-            objectName: "findButton"
-            iconSource: "qrc:/icons/search.svg"
-            tooltip: qsTr("Find")
-            enabled: win
-            onClicked: {
-                if (!win)
-                    return
-                if (win.preset === "document")
-                    win.openSearch()
-                else
-                    win.openDraftFind()
-            }
-        }
-        AIconButton {
-            objectName: "clearDraftButton"
-            iconSource: "qrc:/icons/close.svg"
-            tooltip: qsTr("Clear the draft")
-            enabled: win && win.preset === "prompt"
-                     && tools.draft.length > 0
-            onClicked: if (win) win.confirmClearDraft()
-        }
+        // --- 查找：输入框常驻（回车查找/再回车下一个） -------------------
+        ATextField {
+            id: toolbarFindField
+            objectName: "toolbarFindField"
 
-        // 草稿管理（M4）：新建与 E4（从文档新建）——重命名/复制/删除
-        // 走 Ribbon，降级工具栏保持高频两键。
-        AIconButton {
-            objectName: "newDraftButton"
-            iconSource: "qrc:/icons/plus.svg"
-            tooltip: qsTr("New draft")
-            enabled: win
-            onClicked: if (win) win.newDraft()
-        }
-        AIconButton {
-            objectName: "newDraftFromDocumentButton"
-            iconSource: "qrc:/icons/file.svg"
-            tooltip: qsTr("New draft from this document")
-            enabled: win && win.preset === "document"
-                     && markdown.filePath.length > 0
-            onClicked: if (win) win.newDraftFromDocument()
-        }
-        AIconButton {
-            iconSource: "qrc:/icons/download.svg"
-            tooltip: qsTr("Save")
-            enabled: win && win.preset === "document" && markdown.canEdit
-            onClicked: if (win) win.saveDocument()
+            Layout.preferredWidth: 150
+            placeholderText: qsTr("Find")
+            onAccepted: if (win) win.findNext(text)
         }
 
         Item {
             Layout.fillWidth: true
         }
 
-        // 三态与面板开关：两种预设都在场（渲染管线吃文本不吃文件，草稿
-        // 会话同样有 Preview/Split）——与 Ribbon「开始」页的视图选项面板
-        // 同一语义（2026-10 从 tab 条收进命令条）。字号/默认宽度菜单是
-        // Ribbon 形态的控件，降级工具栏保持高频集不加。
+        // --- 视图选项（与 Ribbon「视图」页同一语义） ---------------------
         AButton {
             visible: markdown.available
             text: qsTr("Preview")
@@ -273,23 +221,41 @@ Rectangle {
             enabled: markdown.splitAvailable
             onClicked: markdown.setMode("source")
         }
-
         AIconButton {
             iconSource: "qrc:/icons/bullet-list.svg"
             tooltip: qsTr("Show outline")
             active: markdown.showOutline
-            visible: win && win.preset === "document"
+            visible: markdown.available
             onClicked: markdown.setShowOutline(!markdown.showOutline)
         }
+    }
 
-        // 「完整工具」即预设切换（与 Ribbon 视图页同一开关）。
-        AButton {
-            text: qsTr("Full Tools")
-            variant: win && win.preset === "prompt" ? "primary" : "ghost"
-            enabled: win && (win.preset === "prompt"
-                             || (markdown.available
-                                 && markdown.fileTitle.length > 0))
-            onClicked: if (win) win.toggleFullTools()
+    // 模板插入菜单（gallery 的降级形态：菜单条目 = 模板表）。
+    AMenu {
+        id: templateMenu
+
+        AMenuItem {
+            icon.source: "qrc:/icons/code.svg"
+            text: qsTr("Save the draft as a template")
+            enabled: win && markdown.draftActive
+                     && tools.draft.length > 0
+            onTriggered: if (win) win.saveCurrentAsTemplate()
+        }
+
+        AMenuSeparator {
+            visible: tools.templates.length > 0
+        }
+
+        // 动态条目：Repeater 挂在 AMenu 的内容里按模板表生成。
+        Repeater {
+            model: tools.templates
+
+            delegate: AMenuItem {
+                required property var modelData
+
+                text: modelData.title
+                onTriggered: if (win) win.insertTemplate(modelData.id)
+            }
         }
     }
 }

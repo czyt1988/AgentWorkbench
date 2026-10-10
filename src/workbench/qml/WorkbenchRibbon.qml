@@ -1,8 +1,10 @@
 import QtQuick
 import SARibbon 3.0
+import AgentWorkbench
 import AgentWorkbench.App
+import "RibbonIcons.js" as RibbonIcons
 
-// 工作台窗口的命令条：SARibbon 形态（单行模式）。
+// 工作台窗口的命令条：SARibbon 形态。
 //
 // 只在 AWB_ENABLE_RIBBON 的构建里登记进资源清单，由窗口的 Loader 按资源
 // URL 装载；当前进程没注册 SARibbon 类型（单测引擎）时装载失败，窗口就地
@@ -10,19 +12,26 @@ import AgentWorkbench.App
 // 各自长出不同的行为（「动作只有一处出口」的纪律：两份文件都只做转发，
 // 逻辑全在窗口的动作层）。
 //
+// 三个标签页（2026-10 重组）：
+//   开始——编辑动作：剪贴板、行内格式、列表与块、标题、插入、复制
+//     提示词、查找（输入框常驻面板，回车查找/再回车下一个）；
+//   提示词——模板与收藏（普通 category，不再是上下文页：模板库是常驻
+//     工具，不随预设出现/消失）、体检与历史（点击开页面上的悬浮窗，
+//     动作与浮窗都由页面持有）；
+//   视图——Markdown 编辑器视图（预览/分栏/源码/字号/栏宽/大纲）与
+//     ribbon 自身（样式/主题跟随/折叠）。
+//
 // MarkdownEdit 单例（AgentWorkbench.App）供「开始」页格式按钮的 checkable
 // 状态查询（isBoldAt 等光标态）：单例名与 theme/tools/markdown 这类经上下
 // 文件作用域解析的页面别名不同，必须经 import 引入，否则绑定报
-// ReferenceError 且四个按钮的选中态永远不亮（0.5.0 首显缺陷之一）。
+// ReferenceError 且按钮的选中态永远不亮（0.5.0 首显缺陷之一）。
 //
-// 单行模式的代价（见规划的事实清单）：proportion 失效（一律小按钮）、
-// 面板标题隐藏、按钮文字要短（英文源串 ≤ 12 字符）。主次靠标签页归类
-// 与按钮顺序表达。
-//
-// 主题是两套设计系统的唯一接触面：应用主题 → RibbonTheme 单向推
-//（setAccentColor / setContentBgColor / setTextColor + currentTheme 取
-// 深浅档），不做反向同步、不留第二套自动跟随（followAppTheme 关掉时
-// ribbon 保留自己的调色板）。
+// 主题桥是两套设计系统的唯一接触面：应用主题 → RibbonTheme 单向推。
+// tab 栏（标题行）背景跟应用 chrome 底色、面板底色跟 surface、文字跟
+// textPrimary——SARibbon 的 accent 令牌就是标题行底色，把它推成
+// theme.accent（亮蓝）会造成 tab 栏与软件主体割裂（2026-10 用户报告的
+// 根因）。桥恒跟随应用主题：ribbon 的配色不存在「独立档」，视觉统一是
+// 全局约束。
 Item {
     id: commandBar
 
@@ -31,25 +40,41 @@ Item {
 
     implicitHeight: ribbonBar.implicitHeight
 
-    // 样式档位（tools.json 持久化）与 SARibbon 枚举的互译。
+    // 图标：data URL 现染（颜色跟主题文字令牌走，见 RibbonIcons.js）。
+    function icon(name) {
+        return RibbonIcons.iconUrl(name, theme.textPrimary)
+    }
+
+    // 样式档位（tools.json 持久化）与 SARibbon 枚举的互译。三行档已退役
+    // （2026-10 精简为紧凑/宽松两档），读到旧值按单行收敛。
     function styleEnumFor(name) {
         if (name === "two-row")
             return Ribbon.RibbonStyleCompactTwoRow
-        if (name === "three-row")
-            return Ribbon.RibbonStyleCompactThreeRow
         return Ribbon.RibbonStyleCompactSingleRow
     }
 
     // 主题单向桥：应用主题变化时推一次，不逐帧推。
     function applyBridgeTheme() {
-        if (!tools.ribbonFollowAppTheme)
-            return
         RibbonTheme.currentTheme = theme.variant === "dark"
                 ? Ribbon.RibbonThemeOffice2021Dark
                 : Ribbon.RibbonThemeOffice2021Blue
-        RibbonTheme.setAccentColor(theme.accent)
+        // accent 在 SARibbon 里是「标题行/tab 栏底色」：推应用 chrome 色
+        // 才能兑现「tab 栏与主体背景一致」；面板底色与文字各归其位。
+        RibbonTheme.setAccentColor(theme.chromeBg)
         RibbonTheme.setContentBgColor(theme.surfaceBg)
         RibbonTheme.setTextColor(theme.textPrimary)
+    }
+
+    // Ctrl+F 的落点：焦点进查找框并全选（连续查找的肌肉记忆）。
+    function focusFind() {
+        findField.forceActiveFocus()
+        findField.selectAll()
+    }
+
+    // 切标签页（tab 序 = 开始 0 / 提示词 1 / 视图 2）：页面动作层转发
+    // （gallery 的格子只在其 tab 被实例化时存在，跨页跳转经这里）。
+    function setTabIndex(index) {
+        ribbonBar.currentIndex = index
     }
 
     Component.onCompleted: {
@@ -89,73 +114,64 @@ Item {
                           : qsTr("Draft")
         onCurrentIndexChanged: tools.ribbonLastTabIndex = currentIndex
 
-        // 标题行右侧的高频小按钮：Copy 是主交付动作。
-        RibbonQuickAccessBar {
-            RibbonToolButton {
-                text: qsTr("Copy")
-                iconSource: "qrc:/icons/copy.svg"
-                onClicked: if (win) win.copyPrompt()
-            }
-        }
-
-        // --- 标签页 1 · 开始：编辑时最常用的动作，默认选中 ---------------
+        // --- 标签页 1 · 开始：编辑动作 -----------------------------------
         RibbonCategory {
             title: qsTr("Start")
 
+            // 剪贴板与撤销：icon-only（高频动作用图标，文字留给插入
+            // 与交付这类低频读动作）。
             RibbonPanel {
-                RibbonToolButton {
-                    text: qsTr("Copy Prompt")
-                    iconSource: "qrc:/icons/copy.svg"
-                    toolTip: qsTr("Put the whole prompt on the clipboard")
-                    onClicked: if (win) win.copyPrompt()
-                }
+                panelTitle: qsTr("Clipboard")
+
                 RibbonToolButton {
                     text: qsTr("Paste")
-                    iconSource: "qrc:/icons/paste.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("paste")
+                    toolTip: qsTr("Paste into the editor")
                     enabled: win && win.activeEditor
                              && win.activeEditor.canPaste
                     onClicked: if (win) win.editorAction("paste")
                 }
                 RibbonToolButton {
                     text: qsTr("Cut")
-                    iconSource: "qrc:/icons/cut.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("cut")
+                    toolTip: qsTr("Cut the selection")
                     enabled: win && win.activeEditor
                              && win.activeEditor.selectedText.length > 0
                     onClicked: if (win) win.editorAction("cut")
                 }
                 RibbonToolButton {
-                    text: qsTr("Copy Text")
-                    iconSource: "qrc:/icons/copy.svg"
-                    enabled: win && win.activeEditor
-                             && win.activeEditor.selectedText.length > 0
-                    onClicked: if (win) win.editorAction("copy")
-                }
-            }
-
-            RibbonPanel {
-                RibbonToolButton {
                     text: qsTr("Undo")
-                    iconSource: "qrc:/icons/undo.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("undo")
+                    toolTip: qsTr("Undo")
                     enabled: win && win.activeEditor
                              && win.activeEditor.canUndo
                     onClicked: if (win) win.editorAction("undo")
                 }
                 RibbonToolButton {
                     text: qsTr("Redo")
-                    iconSource: "qrc:/icons/redo.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("redo")
+                    toolTip: qsTr("Redo")
                     enabled: win && win.activeEditor
                              && win.activeEditor.canRedo
                     onClicked: if (win) win.editorAction("redo")
                 }
             }
 
+            // 行内格式：icon-only；checkable 的状态源是 MarkdownEdit 的
+            // 光标查询（没有查询侧的动作不许设 checkable——按钮不许骗人）。
             RibbonPanel {
+                panelTitle: qsTr("Format")
+
                 RibbonToolButton {
                     text: qsTr("Bold")
-                    iconSource: "qrc:/icons/bold.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("bold")
+                    toolTip: qsTr("Bold (**)")
                     checkable: true
-                    // checkable 的真实状态源：MarkdownEdit 的光标查询
-                    //（没有查询侧的动作不许设 checkable——否则按钮骗人）。
                     checked: win && win.activeEditor
                              && MarkdownEdit.isBoldAt(win.activeEditor)
                     enabled: win && win.activeEditor
@@ -163,7 +179,9 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Italic")
-                    iconSource: "qrc:/icons/bold.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("italic")
+                    toolTip: qsTr("Italic (*)")
                     checkable: true
                     checked: win && win.activeEditor
                              && MarkdownEdit.isItalicAt(win.activeEditor)
@@ -171,8 +189,21 @@ Item {
                     onClicked: if (win) win.applyFormat("italic")
                 }
                 RibbonToolButton {
-                    text: qsTr("Strike")
-                    iconSource: "qrc:/icons/bold.svg"
+                    text: qsTr("Underline")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("underline")
+                    toolTip: qsTr("Underline (<u></u>)")
+                    checkable: true
+                    checked: win && win.activeEditor
+                             && MarkdownEdit.isUnderlineAt(win.activeEditor)
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("underline")
+                }
+                RibbonToolButton {
+                    text: qsTr("Strikethrough")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("strike")
+                    toolTip: qsTr("Strikethrough (~~)")
                     checkable: true
                     checked: win && win.activeEditor
                              && MarkdownEdit.isStrikeAt(win.activeEditor)
@@ -180,26 +211,70 @@ Item {
                     onClicked: if (win) win.applyFormat("strike")
                 }
                 RibbonToolButton {
-                    text: qsTr("Code")
-                    iconSource: "qrc:/icons/code.svg"
-                    checkable: true
-                    checked: win && win.activeEditor
-                             && MarkdownEdit.isCodeAt(win.activeEditor)
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("code")
-                }
-                RibbonToolButton {
                     text: qsTr("Link")
-                    iconSource: "qrc:/icons/web.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("link")
+                    toolTip: qsTr("Insert a link")
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("link")
                 }
             }
 
+            // 列表与块：icon-only。
             RibbonPanel {
+                panelTitle: qsTr("Lists")
+
+                RibbonToolButton {
+                    text: qsTr("Bullets")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("bullet")
+                    toolTip: qsTr("Bullet list")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("bullet")
+                }
+                RibbonToolButton {
+                    text: qsTr("Numbered")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("numbered")
+                    toolTip: qsTr("Numbered list")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("numbered")
+                }
+                RibbonToolButton {
+                    text: qsTr("Task List")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("task")
+                    toolTip: qsTr("Task list (- [ ])")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("task")
+                }
+                RibbonToolButton {
+                    text: qsTr("Quote")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("quote")
+                    toolTip: qsTr("Block quote (>)")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("quote")
+                }
+                RibbonToolButton {
+                    text: qsTr("Divider")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("divider")
+                    toolTip: qsTr("Insert a horizontal divider")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("divider")
+                }
+            }
+
+            // 标题：单独面板（不与列表混排）；菜单给三级与去除。
+            RibbonPanel {
+                panelTitle: qsTr("Heading")
+
                 RibbonToolButton {
                     text: qsTr("Heading")
-                    iconSource: "qrc:/icons/bold.svg"
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("heading")
+                    toolTip: qsTr("Set the heading level")
                     popupMode: Ribbon.MenuButtonPopup
                     // 三级 + 文本判定：同级再点 = 去标题（菜单里独立条目）。
                     menuActions: [
@@ -221,43 +296,24 @@ Item {
                         }
                     ]
                 }
-                RibbonToolButton {
-                    text: qsTr("Bullets")
-                    iconSource: "qrc:/icons/bullet-list.svg"
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("bullet")
-                }
-                RibbonToolButton {
-                    text: qsTr("Numbered")
-                    iconSource: "qrc:/icons/bullet-list.svg"
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("numbered")
-                }
-                RibbonToolButton {
-                    text: qsTr("Task List")
-                    iconSource: "qrc:/icons/bullet-list.svg"
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("task")
-                }
-                RibbonToolButton {
-                    text: qsTr("Quote")
-                    iconSource: "qrc:/icons/bold.svg"
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("quote")
-                }
-                RibbonToolButton {
-                    text: qsTr("Divider")
-                    iconSource: "qrc:/icons/bold.svg"
-                    enabled: win && win.activeEditor
-                    onClicked: if (win) win.applyFormat("divider")
-                }
             }
 
+            // 插入：icon + text。
             RibbonPanel {
+                panelTitle: qsTr("Insert")
+
+                RibbonToolButton {
+                    text: qsTr("Inline Code")
+                    iconSource: commandBar.icon("inlineCode")
+                    toolTip: qsTr("Wrap the selection in backticks")
+                    enabled: win && win.activeEditor
+                    onClicked: if (win) win.applyFormat("code")
+                }
                 RibbonToolButton {
                     // 围栏代码块 + 语言：菜单给常见语言与「无语言」。
-                    text: qsTr("Fence")
-                    iconSource: "qrc:/icons/code.svg"
+                    text: qsTr("Code Block")
+                    iconSource: commandBar.icon("codeBlock")
+                    toolTip: qsTr("Insert a fenced code block")
                     popupMode: Ribbon.MenuButtonPopup
                     menuActions: [
                         RibbonAction {
@@ -288,55 +344,170 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Table")
-                    iconSource: "qrc:/icons/code.svg"
+                    iconSource: commandBar.icon("table")
+                    toolTip: qsTr("Insert a table skeleton")
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("table")
                 }
             }
 
+            // 主交付动作：icon + text。
             RibbonPanel {
+                panelTitle: qsTr("Deliver")
+
                 RibbonToolButton {
-                    text: qsTr("Find")
-                    iconSource: "qrc:/icons/search.svg"
-                    // 文档模式查预览渲染区（既有搜索条），提示词模式查
-                    // 草稿源码（B2 的编辑区查找条）。
-                    enabled: win
-                    onClicked: {
-                        if (!win)
-                            return
-                        if (win.preset === "document")
-                            win.openSearch()
-                        else
-                            win.openDraftFind()
-                    }
-                }
-                RibbonToolButton {
-                    text: qsTr("Save")
-                    iconSource: "qrc:/icons/download.svg"
-                    enabled: win && win.preset === "document"
-                             && markdown.canEdit
-                    onClicked: if (win) win.saveDocument()
-                }
-                RibbonToolButton {
-                    // B3 清空草稿：确认 + 可撤销（规划 03 §四）。
-                    text: qsTr("Clear")
-                    iconSource: "qrc:/icons/close.svg"
-                    enabled: win && win.preset === "prompt"
-                             && tools.draft.length > 0
-                    onClicked: if (win) win.confirmClearDraft()
+                    text: qsTr("Copy Prompt")
+                    iconSource: commandBar.icon("copy")
+                    toolTip: qsTr("Put the whole prompt on the clipboard")
+                    onClicked: if (win) win.copyPrompt()
                 }
             }
 
-            // 视图选项（原 tab 条的控件，2026-10 按用户反馈收进命令条）：
-            // 三态 + 预览字号 + 默认宽度。tab 条只回答「在哪份文档」，
-            // 「怎么看」的选项住在这里。两种预设都在场——渲染管线吃文本
-            // 不吃文件，草稿会话同样有 Preview/Split。
+            // 查找：输入框常驻面板（回车查找、再回车下一个；动作与分流
+            // 都在页面动作层）。「可取消」= 清空并把焦点还给编辑器。
+            // SARibbon 的右侧按钮组只接受工具按钮、嵌不了输入控件，
+            // 查找框落在「开始」页的收尾面板（Ctrl+F 仍然直达）。
             RibbonPanel {
-                panelTitle: qsTr("View")
+                panelTitle: qsTr("Find")
+
+                RibbonControlContainer {
+                    enableShowIcon: false
+                    enableShowTitle: false
+
+                    control: ATextField {
+                        id: findField
+                        objectName: "ribbonFindField"
+
+                        width: 170
+                        placeholderText: qsTr("Find in prompt")
+                        // 回车即动作：首个回车从头查找、后续回车下一个
+                        // （「是否首个」由页面按命中状态判断）。
+                        onAccepted: if (win) win.findNext(findField.text)
+                        Keys.onEscapePressed: if (win) win.cancelFind()
+                    }
+                }
+                RibbonToolButton {
+                    text: qsTr("Cancel")
+                    toolButtonStyle: Ribbon.IconOnly
+                    iconSource: commandBar.icon("close")
+                    toolTip: qsTr("Clear the search")
+                    enabled: findField.text.length > 0
+                    onClicked: if (win) win.cancelFind()
+                }
+            }
+        }
+
+        // --- 标签页 2 · 提示词：模板、收藏、体检与历史 ------------------
+        // 普通 category（2026-10 从上下文页转正）：模板与收藏是提示词写作
+        // 的常驻工具，不随文档预设出现/消失。
+        RibbonCategory {
+            title: qsTr("Prompt")
+
+            // 模板库 gallery：点击格子即插入。SARibbon 声明式 gallery 是
+            // 静态 listProperty（动态模板表塞不进它的声明面），用自绘
+            // gallery 承载，见 PromptGallery.qml。
+            RibbonPanel {
+                panelTitle: qsTr("Templates")
+
+                RibbonControlContainer {
+                    enableShowIcon: false
+                    enableShowTitle: false
+
+                    control: PromptGallery {
+                        objectName: "templateGallery"
+                        scope: win
+                        entries: tools.filteredTemplates("", "")
+                    }
+                }
+            }
+
+            // 收藏：与模板同一 gallery 形态（成稿的陈列）。
+            RibbonPanel {
+                panelTitle: qsTr("Favorites")
+
+                RibbonControlContainer {
+                    enableShowIcon: false
+                    enableShowTitle: false
+
+                    control: PromptGallery {
+                        objectName: "favoriteGallery"
+                        // 收藏没有 category：全部落进默认组。
+                        entries: {
+                            const rows = []
+                            const all = tools.favorites
+                            for (let i = 0; i < all.length; ++i) {
+                                rows.push({
+                                    id: all[i].title,
+                                    title: all[i].title,
+                                    category: "",
+                                    builtin: false
+                                })
+                            }
+                            return rows
+                        }
+                        defaultGroupTitle: qsTr("Favorites")
+                    }
+                }
+            }
+
+            // 存档动作：icon + text。
+            RibbonPanel {
+                panelTitle: qsTr("Save")
+
+                RibbonToolButton {
+                    text: qsTr("Save as Template")
+                    iconSource: commandBar.icon("template")
+                    toolTip: qsTr("Turn the draft into a reusable template")
+                    enabled: win && win.preset === "prompt"
+                             && tools.draft.length > 0
+                    onClicked: if (win) win.saveCurrentAsTemplate()
+                }
+                RibbonToolButton {
+                    text: qsTr("Save Favorite")
+                    iconSource: commandBar.icon("favorite")
+                    toolTip: qsTr("Save the draft to the favorites")
+                    enabled: win && win.preset === "prompt"
+                             && tools.draft.length > 0
+                    onClicked: if (win) win.saveCurrentToFavorites()
+                }
+            }
+
+            // 体检与历史：点击打开页面上的非模态悬浮窗（可停留、可关闭）。
+            RibbonPanel {
+                panelTitle: qsTr("Review")
+
+                RibbonToolButton {
+                    text: qsTr("Check Prompt")
+                    iconSource: commandBar.icon("check")
+                    checkable: true
+                    checked: win && win.checksVisible
+                    toolTip: qsTr("Run prompt checks in a floating panel")
+                    onClicked: if (win) win.toggleChecksWindow()
+                }
+                RibbonToolButton {
+                    text: qsTr("History")
+                    iconSource: commandBar.icon("history")
+                    checkable: true
+                    checked: win && win.historyVisible
+                    toolTip: qsTr("Browse and roll back draft versions")
+                    onClicked: if (win) win.toggleHistoryWindow()
+                }
+            }
+        }
+
+        // --- 标签页 3 · 视图：编辑器视图与 ribbon 自身 -------------------
+        // Markdown 编辑器视图（预览/分栏/源码/字号/栏宽/大纲）与软件界面
+        // 视图（样式/主题跟随/折叠）两类；tab 条只回答「在哪份文档」，
+        // 「怎么看」的选项住在这里。
+        RibbonCategory {
+            title: qsTr("View")
+
+            RibbonPanel {
+                panelTitle: qsTr("Editor")
 
                 RibbonToolButton {
                     text: qsTr("Preview")
-                    iconSource: "qrc:/icons/web.svg"
+                    iconSource: commandBar.icon("preview")
                     checkable: true
                     checked: markdown.mode === "preview"
                     enabled: markdown.available
@@ -344,7 +515,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Split")
-                    iconSource: "qrc:/icons/menu.svg"
+                    iconSource: commandBar.icon("split")
                     checkable: true
                     checked: markdown.mode === "split"
                     // 只读文档没有源码可编：Split/Source 直接禁用，而不是
@@ -355,7 +526,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Source")
-                    iconSource: "qrc:/icons/code.svg"
+                    iconSource: commandBar.icon("source")
                     checkable: true
                     checked: markdown.mode === "source"
                     enabled: markdown.available
@@ -363,274 +534,82 @@ Item {
                     onClicked: markdown.setMode("source")
                 }
 
-                // 预览字号：菜单单选（与 Style 按钮同一形态；SARibbon 的
-                // 组合框是另一套视觉，先不引入）。值表与原 tab 条下拉同序：
-                // 0 = 跟随主题的 fontSizeBody。
-                RibbonToolButton {
+                // 预览字号：下拉显示当前值（0 = 跟随主题的 fontSizeBody）。
+                RibbonControlContainer {
                     text: qsTr("Font Size")
-                    iconSource: "qrc:/icons/bold.svg"
-                    popupMode: Ribbon.MenuButtonPopup
-                    menuActions: [
-                        RibbonAction {
-                            text: qsTr("Theme size")
-                            checkable: true
-                            checked: markdown.fontSizePx === 0
-                            onTriggered: markdown.setFontSizePx(0)
-                        },
-                        RibbonAction {
-                            text: "12 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 12
-                            onTriggered: markdown.setFontSizePx(12)
-                        },
-                        RibbonAction {
-                            text: "13 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 13
-                            onTriggered: markdown.setFontSizePx(13)
-                        },
-                        RibbonAction {
-                            text: "14 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 14
-                            onTriggered: markdown.setFontSizePx(14)
-                        },
-                        RibbonAction {
-                            text: "16 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 16
-                            onTriggered: markdown.setFontSizePx(16)
-                        },
-                        RibbonAction {
-                            text: "18 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 18
-                            onTriggered: markdown.setFontSizePx(18)
-                        },
-                        RibbonAction {
-                            text: "20 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 20
-                            onTriggered: markdown.setFontSizePx(20)
-                        },
-                        RibbonAction {
-                            text: "24 px"
-                            checkable: true
-                            checked: markdown.fontSizePx === 24
-                            onTriggered: markdown.setFontSizePx(24)
+
+                    control: AComboBox {
+                        objectName: "fontSizeCombo"
+
+                        model: [qsTr("Theme"), "12 px", "13 px", "14 px",
+                                "16 px", "18 px", "20 px", "24 px"]
+                        currentIndex: {
+                            const px = [0, 12, 13, 14, 16, 18, 20, 24]
+                            const at = px.indexOf(markdown.fontSizePx)
+                            return at >= 0 ? at : 0
                         }
-                    ]
+                        onActivated: function(index) {
+                            const px = [0, 12, 13, 14, 16, 18, 20, 24]
+                            markdown.setFontSizePx(px[index])
+                        }
+                    }
                 }
 
-                // 正文列默认宽度：0 = 内置基准，末项是「尽量满栏」。
-                RibbonToolButton {
+                // 正文列默认宽度：下拉显示当前值（末项是「尽量满栏」）。
+                RibbonControlContainer {
                     text: qsTr("Width")
-                    iconSource: "qrc:/icons/menu.svg"
-                    popupMode: Ribbon.MenuButtonPopup
-                    menuActions: [
-                        RibbonAction {
-                            text: qsTr("Default width")
-                            checkable: true
-                            checked: markdown.contentWidthPx === 0
-                            onTriggered: markdown.setContentWidthPx(0)
-                        },
-                        RibbonAction {
-                            text: "640 px"
-                            checkable: true
-                            checked: markdown.contentWidthPx === 640
-                            onTriggered: markdown.setContentWidthPx(640)
-                        },
-                        RibbonAction {
-                            text: "760 px"
-                            checkable: true
-                            checked: markdown.contentWidthPx === 760
-                            onTriggered: markdown.setContentWidthPx(760)
-                        },
-                        RibbonAction {
-                            text: "900 px"
-                            checkable: true
-                            checked: markdown.contentWidthPx === 900
-                            onTriggered: markdown.setContentWidthPx(900)
-                        },
-                        RibbonAction {
-                            text: "1200 px"
-                            checkable: true
-                            checked: markdown.contentWidthPx === 1200
-                            onTriggered: markdown.setContentWidthPx(1200)
-                        },
-                        RibbonAction {
-                            text: qsTr("Full width")
-                            checkable: true
-                            checked: markdown.contentWidthPx === 4000
-                            onTriggered: markdown.setContentWidthPx(4000)
+
+                    control: AComboBox {
+                        objectName: "widthCombo"
+
+                        model: [qsTr("Default"), "640 px", "760 px",
+                                "900 px", "1200 px", qsTr("Full")]
+                        currentIndex: {
+                            const px = [0, 640, 760, 900, 1200, 4000]
+                            const at = px.indexOf(markdown.contentWidthPx)
+                            return at >= 0 ? at : 0
                         }
-                    ]
-                }
-            }
-
-            // 草稿管理（M4）：放「开始」页而不是提示词上下文页——
-            // E4（从文档新建草稿）在文档预设下才有意义，开始页两种
-            // 预设都在场。
-            RibbonPanel {
-                panelTitle: qsTr("Drafts")
-
-                RibbonToolButton {
-                    text: qsTr("New Draft")
-                    iconSource: "qrc:/icons/plus.svg"
-                    enabled: win
-                    onClicked: if (win) win.newDraft()
-                }
-                RibbonToolButton {
-                    // E4：当前文档的文本原样成稿（单向：草稿永不写回文件）。
-                    text: qsTr("From Document")
-                    iconSource: "qrc:/icons/file.svg"
-                    enabled: win && win.preset === "document"
-                             && markdown.filePath.length > 0
-                    onClicked: if (win) win.newDraftFromDocument()
-                }
-                RibbonToolButton {
-                    text: qsTr("Rename")
-                    iconSource: "qrc:/icons/bold.svg"
-                    enabled: win && win.preset === "prompt"
-                             && tools.activeDraftId.length > 0
-                    onClicked: if (win) win.renameCurrentDraft()
-                }
-                RibbonToolButton {
-                    text: qsTr("Duplicate")
-                    iconSource: "qrc:/icons/copy.svg"
-                    enabled: win && win.preset === "prompt"
-                             && tools.activeDraftId.length > 0
-                    onClicked: if (win) win.duplicateCurrentDraft()
-                }
-                RibbonToolButton {
-                    text: qsTr("Delete")
-                    iconSource: "qrc:/icons/close.svg"
-                    enabled: win && win.preset === "prompt"
-                             && tools.activeDraftId.length > 0
-                    onClicked: if (win) win.deleteCurrentDraft()
-                }
-            }
-        }
-
-        // --- 标签页 2 · 提示词：模板与收藏（上下文页，仅提示词预设） ---------
-        // 决策 D-2：文档模式（双击 .md）下这个 tab 不出现——模板与收藏是
-        // 草稿的工具，别人的文档不往里插。挂 RibbonContextCategory。
-        //
-        // contextColor 不能用 theme.accent：SARibbon 的标题行底色就是
-        // RibbonTheme.accent（主题桥把应用 accent 推了进去），上下文页的
-        // 色带与 tab 文字都按 contextColor 画——同色等于全部隐形，看起来
-        // 就是「context 页和普通页混叠在一起」（2026-10 用户报告）。绿色
-        // 在深浅两套主题下都与 accent 蓝可区分，也是 Office 上下文页的
-        // 惯例用色。
-        RibbonContextCategory {
-            id: promptContext
-            contextTitle: qsTr("Prompt tools")
-            contextColor: theme.success
-            active: win ? win.preset === "prompt" : false
-
-            RibbonCategory {
-                title: qsTr("Prompt")
-
-                RibbonPanel {
-                    RibbonToolButton {
-                        // 左栏模板库就是选择器（openTemplatePicker）：
-                        // SARibbon 的 gallery/menuActions 是静态
-                        // listProperty 绑不了模型，不在 Ribbon 里
-                        // 造第二份列表。
-                        text: qsTr("Insert Template")
-                        iconSource: "qrc:/icons/file.svg"
-                        toolTip: qsTr("Browse the template library")
-                        onClicked: if (win) win.openTemplatePicker()
-                    }
-                    RibbonToolButton {
-                        text: qsTr("Save as Template")
-                        iconSource: "qrc:/icons/code.svg"
-                        enabled: win && win.preset === "prompt"
-                        onClicked: if (win) win.saveCurrentAsTemplate()
+                        onActivated: function(index) {
+                            const px = [0, 640, 760, 900, 1200, 4000]
+                            markdown.setContentWidthPx(px[index])
+                        }
                     }
                 }
 
-                RibbonPanel {
-                    RibbonToolButton {
-                        text: qsTr("Save Favorite")
-                        iconSource: "qrc:/icons/copy.svg"
-                        enabled: win && win.preset === "prompt"
-                        onClicked: if (win) win.saveCurrentToFavorites()
-                    }
-                }
+                RibbonSeparator {}
 
-                RibbonPanel {
-                    // B9 体检入口：触发 + 规则开关（清单在右栏体检段）。
-                    RibbonToolButton {
-                        text: qsTr("Check Prompt")
-                        iconSource: "qrc:/icons/search.svg"
-                        enabled: win && win.preset === "prompt"
-                        onClicked: if (win) win.runDraftChecks()
-                    }
-                }
-            }
-        }
-
-        // --- 标签页 3 · 视图：面板与 ribbon 自己的开关 -----------------------
-        // 三态/字号/默认宽度已收进「开始」页（2026-10：tab 条不再混视图
-        // 选项，命令条是唯一出处）；这里只留大纲、预设与 ribbon 自身。
-        RibbonCategory {
-            title: qsTr("View")
-
-            RibbonPanel {
+                // 大纲：两种预设都在场（草稿也是一份有标题的正文）；
+                // 纯源码态没有渲染窗，页面按 showsView 决定面板显隐。
                 RibbonToolButton {
                     text: qsTr("Outline")
-                    iconSource: "qrc:/icons/bullet-list.svg"
+                    iconSource: commandBar.icon("outline")
                     checkable: true
                     checked: markdown.showOutline
-                    enabled: win && win.preset === "document"
+                    enabled: markdown.available
                     onClicked: markdown.setShowOutline(!markdown.showOutline)
-                }
-                RibbonToolButton {
-                    // 「完整工具」即预设切换：全开 = 提示词模式，收起 =
-                    // 文档模式（没有可看文档时不可用）。
-                    text: qsTr("Full Tools")
-                    checkable: true
-                    checked: win && win.preset === "prompt"
-                    enabled: win && (win.preset === "prompt"
-                                     || (markdown.available
-                                         && markdown.fileTitle.length > 0))
-                    onClicked: if (win) win.toggleFullTools()
                 }
             }
 
+            // ribbon 自身：样式（下拉显示当前档）、主题跟随与折叠。
             RibbonPanel {
-                RibbonToolButton {
-                    text: qsTr("Collapse")
-                    checkable: true
-                    checked: win && win.ribbonCollapsed
-                    onClicked: if (win) win.toggleRibbonCollapsed()
-                }
-                RibbonToolButton {
+                panelTitle: qsTr("Ribbon")
+
+                RibbonControlContainer {
                     text: qsTr("Style")
-                    iconSource: "qrc:/icons/menu.svg"
-                    popupMode: Ribbon.MenuButtonPopup
-                    menuActions: [
-                        RibbonAction {
-                            text: qsTr("Single row")
-                            checkable: true
-                            checked: tools.ribbonStyle === "single"
-                            onTriggered: tools.ribbonStyle = "single"
-                        },
-                        RibbonAction {
-                            text: qsTr("Two rows")
-                            checkable: true
-                            checked: tools.ribbonStyle === "two-row"
-                            onTriggered: tools.ribbonStyle = "two-row"
-                        },
-                        RibbonAction {
-                            text: qsTr("Three rows")
-                            checkable: true
-                            checked: tools.ribbonStyle === "three-row"
-                            onTriggered: tools.ribbonStyle = "three-row"
+
+                    control: AComboBox {
+                        objectName: "styleCombo"
+
+                        // 紧凑 = 单行（默认）；宽松 = 两行。三行档已退役。
+                        model: [qsTr("Compact"), qsTr("Loose")]
+                        currentIndex: tools.ribbonStyle === "two-row" ? 1 : 0
+                        onActivated: function(index) {
+                            tools.ribbonStyle = index === 1
+                                    ? "two-row" : "single"
                         }
-                    ]
+                    }
                 }
+
                 RibbonToolButton {
                     // 主题跟随关掉时 ribbon 保留自己的调色板（不反向同步）。
                     text: qsTr("Follow Theme")
@@ -641,6 +620,12 @@ Item {
                         if (checked)
                             commandBar.applyBridgeTheme()
                     }
+                }
+                RibbonToolButton {
+                    text: qsTr("Collapse")
+                    checkable: true
+                    checked: win && win.ribbonCollapsed
+                    onClicked: if (win) win.toggleRibbonCollapsed()
                 }
             }
         }

@@ -229,6 +229,11 @@ private Q_SLOTS:
         QQmlEngine engine;
         // 注册必须先于任何加载——这正是产品 main.cpp 的那一行。
         saRibbonRegisterQmlTypes(&engine);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        // WorkbenchRibbon 引用 A* 组件（import AgentWorkbench）：Qt 5 引擎
+        // 的默认导入路径不含 qrc:/qt/qml（Qt 6 默认有），与整页用例同一条。
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
         // main.cpp 同款单例注册：命令条经 import AgentWorkbench.App 引用
         // MarkdownEdit（格式按钮的光标态查询），缺了它整份文件装不起来。
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
@@ -287,117 +292,15 @@ private Q_SLOTS:
                             + g_ribbonWarnings.join(QLatin1Char(';'))));
     }
 
-    // 上下文页激活时：色带在场、颜色与主题 accent 可区分、几何只覆盖
-    // 自己的 tab 区间（不横贯标题行）。
-    void testContextCategoryBandIsDistinctAndBounded()
-    {
-        QTemporaryDir dataRoot;
-        QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
-        // 主题 JSON 只嵌在 app 目标的 qrc 里；本目标要拿到真实的语义令牌
-        // 就把随包的两份主题写进测试模式的主题目录（构造 registry 前写好，
-        // scan() 才能扫到）。否则全部令牌都是无效色，色带断言无从谈起。
-        QVERIFY2(seedThemes(), "seeding the builtin themes failed");
-        Settings settings;
-        ThemeRegistry registry;
-        Theme theme(&settings, &registry);
-        theme.applyTheme(QStringLiteral("mocha-dark"));
-        ToolsFacade tools(dataRoot.path());
-        MarkdownEdit markdownEdit(&theme);
-        MarkdownPreviewController markdown(&settings, &theme);
-        WinStub win;
+    // 上下文页已退役（2026-10：模板库转正为普通 category）。原用例压的
+    // 「contextColor 与 accent 可区分」问题随之消失——标题行底色现在就是
+    // 应用 chrome 色（主题桥），没有第二套色带。
 
-        QQmlEngine engine;
-        saRibbonRegisterQmlTypes(&engine);
-        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
-                                     &theme);
-        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
-                                     &tools);
-        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
-                                     "MarkdownEdit", &markdownEdit);
-
-        QQmlContext context(engine.rootContext());
-        context.setContextProperty(QStringLiteral("theme"), &theme);
-        context.setContextProperty(QStringLiteral("tools"), &tools);
-        context.setContextProperty(QStringLiteral("markdown"), &markdown);
-
-        QQuickWindow host;
-        host.resize(900, 200);
-
-        g_ribbonWarnings.clear();
-        g_previousHandler = qInstallMessageHandler(ribbonMessageHandler);
-        QQmlComponent component(&engine, QUrl(QStringLiteral(
-            "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchRibbon.qml")));
-        QVERIFY2(!component.isError(),
-                 qPrintable(component.errorString()));
-        QScopedPointer<QObject> root(component.create(&context));
-        QVERIFY2(!root.isNull(), qPrintable(component.errorString()));
-        qInstallMessageHandler(g_previousHandler);
-        g_previousHandler = nullptr;
-
-        QQuickItem *const item = qobject_cast<QQuickItem *>(root.data());
-        QVERIFY2(item, "the ribbon root is not a QQuickItem");
-        // 宿主要走根对象的 win 属性（页面在 onStatusChanged 里就是这么
-        // 接的）：组件根自己声明了 property var win，上下文属性里的同名
-        // 名字会被它遮蔽，绑不到桩上。
-        QVERIFY2(item->setProperty("win", QVariant::fromValue(&win)),
-                 "the ribbon root has no win property");
-        item->setParentItem(host.contentItem());
-        item->setWidth(900);
-        host.show();
-        QVERIFY2(QTest::qWaitForWindowExposed(&host),
-                 "the host window never became exposed");
-        QTRY_VERIFY2_WITH_TIMEOUT(item->implicitHeight() > 0,
-                                  "the ribbon bar never produced a height",
-                                  5000);
-
-        QObject *bar = item->childItems().constFirst();
-        QVERIFY2(bar, "the ribbon root has no bar child");
-
-        // 色带数据由宿主在布局后发布；preset = "prompt" 上下文页激活。
-        QVariantList bands;
-        QTRY_VERIFY2_WITH_TIMEOUT(
-            !(bands = bar->property("contextBands").toList()).isEmpty(),
-            "the active context category produced no band", 5000);
-        QCOMPARE(bands.size(), 1);
-        const QVariantMap band = bands.at(0).toMap();
-        QCOMPARE(band.value(QStringLiteral("title")).toString(),
-                 QStringLiteral("Prompt tools"));
-
-        // 颜色可区分：上下文色不得与主题 accent 相同（隐形混叠的根因）。
-        const QColor contextColor =
-            band.value(QStringLiteral("color")).value<QColor>();
-        QVERIFY2(contextColor.isValid(),
-                 "the band color is not a valid QColor");
-        const QColor accentColor = theme.accent();
-        QVERIFY2(contextColor != accentColor,
-                 qPrintable(QStringLiteral("contextColor equals theme.accent (")
-                            + accentColor.name()
-                            + QStringLiteral(") - the band and its tab text ")
-                            + QStringLiteral("are invisible on the accent ")
-                            + QStringLiteral("title row")));
-
-        // 几何有界：色带只覆盖上下文 tab 的区间（x 起点在标题行内容区、
-        // 宽度远小于整条 bar），不是横贯全宽的背景。
-        const qreal x = band.value(QStringLiteral("x")).toReal();
-        const qreal width = band.value(QStringLiteral("width")).toReal();
-        QVERIFY2(x >= 0, "the band starts left of the bar");
-        QVERIFY2(width > 0, "the band has no width");
-        QVERIFY2(x + width <= item->width() + 1.0,
-                 "the band spills past the right edge of the bar");
-        QVERIFY2(width < item->width() * 0.9,
-                 qPrintable(QStringLiteral("the band spans the whole title ")
-                            + QStringLiteral("row (width=%1 of %2)")
-                                  .arg(width).arg(item->width())));
-
-        QVERIFY2(g_ribbonWarnings.isEmpty(),
-                 qPrintable(QStringLiteral("SARibbon warnings during load: ")
-                            + g_ribbonWarnings.join(QLatin1Char(';'))));
-    }
-
-    // menuActions 菜单链（SARibbon 3.0）：菜单项是 QAction 列表、激活经
-    // activateMenuItem 中转。压的是「声明 → 触发 → 门面状态」整条链：
-    // RibbonMenuItem 残留时 WorkbenchRibbon.qml 装载失败整条用例就挂。
-    void testMenuActionsDriveToolsState()
+    // 样式下拉（SARibbon 的组合框经 RibbonControlContainer 嵌进面板）：
+    // 选择写 ToolsFacade、当前值显示在下拉上；三行档已退役，旧持久化值
+    // 收敛为紧凑（single）。压的是「声明 → 选择 → 门面状态 → 显示回读」
+    // 整条链。
+    void testStyleComboDrivesToolsState()
     {
         QTemporaryDir dataRoot;
         QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
@@ -412,6 +315,11 @@ private Q_SLOTS:
 
         QQmlEngine engine;
         saRibbonRegisterQmlTypes(&engine);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        // WorkbenchRibbon 引用 A* 组件（import AgentWorkbench）：Qt 5 引擎
+        // 的默认导入路径不含 qrc:/qt/qml（Qt 6 默认有），与整页用例同一条。
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
                                      &theme);
         qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
@@ -432,34 +340,40 @@ private Q_SLOTS:
         QVERIFY2(!root.isNull(), qPrintable(component.errorString()));
         QQuickItem *const item = qobject_cast<QQuickItem *>(root.data());
         QVERIFY2(item, "the ribbon root is not a QQuickItem");
-        // 同第二用例：宿主经根对象的 win 属性接桩（上下文属性会被组件
-        // 根自己的同名 property 遮蔽）。
+        // 宿主经根对象的 win 属性接桩（上下文属性会被组件根自己的
+        // 同名 property 遮蔽）。
         QVERIFY2(item->setProperty("win", QVariant::fromValue(&win)),
                  "the ribbon root has no win property");
 
-        // Style 菜单按钮（View 标签页）：三档样式，单选持久化在
-        // tools.json。按 text 找结构宿主（三个 category 都静态声明，
-        // 装载即在 QObject 树上，与当前 tab 无关）。
-        SARibbonQml::RibbonToolButton *styleButton = nullptr;
-        const auto buttons
-                = item->findChildren<SARibbonQml::RibbonToolButton *>();
-        for (SARibbonQml::RibbonToolButton *button : buttons) {
-            if (button->text() == QStringLiteral("Style")) {
-                styleButton = button;
-                break;
-            }
+        // Style 下拉（View 标签页）：按 objectName 找（AComboBox 嵌在
+        // RibbonControlContainer 里，装载即在视觉树，与当前 tab 无关）。
+        QQuickItem *styleCombo = nullptr;
+        const auto combos = item->findChildren<QQuickItem *>(
+            QStringLiteral("styleCombo"));
+        if (!combos.isEmpty()) {
+            styleCombo = combos.constFirst();
         }
-        QVERIFY2(styleButton, "no Style menu button in the ribbon");
-        QCOMPARE(styleButton->menuActionCount(), 3);
+        QVERIFY2(styleCombo, "no style combo in the ribbon");
+        QCOMPARE(styleCombo->property("currentIndex").toInt(), 0);
 
-        // 激活走 QAction::trigger（onTriggered 写 ToolsFacade，同步
-        // 执行），两档往返验证单选语义。
-        styleButton->activateMenuItem(1);
+        // 激活走 ComboBox 的 activated 信号（QML 的 onActivated 写门面，
+        // 同步执行）。
+        QVERIFY2(QMetaObject::invokeMethod(styleCombo, "activated",
+                                           Q_ARG(int, 1)),
+                 "activating the combo entry failed");
         QCOMPARE(tools.ribbonStyle(), QStringLiteral("two-row"));
-        styleButton->activateMenuItem(2);
-        QCOMPARE(tools.ribbonStyle(), QStringLiteral("three-row"));
-        styleButton->activateMenuItem(0);
+        QTRY_COMPARE(styleCombo->property("currentIndex").toInt(), 1);
+
+        QVERIFY2(QMetaObject::invokeMethod(styleCombo, "activated",
+                                           Q_ARG(int, 0)),
+                 "activating the combo entry failed");
         QCOMPARE(tools.ribbonStyle(), QStringLiteral("single"));
+        QTRY_COMPARE(styleCombo->property("currentIndex").toInt(), 0);
+
+        // 三行档退役：写入旧持久化值，显示面必须收敛回紧凑
+        // （styleEnumFor 对未知档回落单行）。
+        tools.setRibbonStyle(QStringLiteral("three-row"));
+        QTRY_COMPARE(styleCombo->property("currentIndex").toInt(), 0);
     }
 
     // 整页首显（2026-10 三个缺陷的复现现场）：页面 + 真 Ribbon 路径。
@@ -593,65 +507,86 @@ private Q_SLOTS:
                             + QStringLiteral("would overlap the page below")
                               .arg(commandBarLoader->height())
                               .arg(bar->implicitHeight())));
-        QQuickItem *const checksPanel = findItemByName(
+        // 2026-10 重组后的结构断言：右侧业务栏已删（编辑区占满中栏），
+        // 体检与历史是非模态悬浮窗（默认关闭，动作打开）；模板库是命令条
+        // 「提示词」页里的 gallery。
+        QQuickItem *const legacyPanel = findItemByName(
             page, QStringLiteral("checksPanel"));
-        QVERIFY2(checksPanel != nullptr, "the page has no right panel");
-        QVERIFY2(checksPanel->mapToScene(QPointF(0, 0)).y()
-                     >= commandBarBottom - 1,
-                 qPrintable(QStringLiteral("the right panel top (%1) is at ")
-                            + QStringLiteral("or above the command bar ")
-                            + QStringLiteral("bottom (%2) — the panels overlap")
-                              .arg(checksPanel->mapToScene(QPointF(0, 0)).y())
-                              .arg(commandBarBottom)));
-        QVERIFY2(checksPanel->height() > 100,
-                 "the right panel collapsed vertically");
+        QVERIFY2(legacyPanel == nullptr,
+                 "the legacy right panel is still around");
 
-        // 右栏分段不再互相挤压（2026-10 用户报告「体检下面小字被盖住、
-        // 段间距二三十像素」）：体检列表是主弹性段但有保底，历史段是
-        // 内容段但有封顶——两个数字都在这里钉住，谁越界谁红。挤扁的
-        // 机制是两个 fillHeight 竞争 + 历史段的隐式高把 preferredHeight
-        // 顶穿（实测 148 段长到 702、列表剩 4px）。
+        // Popup 关闭时不在视觉树（contentItem 未挂场），按 QObject 树找
+        // 窗对象、经 visible 属性判开合。
+        QObject *const checksPopup = page->findChild<QObject *>(
+            QStringLiteral("checksPopup"));
+        QVERIFY2(checksPopup != nullptr, "the page has no checks popup");
+        QVERIFY2(!checksPopup->property("visible").toBool(),
+                 "the checks popup starts visible");
+
+        QObject *const historyPopup = page->findChild<QObject *>(
+            QStringLiteral("historyPopup"));
+        QVERIFY2(historyPopup != nullptr, "the page has no history popup");
+        QVERIFY2(!historyPopup->property("visible").toBool(),
+                 "the history popup starts visible");
+
+        // 悬浮窗的动作开关走页面动作层（真实 QMetaObject 路径）：开体检
+        // 窗即跑一次，checkList 在窗内；历史窗随后错位在场。
+        QVERIFY2(QMetaObject::invokeMethod(
+                     page, "toggleChecksWindow"),
+                 "toggling the checks window failed");
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            checksPopup->property("visible").toBool(),
+            "the checks popup never opened", 5000);
+        // 浮窗内容挂在窗口 overlay（Popup 的挂场点），不在 page 子树：
+        // 从窗口 contentItem 搜。
         QQuickItem *const checkList = findItemByName(
-            page, QStringLiteral("checkList"));
-        QVERIFY2(checkList, "the page has no check list");
-        QTRY_VERIFY2_WITH_TIMEOUT(checkList->height() >= 140,
-                                  qPrintable(QStringLiteral(
-                                      "the check list was crushed to %1px")
-                                      .arg(checkList->height())),
-                                  5000);
-        QQuickItem *const historySection = findItemByName(
-            page, QStringLiteral("historySection"));
-        QVERIFY2(historySection, "the page has no history section");
-        QVERIFY2(historySection->isVisible()
-                     && historySection->height() <= 220,
-                 qPrintable(QStringLiteral(
-                     "the history section grew past its cap (%1px)")
-                     .arg(historySection->height())));
+            view.contentItem(), QStringLiteral("checkList"));
+        QVERIFY2(checkList, "the checks popup has no check list");
+        QVERIFY2(checkList->isVisible(), "the check list is not visible");
+        QVERIFY2(QMetaObject::invokeMethod(
+                     page, "toggleHistoryWindow"),
+                 "toggling the history window failed");
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            historyPopup->property("visible").toBool(),
+            "the history popup never opened", 5000);
+        QQuickItem *const snapshotList = findItemByName(
+            view.contentItem(), QStringLiteral("snapshotList"));
+        QVERIFY2(snapshotList, "the history popup has no snapshot list");
 
-        // delegate 作用域（2026-10 首显缺陷 b）：模板行与 tab 行的处理器
-        // 都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
-        // ReferenceError（消息钩子抓到即失败）。先点一行模板：这会驱动
+        // tab 条右端的新建草稿（+）：Ribbon 不再放草稿管理面板，这里是
+        // 新建动作的唯一常驻入口。
+        QQuickItem *const newDraftTabButton = findItemByName(
+            page, QStringLiteral("newDraftTabButton"));
+        QVERIFY2(newDraftTabButton != nullptr,
+                 "the tab bar has no new-draft button");
+
+        // delegate 作用域（2026-10 首显缺陷 b）：gallery 格子与 tab 行的
+        // 处理器都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
+        // ReferenceError（消息钩子抓到即失败）。先点一格模板：这会驱动
         // scope.insertTemplate → applyPreset → 草稿会话建立 → tab 出现；
         // 再点那个 tab：驱动 fileTab 处理器里的 scope.switchDraftTo /
-        // scope.applyPreset（正是用户日志里 1665 行报错的那条路径）。
-        QQuickItem *const templateList = page->findChild<QQuickItem *>(
-            QStringLiteral("templateList"));
-        QVERIFY2(templateList != nullptr,
-                 "the page has no template list");
+        // scope.applyPreset（正是用户日志里报错的那条路径）。
+        QQuickItem *const templateGallery = findItemByName(
+            page, QStringLiteral("templateGallery"));
+        QVERIFY2(templateGallery != nullptr,
+                 "the ribbon has no template gallery");
         QTRY_VERIFY2_WITH_TIMEOUT(
-            templateList->property("count").toInt() > 0,
-            "the template list never filled with rows", 5000);
-        QQuickItem *const contentItem = templateList->property("contentItem")
-                                             .value<QQuickItem *>();
-        QVERIFY2(contentItem != nullptr,
-                 "the template list has no content item");
-        QVERIFY2(!contentItem->childItems().isEmpty(),
-                 "the template list has no rows instantiated");
-        QQuickItem *const firstRow = contentItem->childItems().constFirst();
-        const QPointF rowCenter = firstRow->mapToScene(
-            QPointF(firstRow->width() / 2, firstRow->height() / 2));
+            templateGallery->property("entries").toList().count() > 0,
+            "the template gallery never filled with entries", 5000);
+        // gallery 在 Ribbon 的当前 tab 上才实例化格子：把命令条切到
+        // 「提示词」页（tab 序 = Start 0 / Prompt 1 / View 2）。
+        QMetaObject::invokeMethod(
+            page, "setRibbonTab", Q_ARG(int, 1));
+        QQuickItem *galleryCell = nullptr;
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            (galleryCell = findItemByName(
+                 page, QStringLiteral("galleryCell"))) != nullptr,
+            "the template gallery instantiated no cells", 5000);
+        const QPointF cellCenter = galleryCell->mapToScene(
+            QPointF(galleryCell->width() / 2,
+                    galleryCell->height() / 2));
         QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
-                          rowCenter.toPoint());
+                          cellCenter.toPoint());
         // 模板插入后草稿会话在场 → tab 出现。注意 Repeater 的 delegate 只
         // 有视觉父（QObject 父为 null），findChild 的 QObject 树找不
         // 到——按视觉树找（itemAt 经 QMetaObject，页面 QML 侧的解析

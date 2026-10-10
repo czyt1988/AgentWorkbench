@@ -116,6 +116,13 @@ if (AWB_ENABLE_RIBBON)
         set_source_files_properties(${_icon}
             PROPERTIES QT_RESOURCE_ALIAS "icons/${_name}")
     endforeach()
+    # 命令条图标库（data-URL SVG 染色）：与 app 相同的资源路线、落在 QML
+    # 模块的 URL 空间里（ribbon 的相对 import 才解析得到）。
+    set(_tst_ribbonui_ribbon_icons
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/RibbonIcons.js)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/RibbonIcons.js
+        PROPERTIES QT_RESOURCE_ALIAS
+        "qt/qml/AgentWorkbench/workbench/RibbonIcons.js")
     awb_add_resources(tst_ribbonui "ribbonui_resources"
         PREFIX "/"
         FILES
@@ -123,6 +130,7 @@ if (AWB_ENABLE_RIBBON)
             ${_tst_ribbonui_default_icons}
             ${_tst_ribbonui_default_templates}
             ${_tst_ribbonui_icons}
+            ${_tst_ribbonui_ribbon_icons}
     )
 
     # 被测的那份 QML 按与 app 相同的 URL/别名嵌入。第三个用例装载整份
@@ -132,6 +140,7 @@ if (AWB_ENABLE_RIBBON)
     # 首显 category、delegate 作用域与 ObjectModel 用法都压在这里。
     set(_tst_ribbonui_qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/PromptGallery.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
@@ -153,6 +162,8 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchRibbon.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/PromptGallery.qml
+        PROPERTIES QT_RESOURCE_ALIAS "workbench/PromptGallery.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml

@@ -87,10 +87,10 @@ RibbonSettings ribbonFromJson(const QJsonObject &object)
     ribbon.collapsed = object.value(QLatin1String(kRibbonCollapsedKey)).toBool(false);
     const QString style =
         object.value(QLatin1String(kRibbonStyleKey)).toString();
-    if (style == QLatin1String("single") || style == QLatin1String("two-row")
-        || style == QLatin1String("three-row")) {
+    if (style == QLatin1String("single") || style == QLatin1String("two-row")) {
         ribbon.style = style;
     }
+    // 三行档已退役（2026-10 精简为紧凑/宽松两档）：旧值落回单行。
     ribbon.followAppTheme =
         object.value(QLatin1String(kRibbonFollowThemeKey)).toBool(true);
     const int tab = object.value(QLatin1String(kRibbonLastTabKey)).toInt(0);

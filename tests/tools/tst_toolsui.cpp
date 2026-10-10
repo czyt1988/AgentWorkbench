@@ -469,9 +469,10 @@ private Q_SLOTS:
 
     // --- 模板与收藏（M2 的界面冒烟） ---------------------------------------
 
-    // 模板段在场且装着内置模板（数据根是临时目录 → 10 条随包模板）。
-    // 这条用例同时守住「左栏三段结构」：workspaceSection、templateSection、
-    // favoriteSection 都能按 objectName 找到。
+    // 模板入口（2026-10 重组后）：左栏模板段退役，插入入口是工具栏的
+    // 模板菜单（菜单条目 = 模板表）。这条用例守住「入口按钮在场 + 数据
+    // 层的内置模板可取」——菜单的真实弹出与插入走 insertTemplate 主线
+    // 用例（同一条链路）。
     void testTemplateListShowsBuiltins()
     {
         QString error;
@@ -479,29 +480,30 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
-        QObject *const section = window->findChild<QObject *>(
-            QStringLiteral("templateSection"));
-        QVERIFY2(section, "templateSection not found by objectName");
+        // 插入/存模板/存收藏三个入口都在（无 Ribbon 构建的模板三件套）。
+        QQuickItem *const button = window->findChild<QQuickItem *>(
+            QStringLiteral("insertTemplateButton"));
+        QVERIFY2(button, "insertTemplateButton not found by objectName");
+        QVERIFY2(window->findChild<QQuickItem *>(
+                     QStringLiteral("saveTemplateButton")),
+                 "saveTemplateButton not found by objectName");
+        QVERIFY2(window->findChild<QQuickItem *>(
+                     QStringLiteral("saveFavoriteButton")),
+                 "saveFavoriteButton not found by objectName");
+        QVERIFY2(button->isEnabled(), "the template entry is disabled");
 
-        // ObjectModel 驱动的列表：count 直接读模型。
-        QObject *const list = window->findChild<QObject *>(
-            QStringLiteral("templateList"));
-        QVERIFY2(list, "templateList not found by objectName");
-        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
-                                  "template list never showed the builtins",
-                                  4000);
-
-        // favoriteSection 也在（默认收起：段头常驻，只藏内容——同一条
-        // 「收起可还原」纪律，展开/收回的往返在专门用例里压）。
-        QObject *const favorites = window->findChild<QObject *>(
-            QStringLiteral("favoriteSection"));
-        QVERIFY2(favorites, "favoriteSection not found by objectName");
+        // 数据层带着随包的内置模板（菜单条目的数据源）。
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            tools->property("templates").toList().size() >= 10,
+            "the template table never showed the builtins",
+            4000);
     }
 
     // 左栏段的收起必须可以还原（2026-10 用户报告「收起键一点整个段消失，
     // 没有任何办法再展开」）：段容器常驻、只藏内容，段头上的开关是折叠态
     // 唯一的还原入口。断言两层：收起后段对象仍然可见（旧缺陷把 visible
     // 绑在段上，收起即整段消失）、段高缩到段头；再点一次开关段高回来。
+    // 2026-10 重组后左栏只剩工作区段，它就是这条纪律的全部现场。
     void testSectionCollapseKeepsHeaderAndRestores()
     {
         QString error;
@@ -547,90 +549,9 @@ private Q_SLOTS:
                                   "the workspace section did not expand back",
                                   4000);
 
-        // --- 收藏段（默认收起，验证另一半：从收起态展开再收回） -----------
-        // 先放一条真数据再展开：展开触发列表的可见性翻转，「带行的
-        // ObjectModel 在可见性传播中途重建」正是 2026-10 展开即崩的形态
-        //（空列表的展开踩不到它——前一轮用例因此漏抓）。
-        tools->addFavorite(QStringLiteral("Collapse probe"),
-                           QStringLiteral("Favorite body for the toggle."));
-        QQuickItem *const favorites = window->findChild<QQuickItem *>(
-            QStringLiteral("favoriteSection"));
-        QQuickItem *const favoritesToggle = window->findChild<QQuickItem *>(
-            QStringLiteral("favoriteSectionToggle"));
-        QVERIFY2(favorites, "favoriteSection not found by objectName");
-        QVERIFY2(favoritesToggle, "the favorites header has no toggle");
-        QVERIFY2(favorites->isVisible(),
-                 "a collapsed-by-default section must still show its header");
-        QVERIFY2(favorites->height() < 80,
-                 "the favorites section should start collapsed (header only)");
-
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          favoritesToggle->mapToScene(QPointF(
-                              favoritesToggle->width() / 2.0,
-                              favoritesToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(favorites->height() > 100,
-                                  "the favorites section did not expand",
-                                  4000);
-        {
-            QObject *const list = window->findChild<QObject *>(
-                QStringLiteral("favoriteList"));
-            QVERIFY2(list, "favoriteList not found by objectName");
-            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() == 1,
-                                      "the favorites list lost its row over "
-                                      "the expand", 4000);
-        }
-
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          favoritesToggle->mapToScene(QPointF(
-                              favoritesToggle->width() / 2.0,
-                              favoritesToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(favorites->height() < 80,
-                                  "the favorites section did not collapse "
-                                  "back", 4000);
-        QVERIFY2(favoritesToggle->isVisible(),
-                 "the favorites toggle must survive its own collapse");
-
-        // --- 模板段（默认展开且已有内置行：收起 → 展开 = 完整复现用户
-        // 「点展开崩溃」的序列——10+ 行的 ObjectModel 在可见性传播中途
-        // 被同步重建是那次崩溃的直接诱因） -------------------------------
-        QQuickItem *const templates = window->findChild<QQuickItem *>(
-            QStringLiteral("templateSection"));
-        QQuickItem *const templatesToggle = window->findChild<QQuickItem *>(
-            QStringLiteral("templateSectionToggle"));
-        QVERIFY2(templates, "templateSection not found by objectName");
-        QVERIFY2(templatesToggle, "the templates header has no toggle");
-        {
-            QObject *const list = window->findChild<QObject *>(
-                QStringLiteral("templateList"));
-            QVERIFY2(list, "templateList not found by objectName");
-            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
-                                      "the template list had no rows before "
-                                      "the round trip", 4000);
-        }
-
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          templatesToggle->mapToScene(QPointF(
-                              templatesToggle->width() / 2.0,
-                              templatesToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(templates->height() < 120,
-                                  "the templates section did not collapse",
-                                  4000);
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          templatesToggle->mapToScene(QPointF(
-                              templatesToggle->width() / 2.0,
-                              templatesToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(templates->height() > 200,
-                                  "the templates section did not expand back",
-                                  4000);
-        {
-            // 展开后行还在：崩溃之外也要保证不丢内容。
-            QObject *const list = window->findChild<QObject *>(
-                QStringLiteral("templateList"));
-            QVERIFY2(list, "templateList not found by objectName");
-            QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 10,
-                                      "the template list lost its rows over "
-                                      "the collapse/expand round trip", 4000);
-        }
+        // 收藏与模板段已随左右业务侧栏退役（2026-10）：模板与收藏的入口
+        // 在命令条（Ribbon 的 gallery / 工具栏的模板菜单），左侧只留
+        // 工作区树这一段。收起可还原的纪律由上面的工作区段代表。
     }
 
     // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。
@@ -703,7 +624,10 @@ private Q_SLOTS:
                             + text.left(200)));
     }
 
-    // 收藏：存一条 → 收藏段列表有行 → 点行 → body 进草稿。
+    // 收藏插入（2026-10 重组后）：收藏列表在命令条里（Ribbon 构建的
+    // gallery / 无 Ribbon 构建的存入按钮），列表行的点击路径在 tst_ribbonui
+    // 的 gallery 冒烟里压。这里守数据与动作层：存一条 → 插入函数把 body
+    // 送进草稿编辑器。
     void testFavoriteInsertFromList()
     {
         QString error;
@@ -721,49 +645,17 @@ private Q_SLOTS:
                            QStringLiteral("Favorite body text."));
         QCOMPARE(tools->property("favorites").toList().size(), 1);
 
-        // 收藏段展开（默认收起——切它自己的开关属性）。
-        QQuickItem *const section = window->findChild<QQuickItem *>(
-            QStringLiteral("favoriteSection"));
-        QVERIFY2(section, "favoriteSection not found by objectName");
-        section->setProperty("favoriteSectionExpanded", true);
-        // preferredHeight 跟着开关翻转，等布局给它非零高。
-        QTRY_VERIFY2_WITH_TIMEOUT(section->height() > 10,
-                                  "the favorites section never grew a height",
-                                  4000);
-
-        QObject *const list = window->findChild<QObject *>(
-            QStringLiteral("favoriteList"));
-        QVERIFY2(list, "favoriteList not found by objectName");
-        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() == 1,
-                                  "favorite list never showed the entry",
-                                  4000);
-        QTest::qWait(200);
-
-        // 点行：body 插进草稿。行经可视树找（ObjectModel 的行挂在
-        // 视图内容项下，与文件树的行同一形态）。
-        QQuickItem *const row = firstVisualRow(list);
-        QVERIFY2(row, "the favorite list never rendered a row");
-        const QPointF center = row->mapToScene(QPointF(
-            row->width() / 2.0, row->height() / 2.0));
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          center.toPoint());
         QQuickItem *const editor = window->findChild<QQuickItem *>(
             QStringLiteral("promptEditor"));
         QVERIFY2(editor, "promptEditor not found by objectName");
-        {
-            // 直接调窗口的插入函数：行点击的 TapHandler 是否触发，
-            // 由「函数本身可用 + 点击坐标命中行」两条分开锁。
-            QVERIFY(QMetaObject::invokeMethod(
-                pageRoot, "insertTextAtCursor",
-                Q_ARG(QVariant,
-                      QVariant(QStringLiteral("Favorite body text.")))));
-            QTest::qWait(100);
-            qDebug() << "[dbg] editor text after direct insert:"
-                     << editor->property("text").toString().left(60);
-        }
+        QVERIFY(QMetaObject::invokeMethod(
+            pageRoot, "insertTextAtCursor",
+            Q_ARG(QVariant,
+                  QVariant(QStringLiteral("Favorite body text.")))));
         QTRY_VERIFY2(editor->property("text").toString()
                          .contains(QStringLiteral("Favorite body text.")),
-                     "direct insertTextAtCursor did not reach the editor");
+                     "insertTextAtCursor did not reach the editor",
+                     4000);
     }
 
     // 工具栏「Save the draft to favorites」按钮真实点击：成稿入收藏。
@@ -814,6 +706,8 @@ private Q_SLOTS:
     // --- M3 冒烟 ------------------------------------------------------------
 
     /// B2：Ctrl+F 在提示词预设开草稿查找条（不是文档搜索条），Esc 关闭。
+    // 统一查找（2026-10 重组后）：Ctrl+F 把焦点送进命令条的常驻查找框；
+    // 打字 → 回车 → 命中在草稿编辑器里被选中。查找条已随旧交互退役。
     void testDraftFindBarOpensWithCtrlF()
     {
         QString error;
@@ -821,20 +715,36 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
-        // 提示词预设是默认态（loadPage 不开文档）；Ctrl+F。
-        QTest::keyClick(window, Qt::Key_F, Qt::ControlModifier);
-        QQuickItem *const bar = window->findChild<QQuickItem *>(
-            QStringLiteral("draftFindBar"));
-        QVERIFY2(bar, "draftFindBar not found by objectName");
-        QTRY_VERIFY2_WITH_TIMEOUT(bar->property("visible").toBool(),
-                                  "Ctrl+F did not reveal the draft find bar",
-                                  4000);
+        // 草稿先有一段正文（查找目标）。
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          editor->mapToScene(QPointF(
+                              editor->width() / 2.0,
+                              editor->height() / 2.0)).toPoint());
+        typeText(window, QStringLiteral("alpha beta gamma"));
 
-        // Esc 收起。
-        QTest::keyClick(window, Qt::Key_Escape);
-        QTRY_VERIFY2_WITH_TIMEOUT(!bar->property("visible").toBool(),
-                                  "Escape did not close the draft find bar",
+        // Ctrl+F：焦点直达命令条查找框（无 Ribbon 构建的落点是工具栏
+        // 上的常驻输入框）。
+        QTest::keyClick(window, Qt::Key_F, Qt::ControlModifier);
+        QQuickItem *const field = window->findChild<QQuickItem *>(
+            QStringLiteral("toolbarFindField"));
+        QVERIFY2(field, "toolbarFindField not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(field->property("activeFocus").toBool(),
+                                  "Ctrl+F did not focus the find field",
                                   4000);
+        QVERIFY2(field->property("text").toString().isEmpty(),
+                 "the find field starts with leftover text");
+
+        // 打字 → 回车：命中在编辑器里选中。
+        typeText(window, QStringLiteral("beta"));
+        QTest::keyClick(window, Qt::Key_Return);
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            editor->property("selectedText").toString()
+                == QStringLiteral("beta"),
+            "Enter in the find field did not select the hit in the editor",
+            4000);
     }
 
     /// B1：一个新格式动作（编号列表）经工具栏真实点击后草稿文本变化。
@@ -889,25 +799,29 @@ private Q_SLOTS:
                           center.toPoint());
         typeText(window, QStringLiteral("please improve it somehow"));
 
-        // 体检面板与按钮在场（右栏，提示词预设默认可见）。
-        QQuickItem *const panel = window->findChild<QQuickItem *>(
-            QStringLiteral("checksPanel"));
-        QVERIFY2(panel, "checksPanel not found by objectName");
+        // 体检已改为非模态悬浮窗（2026-10）：工具栏按钮开窗（开窗顺路
+        // 跑一次体检）。真实点击按钮。
         QQuickItem *const button = window->findChild<QQuickItem *>(
-            QStringLiteral("checkPromptButton"));
-        QVERIFY2(button, "checkPromptButton not found by objectName");
-        QTRY_VERIFY2_WITH_TIMEOUT(panel->property("visible").toBool(),
-                                  "checks panel not visible in prompt preset",
-                                  4000);
+            QStringLiteral("checkPromptToolbarButton"));
+        QVERIFY2(button, "checkPromptToolbarButton not found by objectName");
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                           button->mapToScene(QPointF(
                               button->width() / 2.0,
                               button->height() / 2.0)).toPoint());
 
+        // 悬浮窗打开（挂在窗口 overlay，经 QObject 树找）。
+        QObject *const popup = window->findChild<QObject *>(
+            QStringLiteral("checksPopup"));
+        QVERIFY2(popup, "checksPopup not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(popup->property("visible").toBool(),
+                                  "the checks popup never opened",
+                                  4000);
+
         // 结果列表出现且至少一条命中（这段文本同时命中 vague-wording
-        // 与 no-acceptance）。
-        QObject *const list = window->findChild<QObject *>(
-            QStringLiteral("checkList"));
+        // 与 no-acceptance）。列表挂在浮窗内容里（overlay 子树）。
+        QQuickItem *const list = qobject_cast<QQuickItem *>(
+            window->findChild<QQuickItem *>(
+                QStringLiteral("checkList")));
         QVERIFY2(list, "checkList not found by objectName");
         QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() > 0,
                                   "no check findings appeared after a click",
@@ -952,9 +866,10 @@ private Q_SLOTS:
         const QVariantList before = tools->property("drafts").toList();
         QCOMPARE(before.size(), 1);
 
+        // 新建草稿收进 tab 条右端（2026-10：Ribbon 不再放草稿面板）。
         QQuickItem *const button = window->findChild<QQuickItem *>(
-            QStringLiteral("newDraftButton"));
-        QVERIFY2(button, "newDraftButton not found by objectName");
+            QStringLiteral("newDraftTabButton"));
+        QVERIFY2(button, "newDraftTabButton not found by objectName");
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                           button->mapToScene(QPointF(
                               button->width() / 2.0,
@@ -1007,6 +922,23 @@ private Q_SLOTS:
                           center.toPoint());
         typeText(window, QStringLiteral("version one body"));
 
+        // 历史已改为非模态悬浮窗（2026-10）：先开窗（历史按钮在工具栏
+        // 上，真实点击），再点窗里的 Save version。
+        QQuickItem *const historyButton = window->findChild<QQuickItem *>(
+            QStringLiteral("historyToolbarButton"));
+        QVERIFY2(historyButton,
+                 "historyToolbarButton not found by objectName");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          historyButton->mapToScene(QPointF(
+                              historyButton->width() / 2.0,
+                              historyButton->height() / 2.0)).toPoint());
+        QObject *const popup = window->findChild<QObject *>(
+            QStringLiteral("historyPopup"));
+        QVERIFY2(popup, "historyPopup not found by objectName");
+        QTRY_VERIFY2_WITH_TIMEOUT(popup->property("visible").toBool(),
+                                  "the history popup never opened",
+                                  4000);
+
         QQuickItem *const button = window->findChild<QQuickItem *>(
             QStringLiteral("saveVersionButton"));
         QVERIFY2(button, "saveVersionButton not found by objectName");
@@ -1015,13 +947,14 @@ private Q_SLOTS:
                               button->width() / 2.0,
                               button->height() / 2.0)).toPoint());
 
-        QObject *const list = window->findChild<QObject *>(
+        // 快照列表在浮窗里：count 经 QML 的 rows 属性（JS 数组模型）。
+        QQuickItem *const list = window->findChild<QQuickItem *>(
             QStringLiteral("snapshotList"));
         QVERIFY2(list, "snapshotList not found by objectName");
-        QTRY_VERIFY2_WITH_TIMEOUT(list->property("count").toInt() >= 1,
-                                  "the snapshot list never showed the "
-                                  "saved version",
-                                  4000);
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            list->property("count").toInt() >= 1,
+            "the snapshot list never showed the saved version",
+            4000);
 
         // 改掉正文再回滚：回到「version one body」。
         QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,

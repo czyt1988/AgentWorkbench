@@ -31,8 +31,9 @@ set(_tools_qml MarkdownContextMenu)
 set(_workbench_qml MarkdownWorkbenchPage WorkbenchToolbar)
 # The SARibbon command bar exists only in AWB_ENABLE_RIBBON builds. When the
 # URL is absent the page's command-bar Loader fails and falls back to
-# WorkbenchToolbar.qml, which is always registered.
-set(_workbench_ribbon_qml WorkbenchRibbon)
+# WorkbenchToolbar.qml, which is always registered. PromptGallery (template
+# gallery panel) follows the same gate: it is only reachable from the ribbon.
+set(_workbench_ribbon_qml WorkbenchRibbon PromptGallery)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
 set(_markdown_pane_qml MarkdownPreviewPane)
@@ -281,6 +282,13 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/config/default_prompt_templates.
 # adapter reads :/web/compat-polyfills.js).
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
     PROPERTIES QT_RESOURCE_ALIAS "web/compat-polyfills.js")
+# Command-bar icon glyphs as a JS library (data-URL SVG tinting). Placed in
+# the QML module's URL space so the ribbon's relative import
+# `import "RibbonIcons.js"` resolves on both Qt generations without going
+# through the Qt 5 qmldir rewrite.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/RibbonIcons.js
+    PROPERTIES QT_RESOURCE_ALIAS
+    "qt/qml/AgentWorkbench/workbench/RibbonIcons.js")
 
 awb_add_resources(AgentWorkbench "app_resources"
     PREFIX "/"
@@ -289,6 +297,7 @@ awb_add_resources(AgentWorkbench "app_resources"
         ${CMAKE_SOURCE_DIR}/config/default_file_icons.json
         ${CMAKE_SOURCE_DIR}/config/default_prompt_templates.json
         ${CMAKE_SOURCE_DIR}/src/web/webengine/compat-polyfills.js
+        ${CMAKE_SOURCE_DIR}/src/workbench/qml/RibbonIcons.js
         ${AWB_ICON_FILES}
         ${AWB_FILETYPE_ICON_FILES}
         ${AWB_FOLDERTYPE_ICON_FILES}

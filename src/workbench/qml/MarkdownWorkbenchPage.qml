@@ -10,15 +10,18 @@ import AgentWorkbench.App
 // 不是一扇独立的应用窗。
 //
 // 两种「预设」是同一套代码的两份界面配置，不是两个应用：
-//   提示词模式（prompt）——左侧工作区文件树全开、草稿编辑区为主体。
+//   提示词模式（prompt）——左侧工作区文件树开、草稿编辑区为主体。
 //   文档模式（document）——侧栏收起，中间区渲染磁盘上那份 .md。
-// 切预设的入口是视图区的「完整工具」开关与 tab 条；页面创建时按控制器
+// 切预设的入口是 tab 条（草稿 tab ⇄ 文件 tab）；页面创建时按控制器
 // 里的活跃会话推断起点（活跃的是文件会话 = 文档模式，否则提示词模式）。
 //
-// 这里只有「页面」的知识：布局、快捷键、怎么问用户。文档状态与命令队列
-// 在 `markdown` 单例（MarkdownPreviewController）里，草稿与工作区在
-// `tools` 单例（ToolsFacade）里，渲染面在 MarkdownPreviewPane.qml（按
-// 资源 URL 惰性装载——本页面要在没有 WebEngine 的构建里照常加载）。
+// 2026-10 重组：左右业务侧栏退役（模板与收藏移进命令条「提示词」页的
+// gallery，体检与历史改为非模态悬浮窗），编辑区占满中栏；查找入口统一
+// 为命令条上的查找框（Ctrl+F 直达）。这里只有「页面」的知识：布局、
+// 快捷键、怎么问用户。文档状态与命令队列在 `markdown` 单例
+//（MarkdownPreviewController）里，草稿与工作区在 `tools` 单例
+//（ToolsFacade）里，渲染面在 MarkdownPreviewPane.qml（按资源 URL 惰性
+// 装载——本页面要在没有 WebEngine 的构建里照常加载）。
 //
 // 本页注册为 keepAlive：编辑器的撤销栈、滚动位置与分屏比例搬不进 C++，
 // 切页销毁会让写作现场清零。因此页面常驻，快捷键一律门控 pageCurrent。
@@ -27,15 +30,15 @@ Item {
 
     // --- 预设 --------------------------------------------------------------
     // 当前预设：prompt | document。文档模式要求控制器里有一份能渲染的
-    // 文档，拿不到时 applyPreset 会退回提示词模式。切换入口：tab 点击、
-    // 「完整工具」开关、右键预览（页面在场时）与生命周期开头的推断。
+    // 文档，拿不到时 applyPreset 会退回提示词模式。切换入口：tab 点击
+    // 与生命周期开头的推断。
     property string preset: "prompt"
 
     // 本页是不是当前页（keepAlive 页的非激活期要闭嘴：快捷键、轮询）。
     readonly property bool pageCurrent: nav.currentPageId === "tools"
 
     // 两套预设的界面状态各自独立、互不污染（页面存活期内）：
-    // 提示词模式左侧全开；文档模式左侧收起（窄边可展开）。
+    // 提示词模式左侧开；文档模式左侧收起（窄边可展开）。
     property bool promptLeftOpen: true
     property bool documentLeftOpen: false
     // 文档模式的 Ribbon 折叠位（提示词模式的折叠位持久化在
@@ -49,12 +52,8 @@ Item {
                                             : documentRibbonCollapsed
 
     // --- 页面自己的状态 ----------------------------------------------------
-    // 搜索条状态。命中数由页面经信标报回（findResult），这边只镜像。
-    property bool searchOpen: false
-    property bool searchForward: true
-    property bool caseSensitive: false
-    property int findTotal: 0
-    property int findActive: 0
+    // 查找状态：当前关键词（命令条查找框的镜像——命中判定由页面统一做）。
+    property string findNeedle: ""
     // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
@@ -76,22 +75,25 @@ Item {
                                         ? promptEditor
                                         : (markdown.canEdit ? editorArea : null)
 
-    // --- 模板与收藏（M2 动作层） -------------------------------------------
-    // 「动作只有一处出口」：Ribbon、降级工具栏、左栏条目都只转发到这里。
-    // 插入目标永远是草稿编辑器（文件 tab 是别人的文档，不往里插模板）。
+    // --- 模板与收藏（动作层） -------------------------------------------
+    // 「动作只有一处出口」：Ribbon 的 gallery、降级工具栏的菜单都只
+    // 转发到这里。插入目标永远是草稿编辑器（文件 tab 是别人的文档，
+    // 不往里插模板）。
 
     // 正在走变量表单流程的模板（{id, title}）；null = 无流程在飞。
     property var pendingTemplate: null
 
-    // 左栏段的折叠态（窗口内存：会话文件存预设级开合，段级是浏览态）。
-    // 三段都遵守同一条纪律：**段容器常驻、只藏内容**——段头上的开关是
-    // 折叠态唯一的还原入口，把它藏掉等于把段焊死在收起态（2026-10 缺陷）。
+    // 左栏工作区段的折叠态（窗口内存）。
+    // 段容器常驻、只藏内容——段头上的开关是折叠态唯一的还原入口。
     property bool workspaceSectionExpanded: true
-    property bool templateSectionExpanded: true
-    property bool favoriteSectionExpanded: false
 
-    // B9 体检结果（右栏段消费；null = 还没跑过——段显示引导文案）。
+    // 体检结果（悬浮窗消费；null = 还没跑过——窗显示引导文案）。
     property var draftCheckResults: null
+
+    // 两个非模态悬浮窗的开关（体检 / 历史）。它们不挡其它操作：可
+    // 一直停留，也可关闭；命令条的按钮 checkable 态绑定在这里。
+    property bool checksVisible: false
+    property bool historyVisible: false
 
     // C4 预算条（草稿状态行的实时估算；-1 = 无草稿）。
     readonly property int draftTokens: preset === "prompt"
@@ -155,19 +157,6 @@ Item {
         promptEditor.forceActiveFocus()
     }
 
-    // 「选择器」入口（Ribbon 的 Insert Template 转发到这里）：展开左栏
-    // 的模板段并聚焦检索框——左栏模板库就是选择器，不再造第二个列表。
-    function openTemplatePicker() {
-        templateSectionExpanded = true
-        if (!leftOpen) {
-            if (preset === "prompt")
-                promptLeftOpen = true
-            else
-                documentLeftOpen = true
-        }
-        templateSearch.forceActiveFocus()
-    }
-
     // 把当前草稿存为模板（弹小框改标题/分类/描述，预填标题 = 首行）。
     function saveCurrentAsTemplate() {
         templateTitleField.text = saveTemplateDialog.draftTitleGuess()
@@ -208,7 +197,7 @@ Item {
         return promptEditor.text
     }
 
-    // --- 草稿管理（M4：多草稿的动作层，Ribbon/工具栏转发的就是这一批） ----
+    // --- 草稿管理（多草稿的动作层，tab 条与右键菜单转发的就是这一批） ----
     // 新建并立即开始写它：编辑器与渲染会话都跟着 activeDraftIdChanged 走。
     function newDraft() {
         const result = tools.createDraft("", "", tools.currentWorkspace)
@@ -218,24 +207,6 @@ Item {
             return
         }
         applyPreset("prompt")
-    }
-
-    // E4：从当前文档 tab 新建草稿——文档内容原样成稿，单向升级（草稿
-    // 永不写回文件）。没有文件会话时按钮本就不可用。
-    function newDraftFromDocument() {
-        if (markdown.draftActive || markdown.filePath.length === 0)
-            return
-        const body = markdown.editorText()
-        const result = tools.createDraft(markdown.fileTitle, body,
-                                         tools.currentWorkspace)
-        if (!result.ok) {
-            workbench.notify("error", qsTr("Could not create the draft"),
-                             result.error)
-            return
-        }
-        applyPreset("prompt")
-        workbench.notify("success", qsTr("Draft created"),
-                         qsTr("The document text is now an editable draft."))
     }
 
     // 重命名当前草稿（改名不改 id——会话恢复按 id 不受影响）。
@@ -258,30 +229,7 @@ Item {
         renameDraftDialog.close()
     }
 
-    // 复制当前草稿并切到副本：门面侧复制不切激活（「留个副本」），但
-    // 没有会话的草稿不占 tab、无处可点——切过去让副本立即可见，用户
-    // 不想要关掉它的 tab 就是（关 tab 不删草稿）。
-    function duplicateCurrentDraft() {
-        const from = tools.activeDraftId
-        if (from.length === 0)
-            return
-        // 切走前给源草稿存一版（switch 触发点，规划 06 §1.3）。
-        if (promptEditor)
-            tools.addSnapshot(from, promptEditor.text, "switch")
-        const result = tools.duplicateDraft(from)
-        if (!result.ok) {
-            workbench.notify("error", qsTr("Could not duplicate the draft"),
-                             result.error)
-            return
-        }
-        // 副本 id = 清单里最新的那条（门面不返回 id；创建序的末尾）。
-        const all = tools.drafts
-        if (all.length > 0)
-            tools.switchDraft(all[all.length - 1].id)
-        applyPreset("prompt")
-    }
-
-    // 删除当前草稿：非空先确认（M4 判据；空草稿直接删）。删除后控制器
+    // 删除当前草稿：非空先确认（判据；空草稿直接删）。删除后控制器
     // 会话由 closeDraftSession 收掉，激活位顺延。
     function deleteCurrentDraft() {
         const id = tools.activeDraftId
@@ -463,6 +411,8 @@ Item {
             MarkdownEdit.applyItalic(editor)
         else if (kind === "strike")
             MarkdownEdit.applyStrike(editor)
+        else if (kind === "underline")
+            MarkdownEdit.applyUnderline(editor)
         else if (kind === "code")
             MarkdownEdit.applyCode(editor)
         else if (kind === "bullet")
@@ -498,104 +448,62 @@ Item {
         MarkdownEdit.applyFence(editor, language)
     }
 
-    // --- B2 草稿查找条 -----------------------------------------------------
-
-    function openDraftFind() {
-        draftFindBar.visible = true
-        draftFindField.forceActiveFocus()
-        draftFindField.selectAll()
-    }
-
-    function closeDraftFind() {
-        draftFindBar.visible = false
-        if (promptEditor)
-            promptEditor.forceActiveFocus()
-    }
-
-    // 一次「查找下一个」：命中即选中（TextArea 的 select 经光标位置）。
-    // 回卷给一条 toast（不打断——「已从头开始」是提示不是警告）。
-    function draftFindNext() {
-        const needle = draftFindField.text
+    // --- 统一查找（命令条查找框的唯一动作出口） ---------------------------
+    // 一次「查找/下一个」：关键词变了就从选区尾部找（首个回车 = 从头），
+    // 没变就找下一个。文档模式查预览渲染区（分片 DOM 的查找），提示词
+    // 模式查草稿源码。命中即选中（TextArea 的 select 经光标位置）。
+    function findNext(needle) {
+        if (needle === null || needle === undefined)
+            return
+        const changed = needle !== findNeedle
+        if (preset === "document" && markdown.available) {
+            findNeedle = needle
+            // restart：关键词变了从头，同一个词继续向下。
+            markdown.requestFind(needle, true,
+                                 tools.findCaseSensitive, changed)
+            return
+        }
         if (needle.length === 0 || !promptEditor)
             return
+        findNeedle = needle
+        const from = changed || promptEditor.selectedText.length === 0
+                ? 0 : promptEditor.selectionEnd
         const hit = MarkdownEdit.find(
-                    promptEditor, needle, promptEditor.selectionEnd,
+                    promptEditor, needle, from,
                     tools.findCaseSensitive, tools.findWholeWords)
         if (hit.start < 0) {
-            draftFindTotal = 0
+            workbench.notify("info", qsTr("Find"),
+                             qsTr("No more matches."))
             return
         }
         if (hit.wrapped)
             workbench.notify("info", qsTr("Find"),
                              qsTr("Searched from the start."))
         promptEditor.select(hit.start, hit.start + hit.length)
-        draftFindTotal = 1
     }
 
-    // 替换当前命中：MarkdownEdit.replaceAndFindNext 在文档侧完成替换
-    // 与定位，然后把结果选区写回编辑器。
-    function draftReplaceCurrent() {
-        const needle = draftFindField.text
-        if (needle.length === 0 || !promptEditor
-                || promptEditor.selectedText.length === 0)
-            return
-        const next = MarkdownEdit.replaceAndFindNext(
-                    promptEditor, draftReplaceField.text, needle,
-                    tools.findCaseSensitive, tools.findWholeWords)
-        if (next.start >= 0)
-            promptEditor.select(next.start, next.start + next.length)
+    // 取消查找：清关键词、把焦点还给编辑器（查找框留在命令条上，随用随
+    // 输；「可取消」清的是搜索现场）。
+    function cancelFind() {
+        findNeedle = ""
+        if (promptEditor)
+            promptEditor.forceActiveFocus()
     }
 
-    function draftReplaceAll() {
-        const needle = draftFindField.text
-        if (needle.length === 0 || !promptEditor)
-            return
-        // 全部替换给一次确认并显示替换条数（规划 03 §三）。
-        replaceAllConfirm.open()
+    // --- 体检与历史（非模态悬浮窗的开关） ---------------------------------
+    // 开体检窗顺路跑一次（没跑过时窗里只有引导文案，开窗即出结果）。
+    function toggleChecksWindow() {
+        checksVisible = !checksVisible
+        if (checksVisible && draftCheckResults === null)
+            draftCheckResults = tools.runChecks(tools.draft)
     }
 
-    // 确认后的全部替换：文档侧一个编辑块完成（一次撤销全部回退），
-    // 编辑器 text 经 Document 牵引自动跟随（remove/insert 与全文替换
-    // 同走 QTextDocument，绑不用手动拨）。replace 是快照触发点（规划
-    // 06 §1.3）：动大刀前先存一版。
-    function doReplaceAll() {
-        const needle = draftFindField.text
-        if (tools.activeDraftId.length > 0 && promptEditor)
-            tools.addSnapshot(tools.activeDraftId,
-                              promptEditor.text, "replace")
-        const count = MarkdownEdit.replaceAll(
-                    promptEditor, needle, draftReplaceField.text,
-                    tools.findCaseSensitive, tools.findWholeWords)
-        workbench.notify("success", qsTr("Replaced"),
-                         qsTr("%1 replaced.").arg(count))
+    function toggleHistoryWindow() {
+        historyVisible = !historyVisible
     }
 
-    // --- B3 清空草稿 -------------------------------------------------------
-
-    function confirmClearDraft() {
-        clearDraftConfirm.open()
-    }
-
-    function doClearDraft() {
-        if (!promptEditor || tools.draft.length === 0)
-            return
-        // clear 是快照触发点（规划 06 §1.3）：清空前把旧内容存进历史。
-        if (tools.activeDraftId.length > 0)
-            tools.addSnapshot(tools.activeDraftId,
-                              promptEditor.text, "clear")
-        // 双保险：确认弹窗（本函数的调用者）+ 编辑器 undo 栈一步回退
-        //（clear() 是一次可撤销的编辑动作）。空串写回走既有防抖通道。
-        promptEditor.clear()
-        workbench.notify("info", qsTr("Cleared"),
-                         qsTr("The draft is empty. Press Ctrl+Z to undo."))
-    }
-
-    property int draftFindTotal: 0
-
-    // --- B9 体检与 C4 预算条 -----------------------------------------------
-
-    // 跑一次体检并把结果存进窗口状态（右栏段消费）。文本来自草稿
-    // （体检是提示词质量工具，文件 tab 上入口禁用）。
+    // 跑一次体检并把结果存进页面状态（悬浮窗消费）。文本来自草稿
+    // （体检是提示词质量工具，文件 tab 上没有意义）。
     function runDraftChecks() {
         draftCheckResults = tools.runChecks(tools.draft)
     }
@@ -634,17 +542,6 @@ Item {
         return result.ok
     }
 
-    function toggleFullTools() {
-        if (preset === "prompt") {
-            // 收起 = 切到文档模式预设；没有可看的文档时这个开关根本
-            // 不会亮（enabled 绑在 documentUsable 上）。
-            applyPreset("document")
-        }
-        else {
-            applyPreset("prompt")
-        }
-    }
-
     function toggleRibbonCollapsed() {
         setRibbonCollapsed(!ribbonCollapsed)
     }
@@ -656,6 +553,15 @@ Item {
             tools.ribbonCollapsed = collapsed
         else
             documentRibbonCollapsed = collapsed
+    }
+
+    // 切命令条的标签页（tab 序 = 开始 0 / 提示词 1 / 视图 2）。测试与
+    // 页面内跳转共用（gallery 的格子只在其 tab 被实例化时存在）。
+    function setRibbonTab(index) {
+        const bar = commandBarLoader.item
+                   ? commandBarLoader.item : null
+        if (bar && bar.setTabIndex)
+            bar.setTabIndex(index)
     }
 
     // 命令泵：控制器排队的命令逐条交给页面。顺序由队列保证（同类命令只
@@ -723,28 +629,6 @@ Item {
             return
         }
         workbench.copyText(markdown.editorText())
-    }
-
-    // --- 搜索 --------------------------------------------------------------
-    // 空关键词也要发出去：页面在 find() 开头就把上一次的高亮拆掉，不发就
-    // 留着一屏黄底。
-    function runSearch(restart) {
-        markdown.requestFind(searchField.text, searchForward,
-                             caseSensitive, restart)
-        if (searchField.text.length === 0) {
-            findTotal = 0
-            findActive = 0
-        }
-    }
-
-    function openSearch() {
-        searchOpen = true
-        searchField.forceActiveFocus()
-    }
-
-    function closeSearch() {
-        searchOpen = false
-        searchField.text = ""
     }
 
     // 会话落盘：把页面现场（预设/开合）交给 workbench 合成（tab 组与激活位
@@ -827,30 +711,10 @@ Item {
     Shortcut {
         sequence: "Ctrl+F"
         context: Qt.ApplicationShortcut
-        // 同一个键两种去向：文档模式查预览渲染区（既有搜索条），提示词
-        // 模式查草稿源码（B2 的编辑区查找条）。草稿查找条开着时 Ctrl+F
-        // 把焦点送回搜索字段（连续查找的肌肉记忆）。
-        enabled: pageCurrent
-        onActivated: {
-            if (preset === "document")
-                workbenchWindow.openSearch()
-            else
-                workbenchWindow.openDraftFind()
-        }
-    }
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.ApplicationShortcut
-        // Esc 的就近对象：草稿查找条 > 文档搜索条。都没有时静默（不
-        // 抢弹层/菜单的 Esc）。
-        enabled: pageCurrent
-                 && (draftFindBar.visible || searchOpen)
-        onActivated: {
-            if (draftFindBar.visible)
-                workbenchWindow.closeDraftFind()
-            else
-                workbenchWindow.closeSearch()
-        }
+        // 焦点直达命令条查找框（两种预设同一个去向：findNext 内部按
+        // 预设分流到草稿源码或预览渲染区）。
+        enabled: pageCurrent && commandBarLoader.item
+        onActivated: commandBarLoader.item.focusFind()
     }
     // F5 是「重读磁盘」而不是「重载页面」：内容本来就在本地，重载视图只会
     // 把已经挂好的 DOM 丢掉重来一遍。
@@ -1086,7 +950,9 @@ Item {
                         }
 
                         // 内容容器：收起时整块隐藏（树与两个空态都在里面；
-                        // ListView 自己不许挂 visible，理由见 templateSection）。
+                        // ListView 自己不许挂 visible——视图自身的可见性
+                        // 翻转在段布局重排时会无限递归（历史缺陷），容器
+                        // 级翻转是验证过的安全路径）。
                         ColumnLayout {
                             visible: workspaceSectionExpanded
                             Layout.fillWidth: true
@@ -1303,291 +1169,6 @@ Item {
 
                     // workspaceSection 的收尾（段内容到此为止）。
                     }
-
-                    // --- 段 2 · 模板库（可折叠段，默认展开） ----------------
-                    // 既是浏览器也是选择器：Ribbon 的 Insert Template 引导到
-                    // 这里（openTemplatePicker），不在 Ribbon 里再造一份
-                    // 列表——SARibbon 的 gallery/menuItems 是静态
-                    // listProperty，绑不了模型。
-                    //
-                    // 段壳常驻、内容容器整体收起（2026-10 两次缺陷的定案）：
-                    // 段头是折叠态唯一的还原入口，必须永远在屏上；而折叠的
-                    // 动作要落在**内容容器**上——不许给 ListView/TextField 自
-                    // 己挂 visible：视图自身的可见性翻转在段布局重排时会无
-                    // 限递归到栈溢出（用户实测「点展开即崩」，dist/
-                    // Backtrace1.txt）。容器级翻转是旧形态验证过的安全路径。
-                    ColumnLayout {
-                        id: templateSection
-                        objectName: "templateSection"
-
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: templateSectionExpanded ? 260 : -1
-                        spacing: theme.spacingXs
-
-                        ASectionHeader {
-                            Layout.fillWidth: true
-                            text: qsTr("Templates")
-
-                            AIconButton {
-                                objectName: "templateSectionToggle"
-                                iconSource: "qrc:/icons/chevron-right.svg"
-                                rotation: templateSectionExpanded ? 90 : 0
-                                tooltip: templateSectionExpanded
-                                        ? qsTr("Hide the template library")
-                                        : qsTr("Show the template library")
-                                onClicked:
-                                    templateSectionExpanded = !templateSectionExpanded
-                            }
-                        }
-
-                        // 内容容器：收起时整块隐藏（检索框与列表都在里面）。
-                        ColumnLayout {
-                            visible: templateSectionExpanded
-                            Layout.fillWidth: true
-                            spacing: theme.spacingXs
-
-                        // 检索框：实时过滤（filteredTemplates 的空+空=全部）。
-                        ASearchField {
-                            id: templateSearch
-                            objectName: "templateSearch"
-
-                            Layout.fillWidth: true
-                            Layout.leftMargin: theme.spacingXs
-                            Layout.rightMargin: theme.spacingXs
-                            placeholderText: qsTr("Search templates")
-
-                            onTextChanged: templateList.rebuild()
-                        }
-
-                        // 列表上限 30：检索后一般够用；全部模板走目录管理。
-                        // 高度跟内容（同收藏列表的理由：fillHeight 对零
-                        // 内容量不出高），段高由 preferredHeight 兜住。
-                        ListView {
-                            id: templateList
-                            objectName: "templateList"
-
-                            implicitHeight: Math.min(contentHeight, 220)
-                            Layout.fillWidth: true
-                            Layout.leftMargin: theme.spacingXs
-                            Layout.rightMargin: theme.spacingXs
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            spacing: 2
-
-                            // 行数据用 JS 数组模型：ObjectModel 是
-                            // Qt 6.5+ 才有的类型，Qt 5 车道「不是类型」
-                            // 直接把整页打挂（三处列表同坑）。数组整体
-                            // 重新赋值即模型重置，行随 delegate 重建。
-                            property var rows: []
-                            function rebuild() {
-                                const filtered = tools.filteredTemplates(
-                                            templateSearch.text, "")
-                                rows = filtered.length > 30
-                                        ? filtered.slice(0, 30) : filtered
-                            }
-
-                            model: rows
-                            delegate: templateRowComponent
-
-                            Component {
-                                id: templateRowComponent
-
-                                AListRow {
-                                    id: templateRow
-                                    required property var modelData
-
-                                    // 页面作用域显式传入：delegate/模板行
-                                    // 里的信号处理器直接解析文档根 id
-                                    //（workbenchWindow）在编译型 QML 里会
-                                    // ReferenceError，经属性走对象作用域链
-                                    // 两条路都成立（见 fileTab 的说明）。
-                                    property var scope: workbenchWindow
-
-                                    // AListRow 只有 height 没有
-                                    // implicitWidth，不显式跟列表就是 0 宽
-                                    // ——点击永远落空。
-                                    width: templateList.width
-                                    rowHeight: 40
-
-                                    // 行内容直接注入（AListRow 的内容
-                                    // RowLayout 负责摆位）——不再包一层带
-                                    // anchors 的 RowLayout：Layout 管理的
-                                    // 子项配 anchors 是未定义行为。
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: templateRow.modelData.title
-                                        color: theme.textPrimary
-                                        font.pixelSize: theme.fontSizeCaption
-                                        elide: Text.ElideMiddle
-                                    }
-
-                                    // 内置徽标：subtle 的 APill，与
-                                    // 文件 tab 的来源徽标同一形态。
-                                    APill {
-                                        visible: templateRow.modelData.builtin
-                                        text: qsTr("built-in")
-                                    }
-
-                                    TapHandler {
-                                        onSingleTapped:
-                                            scope.insertTemplate(
-                                                templateRow.modelData.id)
-                                    }
-                                }
-                            }
-
-                            Connections {
-                                target: tools
-                                function onTemplatesChanged() {
-                                    templateList.rebuild()
-                                }
-                            }
-
-                            Component.onCompleted: templateList.rebuild()
-
-                            // 刻意不在 onVisibleChanged 里 rebuild：列表的
-                            // visible 变化发生在段展开的可见性传播中途，
-                            // 此时重置模型会撞进条件视图的内部更新窗口。
-                            // 数据变化本来就有 Connections 兜着（不可见
-                            // 也重建），这里没有要补的洞。
-                        }
-                        }   // 内容容器收尾
-                    }
-
-                    // --- 段 3 · 收藏夹（可折叠段，默认收起） ----------------
-                    // 同上两段：段壳常驻（段头=还原入口），内容容器整体收起
-                    //（ListView 自己不许挂 visible，理由见 templateSection）。
-                    ColumnLayout {
-                        id: favoriteSection
-                        objectName: "favoriteSection"
-
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: favoriteSectionExpanded ? 200 : -1
-                        spacing: theme.spacingXs
-
-                        ASectionHeader {
-                            Layout.fillWidth: true
-                            text: qsTr("Favorites")
-
-                            AIconButton {
-                                objectName: "favoriteSectionToggle"
-                                iconSource: "qrc:/icons/chevron-right.svg"
-                                rotation: favoriteSectionExpanded ? 90 : 0
-                                tooltip: favoriteSectionExpanded
-                                        ? qsTr("Hide the favorites")
-                                        : qsTr("Show the favorites")
-                                onClicked:
-                                    favoriteSectionExpanded = !favoriteSectionExpanded
-                            }
-                        }
-
-                        // 内容容器：默认收起（收藏是低频段）。
-                        ColumnLayout {
-                            visible: favoriteSectionExpanded
-                            Layout.fillWidth: true
-                            spacing: theme.spacingXs
-
-                        // 空态：一行弱化提示（收藏是成稿，模板是骨架）。
-                        Label {
-                            Layout.fillWidth: true
-                            Layout.leftMargin: theme.spacingS
-                            Layout.rightMargin: theme.spacingS
-                            visible: tools.favorites.length === 0
-                            text: qsTr("Save finished prompts here")
-                            color: theme.textMuted
-                            font.pixelSize: theme.fontSizeCaption
-                            wrapMode: Text.Wrap
-                        }
-
-                        ListView {
-                            id: favoriteList
-                            objectName: "favoriteList"
-
-                            // fillHeight 对零内容的列表量不出高度（段
-                            // 展开时高度仍为 0，行被裁掉）；收藏夹给内容
-                            // 高度，段高由 preferredHeight 兜住上限。
-                            implicitHeight: Math.min(contentHeight, 160)
-                            Layout.fillWidth: true
-                            Layout.leftMargin: theme.spacingXs
-                            Layout.rightMargin: theme.spacingXs
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            spacing: 2
-
-                            // 同模板列表：JS 数组模型（ObjectModel 是
-                            // Qt 6.5+ 类型，见 templateList 的说明）。
-                            property var rows: []
-                            function rebuild() {
-                                rows = tools.favorites
-                            }
-
-                            model: rows
-                            delegate: favoriteRow
-
-                            Component {
-                                id: favoriteRow
-
-                                AListRow {
-                                    id: favRow
-                                    required property var modelData
-
-                                    // 同模板行：作用域显式传入（见
-                                    // templateRowComponent 的说明）。
-                                    property var scope: workbenchWindow
-
-                                    // 同模板行：宽度显式跟列表。
-                                    width: favoriteList.width
-                                    rowHeight: 40
-
-                                    // 行内容直接注入（同模板行）。
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: favRow.modelData.title
-                                        color: theme.textPrimary
-                                        font.pixelSize: theme.fontSizeCaption
-                                        elide: Text.ElideMiddle
-                                    }
-
-                                    // 行内动作：复制与删除（悬停可见）。
-                                    AIconButton {
-                                        iconSource: "qrc:/icons/copy.svg"
-                                        tooltip: qsTr("Copy this favorite")
-                                        onClicked:
-                                            workbench.copyText(favRow.modelData.body)
-                                    }
-                                    AIconButton {
-                                        iconSource: "qrc:/icons/close.svg"
-                                        tooltip: qsTr("Remove this favorite")
-                                        onClicked:
-                                            tools.removeFavorite(
-                                                favRow.modelData.title,
-                                                favRow.modelData.body)
-                                    }
-
-                                    TapHandler {
-                                        onSingleTapped:
-                                            scope.insertTextAtCursor(
-                                                favRow.modelData.body)
-                                    }
-                                }
-                            }
-
-                            Connections {
-                                target: tools
-                                function onFavoritesChanged() {
-                                    favoriteList.rebuild()
-                                }
-                            }
-
-                            Component.onCompleted: favoriteList.rebuild()
-
-                            // 同模板列表：不在 onVisibleChanged 里 rebuild
-                            //（可见性传播中途重置模型会撞进条件视图的
-                            // 内部更新窗口，理由见 templateList 的说明）；
-                            // 数据变化由 Connections 兜底。
-                        }
-                        }   // 内容容器收尾
-                    }
                 }
             }
 
@@ -1728,47 +1309,51 @@ Item {
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        // tab 条只回答「在哪份文档」：三态切换、字号与默认
-                        // 宽度是「怎么看」的视图选项，住在命令条（Ribbon
-                        // 的「视图」页 / 降级工具栏）里，不混进 tab 条。
-
-                        AIconButton {
-                            iconSource: "qrc:/icons/bullet-list.svg"
-                            tooltip: qsTr("Show outline")
-                            active: markdown.showOutline
-                            // 大纲对草稿同样成立（它也是一份有标题的正文）。
-                            onClicked: markdown.setShowOutline(!markdown.showOutline)
-                        }
-
-                        AIconButton {
-                            visible: preset === "document"
-                            iconSource: "qrc:/icons/search.svg"
-                            tooltip: qsTr("Search in document")
-                            active: searchOpen
-                            onClicked: {
-                                if (searchOpen) {
-                                    workbenchWindow.closeSearch()
-                                    return
+                                // 右键：草稿 tab 给「重命名/删除草稿」（命令
+                                // 条不再放这两个动作），文件 tab 只给关闭。
+                                // 只吃右键，左键留给上面的 TapHandler；坐标
+                                // 换算到页面根（菜单的坐标系），页面引用经
+                                // scope（delegate 处理器里裸根 id 会
+                                // ReferenceError，TapHandler 同一条纪律）。
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: function(mouse) {
+                                        const page = scope
+                                        const tab = fileTab.modelData
+                                        const at = mapToItem(page,
+                                                             mouse.x, mouse.y)
+                                        tabContextMenu.draftTab
+                                                = tab.draft ? tab.docId : ""
+                                        tabContextMenu.popup(at.x, at.y)
+                                    }
                                 }
-                                workbenchWindow.openSearch()
                             }
                         }
 
-                        // 更多动作（复制选区/源码、导出、重载）收进菜单；
-                        // Ribbon 构建里这些动作在「开始」页，工具栏构建里
-                        // 也经这里触达。
+                        // tab 条只回答「在哪份文档」：视图选项住在命令条
+                        //（Ribbon「视图」页 / 降级工具栏），不混进 tab 条。
+
+                        // 右端两个固定件：新建草稿（+）与文档模式的更多
+                        // 动作（保存/导出/重载——命令条不含文档模式的保存
+                        // 专属动作，收进这里）。
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        AIconButton {
+                            objectName: "newDraftTabButton"
+                            iconSource: "qrc:/icons/plus.svg"
+                            tooltip: qsTr("New draft")
+                            onClicked: workbenchWindow.newDraft()
+                        }
+
                         AIconButton {
                             visible: preset === "document"
                             iconSource: "qrc:/icons/menu.svg"
                             tooltip: qsTr("More actions")
                             onClicked: actionsMenu.popup()
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
                         }
                     }
                 }
@@ -1777,178 +1362,6 @@ Item {
                     Layout.fillWidth: true
                     implicitHeight: 1
                     color: theme.separator
-                }
-
-                // --- 草稿查找条（B2：Ctrl+F 在提示词预设时展开这里） ---------
-                // 不弹对话框：一条从编辑区顶部滑出的横条（规划 03 §三）。
-                RowLayout {
-                    id: draftFindBar
-                    objectName: "draftFindBar"
-                    visible: false
-                    Layout.fillWidth: true
-                    Layout.leftMargin: theme.spacingM
-                    Layout.rightMargin: theme.spacingM
-                    Layout.topMargin: theme.spacingXs
-                    Layout.bottomMargin: theme.spacingXs
-                    spacing: theme.spacingS
-
-                    ASearchField {
-                        id: draftFindField
-                        Layout.preferredWidth: 220
-                        placeholderText: qsTr("Find in draft")
-                        onAccepted: workbenchWindow.draftFindNext()
-                    }
-
-                    ATextField {
-                        id: draftReplaceField
-                        Layout.preferredWidth: 180
-                        placeholderText: qsTr("Replace with")
-                    }
-
-                    AButton {
-                        text: qsTr("Aa")
-                        Layout.preferredWidth: 44
-                        variant: tools.findCaseSensitive
-                                 ? "primary" : "ghost"
-                        ToolTip.delay: 300
-                        ToolTip.timeout: 10000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Match case")
-                        onClicked: {
-                            tools.findCaseSensitive =
-                                    !tools.findCaseSensitive
-                            workbenchWindow.draftFindNext()
-                        }
-                    }
-
-                    AButton {
-                        text: qsTr("Whole")
-                        variant: tools.findWholeWords ? "primary" : "ghost"
-                        onClicked: {
-                            tools.findWholeWords = !tools.findWholeWords
-                            workbenchWindow.draftFindNext()
-                        }
-                    }
-
-                    AButton {
-                        text: qsTr("Previous")
-                        variant: "ghost"
-                        // 逐个换向是「再找一次上一个」：实现与下一个共用
-                        // 一条 find（从选区起点向前没有独立实现——回卷
-                        // 语义已覆盖）。低频按钮保持简单。
-                        onClicked: {
-                            workbenchWindow.draftFindNext()
-                        }
-                    }
-
-                    AButton {
-                        text: qsTr("Next")
-                        variant: "primary"
-                        onClicked: workbenchWindow.draftFindNext()
-                    }
-
-                    AButton {
-                        text: qsTr("Replace")
-                        onClicked: workbenchWindow.draftReplaceCurrent()
-                    }
-
-                    AButton {
-                        text: qsTr("All")
-                        onClicked: workbenchWindow.draftReplaceAll()
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    AIconButton {
-                        iconSource: "qrc:/icons/close.svg"
-                        tooltip: qsTr("Close find")
-                        onClicked: workbenchWindow.closeDraftFind()
-                    }
-                }
-
-                // --- 搜索条（Ctrl+F 展开，仅文档模式） ---------------------
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: theme.spacingM
-                    Layout.rightMargin: theme.spacingM
-                    Layout.topMargin: theme.spacingS
-                    Layout.bottomMargin: theme.spacingS
-                    visible: preset === "document" && searchOpen
-                    spacing: theme.spacingS
-
-                    ASearchField {
-                        id: searchField
-                        Layout.preferredWidth: 280
-                        placeholderText: qsTr("Find in document")
-                        onTextChanged: searchDebounce.restart()
-                        onAccepted: {
-                            workbenchWindow.searchForward = true
-                            workbenchWindow.runSearch(true)
-                        }
-                    }
-
-                    // 逐键搜索在 2 MB 文档上就是每键扫一遍全篇 DOM：停
-                    // 200 ms 再问。
-                    Timer {
-                        id: searchDebounce
-                        interval: 200
-                        onTriggered: workbenchWindow.runSearch(true)
-                    }
-
-                    AButton {
-                        text: qsTr("Aa")
-                        Layout.preferredWidth: 44
-                        variant: workbenchWindow.caseSensitive ? "primary" : "ghost"
-                        ToolTip.delay: 300
-                        ToolTip.timeout: 10000
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Match case")
-                        onClicked: {
-                            workbenchWindow.caseSensitive =
-                                    !workbenchWindow.caseSensitive
-                            workbenchWindow.runSearch(true)
-                        }
-                    }
-
-                    AButton {
-                        text: qsTr("Previous")
-                        variant: "ghost"
-                        onClicked: {
-                            workbenchWindow.searchForward = false
-                            workbenchWindow.runSearch(false)
-                        }
-                    }
-                    AButton {
-                        text: qsTr("Next")
-                        variant: "ghost"
-                        onClicked: {
-                            workbenchWindow.searchForward = true
-                            workbenchWindow.runSearch(false)
-                        }
-                    }
-
-                    Label {
-                        text: searchField.text.length === 0
-                              ? ""
-                              : (workbenchWindow.findTotal === 0
-                                 ? qsTr("No matches")
-                                 : qsTr("%1 of %2").arg(workbenchWindow.findActive)
-                                       .arg(workbenchWindow.findTotal))
-                        color: theme.textMuted
-                        font.pixelSize: theme.fontSizeCaption
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    AIconButton {
-                        iconSource: "qrc:/icons/close.svg"
-                        tooltip: qsTr("Close search")
-                        onClicked: workbenchWindow.closeSearch()
-                    }
                 }
 
                 // --- 文档主体 ----------------------------------------------
@@ -2442,301 +1855,341 @@ Item {
                     }
                 }
             }
+        }
+    }
 
-            // --- 右侧：查阅与体检（一个带边框的右栏，内部分段） -----------------
-            // 大纲、体检与草稿历史曾经是两块并列的裸面板——各靠一条 1px
-            // 分隔线与编辑区隔开、彼此之间没有任何可见边界，两种「右侧」
-            // 混叠在一起读不出来（2026-10 用户报告右侧像两个窗口叠着）。
-            // 现在合并成一个整面板：外框与左侧属性区同形（surfaceBg +
-            // borderSubtle 全边框），内部三段经段头与分隔线区隔：
-            //   大纲（跟随全局大纲开关，两种预设都可用——草稿也是一份
-            //   有标题的正文）；体检 + 草稿历史（提示词预设的质量工具，
-            //   文件 tab 上不占位）。整个面板在「没有一段在场」时收起。
-            Rectangle {
-                id: rightPanel
-                objectName: "checksPanel"
+    // --- 体检悬浮窗（非模态：不挡其它操作，可停留可关闭） ------------------
+    // 从右侧栏迁来（2026-10）：体检结果占一整条右栏会把编辑区挤窄，迁成
+    // 悬浮窗后它想停多久停多久、不用时关掉即全屏写作。空态分两种：没跑
+    // 过给引导（开窗动作会顺路跑一次）；跑过且为空 = 真的没问题。
+    Popup {
+        id: checksPopup
+        objectName: "checksPopup"
 
-                // 体检与历史属提示词预设；大纲跟全局开关。
-                readonly property bool promptTools:
-                    workbenchWindow.preset === "prompt"
+        // 大纲悬浮面板贴渲染窗右缘（宽 224）：浮窗右移让出它的地盘，
+        // 两个「右侧」不互相盖。
+        x: Math.max(parent.width - width - 248, theme.spacingM)
+        y: 108
+        width: 300
+        height: Math.min(checksColumn.implicitHeight + theme.spacingS * 2,
+                         parent.height - y - theme.spacingM)
+        modal: false
+        closePolicy: Popup.NoAutoClose | Popup.CloseOnEscape
+        visible: workbenchWindow.checksVisible
 
+        background: Rectangle {
+            color: theme.surfaceBg
+            border.color: theme.borderSubtle
+            border.width: 1
+            radius: theme.radiusCard
+        }
+
+        ColumnLayout {
+            id: checksColumn
+            anchors.fill: parent
+            anchors.margins: theme.spacingS
+            spacing: theme.spacingS
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Checks")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeSubtitle
+                    font.bold: true
+                }
+                AIconButton {
+                    iconSource: "qrc:/icons/close.svg"
+                    tooltip: qsTr("Close")
+                    onClicked: workbenchWindow.checksVisible = false
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: workbenchWindow.draftCheckResults === null
+                text: qsTr("Run a check for concrete suggestions.")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeCaption
+                wrapMode: Text.Wrap
+            }
+
+            // 命中列表：色点按严重度（0 提示 / 1 提醒 / 2 警告），点行
+            // 跳到编辑区对应区间并选中。「不再提醒」按规则关闭（写
+            // tools.json 的 checks 段），该类命中即刻隐去。
+            ListView {
+                id: checkList
+                objectName: "checkList"
+
+                visible: workbenchWindow.draftCheckResults !== null
+                Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredWidth: 265
-                visible: promptTools
-                color: theme.surfaceBg
-                border.color: theme.borderSubtle
-                border.width: 1
+                Layout.minimumHeight: 120
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: workbenchWindow.draftCheckResults || []
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: theme.spacingS
-                    spacing: theme.spacingS
+                ScrollBar.vertical: AScrollBar {}
 
-                    // 大纲曾经也住在这条栏里（2026-10 之前）：它与体检列表
-                    // 两个 fillHeight 在 265px 的窄栏里互相挤压、历史段又钉着
-                    // 固定高——总高一紧三段全扁、文字叠字（用户报告「体检下面
-                    // 一小节小字被盖住、段间距只有二三十像素」）。大纲是
-                    // 「正在读的这份文档」的导航，属于渲染窗口——现在是
-                    // docArea 里的悬浮面板（见 outlineFloat）。
+                delegate: Item {
+                    id: checkRow
 
-                    // --- 段 1 · 体检结果（提示词预设，B9） ------------------
-                    // 体检是提示词质量工具，不是 Markdown 语法工具——只在
-                    // 提示词预设出现（文件 tab 上不占位）。清单不评分：分数
-                    // 会诱导为分数写作，清单引导补全信息。
-                    RowLayout {
-                        visible: rightPanel.promptTools
-                        Layout.fillWidth: true
-                        spacing: theme.spacingS
+                    required property var modelData
+                    required property int index
 
-                        Label {
-                            Layout.fillWidth: true
-                            text: qsTr("Checks")
-                            color: theme.textMuted
-                            font.pixelSize: theme.fontSizeCaption
-                            font.bold: true
-                        }
-                        AButton {
-                            objectName: "checkPromptButton"
-                            text: qsTr("Check")
-                            variant: "ghost"
-                            onClicked: workbenchWindow.runDraftChecks()
+                    // 同 fileTab：作用域显式传入（编译型 QML 的 delegate
+                    // 处理器里文档根 id 会 ReferenceError）。
+                    property var scope: workbenchWindow
+
+                    width: checkList.width
+                    // 两行文字 + 关闭按钮的行高；消息长短不定，按内容给。
+                    height: checkText.implicitHeight
+                            + theme.spacingS
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: theme.radiusControl
+                        color: theme.surfaceHoverBg
+                        visible: checkHover.hovered
+                    }
+
+                    HoverHandler {
+                        id: checkHover
+                    }
+
+                    TapHandler {
+                        // 区间可定位（start >= 0）才可跳转；规则级的
+                        // 命中（如缺验收标准）没有对应区间。
+                        onSingleTapped: {
+                            if (checkRow.modelData.start >= 0)
+                                scope.selectDraftRange(
+                                    checkRow.modelData.start,
+                                    checkRow.modelData.length)
                         }
                     }
 
-                    // 命中列表：色点按严重度（0 提示 / 1 提醒 / 2 警告），
-                    // 点行跳到编辑区对应区间并选中。「不再提醒」按规则关
-                    // 闭（写 tools.json 的 checks 段），该类命中即刻隐去。
-                    ListView {
-                        id: checkList
-                        objectName: "checkList"
-                        visible: rightPanel.promptTools
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        // 265px 窄栏里两个弹性段竞争时，输家会被压到几个
-                        // 像素（实测 h=4，命中行连字都盖住）：给体检列表
-                        // 一个「至少放得下三条命中」的底。
-                        Layout.minimumHeight: 140
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        model: workbenchWindow.draftCheckResults || []
-
-                        ScrollBar.vertical: AScrollBar {}
-
-                        delegate: Item {
-                            id: checkRow
-
-                            required property var modelData
-                            required property int index
-
-                            // 同 fileTab：作用域显式传入（编译型 QML 的
-                            // delegate 处理器里文档根 id 会 ReferenceError）。
-                            property var scope: workbenchWindow
-
-                            width: checkList.width
-                            // 两行文字 + 关闭按钮的行高；消息长短不定，
-                            // 按内容给（最大三行封顶）。
-                            height: checkText.implicitHeight
-                                    + theme.spacingS
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: theme.radiusControl
-                                color: theme.surfaceHoverBg
-                                visible: checkHover.hovered
-                            }
-
-                            HoverHandler {
-                                id: checkHover
-                            }
-
-                            TapHandler {
-                                // 区间可定位（start >= 0）才可跳转；规则级
-                                // 的命中（如缺验收标准）没有对应区间。
-                                onSingleTapped: {
-                                    if (checkRow.modelData.start >= 0)
-                                        scope.selectDraftRange(
-                                            checkRow.modelData.start,
-                                            checkRow.modelData.length)
-                                }
-                            }
-
-                            // 严重度色点：提醒用注意色、警告用警示色、
-                            // 提示用弱化色（不抢注意力）。
-                            Rectangle {
-                                x: theme.spacingS
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 6
-                                height: 6
-                                radius: 3
-                                color: checkRow.modelData.severity === 2
-                                       ? theme.danger
-                                       : (checkRow.modelData.severity === 1
-                                          ? theme.warning
-                                          : theme.textDisabled)
-                            }
-
-                            Label {
-                                id: checkText
-                                x: theme.spacingS + 14
-                                width: parent.width - x - theme.spacingS - 20
-                                text: checkRow.modelData.message
-                                color: theme.textPrimary
-                                font.pixelSize: theme.fontSizeCaption
-                                wrapMode: Text.Wrap
-                            }
-
-                            AIconButton {
-                                anchors.right: parent.right
-                                anchors.rightMargin: theme.spacingXs
-                                anchors.verticalCenter: parent.verticalCenter
-                                iconSource: "qrc:/icons/close.svg"
-                                tooltip: qsTr("Don't remind me of this again")
-                                onClicked: {
-                                    const disabled =
-                                            tools.disabledCheckIds.slice()
-                                    disabled.push(checkRow.modelData.ruleId)
-                                    tools.disabledCheckIds = disabled
-                                    // 关掉即重跑：该类命中从当前清单消失。
-                                    scope.runDraftChecks()
-                                }
-                            }
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            // null = 没跑过（引导语）；跑过且为空 = 真的没问题。
-                            visible: checkList.count === 0
-                            text: workbenchWindow.draftCheckResults === null
-                                  ? qsTr("Run a check for concrete suggestions.")
-                                  : qsTr("No issues found.")
-                            color: theme.textMuted
-                            font.pixelSize: theme.fontSizeCaption
-                        }
+                    // 严重度色点：提醒用注意色、警告用警示色、提示用弱
+                    // 化色（不抢注意力）。
+                    Rectangle {
+                        x: theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: checkRow.modelData.severity === 2
+                               ? theme.danger
+                               : (checkRow.modelData.severity === 1
+                                  ? theme.warning : theme.textDisabled)
                     }
 
-                    // --- 段 2 · 草稿历史（M4 D2：快照与回滚） ----------------
-                    // 只在草稿会话激活时出现（文件没有快照；草稿激活本身就
-                    // 意味着提示词预设）。点一版 = 回滚（先确认——回滚是
-                    // 破坏性替换；当前版会被自动存成 rollback 快照，两头都
-                    // 留退路）。
-                    ColumnLayout {
-                        id: historySection
-                        objectName: "historySection"
-                        visible: markdown.draftActive
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 148
-                        // preferredHeight 只是期望值：段内 ListView 的隐式
-                        // 高随快照数增长，能把段从 148 撑到数百像素、把上方
-                        // 的体检列表挤成几像素（2026-10 实测 702 vs 4）。
-                        // 上限钉死，段的高度语义才是「一小段」。
-                        Layout.maximumHeight: 220
-                        spacing: theme.spacingXs
+                    Label {
+                        id: checkText
+                        x: theme.spacingS + 14
+                        width: parent.width - x - theme.spacingS - 20
+                        text: checkRow.modelData.message
+                        color: theme.textPrimary
+                        font.pixelSize: theme.fontSizeCaption
+                        wrapMode: Text.Wrap
+                    }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 1
-                            color: theme.separator
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: theme.spacingS
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: qsTr("History")
-                                color: theme.textMuted
-                                font.pixelSize: theme.fontSizeCaption
-                                font.bold: true
-                            }
-                            AButton {
-                                objectName: "saveVersionButton"
-                                text: qsTr("Save version")
-                                variant: "ghost"
-                                onClicked:
-                                    workbenchWindow.saveDraftVersion()
-                            }
-                        }
-
-                        ListView {
-                            id: snapshotList
-                            objectName: "snapshotList"
-
-                            Layout.fillWidth: true
-                            // 按内容给高并封顶（不用 fillHeight：它会让段的
-                            // 隐式高随快照数增长，preferredHeight 拦不住）。
-                            implicitHeight: Math.min(contentHeight, 96)
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            spacing: 2
-
-                            // 同上两处列表：JS 数组模型（ObjectModel 是
-                            // Qt 6.5+ 类型，见 templateList 的说明）。
-                            property var rows: []
-                            function rebuild() {
-                                // 按当前草稿重建快照清单（新在前）。
-                                const id = tools.activeDraftId
-                                rows = id.length === 0 ? [] : tools.snapshots(id)
-                            }
-
-                            model: rows
-                            delegate: snapshotRow
-
-                            // 同上两处列表：行模板在列表的资源子项里。
-                            Component {
-                                id: snapshotRow
-
-                                AListRow {
-                                    id: histRow
-                                    required property var modelData
-
-                                    // 同模板行：作用域显式传入。
-                                    property var scope: workbenchWindow
-
-                                    width: snapshotList.width
-                                    rowHeight: 30
-
-                                    // 行内容直接注入（同模板行）。
-                                    Label {
-                                        Layout.fillWidth: true
-                                        // 时间（HH:mm）+ 原因。
-                                        text: {
-                                            const when = new Date(
-                                                histRow.modelData.createdAt)
-                                            const hh = ("0" + when.getHours()).slice(-2)
-                                            const mm = ("0" + when.getMinutes()).slice(-2)
-                                            return hh + ":" + mm
-                                                   + "  ·  "
-                                                   + histRow.modelData.reason
-                                                   + "  ·  "
-                                                   + histRow.modelData.charCount
-                                        }
-                                        color: theme.textSecondary
-                                        font.pixelSize: theme.fontSizeCaption
-                                        elide: Text.ElideMiddle
-                                    }
-
-                                    TapHandler {
-                                        onSingleTapped:
-                                            scope.rollbackDraftVersion(
-                                                histRow.modelData.createdAt)
-                                    }
-                                }
-                            }
-
-                            Label {
-                                anchors.centerIn: parent
-                                visible: snapshotList.count === 0
-                                text: qsTr("Versions appear when you copy, clear, replace or switch.")
-                                color: theme.textMuted
-                                font.pixelSize: theme.fontSizeCaption
-                                wrapMode: Text.Wrap
-                                horizontalAlignment: Text.AlignHCenter
-                            }
+                    AIconButton {
+                        anchors.right: parent.right
+                        anchors.rightMargin: theme.spacingXs
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconSource: "qrc:/icons/close.svg"
+                        tooltip: qsTr("Don't remind me of this again")
+                        onClicked: {
+                            const disabled =
+                                    tools.disabledCheckIds.slice()
+                            disabled.push(checkRow.modelData.ruleId)
+                            tools.disabledCheckIds = disabled
+                            // 关掉即重跑：该类命中从当前清单消失。
+                            scope.runDraftChecks()
                         }
                     }
                 }
+
+                Label {
+                    anchors.centerIn: parent
+                    visible: checkList.count === 0
+                    text: qsTr("No issues found.")
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                }
+            }
+        }
+    }
+
+    // --- 历史悬浮窗（非模态，与体检窗错位） --------------------------------
+    // 草稿的快照清单与回滚入口（从右侧栏迁来）。点一版 = 回滚（先确认
+    // ——回滚是破坏性替换；当前版会被自动存成 rollback 快照）。
+    Popup {
+        id: historyPopup
+        objectName: "historyPopup"
+
+        // 体检窗在场时排在它下面，两个浮窗不互相盖；不在场时贴右上。
+        x: checksPopup.visible
+           ? checksPopup.x
+           : Math.max(parent.width - width - 248, theme.spacingM)
+        y: checksPopup.visible
+           ? Math.min(checksPopup.y + checksPopup.height + 8,
+                      parent.height - height - theme.spacingM)
+           : 108
+        width: 300
+        height: Math.min(historyColumn.implicitHeight + theme.spacingS * 2,
+                         260)
+        modal: false
+        closePolicy: Popup.NoAutoClose | Popup.CloseOnEscape
+        visible: workbenchWindow.historyVisible
+
+        background: Rectangle {
+            color: theme.surfaceBg
+            border.color: theme.borderSubtle
+            border.width: 1
+            radius: theme.radiusCard
+        }
+
+        ColumnLayout {
+            id: historyColumn
+            anchors.fill: parent
+            anchors.margins: theme.spacingS
+            spacing: theme.spacingXs
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("History")
+                    color: theme.textPrimary
+                    font.pixelSize: theme.fontSizeSubtitle
+                    font.bold: true
+                }
+                AButton {
+                    objectName: "saveVersionButton"
+                    text: qsTr("Save version")
+                    variant: "ghost"
+                    onClicked: workbenchWindow.saveDraftVersion()
+                }
+                AIconButton {
+                    iconSource: "qrc:/icons/close.svg"
+                    tooltip: qsTr("Close")
+                    onClicked: workbenchWindow.historyVisible = false
+                }
+            }
+
+            ListView {
+                id: snapshotList
+                objectName: "snapshotList"
+
+                Layout.fillWidth: true
+                // 按内容给高并封顶（快照列表是浏览态，不需要吃满浮窗）。
+                implicitHeight: Math.min(contentHeight, 170)
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                spacing: 2
+
+                // 同页内其余列表：JS 数组模型（ObjectModel 是 Qt 6.5+
+                // 类型；数组整体赋值即模型重置）。
+                property var rows: []
+                function rebuild() {
+                    // 按当前草稿重建快照清单（新在前）。
+                    const id = tools.activeDraftId
+                    rows = id.length === 0 ? [] : tools.snapshots(id)
+                }
+
+                model: rows
+                delegate: snapshotRow
+
+                Component {
+                    id: snapshotRow
+
+                    AListRow {
+                        id: histRow
+                        required property var modelData
+
+                        // 同体检行：作用域显式传入。
+                        property var scope: workbenchWindow
+
+                        width: snapshotList.width
+                        rowHeight: 30
+
+                        // 行内容直接注入（AListRow 的内容 RowLayout 负
+                        // 责摆位）。
+                        Label {
+                            Layout.fillWidth: true
+                            // 时间（HH:mm）+ 原因。
+                            text: {
+                                const when = new Date(
+                                    histRow.modelData.createdAt)
+                                const hh = ("0" + when.getHours()).slice(-2)
+                                const mm = ("0" + when.getMinutes()).slice(-2)
+                                return hh + ":" + mm
+                                       + "  ·  "
+                                       + histRow.modelData.reason
+                                       + "  ·  "
+                                       + histRow.modelData.charCount
+                            }
+                            color: theme.textSecondary
+                            font.pixelSize: theme.fontSizeCaption
+                            elide: Text.ElideMiddle
+                        }
+
+                        TapHandler {
+                            onSingleTapped:
+                                scope.rollbackDraftVersion(
+                                    histRow.modelData.createdAt)
+                        }
+                    }
+                }
+
+                Label {
+                    anchors.centerIn: parent
+                    visible: snapshotList.count === 0
+                    text: qsTr("Versions appear when you copy, replace or switch.")
+                    color: theme.textMuted
+                    font.pixelSize: theme.fontSizeCaption
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+            }
+        }
+    }
+
+    // --- tab 右键菜单（草稿 tab：重命名/删除；文件 tab：关闭） ------------
+    AMenu {
+        id: tabContextMenu
+        objectName: "tabContextMenu"
+
+        // 右键落在草稿 tab 上时是草稿 id；空串 = 文件 tab（只给关闭）。
+        property string draftTab: ""
+
+        AMenuItem {
+            visible: tabContextMenu.draftTab.length > 0
+            icon.source: "qrc:/icons/bold.svg"
+            text: qsTr("Rename")
+            onTriggered: workbenchWindow.renameCurrentDraft()
+        }
+        AMenuItem {
+            visible: tabContextMenu.draftTab.length > 0
+            icon.source: "qrc:/icons/close.svg"
+            text: qsTr("Delete draft")
+            onTriggered: workbenchWindow.deleteCurrentDraft()
+        }
+        AMenuSeparator {
+            visible: tabContextMenu.draftTab.length > 0
+        }
+        AMenuItem {
+            icon.source: "qrc:/icons/close.svg"
+            text: qsTr("Close tab")
+            onTriggered: {
+                const id = tabContextMenu.draftTab
+                if (id.length > 0)
+                    markdown.closeDraftSession(id)
             }
         }
     }
@@ -2791,15 +2244,9 @@ Item {
                 editorArea.text = current
                 applyingExternal = false
             }
-            // 换了一篇文档 = 页面重挂 DOM：旧的命中序号与「报过一次」的
-            // 闸门都不再成立，搜索条开着就立刻按新内容重跑一次。
+            // 换了一篇文档 = 页面重挂 DOM：渲染失败的「只报一次」闸门
+            // 不再成立。
             renderNoticeShown = false
-            if (searchOpen)
-                workbenchWindow.runSearch(true)
-            else {
-                findTotal = 0
-                findActive = 0
-            }
         }
 
         function onSaved() {
@@ -2818,11 +2265,6 @@ Item {
                 return
             }
             diskChangedDialog.open()
-        }
-
-        function onFindResult(total, active) {
-            findTotal = total
-            findActive = active
         }
 
         function onRenderFailed(message) {
@@ -2889,9 +2331,17 @@ Item {
     }
 
     // --- 更多动作菜单（文档模式） ------------------------------------------
+    // Save 收在这里：命令条不再放文档模式专属动作（Ctrl+F 之外还有 Ctrl+S
+    // 直达），菜单是它唯一的指针入口。
     AMenu {
         id: actionsMenu
 
+        AMenuItem {
+            icon.source: "qrc:/icons/download.svg"
+            text: qsTr("Save")
+            enabled: markdown.canEdit && markdown.dirty
+            onTriggered: workbenchWindow.saveDocument()
+        }
         AMenuItem {
             icon.source: "qrc:/icons/copy.svg"
             text: qsTr("Copy selection")
@@ -3216,87 +2666,6 @@ Item {
             onRejected: promptEditor.forceActiveFocus()
         }
 
-
-    // 全部替换的一次确认（规划 03 §三：替换条数要可见，动作不可逆时
-    // 先问一声）。Esc/Cancel 走 ADialog 的 reject。
-    ADialog {
-        id: replaceAllConfirm
-        width: 420
-        titleText: qsTr("Replace all")
-
-        ColumnLayout {
-            width: replaceAllConfirm.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Replace every occurrence of '%1' in the draft?")
-                            .arg(draftFindField.text)
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                AButton {
-                    Layout.fillWidth: true
-                    variant: "primary"
-                    text: qsTr("Replace all")
-                    onClicked: {
-                        replaceAllConfirm.close()
-                        workbenchWindow.doReplaceAll()
-                    }
-                }
-                AButton {
-                    Layout.fillWidth: true
-                    text: qsTr("Cancel")
-                    onClicked: replaceAllConfirm.close()
-                }
-            }
-        }
-    }
-
-    // B3 清空草稿的确认：> 200 字符的内容先问再清（规划 03 §四）。
-    // 双保险之二：clear() 本身是可撤销的编辑动作，Ctrl+Z 也能回。
-    ADialog {
-        id: clearDraftConfirm
-        width: 420
-        titleText: qsTr("Clear the draft")
-
-        ColumnLayout {
-            width: clearDraftConfirm.availableWidth
-            spacing: theme.spacingM
-
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Delete the draft text? You can undo it right after with Ctrl+Z.")
-                color: theme.textPrimary
-                font.pixelSize: theme.fontSizeBody
-                wrapMode: Text.Wrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                AButton {
-                    Layout.fillWidth: true
-                    variant: "primary"
-                    text: qsTr("Clear")
-                    onClicked: {
-                        clearDraftConfirm.close()
-                        workbenchWindow.doClearDraft()
-                    }
-                }
-                AButton {
-                    Layout.fillWidth: true
-                    text: qsTr("Cancel")
-                    onClicked: clearDraftConfirm.close()
-                }
-            }
-        }
-    }
 
     // 重命名草稿：改名不改 id（会话恢复按 id 不受影响）。
     ADialog {
