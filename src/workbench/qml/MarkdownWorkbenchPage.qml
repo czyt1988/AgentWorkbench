@@ -59,6 +59,12 @@ Item {
     // 左栏（工作区文件树）宽度，180–520；拖到下限以下即收起（窄边还原）。
     // 同为页面内状态，不落盘。
     property real leftPanelWidth: 320
+    // 悬浮大纲的几何状态（页面内存态，不落盘——与 editorShare 同一条
+    // 纪律）：收起位、用户拖出的宽度与高度（0 = 未拖过，走默认）。
+    property bool outlineCollapsed: false
+    property real outlinePanelWidth: 224
+    property real outlinePanelHeight: 0
+
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
     property int landingPolls: 0
@@ -1683,23 +1689,40 @@ Item {
                         // --- 悬浮大纲：渲染窗自己的导航（2026-10 自右栏迁来） --
                         // 大纲是「正在读的这份文档」的导航，住在渲染窗右缘、
                         // 悬浮于内容之上：不占布局（塞进右栏会与体检/历史
-                        // 挤扁彼此），也不改分栏比例。纯源码态没有渲染窗，
-                        // 大纲随之退场（锚点跳转本来就作用于渲染页）。
-                        // 面板自身可见性翻转是安全的（容器级，见左栏三段
-                        // 的教训）；列表在里面恒可见。
+                        // 挤扁彼此），也不改分栏比例。通高悬浮会整条盖住右
+                        // 缘的正文，所以面板可收可调：头部右侧的按钮把面板
+                        // 收成一行标题（点击还原）；右下角的手柄拖动调高度；
+                        // 左边界拖动调宽度（几何状态在页面属性上，不落盘）。
+                        // 纯源码态没有渲染窗，大纲随之退场（锚点跳转本来就
+                        // 作用于渲染页）。面板自身可见性翻转是安全的（容器
+                        // 级，见左栏三段的教训）。
                         Rectangle {
                             id: outlineFloat
                             objectName: "outlineFloat"
 
+                            // 顶部锚定不再锚底：高度由折叠态与用户拖出的
+                            // 高度决定（0 = 通高，保持初见观感）。
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            anchors.bottom: parent.bottom
                             anchors.margins: theme.spacingS
-                            width: 224
+                            width: workbenchWindow.outlinePanelWidth
+                            height: {
+                                if (workbenchWindow.outlineCollapsed)
+                                    return outlineHeader.implicitHeight
+                                           + theme.spacingS * 2
+                                const full = parent.height - theme.spacingS * 2
+                                return workbenchWindow.outlinePanelHeight > 0
+                                        ? Math.min(
+                                              workbenchWindow.outlinePanelHeight,
+                                              full)
+                                        : full
+                            }
                             visible: markdown.showOutline && docArea.showsView
                             // 高不透明：悬浮在正文之上，文字要稳读。
                             color: theme.alpha(theme.surfaceBg, 0.93)
-                            border.color: theme.borderSubtle
+                            border.color: outlineEdgeResize.containsMouse
+                                           || outlineGripDrag.containsMouse
+                                  ? theme.borderStrong : theme.borderSubtle
                             border.width: 1
                             radius: theme.radiusControl
 
@@ -1708,21 +1731,47 @@ Item {
                                 anchors.margins: theme.spacingS
                                 spacing: theme.spacingXs
 
-                                Label {
+                                // 头部：标题 + 收起开关（收起态下整个面板
+                                // 只剩这一行，开关是唯一的还原入口）。
+                                RowLayout {
+                                    id: outlineHeader
                                     Layout.fillWidth: true
-                                    text: qsTr("Outline")
-                                    color: theme.textMuted
-                                    font.pixelSize: theme.fontSizeCaption
-                                    font.bold: true
+                                    spacing: theme.spacingXs
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: qsTr("Outline")
+                                        color: theme.textMuted
+                                        font.pixelSize: theme.fontSizeCaption
+                                        font.bold: true
+                                    }
+
+                                    AIconButton {
+                                        objectName: "outlineCollapseButton"
+                                        iconSource: "qrc:/icons/chevron-down.svg"
+                                        // 展开时箭头朝上（点了收起），
+                                        // 收起时朝下（点了展开）。
+                                        rotation: workbenchWindow.outlineCollapsed
+                                                  ? 0 : 180
+                                        tooltip: workbenchWindow.outlineCollapsed
+                                                 ? qsTr("Expand the outline")
+                                                 : qsTr("Collapse the outline")
+                                        onClicked:
+                                            workbenchWindow.outlineCollapsed
+                                            = !workbenchWindow.outlineCollapsed
+                                    }
                                 }
 
                                 // 数据是控制器算好的（level / text / anchor /
                                 // blockIndex），这里只画。点一条走
                                 // scrollToAnchor——页面会把那一块的解析插队
-                                // 到分片队列前面。
+                                // 到分片队列前面。收起时整块隐藏（Layout 对
+                                // 不可见子项不占位，面板随之缩到标题行）。
                                 ListView {
                                     id: outlineList
                                     objectName: "outlineList"
+
+                                    visible: !workbenchWindow.outlineCollapsed
 
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
@@ -1778,6 +1827,88 @@ Item {
                                         text: qsTr("No headings")
                                         color: theme.textMuted
                                         font.pixelSize: theme.fontSizeCaption
+                                    }
+                                }
+                            }
+
+                            // --- 左边界：调宽（视觉只染边框，命中 8px） ------
+                            // 右缘是锚定的：往左拖面板变宽、往右拖变窄。
+                            // 宽度按指针在 docArea 里的位置反推（与分栏
+                            // 分隔条同一条绝对坐标纪律）。
+                            MouseArea {
+                                id: outlineEdgeResize
+                                objectName: "outlineWidthEdge"
+
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: 8
+                                cursorShape: Qt.SplitHCursor
+                                hoverEnabled: true
+
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed)
+                                        return
+                                    const at = mapToItem(docArea, mouse.x, 0)
+                                    const edge = docArea.width - theme.spacingS
+                                    workbenchWindow.outlinePanelWidth
+                                            = Math.max(
+                                                  160,
+                                                  Math.min(320, edge - at.x))
+                                }
+                            }
+
+                            // --- 右下角手柄：调高（QSizeGrip 形态） ----------
+                            // 收起态高度只有一行，调高没有意义，手柄退场。
+                            Item {
+                                id: outlineGrip
+                                objectName: "outlineSizeGrip"
+
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                width: 14
+                                height: 14
+                                visible: !workbenchWindow.outlineCollapsed
+
+                                // 三道斜纹：QSizeGrip 的经典记号，主题弱化色
+                                //（纯装饰，命中区是整个 14×14）。主题换色时
+                                // 重画（Canvas 不跟令牌走绑定）。
+                                Canvas {
+                                    anchors.fill: parent
+                                    property color gripColor: theme.textDisabled
+                                    onGripColorChanged: requestPaint()
+                                    onPaint: {
+                                        var ctx = getContext("2d")
+                                        ctx.reset()
+                                        ctx.strokeStyle = gripColor
+                                        ctx.lineWidth = 1.4
+                                        for (var i = 1; i <= 3; ++i) {
+                                            var o = i * 4
+                                            ctx.beginPath()
+                                            ctx.moveTo(width - o - 1, height - 3)
+                                            ctx.lineTo(width - 3, height - o - 1)
+                                            ctx.stroke()
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: outlineGripDrag
+                                    anchors.fill: parent
+                                    cursorShape: Qt.SizeVerCursor
+                                    hoverEnabled: true
+                                    onPositionChanged: function(mouse) {
+                                        if (!pressed)
+                                            return
+                                        const at = mapToItem(docArea, 0, mouse.y)
+                                        const top = outlineFloat.y
+                                        workbenchWindow.outlinePanelHeight
+                                                = Math.max(
+                                                      110,
+                                                      Math.min(
+                                                          docArea.height
+                                                          - theme.spacingS * 2,
+                                                          at.y - top))
                                     }
                                 }
                             }

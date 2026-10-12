@@ -303,6 +303,7 @@ private Q_SLOTS:
     void testSearchRoundTripFindsTheRenderedText();
     void testExportWritesTheRenderedMarkup();
     void testFileTabClickSwitchesPresetWithoutScopeError();
+    void testOutlineFloatCollapsesAndResizes();
 
 private:
     /**
@@ -922,6 +923,113 @@ void TestMarkdownPreviewUi::testExportWritesTheRenderedMarkup()
              "the exported markup lost the document's own heading");
     QVERIFY2(html.contains(QStringLiteral("awb-block")),
              "the exported markup is not the block-mounted page DOM");
+}
+
+/**
+ * @brief 悬浮大纲的收起与两个拖动自由度（2026-10 用户报告「通高悬浮遮挡
+ * 正文」之后的形态回归）
+ *
+ * 压三条交互：
+ *   1. 头部右侧的收起按钮把面板缩成一行标题（列表随之退场），再点一次
+ *      还原——收起态下开关是唯一入口，丢了它就永远收着；
+ *   2. 右下角手柄上下拖动调高度（QSizeGrip 形态）；
+ *   3. 左边界左右拖动调宽度（面板右缘锚定在渲染窗右缘）。
+ * 断言全部落在几何上（高度/宽度的实际变化），不以视觉截图为判据。
+ */
+void TestMarkdownPreviewUi::testOutlineFloatCollapsesAndResizes()
+{
+    QString error;
+    QVERIFY2(load(&error), qPrintable(error));
+    QString reason;
+    QVERIFY2(waitLoaded(&reason), qPrintable(reason));
+
+    // 打开大纲（默认关）：控制器是产品里唯一的状态源。
+    m_controller->setShowOutline(true);
+
+    QQuickItem *outline = nullptr;
+    QTRY_VERIFY2_WITH_TIMEOUT(
+        (outline = findItemByName(m_page, QStringLiteral("outlineFloat")))
+            != nullptr,
+        "the outline float never appeared", 5000);
+    QVERIFY2(outline->isVisible(), "the outline float is not visible");
+    QVERIFY2(outline->parentItem() != nullptr,
+             "the outline has no host area");
+    const qreal fullHeight = outline->height();
+    QVERIFY2(fullHeight > 200,
+             qPrintable(QStringLiteral("the expanded outline is ")
+                        + QStringLiteral("suspiciously short: ")
+                        + QString::number(fullHeight)));
+
+    // --- 收起：头部右侧的开关把面板缩成一行标题 -----------------------
+    QQuickItem *collapseButton = nullptr;
+    QTRY_VERIFY2_WITH_TIMEOUT(
+        (collapseButton = findItemByName(
+             m_page, QStringLiteral("outlineCollapseButton"))) != nullptr,
+        "the outline has no collapse button", 5000);
+    const QPointF buttonCenter = collapseButton->mapToScene(
+        QPointF(collapseButton->width() / 2, collapseButton->height() / 2));
+    QTest::mouseClick(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      buttonCenter.toPoint());
+    QTRY_VERIFY2_WITH_TIMEOUT(outline->height() < fullHeight / 2,
+                              "collapsing the outline never shrank it",
+                              5000);
+    QVERIFY2(outline->height() < 70,
+             qPrintable(QStringLiteral("the collapsed outline is still ")
+                        + QStringLiteral("tall: ")
+                        + QString::number(outline->height())));
+    // 列表随之退场：收起态只剩标题行（可见性绑在折叠位上）。
+    QQuickItem *const outlineList = findItemByName(
+        m_page, QStringLiteral("outlineList"));
+    QVERIFY2(outlineList != nullptr, "the outline list is missing");
+    QVERIFY2(!outlineList->isVisible(),
+             "the outline list is still visible while collapsed");
+
+    // 再点一次：还原到拖出前的全高。
+    QTest::mouseClick(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      buttonCenter.toPoint());
+    QTRY_COMPARE_WITH_TIMEOUT(outline->height(), fullHeight, 5000);
+
+    // --- 右下角手柄：向上拖调低高度 -----------------------------------
+    // press 落在手柄上即被 MouseArea 抓取，此后移动即使越出 14×14 的
+    // 命中区也继续派发（QQuickMouseArea 的 grab 语义）。
+    QQuickItem *grip = nullptr;
+    QTRY_VERIFY2_WITH_TIMEOUT(
+        (grip = findItemByName(m_page,
+                               QStringLiteral("outlineSizeGrip"))) != nullptr,
+        "the outline has no size grip", 5000);
+    const QPointF gripCenter = grip->mapToScene(
+        QPointF(grip->width() / 2, grip->height() / 2));
+    QTest::mouseMove(m_view.get(), gripCenter.toPoint());
+    QTest::mousePress(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      gripCenter.toPoint());
+    const QPointF raised = gripCenter + QPointF(0, -120);
+    QTest::mouseMove(m_view.get(), raised.toPoint());
+    QTest::mouseRelease(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                        raised.toPoint());
+    QTRY_VERIFY2_WITH_TIMEOUT(outline->height() < fullHeight - 90,
+                              "dragging the grip never shrank the outline",
+                              5000);
+    const qreal resizedHeight = outline->height();
+
+    // --- 左边界：向左拖调宽 -------------------------------------------
+    QQuickItem *const edge = findItemByName(
+        m_page, QStringLiteral("outlineWidthEdge"));
+    QVERIFY2(edge != nullptr, "the outline has no width edge");
+    const qreal widthBefore = outline->width();
+    const QPointF edgeCenter = edge->mapToScene(
+        QPointF(edge->width() / 2, edge->height() / 2));
+    QTest::mouseMove(m_view.get(), edgeCenter.toPoint());
+    QTest::mousePress(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                      edgeCenter.toPoint());
+    const QPointF wider = edgeCenter + QPointF(-60, 0);
+    QTest::mouseMove(m_view.get(), wider.toPoint());
+    QTest::mouseRelease(m_view.get(), Qt::LeftButton, Qt::NoModifier,
+                        wider.toPoint());
+    QTRY_VERIFY2_WITH_TIMEOUT(outline->width() > widthBefore + 40,
+                              "dragging the left edge never widened the "
+                              "outline", 5000);
+    // 宽度拖动不动高度（两个自由度解耦）。
+    QCOMPARE(outline->height(), resizedHeight);
 }
 
 // 与 app/main.cpp 同序：测试模式 → awbmd:// 注册 → WebEngine 初始化 →
