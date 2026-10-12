@@ -347,7 +347,7 @@ description: My own shape for bug reports.
 └───────────────┴────────────────────────────────────────────────┘
 ```
 
-- 左侧面板 2026-10 重组后**只剩工作区文件树**这一个可折叠段（带 `ASectionHeader`：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）。模板与收藏两段搬去了命令条「提示词」页；右栏整个移除。面板与编辑器在相接处都不带圆角——直角齐平。面板右缘是拖拽手柄（视觉 4px、命中 12px），在 180–520 之间调 `leftPanelWidth`；拖过 140 收起面板，窄边上的箭头还原。宽度公式是「会挪动的手柄」这一类陷阱：手柄随面板变宽变窄跟着挪位，宽度必须按指针的绝对位置减去**按下时**记录的抓取偏移——减逐事件的相对坐标会让拖动彼此抵消成无操作，减面板*当前*宽度（2026-10 用户报告「一拖整个面板就收起」）则任何拖动都直接落进收起分支。
+- 左侧面板 2026-10 重组后**只剩工作区文件树**这一段（带 `ASectionHeader`：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；段头上的收起键收起的是**整个左栏**——与把分隔条拖过收起阈值是同一状态，不是段级折叠：段折叠是多段布局时代的遗留，同一轮 2026-10 已删除；窄边上的箭头是收起态唯一的还原入口，文档模式预设默认收起）。模板与收藏两段搬去了命令条「提示词」页；右栏整个移除。面板与编辑器在相接处都不带圆角——直角齐平。面板右缘是拖拽手柄（视觉 4px、命中 12px），在 180–520 之间调 `leftPanelWidth`；拖过 140 收起面板，窄边上的箭头还原。宽度公式是「会挪动的手柄」这一类陷阱：手柄随面板变宽变窄跟着挪位，宽度必须按指针的绝对位置减去**按下时**记录的抓取偏移——减逐事件的相对坐标会让拖动彼此抵消成无操作，减面板*当前*宽度（2026-10 用户报告「一拖整个面板就收起」）则任何拖动都直接落进收起分支。
 - 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。2026-10 跟进轮起面板**可收起、可调大小**，不再强制通高：头部右侧的按钮（`outlineCollapseButton`）把它收成一行标题、再点还原；右下角手柄（`outlineSizeGrip`）拖高度；左边界（`outlineWidthEdge`）拖宽度——右缘恒锚在渲染窗右缘。收起位与拖出的几何（`outlineCollapsed` / `outlinePanelWidth` / `outlinePanelHeight`）是页面属性、只在内存：拖一下不该写设置，与 `editorShare` 同一条纪律。首次拖动前高度就是整个渲染窗（初见观感），收起态下手柄退场。**体检窗与历史窗**是页面右侧的非模态 `Popup`（体检窗给大纲条让位左移；两窗同开时历史窗排在体检窗下方）——它们不挡任何操作，× 或 `Esc` 关闭。
 - 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件或草稿会话一个 tab，带标题、脏圆点与关闭按钮；条右端是**新建草稿 +** 与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。草稿 tab 右键出**重命名 / 删除草稿 / 关闭**。切换器与字号、栏宽选择住在命令条「视图」页。
 - 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
@@ -505,7 +505,7 @@ URL 的形状只由 `MarkdownRuntime` 一处决定；`MarkdownRuntimeHandler::ro
 
 1. **分趟。** 解析每占用满 `PASS_BUDGET_MS`（48 ms，卡在 50 ms 长任务门槛之下，再大就开始丢输入）就让出事件循环；第一趟另给更宽裕的 `FIRST_BUDGET_MS`，另有 `SLICE_BLOCKS` 上限，防止一块病态内容独占一趟。
 2. **攒批挂载。** DOM 的代价按「上树次数」算，不按块数算。块先攒进 batch，攒够 `MOUNT_BATCH_BLOCKS`、或解析已排空、或一批已经等了 `MOUNT_MAX_WAIT_MS` 才上树——最后那条是兜底，别让短文档的内容瘫在半路。乱序批插入时参照点只认**已在树上**的节点：batch 里的块「已解析、未挂载」，拿它们当 `insertBefore` 的参照点会抛 `NotFoundError`、打断整个 flush 任务，批内其余块从此既不在 DOM 也不在 pending——永久丢块（2026-10 用户报的编辑后顶部内容消失；参照点须核对 `parentNode === root`）。
-3. **CSS `content-visibility`** 跳过屏外块的布局与绘制（在 `theme.css`）。这才是「布局几乎不要钱」的原因，也正是**不做 JS 窗口虚拟化**的原因：虚拟化会废掉文本选区、原生滚动定位与文本可访问性。
+3. **CSS `content-visibility`** 跳过屏外块的布局与绘制（在 `theme.css`）。这才是「布局几乎不要钱」的原因，也正是**不做 JS 窗口虚拟化**的原因：虚拟化会废掉文本选区、原生滚动定位与文本可访问性。这项优化是**按能力启用**的，不是无条件：`contain-intrinsic-size: auto 48px`（给屏外块稳定的占位高度）依赖 `auto` 关键字，Chromium **98** 才有——87–97（Qt 5 全线与 Qt 6.2–6.5）不认这条复合值、整条声明作废，锁死块**零高度**、滚动高度失真（整篇被压进一屏半），87 还会在滚动驱动的锁转换上崩渲染进程（`compositing_requirements_updater.cc` 的 CHECK，2026-10 用户报的「拉到最底部」）。`bridge.js` 在 `boot()` 里用 `CSS.supports("contain-intrinsic-size", "auto 48px")` 探测，第一块挂载前给 `<html>` 挂上 `awb-no-cv`；`theme.css` 把这些引擎降回普通布局（`content-visibility: visible`）——用丢掉屏外跳过的收益，换回真实的滚动高度与不崩的渲染进程；优化只在特性完整的引擎上回来。
 
 调度是自己滚定时器的，没有用 `requestIdleCallback` 也没有用 `requestAnimationFrame`：同一份工作放在 idle 回调下要慢一个数量级（回调数上千之后 Chromium 给的 idle 预算会饿死），放在帧回调下则被帧率而不是时间预算卡住。编辑态走 `updateBlocks`：C++ 侧按块摘要算出最小替换区间（`MarkdownChunker::diff()`），页面只重渲染那几个 `<section>`——敲一个字不重排全篇。
 
@@ -541,7 +541,7 @@ sequenceDiagram
 
 传输方向按负载大小刻意劈开。C++ → 页面的命令走 `runJavaScript("AWB.dispatch(<json>)")`。页面 → C++ 的大结果以 `runJavaScript` **返回值**的形式回来（`serialize()` 与 `renderAll()` 交回导出 HTML 用的就是这条），因为信标是 GET 的 URL，超过 `kEventPayloadBytes`（8 KiB）会被截断。小事件——`ready`、`frame`、`error`、`find`——走信标。导出的整篇 HTML 刻意不进事件表：一张收了一个大负载的表，会诱使下一个人在旁边再加一个。
 
-**小事件的传输按引擎分车道。** `FetchApiAllowed` 在（Qt ≥ 6.6）信标就是 `/event` 的 GET 像素请求；不在（Qt 5 与 Qt 6.2–6.5——fetch 对自定义 scheme 一律被拒）时页面连文档与样式表都拉不了，于是 `MarkdownPreviewPane` 接手：页面在 `boot()` 里自己探一次车道（真的发一次 fetch），把结论定格在 `AWB.channel()`；pane 轮询这个同步值，读到 `push` 就经 `runJavaScript` 调 `AWB.push("document"/"stylesheet", …)` 投递（每次 `setDocument` 前重推文档——那条命令体里只有 rev）。这条车道上的信标以 `console.warn("AWBEVT:<kind>:<json>")` 打出，pane 的 `javaScriptConsoleMessage` 处理器解析它并转发到 `/event` 供体服务的那四个控制器入口。车道结论不能指望 `runJavaScript` 的回调带回——Qt 5 上回调等不到 Promise，页面因此自己暴露同步答案。
+**小事件的传输按引擎分车道。** `FetchApiAllowed` 在（Qt ≥ 6.6）信标就是 `/event` 的 GET 像素请求；不在（Qt 5 与 Qt 6.2–6.5——fetch 对自定义 scheme 一律被拒）时页面连文档与样式表都拉不了，于是 `MarkdownPreviewPane` 接手：没有该 flag 的构建上，控制器的 `pageUrl()` 给 shell 地址追加 `?lane=push`，`boot()` 读到提示即定格车道、不发探测（探测是一次注定失败的 fetch，除了每次启动在引擎控制台留一条 `"URL scheme awbmd is not supported"` 警告没有任何收获——2026-10 用户报的日志噪声）；页面把结论定格在 `AWB.channel()`，pane 轮询这个同步值，读到 `push` 就经 `runJavaScript` 调 `AWB.push("document"/"stylesheet", …)` 投递（每次 `setDocument` 前重推文档——那条命令体里只有 rev）。没带提示的页面仍照旧自探一次（真的发一次 fetch）——提示只是捷径，实测才是真相（注册标志失效的 fetch 构建自己会退回推入车道）。推入车道上的信标以 `console.warn("AWBEVT:<kind>:<json>")` 打出，pane 的 `javaScriptConsoleMessage` 处理器解析它并转发到 `/event` 供体服务的那四个控制器入口。车道结论不能指望 `runJavaScript` 的回调带回——Qt 5 上回调等不到 Promise，页面因此自己暴露同步答案。
 
 ### 一个预览面
 
@@ -571,7 +571,7 @@ sequenceDiagram
 
 `MarkdownRuntime::isSupportedBuild()` 是编译期结论（开了 WebEngine 即真，两个大版本都在），同一个条件还决定链不链 `awb_markdown_webengine`、嵌不嵌 `:/markdown/` 运行时、注不注册预览面。收在一处就是全部意义——它们不一致的表现为「菜单项可点、页面 404」。
 
-Qt 5.15.16 拿得出预览需要的整面 C++ 表面——`QWebEngineUrlScheme`（注册加 `CorsEnabled`，正是那一代引擎让自定义 scheme 上 `fetch()` 可用的组合）、`QQuickWebEngineProfile`、预览面声明的那几个 QML 视图信号。唯一的显式版本分支是导航请求的应答面（`WebEngineCompat::respondNavigation()`）：Qt 6 调请求对象的 `accept()`/`reject()`，Qt 5 写它的 `action` 属性。**mermaid 在 Qt 5 的 Chromium 87 上跑不了**——11.x 的构建用了 87 之后的语法（类静态块），任何 polyfill 都接不住——图表退化为逐块错误占位，正文、公式与代码高亮照常。这是 Qt 5 车线与同一套 vendor 共存的既定代价。
+Qt 5.15.16 拿得出预览需要的整面 C++ 表面——`QWebEngineUrlScheme`（注册加 `CorsEnabled`，正是那一代引擎让自定义 scheme 上 `fetch()` 可用的组合）、`QQuickWebEngineProfile`、预览面声明的那几个 QML 视图信号。唯一的显式版本分支是导航请求的应答面（`WebEngineCompat::respondNavigation()`）：Qt 6 调请求对象的 `accept()`/`reject()`，Qt 5 写它的 `action` 属性。**mermaid 在 Qt 5 的 Chromium 87 上跑不了**——11.x 的构建用了 87 之后的语法（类静态块），任何 polyfill 都接不住——图表退化为逐块错误占位，正文、公式与代码高亮照常。**屏外块跳过在 Chromium 87–97 上同样关着**：能力门（见上文「渲染器：分趟、攒批与可见性」一节）只在 `contain-intrinsic-size: auto` 存在的引擎上保留 `content-visibility: auto`，Qt 5 因此把每块都正常排版——滚动高度真实、滚动不再崩渲染进程——代价是丢掉布局跳过的收益。这些是 Qt 5 车线与同一套 vendor 共存的既定代价。
 
 运行期只会收紧、不会放松：`available` 是 `m_surfaceReady && isSupportedBuild()`，而 `m_surfaceReady` 由提供者在 handler 真的装到 profile 上之后置位。`unavailableReason()` 负责给用户那句话说清楚。没有能力的构建里，文件树的预览条目压根不出现、预览面的 `Loader` 永不激活、视图切换器缺席、文档预设的请求退回提示词模式——功能是**不存在**，而不是存在且坏掉。提示词模式一样都不需要，照常全可用，草稿的三态退到源码。
 
