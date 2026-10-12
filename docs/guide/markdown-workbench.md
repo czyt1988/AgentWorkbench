@@ -18,7 +18,7 @@ The workbench shows one of two shapes, depending on what is active:
 
 - **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle.
 - **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; a floating outline panel appears over the right edge of the rendered page when you turn the outline on.
-- **The left panel's width is yours** — drag the divider between the file tree and the middle area. Dragging it far to the left collapses the tree to its thin edge; the small arrow button on that edge brings it back at its last width.
+- **The left panel's width is yours** — drag the divider between the file tree and the middle area. Dragging it far to the left collapses the tree to its thin edge; the collapse button in the **Workspace** title row does the same thing; the small arrow button on that edge brings it back at its last width.
 
 Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style, last tab, theme following) between sessions. Nothing is locked: clicking a draft tab or a document tab flips between the two shapes, and you can fold or unfold anything at any time. The templates and favorites you used to find in the left panel live on the ribbon's **Prompt** tab now, and the checks and history that used to fill the right side open as small floating windows.
 
