@@ -43,6 +43,7 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
 - **Folding.** The ribbon can be folded down to its row of tab names to give the document more room — click a tab name and its buttons drop down as a floating panel until you click elsewhere; double-click a tab to toggle folding. The compact shape starts folded.
 - **Colours.** The ribbon follows the application's appearance theme automatically; **Follow Theme** can turn that off, and the band then keeps its own colours.
+- **Style.** The **Style** picker on the View tab switches the band between **compact** and **loose**. In the loose style the Start tab's clipboard and formatting buttons carry their names under their icons; in the compact style they keep to their icons alone to leave more room for the document.
 - Some custom builds show a simple toolbar instead of the ribbon. The actions are the same.
 
 ## Writing a prompt
@@ -142,11 +143,11 @@ The **Preview / Split / Source** buttons live in the **View** group of the ribbo
 
 ## Reading a document
 
-The strip above the middle answers one question — *which document am I on*: the tabs, the **outline** button, the **search** button and the **More actions** menu. The reading options that are not about *where* but about *how* sit with the three views on the **Start** tab:
+The strip above the middle answers one question — *which document am I on*: the tabs, plus the **new draft** button (+) and the **More actions** menu at the strip's right end. The reading options that are not about *where* but about *how* sit with the three views on the **View** tab:
 
-- **Outline.** A floating panel over the rendered page's right edge lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**. It takes no space from the prompt tools on the right, and it is only present while a rendered view is.
-- **Text size.** The **Font Size** menu on the **Start** tab picks the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
-- **Width.** The **Width** menu on the **Start** tab picks how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
+- **Outline.** A floating panel over the rendered page's right edge lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**. It takes no space from the prompt tools on the right, and it is only present while a rendered view is. The panel is yours to shape: the button at the right of its title row collapses it down to the title row (click it again to bring the list back), the grip in its bottom-right corner drags its height, and dragging its left edge makes it wider or narrower — the panel stays anchored to the right edge of the rendered page either way. These choices live in the app's memory: they survive switching pages, and restarting the application starts the panel full-height again.
+- **Text size.** The **Font Size** menu on the **View** tab picks the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
+- **Width.** The **Width** menu on the **View** tab picks how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
 - **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
 
 ## Finding text in the document

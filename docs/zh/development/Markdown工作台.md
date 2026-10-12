@@ -18,7 +18,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
   | Ribbon | 展开（默认单行） | 折叠为 tab 行 |
   | 中间区 | 提示词草稿，带 预览 / 分栏 / 源码 | 打开的文档们，一 tab 一份，带 预览 / 分栏 / 源码 |
 
-  2026-10 的重组拆掉了两侧业务侧栏：左栏只剩工作区文件树，右栏整个移除——编辑区占满中栏。体检与草稿历史改为**非模态悬浮窗**（从命令条「提示词」页打开，可关、从不挡操作），大纲仍是**渲染窗右缘的悬浮面板**（服务**活跃会话**——草稿也有标题）。从侧栏进入得到提示词模式；从工作区文件树打开一份 Markdown 文件得到文档模式（或让活着的工作台切到那个文件）；点草稿或文件 tab 切到各自的预设。渲染不了的文档预设（无能力、无文件 tab）会退回提示词模式，而不是亮出一片坏区。用户视角里没有「模式」这个概念——只有同一个工作台、工具多一点少一点。
+  2026-10 的重组拆掉了两侧业务侧栏：左栏只剩工作区文件树，右栏整个移除——编辑区占满中栏。体检与草稿历史改为**非模态悬浮窗**（从命令条「提示词」页打开，可关、从不挡操作），大纲仍是**渲染窗右缘的悬浮面板**——跟进轮起可收成一行标题、可拖动调大小（服务**活跃会话**——草稿也有标题）。从侧栏进入得到提示词模式；从工作区文件树打开一份 Markdown 文件得到文档模式（或让活着的工作台切到那个文件）；点草稿或文件 tab 切到各自的预设。渲染不了的文档预设（无能力、无文件 tab）会退回提示词模式，而不是亮出一片坏区。用户视角里没有「模式」这个概念——只有同一个工作台、工具多一点少一点。
 - **页面常驻，会话也常驻。** 页面是 `Workspace` 常驻 Repeater 里的一个 `keepAlive` 条目：首次进入（导航或预览请求）时实例化，之后活到进程退出，别的页面在前面时仅仅隐藏。`Component.onCompleted` 报一次 `MarkdownPreviewController::notifyWindowOpened()`——从此控制器排队命令，页面里的 `Connections` 即使在隐藏状态也泵它们（预览面活着，往返照常；没有任何东西要等到重新可见才处理）。一轮运行里会话从不睡觉；它们随进程一起死。只有关 tab 才真正销毁一个会话。常驻的代价是一个 WebEngine 视图（连带它那约 4 MB 的运行时）在首次进入后一直温着——这是「切页不丢写作现场」的价格，也是页面**不**在启动时就创建的原因：只有用户第一次需要它时它才存在。
 - **提示词模式在每种构建里都可用。** 它是纯 QML 编辑器加高亮；Qt 5 与无 WebEngine 的构建里预览面根本不装载（进程里不存在 `WebEngineView`）、视图切换器不出现，文档模式的入口如实降级——文件树的菜单项不出现，打开请求报出原因（见「能力门禁」一节）。
 - **一个渲染面，多个会话。** 控制器是会话容器：每个会话带着自己的文档、块序列、大纲、rev、每 tab 三态与导出目录，按 `docId` 寻址。同一时刻只有一个**活跃会话**；切换会话整篇重建页面（`setDocument`）。`doc.json` 供活跃会话，而 `asset/<docId>/…` 对**所有活着的会话**解析——刚切走的 tab 的图片请求可能还在飞。每个内嵌视图都是一个 Chromium 帧、各自带着渲染进程那侧的内存，所以只有一个且复用，不做池化。
@@ -33,7 +33,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 ### SARibbon 怎么引入
 
-- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `7ecf2e6`**（上游 dev-3.0 顶端，2026-10-10）——已越过 3.0 的 QAction 命令层重构：`RibbonMenuItem` 退役，ribbon 菜单改以 `menuActions`（`RibbonAction` 声明的 QAction 列表）编写；这个 pin 同时带着本集成需要的修复（面板子项顺序、面板内分隔线、注册 category 的 hit-test 可见性）、这条线随之而来的 tab 行为（双击 tab 切换最小模式、收起态单击 tab 预览其 category、上下文 tab 标题恢复正确渲染），QWK submodule 也回到无本地补丁的上游 `1.5.0` 正式版。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
+- SARibbon 是 `third_party/SARibbon` 处的 git submodule（MIT 许可），**钉在 `3806723`**（dev-3.0 线，2026-10-12；相对 `42099a4` 的升级只是随附一份可安装的 QML 使用 skill——无代码变化）——已越过 3.0 的 QAction 命令层重构：`RibbonMenuItem` 退役，ribbon 菜单改以 `menuActions`（`RibbonAction` 声明的 QAction 列表）编写；这个 pin 同时带着本集成需要的修复（面板子项顺序、面板内分隔线、注册 category 的 hit-test 可见性）、这条线随之而来的 tab 行为（双击 tab 切换最小模式、收起态单击 tab 预览其 category、上下文 tab 标题恢复正确渲染），QWK submodule 也回到无本地补丁的上游 `1.5.0` 正式版。自 `c7f9bfd` 起 QML 模块硬依赖 QWindowKit；SARibbon 的 CMake 会从它自己的嵌套子模块链（`3rdparty/qwindowkit` → `qmsetup`，离线时逐级从已检出的克隆初始化）树内构建它。链接 QWK **不**强制无边框窗口：任何地方都没声明 `RibbonWindowAgent`，工作台保留系统原生边框。
 - `AWB_ENABLE_RIBBON`（默认 `ON`，声明在 `cmake/AwbOptions.cmake`）负责接线：`SARIBBON_BUILD_QML=ON`、`SARIBBON_BUILD_WIDGETS` / `SARIBBON_BUILD_EXAMPLES` / `SARIBBON_BUILD_TESTS` / `SARIBBON_INSTALL` = `OFF`、静态库。只编 QML 模块——SARibbon 的 QWidget 部分永远进不了二进制。
 - qmsetup（QWindowKit 的构建系统）会在构建树里生成转发头，其 `../../` 链以构建目录为锚点。在深层影子构建目录——Qt Creator 默认的 `<父目录>/build/Desktop_<kit>-<配置>`——里，`cl.exe` 要打开的路径超过 `MAX_PATH`（260），而它不支持长路径，于是 QWK 的每个编译单元都报一条指向「实际存在文件」的误导性 `C1083`。因此根 `CMakeLists.txt` 在 `add_subdirectory(third_party/SARibbon)` 之后把这些单行相对 include 改写为绝对路径（`cmake/AwbThirdParty.cmake` 的 `awb_absolutize_forwarding_headers`）；树内 `build/` 目录本就不受影响，但改写对两种目录同样执行。
 - `app/main.cpp` 在 `engine.load()` **之前**调 `saRibbonRegisterQmlTypes(&engine)`。注册是命令式的（没有 qmldir 插件）；函数自带重复调用守卫。
@@ -43,7 +43,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 命令带有三个标签页：**开始**、**提示词** 与 **视图**。
 
-- **开始** 装着日常编辑动作，分组以不滚动为底线：剪贴板面板 **Paste / Cut / Undo / Redo**（icon-only）、格式与列表**同一面板**（**Bold / Italic / Underline / Strikethrough / Link / Bullets / Numbered / Task List / Quote / Divider**——十枚 icon-only 按钮；全都不 `checkable`——选中态得跟光标走，而光标位置进不了 QML 绑定，翻转态只能骗人；下划线写 `<u>` 记号对——唯一可移植的写法）、**Heading** 独占一个面板（icon-only，菜单：1/2/3 与取消——不与列表混排）、插入组 **Inline Code / Code Block / Table**（icon + text；Code Block 带语言菜单：无、C++、Python、JavaScript、QML、Bash）、**Copy Prompt** 独占面板（交付动作），以及**查找**面板——一个常驻命令条的输入框（**Enter** 查找、再按 **Enter** 查下一个、× 清空并交还焦点；**Ctrl+F** 从任何地方直达）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
+- **开始** 装着日常编辑动作，分组以不滚动为底线：剪贴板面板 **Paste / Cut / Undo / Redo**、格式与列表**同一面板**（**Bold / Italic / Underline / Strikethrough / Link / Bullets / Numbered / Task List / Quote / Divider**——十枚按钮；全都不 `checkable`——选中态得跟光标走，而光标位置进不了 QML 绑定，翻转态只能骗人；下划线写 `<u>` 记号对——唯一可移植的写法）、**Heading** 独占一个面板（菜单：1/2/3 与取消——不与列表混排）、插入组 **Inline Code / Code Block / Table**（icon + text；Code Block 带语言菜单：无、C++、Python、JavaScript、QML、Bash）、**Copy Prompt** 独占面板（交付动作），以及**查找**面板——一个常驻命令条的输入框（**Enter** 查找、再按 **Enter** 查下一个、× 清空并交还焦点；**Ctrl+F** 从任何地方直达）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。剪贴板、格式、标题与查找清除按钮的形态**随样式档走**：紧凑档 icon-only、宽松档带文字（`WorkbenchRibbon.qml` 的 `startIconStyle()`，绑 `tools.ribbonStyle`）——未显式设置的 `proportion` 解析为大按钮，而大按钮配 IconOnly 会把图标撑满整个按钮高度（2026-10 用户报告的「宽松档图标巨大失衡」正是它），于是宽松档给它们与插入组一致的图标加文字形态，紧凑档维持纯图标省行宽。ribbon **不声明应用按钮**（同一轮退役）：它没有任何动作——没有应用菜单、没有 backstage——「在哪份文档」由页面的 tab 条回答；`applicationLabel` 留空即整体退场。
 - **提示词**（2026-10 重组后是普通 category——原 `RibbonContextCategory` 退役：模板是常驻工具，不该跟着预设出现消失）装着**模板 gallery** 与**收藏 gallery**——SARibbon 的 `RibbonGallery`，经库的 `addGroup()`/`addItem()` 动态填充（见[模板与收藏](#模板与收藏)）、**Save as Template / Save Favorite**，以及打开两个非模态悬浮窗的 **Check Prompt / History** 开关。插入在文档形态下同样可用（插入目标是草稿，gallery 会先切回提示词形态）——原来把 tab 在文档形态藏掉的决定随上下文页一起退役。
 - **视图** 分两个面板：编辑器视图（对**活跃会话**生效的 **Preview / Split / Source** 三态——草稿也渲染，加**显示当前值**的 **Font Size** / **Width** 下拉，以及分隔线之后的**大纲**开关），以及 ribbon 自身（**Style** 下拉——紧凑/宽松，三行档 2026-10 退役——**Follow Theme**、**Collapse**）。
 
@@ -347,8 +347,8 @@ description: My own shape for bug reports.
 └───────────────┴────────────────────────────────────────────────┘
 ```
 
-- 左侧面板 2026-10 重组后**只剩工作区文件树**这一个可折叠段（带 `ASectionHeader`：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）。模板与收藏两段搬去了命令条「提示词」页；右栏整个移除。面板与编辑器在相接处都不带圆角——直角齐平。
-- 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。**体检窗与历史窗**是页面右侧的非模态 `Popup`（体检窗给大纲条让位左移；两窗同开时历史窗排在体检窗下方）——它们不挡任何操作，× 或 `Esc` 关闭。
+- 左侧面板 2026-10 重组后**只剩工作区文件树**这一个可折叠段（带 `ASectionHeader`：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；它折叠成一条可点击的窄边，文档模式预设默认收起）。模板与收藏两段搬去了命令条「提示词」页；右栏整个移除。面板与编辑器在相接处都不带圆角——直角齐平。面板右缘是拖拽手柄（视觉 4px、命中 12px），在 180–520 之间调 `leftPanelWidth`；拖过 140 收起面板，窄边上的箭头还原。宽度公式是「会挪动的手柄」这一类陷阱：手柄随面板变宽变窄跟着挪位，宽度必须按指针的绝对位置减去**按下时**记录的抓取偏移——减逐事件的相对坐标会让拖动彼此抵消成无操作，减面板*当前*宽度（2026-10 用户报告「一拖整个面板就收起」）则任何拖动都直接落进收起分支。
+- 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。2026-10 跟进轮起面板**可收起、可调大小**，不再强制通高：头部右侧的按钮（`outlineCollapseButton`）把它收成一行标题、再点还原；右下角手柄（`outlineSizeGrip`）拖高度；左边界（`outlineWidthEdge`）拖宽度——右缘恒锚在渲染窗右缘。收起位与拖出的几何（`outlineCollapsed` / `outlinePanelWidth` / `outlinePanelHeight`）是页面属性、只在内存：拖一下不该写设置，与 `editorShare` 同一条纪律。首次拖动前高度就是整个渲染窗（初见观感），收起态下手柄退场。**体检窗与历史窗**是页面右侧的非模态 `Popup`（体检窗给大纲条让位左移；两窗同开时历史窗排在体检窗下方）——它们不挡任何操作，× 或 `Esc` 关闭。
 - 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件或草稿会话一个 tab，带标题、脏圆点与关闭按钮；条右端是**新建草稿 +** 与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。草稿 tab 右键出**重命名 / 删除草稿 / 关闭**。切换器与字号、栏宽选择住在命令条「视图」页。
 - 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
 - 中间区底部是**状态行**：提示词模式显示草稿的字符数、行数**与 token 估算**（「~N tokens (estimated)」，颜色跟分级走，tooltip 写明上下文窗口基数——见「编辑动作、体检与预算」一节）；文档模式显示文件路径、**有未保存的改动** 标记、只读原因（若有）、文件大小、渲染器版本号**与同一估算对文件文本的数字**。状态永远不只靠颜色——脏与只读都写成文字。
@@ -635,10 +635,10 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 |---|---|
 | `tst_tools` | `ToolsStore` 语义（MRU、上限、草稿防抖、ribbon 段容错、**favorites 生命周期、旧三键文件兼容红线，以及 M2 时代文件上 `editor`/`checks` 取默认值**）、懒加载树模型（角色、取子、增量刷新）、图标映射、门面接线，以及 `TestPromptTemplates`——头部往返/容错、变量提取/求值、库合并（覆盖 + 追加）/检索/存删，以及随包资源真的装着那十条内置模板；`TestPromptChecks`——规则表、空文本干净、确定性、每条规则的正反例，以及估算的稳定性（纯 ASCII、纯中文、混合）与分级阈值 |
 | `tst_markdownedit`（在 `tst_tools` 内） | B1 动作对着真实 `QTextDocument`：每个动作的三种输入形态（空 / 单行 / 跨行选区）、一次撤销回退、标题改级与同级取消、列表类动作的再点去除（编号/任务/引用全已应用时）、有无选区的链接、带语言的围栏、表格骨架与分隔线的空行规范化、若干光标位置上的查询——以及 B2 纯层：正向查找带回卷、大小写与全词开关、替换并前进、全部替换的计数（含替换词里含查找词的自包含用例）与一步撤销 |
-| `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；模板用例覆盖入口按钮、内置模板表与变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、经页面动作层插入收藏、经工具栏真实点击把草稿存进收藏；查找用例覆盖 `Ctrl+F` 聚焦命令条查找框、`Enter` 在编辑器里选中命中；工具栏真实点击把草稿格式化成编号列表；体检用例经工具栏按钮开体检悬浮窗并出现预算标签；草稿用例覆盖经 tab 条的 + 新建并切换（编辑器换正文、undo 历史不串草稿）、经历史悬浮窗存快照并走确认弹窗真实回滚 |
+| `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；模板用例覆盖入口按钮、内置模板表与变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、经页面动作层插入收藏、经工具栏真实点击把草稿存进收藏；查找用例覆盖 `Ctrl+F` 聚焦命令条查找框、`Enter` 在编辑器里选中命中；工具栏真实点击把草稿格式化成编号列表；体检用例经工具栏按钮开体检悬浮窗并出现预算标签；草稿用例覆盖经 tab 条的 + 新建并切换（编辑器换正文、undo 历史不串草稿）、经历史悬浮窗存快照并走确认弹窗真实回滚；左栏手柄用例以真实鼠标事件拖分隔条——+80 把文件树拖宽且不收起、拖过阈值才收起（2026-10「一拖整个面板就收起」的回归——宽度公式减了面板当前宽度） |
 | `tst_markdown` | `MarkdownChunker`（含语料等价性）、`MarkdownDocument`（保形态存盘、两个上限、只读的来源、watcher 语义、**虚拟文档**）、`MarkdownRuntime`（URL、MIME、路由、协议表、主题 → CSS、大纲）、`MarkdownPreviewController`（**会话容器**：开/切/关、路径去重、8 tab 上限、脏隔离、doc.json 跟随活跃会话、活会话的资源解析、草稿会话、关窗保留会话、按 id 存盘不换激活；队列去重、打开/保存/导出、能力判定），以及 vendor 的 sha256 表 |
 | `tst_markdownpreview` | 对着真实 `WebEngineView` 的页面管线：文档挂载、块出现、增量更新落地。大文档用例只在 `AWB_MD_PERF` 下跑 |
-| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（WebEngine 构建，两个大版本都跑） |
+| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（WebEngine 构建，两个大版本都跑）；悬浮大纲用例经真实鼠标事件驱动收起按钮、右下角手柄与左边界——收起把面板折半并隐藏列表，手柄与边界各自独立地拖动两个自由度 |
 | `tst_webengine` | scheme 端到端供出资源、字体、`doc.json` 与信标 |
 | `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` 的委派与只报原因不开窗的失败路径；单实例 **open 消息的编解码往返**；文件关联的**注册态判定**（默认与已注册两态，注册表可写的构建上） |
 | `tst_core` | 五个 `markdown.*` 设置键与 `Paths::markdownPreviewDir()` |
