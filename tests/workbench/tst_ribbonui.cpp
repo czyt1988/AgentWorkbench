@@ -279,14 +279,15 @@ private Q_SLOTS:
                                   "the ribbon bar never produced a height",
                                   5000);
 
-        // 装载进去的 RibbonBar：无宿主窗口（win 为空）时应用按钮的文案
-        // 落在 Draft——这条绑定同时证明 applicationLabel 属性与窗口状态
-        // 的桥接在读得到的那一侧。
+        // 装载进去的 RibbonBar：应用按钮已退役（2026-10：它没有任何
+        // 动作——无 applicationMenuActions、无 backstage，「在哪份文档」
+        // 由页面 tab 条回答）。标签留空 + 矩形为空 = 按钮整体退场，
+        // 这条断言防止它悄悄长回来。
         const auto children = item->childItems();
         QVERIFY2(!children.isEmpty(), "the ribbon root has no bar child");
         QObject *bar = children.constFirst();
-        QCOMPARE(bar->property("applicationLabel").toString(),
-                 QStringLiteral("Draft"));
+        QCOMPARE(bar->property("applicationLabel").toString(), QString());
+        QCOMPARE(bar->property("applicationButtonRect").toRectF(), QRectF());
 
         // 全程不允许出现 SARibbon 侧的告警（qrc 未初始化、引擎不可达）。
         QVERIFY2(g_ribbonWarnings.isEmpty(),
@@ -377,6 +378,12 @@ private Q_SLOTS:
         tools.setRibbonStyle(QStringLiteral("three-row"));
         QTRY_COMPARE(styleCombo->property("currentIndex").toInt(), 0);
     }
+
+    // 「开始」页 icon-only 按钮的两档形态（2026-10 用户报告「宽松档下
+    // 图标巨大失衡」的回归）：宽松（two-row）档该批按钮带文字（与标题/
+    // 插入面板同一形态——大按钮配 IconOnly 会把图标撑满整个按钮高度，
+    // 就是用户看到的巨大图标）；紧凑单行档回到 icon-only 省横向空间。
+    void testStartButtonsFollowRibbonStyleMode();
 
     // 整页首显（2026-10 三个缺陷的复现现场）：页面 + 真 Ribbon 路径。
     // 页面里的 Loader 装载 WorkbenchRibbon.qml（不是测试直接建命令条），
@@ -751,6 +758,107 @@ private Q_SLOTS:
                             + g_ribbonWarnings.join(QLatin1Char(';'))));
     }
 };
+
+// 「开始」页 icon-only 按钮的两档形态（2026-10 用户报告「宽松档下开始
+// 标签页的 icon-only 图标巨大失衡」的回归用例）：
+//   宽松（two-row）——该批按钮带文字（TextBesideIcon，与标题/插入面板
+//     同一形态）。根因：面板按钮的 proportion 默认是 Large，大按钮配
+//     IconOnly 时核心布局把图标撑满整个按钮高度——两行档的面板高，
+//     图标就跟着巨大；
+//   紧凑（single）——回到 icon-only（高频动作省横向空间，单行档按钮
+//     本来就是小的横排，没有失衡问题）。
+// 断言落在两个层面：toolButtonStyle 枚举值（声明面）与 textGeometry
+// 的宽度（渲染面——宽松档文字框必须真的长出来，紧凑档必须缩回去）。
+void TestRibbonUi::testStartButtonsFollowRibbonStyleMode()
+{
+    QTemporaryDir dataRoot;
+    QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
+    Settings settings;
+    ThemeRegistry registry;
+    Theme theme(&settings, &registry);
+    theme.applyTheme(QStringLiteral("mocha-dark"));
+    ToolsFacade tools(dataRoot.path());
+    MarkdownEdit markdownEdit(&theme);
+    MarkdownPreviewController markdown(&settings, &theme);
+
+    QQmlEngine engine;
+    saRibbonRegisterQmlTypes(&engine);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // WorkbenchRibbon 引用 A* 组件（import AgentWorkbench）：Qt 5 引擎的
+    // 默认导入路径不含 qrc:/qt/qml（与整页用例同一条）。
+    engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme", &theme);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools", &tools);
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                 "MarkdownEdit", &markdownEdit);
+
+    QQmlContext context(engine.rootContext());
+    context.setContextProperty(QStringLiteral("theme"), &theme);
+    context.setContextProperty(QStringLiteral("tools"), &tools);
+    context.setContextProperty(QStringLiteral("markdown"), &markdown);
+
+    QQmlComponent component(&engine, QUrl(QStringLiteral(
+        "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchRibbon.qml")));
+    QVERIFY2(!component.isError(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> root(component.create(&context));
+    QVERIFY2(!root.isNull(), qPrintable(component.errorString()));
+    QQuickItem *const item = qobject_cast<QQuickItem *>(root.data());
+    QVERIFY2(item, "the ribbon root is not a QQuickItem");
+
+    // 「开始」页是首个 category（默认 currentIndex 0），装载即在 QObject
+    // 树上；按源串挑几枚被改的按钮（覆盖剪贴板 / 格式 / 收尾面板）。
+    const QStringList probeTexts = { QStringLiteral("Paste"),
+                                     QStringLiteral("Bold"),
+                                     QStringLiteral("Divider") };
+
+    // 宽松档：带文字（TextBesideIcon = 2，见 RibbonEnums::ToolButtonStyle）。
+    tools.setRibbonStyle(QStringLiteral("two-row"));
+    for (const QString &probe : probeTexts) {
+        SARibbonQml::RibbonToolButton *button = nullptr;
+        const auto buttons =
+            item->findChildren<SARibbonQml::RibbonToolButton *>();
+        for (SARibbonQml::RibbonToolButton *candidate : buttons) {
+            if (candidate->text() == probe) {
+                button = candidate;
+                break;
+            }
+        }
+        QVERIFY2(button != nullptr,
+                 qPrintable(QStringLiteral("no Start-tab tool button ")
+                            + probe));
+        QTRY_COMPARE_WITH_TIMEOUT(
+            button->property("toolButtonStyle").toInt(), 2, 5000);
+        // 渲染面：宽松档文字框必须长出来（图标不再独占按钮）。
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            button->property("textGeometry").toRectF().width() > 0,
+            qPrintable(QStringLiteral("the loose-mode caption box of ")
+                       + probe + QStringLiteral(" never appeared")), 5000);
+    }
+
+    // 紧凑档：icon-only（枚举 0），文字框随之缩回去。
+    tools.setRibbonStyle(QStringLiteral("single"));
+    for (const QString &probe : probeTexts) {
+        SARibbonQml::RibbonToolButton *button = nullptr;
+        const auto buttons =
+            item->findChildren<SARibbonQml::RibbonToolButton *>();
+        for (SARibbonQml::RibbonToolButton *candidate : buttons) {
+            if (candidate->text() == probe) {
+                button = candidate;
+                break;
+            }
+        }
+        QVERIFY2(button != nullptr,
+                 qPrintable(QStringLiteral("no Start-tab tool button ")
+                            + probe));
+        QTRY_COMPARE_WITH_TIMEOUT(
+            button->property("toolButtonStyle").toInt(), 0, 5000);
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            button->property("textGeometry").toRectF().width() <= 0,
+            qPrintable(QStringLiteral("the compact-mode caption box of ")
+                       + probe + QStringLiteral(" did not fold away")), 5000);
+    }
+}
 
 // Quick 场景需要 QGuiApplication（共享注册表的 QCoreApplication 驱动不了）。
 int main(int argc, char *argv[])

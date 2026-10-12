@@ -12,9 +12,9 @@ import "RibbonIcons.js" as RibbonIcons
 // 逻辑全在窗口的动作层）。
 //
 // 三个标签页（2026-10 重组）：
-//   开始——编辑动作：剪贴板、格式与列表（十枚 icon-only 同一面板）、
-//     标题、插入、复制提示词、查找（输入框常驻面板，回车查找/再回车
-//     下一个）；
+//   开始——编辑动作：剪贴板、格式与列表（十枚动作同一面板，宽松档带
+//     文字、紧凑档 icon-only，见 startIconStyle()）、标题、插入、
+//     复制提示词、查找（输入框常驻面板，回车查找/再回车下一个）；
 //   提示词——模板与收藏（普通 category，不再是上下文页：模板库是常驻
 //     工具，不随预设出现/消失）、体检与历史（点击开页面上的悬浮窗，
 //     动作与浮窗都由页面持有）；
@@ -48,6 +48,16 @@ Item {
     // 图标：data URL 现染（颜色跟主题文字令牌走，见 RibbonIcons.js）。
     function icon(name) {
         return RibbonIcons.iconUrl(name, theme.textPrimary)
+    }
+
+    // 「开始」页 icon-only 动作在两档样式下的形态：宽松（two-row）档的
+    // 大按钮在 IconOnly 下会把图标撑满整个按钮高度，与「标题/插入」
+    // 面板同格的图标比着看非常失衡，该档位带文字渲染（与那些面板同一
+    // 形态）；紧凑单行档按钮本来就是小的横排，icon-only 省横向空间，
+    // 维持原样。函数求值跟 tools.ribbonStyle（有 NOTIFY）走，切档即变。
+    function startIconStyle() {
+        return tools.ribbonStyle === "two-row"
+                ? Ribbon.TextBesideIcon : Ribbon.IconOnly
     }
 
     // 样式档位（tools.json 持久化）与 SARibbon 枚举的互译。三行档已退役
@@ -110,27 +120,24 @@ Item {
             if (win && ribbonBar.minimumMode !== win.ribbonCollapsed)
                 win.setRibbonCollapsed(ribbonBar.minimumMode)
         }
-        // 页面身份由左上角的应用按钮承担（窗口没有「页头」这个概念）。
-        applicationLabel: win
-                          ? (win.preset === "document"
-                             ? (markdown.fileTitle.length > 0
-                                ? markdown.fileTitle : qsTr("File"))
-                             : qsTr("Draft"))
-                          : qsTr("Draft")
+        // 应用按钮（左上角「草稿/文件名」）已移除：它没有任何动作（无
+        // applicationMenuActions、无 backstage），「在哪份文档」由页面
+        // tab 条回答，这里不重复。applicationLabel 留空即整个按钮退场
+        // （SARibbon 按空标签算零宽矩形）。
         onCurrentIndexChanged: tools.ribbonLastTabIndex = currentIndex
 
         // --- 标签页 1 · 开始：编辑动作 -----------------------------------
         RibbonCategory {
             title: qsTr("Start")
 
-            // 剪贴板与撤销：icon-only（高频动作用图标，文字留给插入
-            // 与交付这类低频读动作）。
+            // 剪贴板与撤销：高频动作用图标（紧凑档 icon-only、宽松档
+            // 带文字，见 startIconStyle()）。
             RibbonPanel {
                 panelTitle: qsTr("Clipboard")
 
                 RibbonToolButton {
                     text: qsTr("Paste")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("paste")
                     toolTip: qsTr("Paste into the editor")
                     enabled: win && win.activeEditor
@@ -139,7 +146,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Cut")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("cut")
                     toolTip: qsTr("Cut the selection")
                     enabled: win && win.activeEditor
@@ -148,7 +155,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Undo")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("undo")
                     toolTip: qsTr("Undo")
                     enabled: win && win.activeEditor
@@ -157,7 +164,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Redo")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("redo")
                     toolTip: qsTr("Redo")
                     enabled: win && win.activeEditor
@@ -166,8 +173,8 @@ Item {
                 }
             }
 
-            // 行内格式与列表（任务字面结构的 Panel 2：十枚 icon-only 同
-            // 一面板）。格式按钮一律不做 checkable：选中态要跟光标处的
+            // 行内格式与列表（任务字面结构的 Panel 2：十枚动作同一面板，
+            // 形态随档位——startIconStyle()）。格式按钮一律不做 checkable：选中态要跟光标处的
             // 文本走，而「光标位置」不进 QML 绑定（MarkdownEdit 的查询是
             // 函数调用，绑定不会在光标移动时重求值），假勾选态只会骗人
             //（2026-10 用户报告：勾选态既不跟光标也不跟选区）。
@@ -176,7 +183,7 @@ Item {
 
                 RibbonToolButton {
                     text: qsTr("Bold")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("bold")
                     toolTip: qsTr("Bold (**)")
                     enabled: win && win.activeEditor
@@ -184,7 +191,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Italic")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("italic")
                     toolTip: qsTr("Italic (*)")
                     enabled: win && win.activeEditor
@@ -192,7 +199,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Underline")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("underline")
                     toolTip: qsTr("Underline (<u></u>)")
                     enabled: win && win.activeEditor
@@ -200,7 +207,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Strikethrough")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("strike")
                     toolTip: qsTr("Strikethrough (~~)")
                     enabled: win && win.activeEditor
@@ -208,7 +215,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Link")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("link")
                     toolTip: qsTr("Insert a link")
                     enabled: win && win.activeEditor
@@ -216,7 +223,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Bullets")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("bullet")
                     toolTip: qsTr("Bullet list")
                     enabled: win && win.activeEditor
@@ -224,7 +231,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Numbered")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("numbered")
                     toolTip: qsTr("Numbered list")
                     enabled: win && win.activeEditor
@@ -232,7 +239,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Task List")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("task")
                     toolTip: qsTr("Task list (- [ ])")
                     enabled: win && win.activeEditor
@@ -240,7 +247,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Quote")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("quote")
                     toolTip: qsTr("Block quote (>)")
                     enabled: win && win.activeEditor
@@ -248,7 +255,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Divider")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("divider")
                     toolTip: qsTr("Insert a horizontal divider")
                     enabled: win && win.activeEditor
@@ -262,7 +269,7 @@ Item {
 
                 RibbonToolButton {
                     text: qsTr("Heading")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("heading")
                     toolTip: qsTr("Set the heading level")
                     popupMode: Ribbon.MenuButtonPopup
@@ -378,7 +385,7 @@ Item {
                 }
                 RibbonToolButton {
                     text: qsTr("Cancel")
-                    toolButtonStyle: Ribbon.IconOnly
+                    toolButtonStyle: commandBar.startIconStyle()
                     iconSource: commandBar.icon("close")
                     toolTip: qsTr("Clear the search")
                     enabled: findField.text.length > 0
