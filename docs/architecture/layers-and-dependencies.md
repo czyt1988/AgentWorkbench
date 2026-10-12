@@ -22,7 +22,7 @@ flowchart TB
         web["awb_web"]
         webengine["awb_web_webengine<br/>adapter"]
         markdown["awb_markdown"]
-        mdwebengine["awb_markdown_webengine<br/>adapter, Qt 6 only"]
+        mdwebengine["awb_markdown_webengine<br/>adapter, both Qt majors"]
     end
     subgraph L1["L1"]
         theme["awb_theme"]

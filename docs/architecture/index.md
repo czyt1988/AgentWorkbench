@@ -31,7 +31,7 @@ Every module is a static library with its own `src/<module>/CMakeLists.txt`. The
 | `src/web` | L2 | tab model, surface selection, memory policy (no WebEngine here) | [Development: web tabs](../development/web-tabs.md) |
 | `src/web/webengine` | L2 adapter | the embedded web surface; one of the two targets linking Qt WebEngine | [Development: WebEngine adapter](../development/webengine-adapter.md) |
 | `src/markdown` | L2 | the Markdown document pipeline: document I/O with byte-fidelity save, block chunking, the `awbmd://` URL/MIME/theme-string layer, the preview controller (no WebEngine here) | [Development: Markdown workbench](../development/markdown-workbench.md) |
-| `src/markdown/webengine` | L2 adapter | the `awbmd://` scheme handler and the preview-only profile; Qt 6 only | [Development: Markdown workbench](../development/markdown-workbench.md) |
+| `src/markdown/webengine` | L2 adapter | the `awbmd://` scheme handler and the preview-only profile, built on both Qt majors | [Development: Markdown workbench](../development/markdown-workbench.md) |
 | `src/theme` | L1 | JSON themes → semantic tokens → QML bindable properties | [Development: theme engine](../development/theme-engine.md) |
 | `src/core` | L0 | paths, JSON store, settings, logging, processes, scripts, HTTP probe, plugin host, legacy import | [Development: core infrastructure](../development/core-infrastructure.md) |
 | `src/plugin_api` | L0 | the header-only plugin ABI that external repositories link | [Extension points](extension-points.md) |
@@ -56,7 +56,7 @@ flowchart TB
     web["web (L2)"]
     webengine["web/webengine (L2 adapter)<br/>links Qt WebEngine"]
     markdown["markdown (L2)"]
-    mdwebengine["markdown/webengine (L2 adapter)<br/>links Qt WebEngine, Qt 6 only"]
+    mdwebengine["markdown/webengine (L2 adapter)<br/>links Qt WebEngine, both Qt majors"]
     theme["theme (L1)"]
     core["core (L0)"]
     pluginapi["plugin_api (L0)<br/>header-only ABI"]

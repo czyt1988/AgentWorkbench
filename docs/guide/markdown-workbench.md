@@ -18,6 +18,7 @@ The workbench shows one of two shapes, depending on what is active:
 
 - **The full shape** — while you write a prompt. The workspace file tree is open on the left, the full ribbon band is on top, and your draft fills the middle.
 - **The compact shape** — while you read a document. The file tree is collapsed to a thin edge, the ribbon is folded down to its row of tab names, and the document fills the work area. It is the reading shape; a floating outline panel appears over the right edge of the rendered page when you turn the outline on.
+- **The left panel's width is yours** — drag the divider between the file tree and the middle area. Dragging it far to the left collapses the tree to its thin edge; the small arrow button on that edge brings it back at its last width.
 
 Each shape remembers its own settings while the workbench is alive — collapse something in the compact shape and the full shape still comes back the way you left it. The full shape also remembers its ribbon preferences (folded or not, style, last tab, theme following) between sessions. Nothing is locked: clicking a draft tab or a document tab flips between the two shapes, and you can fold or unfold anything at any time. The templates and favorites you used to find in the left panel live on the ribbon's **Prompt** tab now, and the checks and history that used to fill the right side open as small floating windows.
 
@@ -40,7 +41,7 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 - **Prompt** — the library and the review tools: the **templates** and **favorites** galleries (click an entry to insert it), **Save as Template** and **Save Favorite** to store what you wrote, **Check Prompt** to review the draft, and **History** to browse its versions (see [Prompt checks](#prompt-checks) and [Version history](#version-history)). The floating windows it opens never block your writing — leave them open as long as you like.
 - **View** — what you see and how: the **Preview / Split / Source** switch, the **Font Size** and **Width** pickers, the outline toggle, **Collapse** (fold the whole band away), **Style** (compact or loose), and **Follow Theme** (whether the band's colours track the app's theme).
 
-- **Folding.** The ribbon can be folded down to its row of tab names to give the document more room — click the row to unfold it again. The compact shape starts folded.
+- **Folding.** The ribbon can be folded down to its row of tab names to give the document more room — click a tab name and its buttons drop down as a floating panel until you click elsewhere; double-click a tab to toggle folding. The compact shape starts folded.
 - **Colours.** The ribbon follows the application's appearance theme automatically; **Follow Theme** can turn that off, and the band then keeps its own colours.
 - Some custom builds show a simple toolbar instead of the ribbon. The actions are the same.
 
@@ -73,7 +74,7 @@ If the app closes unexpectedly, the next start asks once whether to **Restore** 
 
 ## Templates: starting from a skeleton
 
-The **templates gallery** on the ribbon's **Prompt** tab is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same shelf, grouped by their category (the chevrons at the gallery's top page between groups, and the strip scrolls sideways — the mouse wheel works).
+The **templates gallery** on the ribbon's **Prompt** tab is a shelf of ready-made prompt skeletons — bug report, feature request, test plan, code review, and more. Ten are built in and always available; templates you save yourself appear in the same shelf, grouped by their category (the arrow buttons on the gallery's right edge page through the groups, and the bottom button opens the full shelf as a bigger grid).
 
 - **Click a template** to insert it into your draft at the cursor. Inserting never replaces what you wrote: the skeleton is added at the cursor position, and if text was selected, it becomes the value of the template's `{{selection}}` placeholder.
 - **Placeholders.** A template's text contains fields like `{{symptom}}` or `{{symptom:What visibly goes wrong}}`. If the template has any, a small form opens: one field per placeholder, pre-filled with the default when there is one. `Tab` moves between the fields, `Enter` inserts, `Esc` cancels. **A field you leave empty is a skip** — the placeholder stays in your text as `{{symptom}}`, so you can find it later instead of the prompt quietly shipping half-filled. The same placeholder appearing twice is filled once, everywhere.
@@ -93,10 +94,11 @@ Templates are skeletons with holes to fill; **favorites** are complete prompts y
 
 ## Formatting tools
 
-The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Underline**, **Strikethrough** and **Inline Code** (these five light up to show what is already true at the cursor — click to toggle), **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Code Block** (with a menu of common languages) and **Table**.
+The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Underline**, **Strikethrough**, **Inline Code**, **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Code Block** (a menu of common languages) and **Table**.
 
 - Everything is **one undo step**: press `Ctrl+Z` right after any of them and the whole change reverts.
 - Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`.
+- **Inline Code wraps, Code Block fences.** Inline Code wraps the selection in backticks. Code Block fences whole lines — the selected lines (or the line the cursor is on) become a code block with the language you picked on its first line; with the cursor on an empty line it drops an empty block and puts the cursor inside, ready to type.
 - In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
 
 The only keyboard shortcut the workbench adds is `Ctrl+F` (find — see the next section). Everything else is a button.
@@ -196,7 +198,7 @@ Note about the two exports: the exported page refers to images **relative to the
 Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 - Formulas written with `$$ … $$`, `\[ … \]` and inline forms render as typeset formulas. A formula with a syntax error is shown in red rather than hidden.
-- A code block whose language is `mermaid` becomes a diagram. Diagrams are drawn as you scroll near them, not all at once — a document with very many diagrams will ask you to click a diagram before drawing it.
+- A code block whose language is `mermaid` becomes a diagram. Diagrams are drawn as you scroll near them, not all at once — a document with very many diagrams will ask you to click a diagram before drawing it. On the build that runs on the older engine (the fallback platform), diagrams are beyond what that engine can execute: each diagram shows its source with a note instead of a drawing, while formulas, tables and code highlighting are unaffected.
 - GitHub-style notice blocks (`> [!NOTE]` and its four relatives) are drawn as coloured callouts.
 - **Embedded HTML is not rendered.** Tags written directly into the Markdown appear as text. This is a deliberate safety choice: this workbench shows files you did not write, and HTML in a document would otherwise be able to run code inside the app.
 
@@ -247,7 +249,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **Double-clicking a `.md` file opens something else.** The association only puts this app in the **Open with** list — the default app is chosen in Windows Settings. Right-click the file, choose **Open with**, and pick this app there (or set it as the default).
 
-**The Prompt tab's galleries are empty.** The templates need nothing to show — the built-ins are always there. If the strip looks empty, page the group chevrons or scroll the strip sideways (the wheel works); templates you saved appear under their own category group.
+**The Prompt tab's galleries are empty.** The templates need nothing to show — the built-ins are always there. If the grid looks empty, page the groups with the gallery's arrow buttons or open the full shelf with the bottom button; templates you saved appear under their own category group.
 
 **A template inserted text with `{{placeholders}}` still in it.** That is what an empty field in the form means — the skipped field is left visible on purpose. Fill it in the draft, or re-insert the template and fill the field this time.
 

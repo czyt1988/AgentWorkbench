@@ -31,7 +31,7 @@ AgentWorkbench 是一个只有一件事要做的桌面外壳：**启动外部的
 | `src/web` | L2 | 标签模型、表面选择、内存策略（不含 WebEngine） | [开发：Web 标签页](../development/Web标签页.md) |
 | `src/web/webengine` | L2 适配器 | 内嵌 web 表面；两个链接 Qt WebEngine 的目标之一 | [开发：WebEngine 适配层](../development/WebEngine适配层.md) |
 | `src/markdown` | L2 | Markdown 文档管线：保字节的读盘与存盘、顶层块切分、`awbmd://` 的 URL/MIME/主题字符串层、预览控制器（不含 WebEngine） | [开发：Markdown 工作台](../development/Markdown工作台.md) |
-| `src/markdown/webengine` | L2 适配器 | `awbmd://` 的 scheme 供体与只服务预览的 profile；仅 Qt 6 | [开发：Markdown 工作台](../development/Markdown工作台.md) |
+| `src/markdown/webengine` | L2 适配器 | `awbmd://` 的 scheme 供体与只服务预览的 profile，两个 Qt 大版本都构建 | [开发：Markdown 工作台](../development/Markdown工作台.md) |
 | `src/theme` | L1 | JSON 主题 → 语义令牌 → QML 可绑定属性 | [开发：主题引擎](../development/主题引擎.md) |
 | `src/core` | L0 | 路径、JSON 读写、设置、日志、进程、脚本、HTTP 探测、插件宿主、旧数据导入 | [开发：core 基础设施](../development/core基础设施.md) |
 | `src/plugin_api` | L0 | 只有头文件的插件 ABI，供外部仓库链接 | [扩展点](扩展点.md) |
@@ -56,7 +56,7 @@ flowchart TB
     web["web (L2)"]
     webengine["web/webengine (L2 适配器)<br/>链接 Qt WebEngine"]
     markdown["markdown (L2)"]
-    mdwebengine["markdown/webengine (L2 适配器)<br/>链接 Qt WebEngine，仅 Qt 6"]
+    mdwebengine["markdown/webengine (L2 适配器)<br/>链接 Qt WebEngine，两个大版本"]
     theme["theme (L1)"]
     core["core (L0)"]
     pluginapi["plugin_api (L0)<br/>只有头文件的 ABI"]

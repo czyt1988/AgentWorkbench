@@ -43,8 +43,8 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 命令带有三个标签页：**开始**、**提示词** 与 **视图**。
 
-- **开始** 装着日常编辑动作，分组以不滚动为底线：剪贴板面板 **Paste / Cut / Undo / Redo**（icon-only）、格式与列表**同一面板**（**Bold / Italic / Underline / Strikethrough / Link / Bullets / Numbered / Task List / Quote / Divider**——十枚 icon-only 按钮；前四个 `checkable`，`checked` 绑 `MarkdownEdit` 的光标查询——查询侧是 checkable 的入场券；下划线写 `<u>` 记号对——唯一可移植的写法）、**Heading** 独占一个面板（icon-only，菜单：1/2/3 与取消——不与列表混排）、插入组 **Inline Code / Code Block / Table**（icon + text；Code Block 带语言菜单：无、C++、Python、JavaScript、QML、Bash）、**Copy Prompt** 独占面板（交付动作），以及**查找**面板——一个常驻命令条的输入框（**Enter** 查找、再按 **Enter** 查下一个、× 清空并交还焦点；**Ctrl+F** 从任何地方直达）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
-- **提示词**（2026-10 重组后是普通 category——原 `RibbonContextCategory` 退役：模板是常驻工具，不该跟着预设出现消失）装着**模板 gallery** 与**收藏 gallery**——自绘的 `PromptGallery` 面板（见[模板与收藏](#模板与收藏)）、**Save as Template / Save Favorite**，以及打开两个非模态悬浮窗的 **Check Prompt / History** 开关。插入在文档形态下同样可用（插入目标是草稿，gallery 会先切回提示词形态）——原来把 tab 在文档形态藏掉的决定随上下文页一起退役。
+- **开始** 装着日常编辑动作，分组以不滚动为底线：剪贴板面板 **Paste / Cut / Undo / Redo**（icon-only）、格式与列表**同一面板**（**Bold / Italic / Underline / Strikethrough / Link / Bullets / Numbered / Task List / Quote / Divider**——十枚 icon-only 按钮；全都不 `checkable`——选中态得跟光标走，而光标位置进不了 QML 绑定，翻转态只能骗人；下划线写 `<u>` 记号对——唯一可移植的写法）、**Heading** 独占一个面板（icon-only，菜单：1/2/3 与取消——不与列表混排）、插入组 **Inline Code / Code Block / Table**（icon + text；Code Block 带语言菜单：无、C++、Python、JavaScript、QML、Bash）、**Copy Prompt** 独占面板（交付动作），以及**查找**面板——一个常驻命令条的输入框（**Enter** 查找、再按 **Enter** 查下一个、× 清空并交还焦点；**Ctrl+F** 从任何地方直达）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。
+- **提示词**（2026-10 重组后是普通 category——原 `RibbonContextCategory` 退役：模板是常驻工具，不该跟着预设出现消失）装着**模板 gallery** 与**收藏 gallery**——SARibbon 的 `RibbonGallery`，经库的 `addGroup()`/`addItem()` 动态填充（见[模板与收藏](#模板与收藏)）、**Save as Template / Save Favorite**，以及打开两个非模态悬浮窗的 **Check Prompt / History** 开关。插入在文档形态下同样可用（插入目标是草稿，gallery 会先切回提示词形态）——原来把 tab 在文档形态藏掉的决定随上下文页一起退役。
 - **视图** 分两个面板：编辑器视图（对**活跃会话**生效的 **Preview / Split / Source** 三态——草稿也渲染，加**显示当前值**的 **Font Size** / **Width** 下拉，以及分隔线之后的**大纲**开关），以及 ribbon 自身（**Style** 下拉——紧凑/宽松，三行档 2026-10 退役——**Follow Theme**、**Collapse**）。
 
 单行是默认样式档，它的后果在加按钮前值得知道：面板标题隐藏，所有按钮不论 `proportion` 一律按小尺寸渲染——层级靠分组与按钮顺序表达，文字必须短。`minimumMode` 把功能带折叠成一行 tab；文档模式预设默认折叠，点 tab 行即再展开。
@@ -217,7 +217,7 @@ description: My own shape for bug reports.
 
 ### 界面装配：提示词页的两个 gallery、工具栏的一个菜单
 
-- **gallery 住在命令条的「提示词」页**（2026-10 重组）：左栏只剩工作区文件树——模板与收藏两段从这里搬走。每个是一个 `PromptGallery` 面板（`RibbonControlContainer` 托管的自绘 gallery）：一行模板格子横向滚动、按 `category` 字段用箭头翻组（收藏 gallery 单组）、随包骨架上有 **built-in** 色点标记。点格子即插入。SARibbon 自己的 `RibbonGallery.groups` / `items` 是静态 `QQmlListProperty`——QML 侧没有清空入口、绑不了模型——用户数据走不了它的声明面，自绘 gallery 是诚实的宿主。滚轮驱动横向条（`Flickable` 的滚轮默认是纵向的；一个 `WheelHandler` 把增量折到 `contentX` 上）。
+- **gallery 住在命令条的「提示词」页**（2026-10 重组，同月换进 SARibbon 自己的 gallery）：左栏只剩工作区文件树——模板与收藏两段从这里搬走。每个面板托管一个 `RibbonGallery`——全高网格、逐组翻页、滚动按钮与展开视口——经库的动态数据 API 填充（`clear()` → `addGroup(title)` → `group.addItem(text, icon, tooltip, userData)`，`tools.templates` / `tools.favorites` 一变就重建）。格子的 `userData` 携带模板 id（收藏则是标题）；激活经 gallery 的 `triggered(item, index)` 到达，转发到页面的 `insertTemplate()` / `insertFavorite()`——收藏插的是正文，不走模板渲染器。更早的自绘 `PromptGallery` 在 SARibbon 补齐动态 API 后退役：同一门视觉语言不该有两个宿主。
 - **降级工具栏带一个模板菜单**（`AMenu` + 对 `tools.templates` 的 `Repeater`）——同一个插入动作、不需要 SARibbon。工具栏在菜单旁保留 **Save as Template / Save Favorite** 按钮。
 - **插入永远落草稿。**文件 tab 是别人的文档——模板与收藏绝不进它。文档形态下点模板，先切回提示词预设，再在光标处插入。
 - **变量表单**（`variableForm`，一个 `ADialog`）只在所选模板有待填变量时出现：每个变量一行（名字 + 预填默认值的 `ATextField`），`Enter` 确认，`Esc` 取消，**留空 = 跳过**——副行文案就是这么说的，占位符留在正文里。Tab 在字段间跳；整个流程键盘优先。
@@ -244,12 +244,12 @@ description: My own shape for bug reports.
 | `applyTask()` | 每行 `- [ ] `（验收清单是常见用法）；同样可再点去除 |
 | `applyQuote()` | 每行 `> `，**空行保持空行**；已全部引用的选择去引用 |
 | `applyLink()` | 有选区 `[选区](url)` 并选中 url 待改；无选区 `[](url)` 光标在方括号里 |
-| `applyFence(language)` | 选区（或空行）包进带语言的围栏块；单行选区回落行内代码。旧 `applyCode()` 语义不动——`applyFence()` 是独立入口，不是行为变更 |
+| `applyFence(language)` | 按**整行**围栏：```-语言 行插在首行行首、闭行补在末行行尾；空选区落在空行上时插围栏骨架（```-语言、空行、```），光标停在中间。行内形态是 `applyCode()` 的职责——两个按钮的差别由此成立 |
 | `insertTable(columns)` | 表头行 + 分隔行 + 一行示例；前后空行规范化 |
 | `insertDivider()` | 插 `---`，前后空行规范化，不与标题粘连 |
 | `applyItalic()` / `applyStrike()` | 真的包裹动作——M3 之前是路由到加粗的占位，让（早已存在的）checkable 状态成为谎言；已修，带测试 |
 
-**查询侧**是 checkable 按钮的硬前提：`isBoldAt` / `isItalicAt` / `isStrikeAt` / `isCodeAt` / `headingLevelAt` 回答「光标处是什么状态」（格式查询看选区首字符，标题查询看行首 `#` 数量）。Ribbon 的加粗/斜体/删除线/代码四个按钮 `checkable` **且** `checked` 绑这些查询；没有查询侧的动作不许设 `checkable`——永远读作未选中的按钮是会骗人的按钮。光标一动，绑定随选区变化重算，按钮状态跟着走。
+**查询侧**（`isBoldAt` / `isItalicAt` / `isStrikeAt` / `isCodeAt` / `headingLevelAt`）回答「光标处是什么状态」（格式查询看选区首字符，标题查询看行首 `#` 数量）。它曾喂给 Ribbon 的 checkable 格式按钮；2026-10 整改把那些翻转态删了——查询是函数调用，光标移动不会让 QML 绑定重算，选中态永远跟不上光标、只能停在原地骗人。查询仍是公开 API（测试与将来的消费者在用）；它教出的规矩留下来：状态进不了绑定的动作不许设 `checkable`。
 
 **统一编辑器的红利，如实陈述：**动作打在 `activeEditor` 上——提示词形态是草稿编辑器，文档形态是文件源码区（文件可编辑时）。格式化因此两边都生效，查找也一样（2026-10 的统一输入框在一个动作内按预设分流）。
 
@@ -301,7 +301,7 @@ description: My own shape for bug reports.
 | 文件 | 类 / 组件 | 职责 | 与谁协作 |
 |---|---|---|---|
 | `src/workbench/qml/MarkdownWorkbenchPage.qml` | `MarkdownWorkbenchPage` | 页面（`keepAlive` 的 `Item`，首次进入后常驻）：命令带槽位、左栏（2026-10 重组后只剩工作区树）、文件 tab 条（新建 **+**、每 tab 右键菜单）、草稿/文档中间区（一套两栏结构服务两种预设，占满全宽——右栏已移除）、体检与历史**非模态悬浮窗**、悬浮大纲、统一查找动作层（`findNext`/`cancelFind`）、状态行（含 C4/E6 的 token 估算）、对话框（变量表单、存为模板、重命名、删除确认、回滚确认）、快捷键（`Ctrl+F` 聚焦命令条查找框，全部门控在 `pageCurrent`）、会话保存与恢复（由原 `MarkdownPreviewWindow.qml` 演化而来；资源别名从 `markdown/` 挪到 `workbench/`） | `ToolsFacade`、`Markdown`、`MarkdownEdit`、`MarkdownContextMenu`、`workbench`、`theme`、`nav` |
-| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | SARibbon 命令带：**开始 / 提示词 / 视图**三个标签页（提示词页 2026-10 起是普通 category——没有上下文页）、默认单行、样式档取自 `tools.ribbonStyle`（紧凑/宽松）、单向主题桥（`theme.chromeBg` 当 accent，让 tab 行跟应用 chrome 同色）、gallery 与常驻查找框；对页面动作层纯转发 | 页面 QML、`PromptGallery`、`RibbonIcons.js`、`RibbonTheme`、`tools.*` |
+| `src/workbench/qml/WorkbenchRibbon.qml` | `WorkbenchRibbon` | SARibbon 命令带：**开始 / 提示词 / 视图**三个标签页（提示词页 2026-10 起是普通 category——没有上下文页）、默认单行、样式档取自 `tools.ribbonStyle`（紧凑/宽松）、单向主题桥（`theme.chromeBg` 当 accent，让 tab 行跟应用 chrome 同色）、gallery 与常驻查找框；对页面动作层纯转发 | 页面 QML、`RibbonIcons.js`、`RibbonTheme`、`tools.*` |
 | `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | 无 Ribbon 的降级形态：一条普通工具栏、同一批动作（格式图标、Copy Prompt、模板菜单、保存动作、体检/历史开关、常驻查找框、视图选项），ribbon 文件缺席时装载它 | 页面 QML |
 | `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | 预览面（`WebEngineView` 及其接线），仅在有能力的构建里按资源 URL 装载 | `Markdown`、页面 QML |
 | `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | 注册内置页面与侧栏分组标签，含 **Agent Tools** 分组下的 **Prompt Writing** 条目（`id: tools`、`keepAlive`、`level: 1`） | `NavigationModel`、`WorkbenchContext` |
@@ -312,7 +312,7 @@ description: My own shape for bug reports.
 | `src/tools/FileTreeModel.{h,cpp}` | `FileTreeModel`（含私有 `Node`） | 单个工作区根上的懒加载目录树；增量 `refresh()`；`QFileSystemWatcher` | `ToolsFacade`、`FileTreeFlatModel` |
 | `src/tools/FileTreeFlatModel.{h,cpp}` | `FileTreeFlatModel`（含私有 `Row`） | 供 QML `ListView` 消费的扁平投影；持有展开路径集合 | 页面 QML、`FileTreeModel` |
 | `src/tools/FileIcons.{h,cpp}` | `FileIcons` | 三张查找表（文件名 / 后缀 / 目录名）加兜底；`forFile()`/`forFolder()` | `FileTreeModel`（`IconRole`）、`core::IconResolver` |
-| `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、动作全集（`applyBold/Italic/Underline/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、checkable 按钮绑的**光标查询**（`isBoldAt/isItalicAt/isUnderlineAt/isStrikeAt/isCodeAt/headingLevelAt`），以及查找族（`find()`，加暂时无入口的 `replaceAndFindNext()` / `replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 页面 QML、`MarkdownContextMenu`、`theme::Theme` |
+| `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、动作全集（`applyBold/Italic/Underline/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、**光标查询**（`isBoldAt/isItalicAt/isUnderlineAt/isStrikeAt/isCodeAt/headingLevelAt`），以及查找族（`find()`，加暂时无入口的 `replaceAndFindNext()` / `replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 页面 QML、`MarkdownContextMenu`、`theme::Theme` |
 | `src/tools/PromptChecks.{h,cpp}` | `PromptChecks`、`ContextBudget` | 纯函数：十条体检规则（文本 → 带 ruleId/严重度/区间/文案的命中；开关列表是调用方的事）与 token 估算 + 分级阈值（同输入同输出——草稿预算标签与文档状态行消费同一个估算器） | `ToolsFacade`（为 QML 包一层）、页面 QML |
 | `src/tools/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
 | `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 草稿编辑器的 `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
@@ -485,7 +485,7 @@ flowchart TD
 
 URL 的形状只由 `MarkdownRuntime` 一处决定；`MarkdownRuntimeHandler::routeOf()` 把 URL 归到 `Resource`、`Document`、`Asset`、`Event`、`Unknown` 之一，认不出来的一律 `UrlNotFound` 而不是猜。信标天然只有 GET，供体把其它方法一律挡在这里，页面脚本就借不到这条通道去碰本机任何东西。
 
-**注册顺序是一条启动契约。** `MarkdownPreviewProvider::registerScheme()` 必须排在 `QtWebEngineQuick::initialize()` **之前**：引擎在第一次创建上下文时就把 scheme 表锁死，之后注册会被静默忽略。失败的表现不是 404——供体照样把文档、脚本、字体供出去，坏掉的是 `fetch()`，页面于是「正文在、公式和图表永远出不来」，而构建和所有纯函数用例照样全绿。因此 `MarkdownPreviewProvider` 在构造时用 `QWebEngineUrlScheme::schemeByName()` 当场核对一次自己的注册，核对不上就让 `available` 落成假并留下日志。语法用的是 `QWebEngineUrlScheme::Syntax::Host`，不是 `HostAndPort`（选了 `HostAndPort` 就必须给默认端口，端口留空会让 `registerScheme()` 直接提前返回——只有一条警告，正是上面那种半失效状态）。标志位：`SecureScheme`、`LocalScheme`、`LocalAccessAllowed`、`CorsEnabled`、`ServiceWorkersAllowed`，Qt ≥ 6.6 再加 `FetchApiAllowed`（6.5 上这个标志还不存在，该构建走「文本由 C++ 经 `runJavaScript` 推进页面」的兜底路径）。
+**注册顺序是一条启动契约。** `MarkdownPreviewProvider::registerScheme()` 必须排在 `QtWebEngineQuick::initialize()` **之前**：引擎在第一次创建上下文时就把 scheme 表锁死，之后注册会被静默忽略。失败的表现不是 404——供体照样把文档、脚本、字体供出去，坏掉的是 `fetch()`，页面于是「正文在、公式和图表永远出不来」，而构建和所有纯函数用例照样全绿。因此 `MarkdownPreviewProvider` 在构造时用 `QWebEngineUrlScheme::schemeByName()` 当场核对一次自己的注册，核对不上就让 `available` 落成假并留下日志。语法用的是 `QWebEngineUrlScheme::Syntax::Host`，不是 `HostAndPort`（选了 `HostAndPort` 就必须给默认端口，端口留空会让 `registerScheme()` 直接提前返回——只有一条警告，正是上面那种半失效状态）。标志位：`SecureScheme`、`LocalScheme`、`LocalAccessAllowed`、`CorsEnabled`、`ServiceWorkersAllowed`，Qt ≥ 6.6 再加 `FetchApiAllowed`——没有这个 flag 的引擎（Qt 5 与 Qt 6.2–6.5，`CorsEnabled` 也救不了）上页面 `fetch()` 直接报 "URL scheme awbmd is not supported"，这正是数据通道分车道的原因（见下一节）。另一个 Qt 5.15 的坑：job 的 `reply()` 只认**裸 MIME**——`"text/html; charset=utf-8"` 这种复合值会让整条响应解析失败，文档按空 HTML 装载、`<script>` 全被丢掉；MIME 表因此一律不带 charset 后缀，编码由各格式自身的默认兜底（HTML 的 meta 标签、ES 模块规范强制 UTF-8、CSS 与 JSON 的默认）。
 
 ### 纯层：文档、块、页面文案
 
@@ -541,6 +541,8 @@ sequenceDiagram
 
 传输方向按负载大小刻意劈开。C++ → 页面的命令走 `runJavaScript("AWB.dispatch(<json>)")`。页面 → C++ 的大结果以 `runJavaScript` **返回值**的形式回来（`serialize()` 与 `renderAll()` 交回导出 HTML 用的就是这条），因为信标是 GET 的 URL，超过 `kEventPayloadBytes`（8 KiB）会被截断。小事件——`ready`、`frame`、`error`、`find`——走信标。导出的整篇 HTML 刻意不进事件表：一张收了一个大负载的表，会诱使下一个人在旁边再加一个。
 
+**小事件的传输按引擎分车道。** `FetchApiAllowed` 在（Qt ≥ 6.6）信标就是 `/event` 的 GET 像素请求；不在（Qt 5 与 Qt 6.2–6.5——fetch 对自定义 scheme 一律被拒）时页面连文档与样式表都拉不了，于是 `MarkdownPreviewPane` 接手：页面在 `boot()` 里自己探一次车道（真的发一次 fetch），把结论定格在 `AWB.channel()`；pane 轮询这个同步值，读到 `push` 就经 `runJavaScript` 调 `AWB.push("document"/"stylesheet", …)` 投递（每次 `setDocument` 前重推文档——那条命令体里只有 rev）。这条车道上的信标以 `console.warn("AWBEVT:<kind>:<json>")` 打出，pane 的 `javaScriptConsoleMessage` 处理器解析它并转发到 `/event` 供体服务的那四个控制器入口。车道结论不能指望 `runJavaScript` 的回调带回——Qt 5 上回调等不到 Promise，页面因此自己暴露同步答案。
+
 ### 一个预览面
 
 渲染管线住在 `MarkdownPreviewPane.qml` 后面，仅当 `markdown.available` 时按资源 URL 装载——无 WebEngine 的构建里进程根本不建 `WebEngineView`。页面里只有一个预览面，它渲染**活跃会话**：文件 tab 或草稿。无能力的构建里预览面缺席、视图切换器不出现（缺席而非灰着——与预览入口同一条原则），草稿的三态退到源码。
@@ -567,7 +569,9 @@ sequenceDiagram
 
 ## 能力门禁：Qt 5 与无 WebEngine
 
-`MarkdownRuntime::isSupportedBuild()` 是编译期结论（Qt 6 **且** WebEngine），同一个条件还决定链不链 `awb_markdown_webengine`、嵌不嵌 `:/markdown/` 运行时、注不注册预览面。收在一处就是全部意义——它们不一致的表现为「菜单项可点、页面 404」。
+`MarkdownRuntime::isSupportedBuild()` 是编译期结论（开了 WebEngine 即真，两个大版本都在），同一个条件还决定链不链 `awb_markdown_webengine`、嵌不嵌 `:/markdown/` 运行时、注不注册预览面。收在一处就是全部意义——它们不一致的表现为「菜单项可点、页面 404」。
+
+Qt 5.15.16 拿得出预览需要的整面 C++ 表面——`QWebEngineUrlScheme`（注册加 `CorsEnabled`，正是那一代引擎让自定义 scheme 上 `fetch()` 可用的组合）、`QQuickWebEngineProfile`、预览面声明的那几个 QML 视图信号。唯一的显式版本分支是导航请求的应答面（`WebEngineCompat::respondNavigation()`）：Qt 6 调请求对象的 `accept()`/`reject()`，Qt 5 写它的 `action` 属性。**mermaid 在 Qt 5 的 Chromium 87 上跑不了**——11.x 的构建用了 87 之后的语法（类静态块），任何 polyfill 都接不住——图表退化为逐块错误占位，正文、公式与代码高亮照常。这是 Qt 5 车线与同一套 vendor 共存的既定代价。
 
 运行期只会收紧、不会放松：`available` 是 `m_surfaceReady && isSupportedBuild()`，而 `m_surfaceReady` 由提供者在 handler 真的装到 profile 上之后置位。`unavailableReason()` 负责给用户那句话说清楚。没有能力的构建里，文件树的预览条目压根不出现、预览面的 `Loader` 永不激活、视图切换器缺席、文档预设的请求退回提示词模式——功能是**不存在**，而不是存在且坏掉。提示词模式一样都不需要，照常全可用，草稿的三态退到源码。
 
@@ -594,7 +598,7 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 - **文件 tab 上限 8 个。** 第 9 份被拒绝并说明原因；什么都不静默淘汰。
 - **会话文件存路径，不存正文。** 两次启动之间磁盘上变了的文件按现在的样子重读；会话恢复的是**布局**，不是文本。
 - **双击已关联的文件启动的是完整应用。** 刻意不做轻量查看器进程；诚实的代价是启动时间。
-- **Qt 6 + WebEngine 的二进制里嵌了约 4 MB**，其中 2.6 MB 是 mermaid——只有真的含图表的文档才会加载它。
+- **每个 WebEngine 二进制（Qt 5 与 Qt 6 同样）嵌约 4 MB**，其中 2.6 MB 是 mermaid——只有真的含图表的文档才会加载它；在 Qt 5 的 Chromium 87 上这次加载优雅失败，图表退化为错误占位。
 - **不渲染内嵌 HTML**（`html: false`）。在一条没有 CSP 兜底的通道上预览别人写的 Markdown，那就是脚本注入面；代价是一份靠 `<br>`、`<details>` 排版的文档会把这些标签显示成正文。
 - **一次只渲染一个面，但可以开很多文档。** 命令队列与 `doc.json` 载荷服务活跃会话；`docId` 资源命名空间对所有活会话解析。预览面复用、内容换掉，绝不池化。
 - **搜索只数已挂载的块**，且匹配不能跨行内标记。
@@ -634,7 +638,7 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 | `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；模板用例覆盖入口按钮、内置模板表与变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、经页面动作层插入收藏、经工具栏真实点击把草稿存进收藏；查找用例覆盖 `Ctrl+F` 聚焦命令条查找框、`Enter` 在编辑器里选中命中；工具栏真实点击把草稿格式化成编号列表；体检用例经工具栏按钮开体检悬浮窗并出现预算标签；草稿用例覆盖经 tab 条的 + 新建并切换（编辑器换正文、undo 历史不串草稿）、经历史悬浮窗存快照并走确认弹窗真实回滚 |
 | `tst_markdown` | `MarkdownChunker`（含语料等价性）、`MarkdownDocument`（保形态存盘、两个上限、只读的来源、watcher 语义、**虚拟文档**）、`MarkdownRuntime`（URL、MIME、路由、协议表、主题 → CSS、大纲）、`MarkdownPreviewController`（**会话容器**：开/切/关、路径去重、8 tab 上限、脏隔离、doc.json 跟随活跃会话、活会话的资源解析、草稿会话、关窗保留会话、按 id 存盘不换激活；队列去重、打开/保存/导出、能力判定），以及 vendor 的 sha256 表 |
 | `tst_markdownpreview` | 对着真实 `WebEngineView` 的页面管线：文档挂载、块出现、增量更新落地。大文档用例只在 `AWB_MD_PERF` 下跑 |
-| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（仅 Qt 6 + WebEngine） |
+| `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（WebEngine 构建，两个大版本都跑） |
 | `tst_webengine` | scheme 端到端供出资源、字体、`doc.json` 与信标 |
 | `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` 的委派与只报原因不开窗的失败路径；单实例 **open 消息的编解码往返**；文件关联的**注册态判定**（默认与已注册两态，注册表可写的构建上） |
 | `tst_core` | 五个 `markdown.*` 设置键与 `Paths::markdownPreviewDir()` |
