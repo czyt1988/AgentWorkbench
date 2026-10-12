@@ -27,14 +27,11 @@
 #include "workbench/WorkbenchContext.h"
 
 #ifdef AWB_ENABLE_WEBENGINE
+#include "markdown/webengine/MarkdownPreviewProvider.h"
 #include "web/webengine/WebEngineCompat.h"
 #include "web/webengine/WebEngineProfileStore.h"
 #include "web/webengine/WebEngineSurfaceProvider.h"
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-// Markdown 预览只在 Qt 6 + WebEngine 的构建里存在：awbmd:// 的供体、随包
-// 渲染资源、预览窗口 QML 都只在这条分支上编译与嵌入，Qt 5 二进制里根本没有
-// 这个功能（不是有一个残缺的版本）。见 src/markdown/webengine/CMakeLists.txt。
-#include "markdown/webengine/MarkdownPreviewProvider.h"
 #include <QtWebEngineQuick>
 #else
 #include <QtWebEngine>
@@ -151,14 +148,14 @@ int main(int argc, char *argv[])
 #ifdef AWB_ENABLE_WEBENGINE
     // GPU/驱动问题经 web.chromiumFlags 绕过；此处硬失败只记日志、
     // 降级继续。
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    // awbmd:// 必须赶在 initialize() 之前注册：scheme 表在第一次创建上下文时
-    // 就锁死了，晚注册被引擎忽略并告警。失效的样子不是白屏——handler 照样
-    // 供出文档、脚本和字体，废掉的是 fetch()，于是正文在、公式与图表永远
-    // 渲染不出来，而构建和纯函数用例照样全绿。这一行是启动契约的一部分，
-    // 位置错就半失效（提供者构造时会核对注册表并留下警告，见
-    // MarkdownPreviewProvider）。
+    // awbmd:// 必须赶在 initialize() 之前注册（两个大版本同一条契约）：scheme
+    // 表在第一次创建上下文时就锁死了，晚注册被引擎忽略并告警。失效的样子不
+    // 是白屏——handler 照样供出文档、脚本和字体，废掉的是 fetch()，于是正文
+    // 在、公式与图表永远渲染不出来，而构建和纯函数用例照样全绿。这一行是启
+    // 动契约的一部分，位置错就半失效（提供者构造时会核对注册表并留下警告，
+    // 见 MarkdownPreviewProvider）。
     awb::markdown::MarkdownPreviewProvider::registerScheme();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QtWebEngineQuick::initialize();
 #else
     QtWebEngine::initialize();
@@ -343,13 +340,12 @@ int main(int argc, char *argv[])
                                  &profileStore);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebEngineCompat",
                                  &webEngineCompat);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     // 预览表面：awbmd:// 的供体 + 预览专用 profile，构造时把控制器的
-    // available 位点亮（scheme 没注册成功时它不点亮，只留一条警告）。
-    // 声明顺序要求控制器在前：控制器是本对象的成员依赖，#ifdef 不构成作用域，
-    // 两者都活到 main 结尾，销毁顺序相反——provider 先毁、controller 后毁。
+    // available 位点亮（scheme 没注册成功时它不点亮，只留一条警告）。两个
+    // 大版本都装（C++ 表面在 Qt 5.15.16 上完整）。声明顺序要求控制器在前：
+    // 控制器是本对象的成员依赖，#ifdef 不构成作用域，两者都活到 main 结尾，
+    // 销毁顺序相反——provider 先毁、controller 后毁。
     awb::markdown::MarkdownPreviewProvider markdownProvider(&markdownPreview);
-#endif
 #endif
 
     // 4) 注册 QML 全局：AgentWorkbench.App URI 上一律大写类型名；
@@ -370,12 +366,11 @@ int main(int argc, char *argv[])
                                  &markdownEdit);
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Markdown",
                                  &markdownPreview);
-#if defined(AWB_ENABLE_WEBENGINE) \
-    && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#ifdef AWB_ENABLE_WEBENGINE
     // 预览表面的 profile 供体：预览窗 QML 把它赋给 WebEngineView.profile。
-    // 只在真有表面的构建里注册——Qt 5 与 WebEngine 关闭的构建里既没有这个
-    // 类型，也没有会去用它的那扇窗（MainWindow.qml 的 Loader 以
-    // Markdown.available 为条件，那里恒为假）。
+    // 只在真有表面的构建里注册——WebEngine 关闭的构建里既没有这个类型，
+    // 也没有会去用它的那扇窗（页面的 Loader 以 Markdown.available 为条件，
+    // 那里恒为假）。
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownPreview",
                                  &markdownProvider);
 #endif

@@ -1180,6 +1180,12 @@ QString MarkdownPreviewController::takeCommand()
  * 就绪即把视图与主题两条命令补发一次：doc.json 里已经带了它们，这条只是
  * 让「页面加载完成」与「设置命令到达」的顺序无关紧要。
  */
+QString MarkdownPreviewController::pageStylesheetText() const
+{
+    return MarkdownRuntime::resourceTextForPath(
+        QStringLiteral("app/theme.css"));
+}
+
 void MarkdownPreviewController::reportReady(const QString &json)
 {
     AWB_PERF << "markdown: page ready" << json.left(200);

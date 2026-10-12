@@ -30,6 +30,10 @@ namespace awb::web {
 ///   profile 只是 QObject 包装、没有集合）同走 installCompatScript 的
 ///   view 级 userScripts。
 ///
+/// - 导航请求的应答面：Qt 6 的请求对象是 accept()/reject() 两个可调用方法，
+///   Qt 5 是 action 属性（AcceptRequest=0 / IgnoreRequest=0xFF 枚举）——
+///   navigationRequested 信号本身两版同名，应答经 respondNavigation 桥接；
+///
 /// 其余 QML 可见的请求对象两版形状一致，不需要桥：全屏请求（toggleOn +
 /// accept() 的 gadget）、LifecycleState 作用域枚举（Qt 5.10+ 即支持）。
 class WebEngineCompat : public QObject
@@ -69,6 +73,11 @@ public:
     // Qt 6.2–6.7 使用；Qt 6.8+ 的注入在 WebEngineProfileStore 按 profile
     // 完成，此调用为空操作。幂等，可安全重复调用）
     Q_INVOKABLE void installCompatScript(QQuickWebEngineView *view);
+
+    // 应答一次 navigationRequested（两版信号同名，应答面随版本不同：
+    // Qt 6 调请求对象的 accept()/reject()，Qt 5 写 action 属性）。请求无效
+    // 时静默返回——引擎侧的默认应答保持原样
+    Q_INVOKABLE void respondNavigation(QObject *request, bool accept);
 
     // polyfill 脚本源码（:/web/compat-polyfills.js，首次调用读入并缓存）；
     // 两条版本注入路径共用

@@ -7,10 +7,11 @@
 # AWB_ENABLE_WEBENGINE=OFF still compiles and runs (it just has no preview —
 # see MarkdownRuntime::isSupportedBuild()).
 #
-# Qt 6 only: src/markdown/CMakeLists.txt adds this directory under
-# `AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6`, because the Qt 5 route
-# embeds neither the page runtime nor the vendor assets — a Qt 5 binary does
-# not contain a reduced version of the feature, it does not contain it at all.
+# Both Qt majors: the C++ surface (QWebEngineUrlScheme, QQuickWebEngineProfile,
+# QWebEngineUrlRequestJob) is present in Qt 5.15.16 with the same shapes. The
+# one version branch lives in MarkdownPreviewProvider.cpp (FetchApiAllowed
+# exists from Qt 6.6 only; older engines allow fetch on custom schemes through
+# CorsEnabled alone).
 add_library(awb_markdown_webengine STATIC
     MarkdownPreviewProvider.cpp
     MarkdownPreviewProvider.h

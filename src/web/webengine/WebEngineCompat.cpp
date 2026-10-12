@@ -165,6 +165,37 @@ void WebEngineCompat::denyFeature(QQuickWebEngineView *view,
 }
 
 /**
+ * @brief 应答一次导航请求
+ *
+ * navigationRequested 信号两版同名（Markdown 预览面与 Web 表面都直接声明
+ * 处理器），应答面却不同：Qt 6 的请求对象有 accept()/reject() 两个可调用
+ * 方法，Qt 5 只能写 action 属性（枚举 AcceptRequest=0 / IgnoreRequest=0xFF，
+ * 私有头可查证）。QML 里直接调 request.accept() 在 Qt 5 上是 TypeError，且
+ * 异常路径会让请求保持引擎默认（放行）——外链导航照样发生，缺陷在界面上
+ * 看不出来，所以这层必须在 C++ 收口。
+ *
+ * @param request 信号送来的请求对象；为空时静默返回（默认应答保持原样）
+ * @param accept 是否放行本次导航
+ */
+void WebEngineCompat::respondNavigation(QObject *request, bool accept)
+{
+    if (!request) {
+        return;
+    }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // accept()/reject() 是 QWebEngineNavigationRequest 的 Q_INVOKABLE（Qt 6
+    // 公共 API）；invokeMethod 失败（对象形状漂移）时不做兜底写属性——留
+    // 给引擎默认应答，比在未知类型上瞎写安全。
+    QMetaObject::invokeMethod(
+        request, accept ? "accept" : "reject", Qt::DirectConnection);
+#else
+    // Qt 5 的 QQuickWebEngineNavigationRequest：action 属性 + 枚举值。
+    // IgnoreRequest 显式取 0xFF（枚举值在私有头里就这么写），不靠数字猜。
+    request->setProperty("action", accept ? 0 : 0xFF);
+#endif
+}
+
+/**
  * @brief 取 view 的 DevTools 前端地址
  *
  * 恒为空 URL：DevTools 不经地址加载。两版 QML 属性表里 devToolsView 与

@@ -5,8 +5,9 @@
 # 都只有走这份文件才谈得上验证。嵌进去的 QML/图标/运行时资源必须与
 # app/CMakeLists.txt 的别名一致，否则测的就不是产品跑起来的那份。
 #
-# 只在 Qt 6 + WebEngine 的连接里存在（见 tests/CMakeLists.txt）；窗口那份 .qml
-# 也只在同一条件下登记进 app 的 QML 模块，两边守卫同源。
+# 只在 WebEngine 的连接里存在（见 tests/CMakeLists.txt，Qt 5 / Qt 6 都跑）；
+# 预览面那份 .qml 也登记在同一条件下，两边守卫同源。awb_web_webengine 提供
+# 预览面导航应答用的 WebEngineCompat 单例真身。
 add_executable(tst_markdownpreviewui
     tst_markdownpreviewui.cpp
 )
@@ -16,9 +17,11 @@ target_include_directories(tst_markdownpreviewui PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_link_libraries(tst_markdownpreviewui PRIVATE
     awb_markdown
     awb_markdown_webengine
+    awb_web_webengine
     awb_tools
     awb_core
     awb_theme
+    awb_web
     Qt::Core
     Qt::Gui
     Qt::Qml

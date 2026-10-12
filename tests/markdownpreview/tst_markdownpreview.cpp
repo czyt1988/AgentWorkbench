@@ -44,7 +44,11 @@
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QtWebEngineQuick>
+#else
+#include <QtWebEngine>
+#endif
 
 using awb::core::Settings;
 using awb::markdown::MarkdownPreviewController;
@@ -107,16 +111,52 @@ The final paragraph mentions WARNING twice: warning.
 // 是分片全解析完、一个节点也没进 DOM，stats 却报 mounted=块数——即
 // 「正文永远空白，而数据看着一切正常」。产品的预览窗本来就是可见窗口，所以
 // 这条不是测试的额外要求，而是本套件必须复现的前提。
+// Qt 5 的编译器要求库 import 带版本（qqmlirbuilder 的 "Library import
+// requires a version"）；Qt 6 推荐无版本写法。两版各自的 import 头。
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+static const char kViewImports[] = "import QtQuick\nimport QtWebEngine\n";
+#else
+static const char kViewImports[] =
+    "import QtQuick 2.15\nimport QtQuick.Window 2.15\n"
+    "import QtWebEngine 1.10\n";
+#endif
 const char *kViewQml = R"QML(
-import QtQuick
-import QtWebEngine
 
 Window {
+    id: probeWindow
+
     width: 1024
     height: 768
     visible: true
     title: "awb-markdown-preview-probe"
     color: "black"
+
+    // 推入车道（fetch 不可用的引擎）的信标走 console（AWBEVT: 前缀），
+    // 这里复刻 pane 的转发：把信标交回控制器的对应入口。裸视图不接这条，
+    // find 的命中数永远回不到 findResult 信号。fetch 车道的信标走 /event
+    // 像素请求，console 里只有普通日志。
+    property var beaconSink: null
+    function forwardBeacon(text) {
+        const marker = "AWBEVT:"
+        if (text.indexOf(marker) !== 0)
+            return
+        const rest = text.substring(marker.length)
+        const split = rest.indexOf(":")
+        if (split < 0)
+            return
+        const kind = rest.substring(0, split)
+        const payload = rest.substring(split + 1)
+        if (!beaconSink)
+            return
+        if (kind === "ready")
+            beaconSink.reportReady(payload)
+        else if (kind === "frame")
+            beaconSink.reportFrame(payload)
+        else if (kind === "error")
+            beaconSink.reportError(payload)
+        else if (kind === "find")
+            beaconSink.reportFindResult(payload)
+    }
 
     WebEngineView {
         objectName: "awbProbeView"
@@ -128,6 +168,12 @@ Window {
                 probeReply = id + "\u0001"
                     + JSON.stringify(result === undefined ? null : result)
             })
+        }
+        onJavaScriptConsoleMessage: function (level, message,
+                                              lineNumber, sourceID) {
+            // 编译型 QML 的信号处理器里，跨对象根 id 会 ReferenceError——
+            // 经 probeWindow 引用（AGENTS.md「QML 契约」同一条纪律）。
+            probeWindow.forwardBeacon(String(message))
         }
     }
 }
@@ -150,6 +196,24 @@ QString jsonTextValue(const QString &json)
         return array.at(0).toString();
     }
     return json;
+}
+
+/**
+ * @brief 把 QString 编成 JS 字符串字面量（含两侧引号）
+ *
+ * 推入车道把 doc.json / theme.css 的文本喂给 AWB.push 时用：载荷里什么
+ * 字符都可能有，手工只转义反斜杠/引号/换行不可靠。走 QJsonDocument 的
+ * 数组序列化取回第一个元素即得标准的 JSON 字符串字面量（JSON 字符串与
+ * JS 字符串字面量对这批文本完全同构）。
+ */
+QString jsStringLiteral(const QString &text)
+{
+    QJsonArray wrapper;
+    wrapper.append(text);
+    const QByteArray serialized =
+            QJsonDocument(wrapper).toJson(QJsonDocument::Compact);
+    // 形如 ["…"] 的数组文本，去掉方括号即字符串字面量。
+    return QString::fromUtf8(serialized.mid(1, serialized.size() - 2));
 }
 
 } // namespace
@@ -221,7 +285,8 @@ public:
         context->setContextProperty(QStringLiteral("awbPreviewProfile"),
                                     provider.previewProfile());
         component.reset(new QQmlComponent(&engine));
-        component->setData(QByteArray(kViewQml), QUrl());
+        component->setData(
+            QByteArray(kViewImports) + QByteArray(kViewQml), QUrl());
         if (component->isError()) {
             *error = component->errorString();
             return false;
@@ -231,6 +296,8 @@ public:
             *error = component->errorString();
             return false;
         }
+        // console 信标的接收方（推入车道）：见 kViewQml 里 forwardBeacon。
+        topWindow->setProperty("beaconSink", QVariant::fromValue(&controller));
         view.reset(topWindow->findChild<QObject *>("awbProbeView"));
         if (view.isNull()) {
             *error = QStringLiteral("the probe view is missing from the QML");
@@ -355,6 +422,12 @@ public:
     {
         while (controller.hasPendingCommand()) {
             const QString json = controller.takeCommand();
+            // 推入车道的 setDocument 只带 rev（fetch 车道页面自己拉新正文），
+            // 先把新载荷推进缓存——产品里 pane 的 dispatch 收口做同一件事。
+            if (lane == "push"
+                    && json.contains(QStringLiteral("\"cmd\":\"setDocument\""))) {
+                pushDocumentOnce(/* documentOnly = */ true);
+            }
             QString reply;
             probe(QStringLiteral("dispatch"),
                   QStringLiteral("AWB.dispatch(%1)").arg(json), &reply,
@@ -365,6 +438,29 @@ public:
         }
     }
 
+    /// 把 doc.json / theme.css 推进页面（推入车道）。documentOnly 用于
+    /// setDocument 前的重推：样式表不随文档变。
+    void pushDocumentOnce(bool documentOnly = false)
+    {
+        const QString pushScript = QStringLiteral("AWB.push(%1, %2)");
+        if (!documentOnly) {
+            probe(QStringLiteral("push-css"),
+                  pushScript.arg(QStringLiteral("\"stylesheet\""),
+                                 jsStringLiteral(
+                                     MarkdownRuntime::resourceTextForPath(
+                                         QStringLiteral("app/theme.css")))),
+                  nullptr, kProbeTimeoutMs);
+        }
+        probe(QStringLiteral("push-doc"),
+              pushScript.arg(QStringLiteral("\"document\""),
+                             jsStringLiteral(controller.documentBodyJson())),
+              nullptr, kProbeTimeoutMs);
+    }
+
+    /// 车道结论（"" = 页面还在探；"fetch" / "push"）。waitMounted 轮询时
+    /// 顺带驱动：读到 "push" 就把文档与样式表投进去（推入车道页面等它启动）。
+    QString lane;
+
     /// 等页面把 blocks 全部挂上（分片管线跑完的客观标志）
     bool waitMounted(int blocks, QString *reasonOut = nullptr,
                      int timeoutMs = kBootTimeoutMs)
@@ -373,6 +469,17 @@ public:
         clock.start();
         QString json;
         while (clock.elapsed() < timeoutMs) {
+            // 车道驱动：结论没定格就再问一次 AWB.channel()（runJavaScript
+            // 的回调等不到 Promise，页面把结论定格在同步返回值里）。
+            if (lane.isEmpty()
+                    && probe(QStringLiteral("channel"),
+                             QStringLiteral("(typeof AWB === 'undefined' ? '' : AWB.channel())"),
+                             &json, 5000)) {
+                lane = jsonTextValue(json);
+                if (lane == QStringLiteral("push")) {
+                    pushDocumentOnce();
+                }
+            }
             // 问「AWB 在不在」而不是直接 AWB.stats()：模块脚本图要跑一会儿，
             // 直接问会让每次轮询都在控制台留一条 ReferenceError，把真正的
             // 页面报错埋在噪音里。
@@ -614,24 +721,44 @@ private Q_SLOTS:
         QVERIFY2(marks != QLatin1String("0"),
                  qPrintable(QStringLiteral("marked hits: ") + marks));
 
-        // 补渲染：mermaid.min.js 从 awbmd://runtime/vendor/ 取来并真的画出 SVG
+        // 补渲染：mermaid.min.js 从 awbmd://runtime/vendor/ 取来并真的画出 SVG。
+        // Chromium 87（Qt 5 车道）装不下 mermaid 11 的构建（post-87 语法，
+        // polyfill 接不住）——那是文档化的降级：图表块落 error 占位 + 源码，
+        // 其余一切照常。旧引擎只断言降级形态；新引擎断言真画出了 SVG。
         page.state()->requestFullRender();
         page.pumpCommands();
         // 回答里带一个自造的词「rendered-svg」而不是「svg」：状态串里
         // 'no-svg' 也含 svg，用后者做子串判据会把「没画成」读成「画成了」。
         QString status;
-        QVERIFY2(page.waitFor(
-                     QStringLiteral("diagram"),
-                     QStringLiteral(
-                         "(function () {"
-                         "  var el = document.querySelector("
-                         "      '.awb-diagram');"
-                         "  return el ? (el.querySelector('svg')"
-                         "      ? 'rendered-svg'"
-                         "      : el.getAttribute('data-status')) : 'none';"
-                         "})()"),
-                     QStringLiteral("rendered-svg"), &status, kBootTimeoutMs),
-                 qPrintable(QStringLiteral("diagram: ") + status));
+        const bool drewSvg = page.waitFor(
+            QStringLiteral("diagram"),
+            QStringLiteral(
+                "(function () {"
+                "  var el = document.querySelector('.awb-diagram');"
+                "  return el ? (el.querySelector('svg')"
+                "      ? 'rendered-svg'"
+                "      : el.getAttribute('data-status')) : 'none';"
+                "})()"),
+            QStringLiteral("rendered-svg"), &status, kBootTimeoutMs);
+        if (!drewSvg) {
+            // 旧引擎车道（Chromium 87）：mermaid 11 装载即败（post-87 语法），
+            // 图表降级为 error 占位 + 源码——断言降级形态真的出现，而不是
+            // 连占位都没有。
+            QString degraded;
+            QVERIFY2(page.waitFor(
+                         QStringLiteral("diagram-degraded"),
+                         QStringLiteral(
+                             "(function () {"
+                             "  var el = document.querySelector("
+                             "      '.awb-diagram');"
+                             "  return el ? (el.getAttribute('data-status')"
+                             "      === 'error' ? 'degraded'"
+                             "      : el.getAttribute('data-status')) : 'none';"
+                             "})()"),
+                         QStringLiteral("degraded"), &degraded,
+                         kBootTimeoutMs),
+                     qPrintable(QStringLiteral("diagram: ") + status));
+        }
 
         QSignalSpy markup(page.state(),
                           &MarkdownPreviewController::markupReady);
@@ -831,7 +958,11 @@ int main(int argc, char *argv[])
     qputenv("QTWEBENGINE_CHROMIUM_FLAGS",
             existing.isEmpty() ? flags : existing + ' ' + flags);
     MarkdownPreviewProvider::registerScheme();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QtWebEngineQuick::initialize();
+#else
+    QtWebEngine::initialize();
+#endif
     QGuiApplication app(argc, argv);
     TestMarkdownPreview tc;
     return QTest::qExec(&tc, argc, argv);

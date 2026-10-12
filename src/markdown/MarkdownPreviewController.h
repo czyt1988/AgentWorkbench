@@ -226,6 +226,10 @@ public:
     /// 全部状态。每次调用都按当前状态重新生成，rev 与内容不会错拍。
     Q_INVOKABLE QString documentBodyJson() const;
 
+    /// 随包样式表文本（:/markdown/app/theme.css）：预览面在推入车道
+    /// （fetch 不可用的引擎）把样式表喂给页面用；fetch 车道页面自己取。
+    Q_INVOKABLE QString pageStylesheetText() const;
+
     /// 活跃会话的 docId（资源寻址键）；无会话时为空串。
     QString docId() const;
     /// 活跃会话的文档目录（相对图片的解析基准）。

@@ -54,14 +54,20 @@
 #include "theme/ThemeRegistry.h"
 #include "tools/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
+#include "web/webengine/WebEngineCompat.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QtWebEngineQuick>
+#else
+#include <QtWebEngine>
+#endif
 
 using awb::core::Settings;
 using awb::markdown::MarkdownPreviewController;
 using awb::markdown::MarkdownPreviewProvider;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
+using awb::web::WebEngineCompat;
 
 namespace {
 
@@ -87,9 +93,14 @@ The distinct needle word lives in this paragraph.
 // 真实尺寸，布局走的是另一条路。只用 createObject 的用例看不见这条路上的
 // 缺陷（内容区塌成 0 高），所以这里连宿主一起复刻，让被测的时序与真实入口
 // 一致。
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+static const char kHostImports[] =
+    "import QtQuick\nimport QtQuick.Controls\n";
+#else
+static const char kHostImports[] =
+    "import QtQuick 2.15\nimport QtQuick.Controls 2.15\n";
+#endif
 const char *kHostQml = R"QML(
-import QtQuick
-import QtQuick.Controls
 
 ApplicationWindow {
     id: host
@@ -420,7 +431,8 @@ private:
         m_context->setContextProperty(QStringLiteral("tools"), m_tools.get());
 
         QQmlComponent component(m_engine.get());
-        component.setData(QByteArray(kHostQml), QUrl());
+        component.setData(
+            QByteArray(kHostImports) + QByteArray(kHostQml), QUrl());
         if (component.isError()) {
             *error = component.errorString();
             return false;
@@ -583,8 +595,11 @@ private:
     std::unique_ptr<QQmlEngine> m_engine;
     // 窗口还引用 tools 域（草稿、工作区树）与 MarkdownEdit（高亮），这里
     // 给真的：窗口是跨域的 L3 装配，替身只留给 workbench/ui 那几个动作。
+    // WebEngineCompat 同样给真的：预览面的导航应答经它收口（Qt 5/Qt 6 的
+    // 请求对象应答面不同），替身会把那条路径变成 ReferenceError。
     std::unique_ptr<awb::tools::ToolsFacade> m_tools;
     std::unique_ptr<awb::tools::MarkdownEdit> m_markdownEdit;
+    WebEngineCompat m_webCompat;
     WorkbenchStub m_workbench;
     UiStub m_ui;
     NavStub m_nav;
@@ -616,6 +631,11 @@ void TestMarkdownPreviewUi::init()
     m_tools.reset(new awb::tools::ToolsFacade(m_dir->path()));
     m_markdownEdit.reset(new awb::tools::MarkdownEdit(&m_theme));
     m_engine.reset(new QQmlEngine());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // main.cpp 在 Qt 5 上补的模块导入路径（见 tst_ribbonui 的同款说明）：
+    // 生成的 qmldir 在 qrc:/qt/qml 下，Qt 5 引擎的默认导入路径不含它。
+    m_engine->addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
 
     QVERIFY2(m_controller->blocks().isEmpty(),
              "the controller carried a document over from the previous case");
@@ -633,6 +653,8 @@ void TestMarkdownPreviewUi::init()
                                  m_tools.get());
     qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "MarkdownEdit",
                                  m_markdownEdit.get());
+    qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "WebEngineCompat",
+                                 &m_webCompat);
 }
 
 /**
@@ -920,7 +942,11 @@ int main(int argc, char *argv[])
     qputenv("QTWEBENGINE_CHROMIUM_FLAGS",
             existing.isEmpty() ? flags : existing + ' ' + flags);
     MarkdownPreviewProvider::registerScheme();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QtWebEngineQuick::initialize();
+#else
+    QtWebEngine::initialize();
+#endif
     QGuiApplication app(argc, argv);
     // 与 app/main.cpp 同一兜底样式：原生（windows）样式不接受对 control 的
     // background/contentItem 定制，A* 组件全部是按 Basic 写的——不设为 Basic，

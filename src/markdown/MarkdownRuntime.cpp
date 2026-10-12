@@ -23,14 +23,11 @@ const QHash<QString, QString> &mimeTable()
 {
     static const QHash<QString, QString> table = [] {
         QHash<QString, QString> m;
-        m.insert(QStringLiteral("html"), QStringLiteral("text/html; charset=utf-8"));
-        m.insert(QStringLiteral("js"),
-                 QStringLiteral("application/javascript; charset=utf-8"));
-        m.insert(QStringLiteral("mjs"),
-                 QStringLiteral("text/javascript; charset=utf-8"));
-        m.insert(QStringLiteral("css"), QStringLiteral("text/css; charset=utf-8"));
-        m.insert(QStringLiteral("json"),
-                 QStringLiteral("application/json; charset=utf-8"));
+        m.insert(QStringLiteral("html"), QStringLiteral("text/html"));
+        m.insert(QStringLiteral("js"), QStringLiteral("application/javascript"));
+        m.insert(QStringLiteral("mjs"), QStringLiteral("text/javascript"));
+        m.insert(QStringLiteral("css"), QStringLiteral("text/css"));
+        m.insert(QStringLiteral("json"), QStringLiteral("application/json"));
         m.insert(QStringLiteral("svg"), QStringLiteral("image/svg+xml"));
         m.insert(QStringLiteral("png"), QStringLiteral("image/png"));
         m.insert(QStringLiteral("jpg"), QStringLiteral("image/jpeg"));
@@ -355,6 +352,21 @@ QString MarkdownRuntime::payloadFromBeacon(const QByteArray &bytes)
  * AgentRepository、WebEngineCompat 用的都是 ':/'）。'qrc:' 只在 QML 的
  * source / iconSource 那类 URL 消费者里才是惯用写法。
  */
+QString MarkdownRuntime::resourceTextForPath(const QString &path)
+{
+    const QString resource = resourcePathForPath(path);
+    if (resource.isEmpty()) {
+        return QString();
+    }
+    QFile file(resource);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+    const QString text = QString::fromUtf8(file.readAll());
+    file.close();
+    return text;
+}
+
 QString MarkdownRuntime::resourcePathForPath(const QString &path)
 {
     QString clean = path;

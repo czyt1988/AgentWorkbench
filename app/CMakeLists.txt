@@ -31,9 +31,8 @@ set(_tools_qml MarkdownContextMenu)
 set(_workbench_qml MarkdownWorkbenchPage WorkbenchToolbar)
 # The SARibbon command bar exists only in AWB_ENABLE_RIBBON builds. When the
 # URL is absent the page's command-bar Loader fails and falls back to
-# WorkbenchToolbar.qml, which is always registered. PromptGallery (template
-# gallery panel) follows the same gate: it is only reachable from the ribbon.
-set(_workbench_ribbon_qml WorkbenchRibbon PromptGallery)
+# WorkbenchToolbar.qml, which is always registered.
+set(_workbench_ribbon_qml WorkbenchRibbon)
 set(_web_qml WebTabsPage)
 set(_webengine_qml WebEngineSurface)
 set(_markdown_pane_qml MarkdownPreviewPane)
@@ -96,11 +95,12 @@ if (AWB_ENABLE_RIBBON)
     endforeach()
 endif()
 # The preview pane is registered only where the feature can actually run:
-# Qt 6 + WebEngine, the same condition as the /markdown runtime embed below and
-# MarkdownRuntime::isSupportedBuild(). Elsewhere the file is not in the binary
-# at all — not a broken half of it. The workbench page reaches it by resource
-# URL (see its Loader), so an unregistered pane degrades to prompt mode only.
-if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+# WebEngine builds (both Qt majors), the same condition as the /markdown
+# runtime embed below and MarkdownRuntime::isSupportedBuild(). Elsewhere the
+# file is not in the binary at all — not a broken half of it. The workbench
+# page reaches it by resource URL (see its Loader), so an unregistered pane
+# degrades to prompt mode only.
+if (AWB_ENABLE_WEBENGINE)
     foreach(name IN LISTS _markdown_pane_qml)
         set(_f ${CMAKE_SOURCE_DIR}/src/markdown/qml/${name}.qml)
         list(APPEND AWB_QML_FILES ${_f})
@@ -145,9 +145,7 @@ if (AWB_ENABLE_WEBENGINE)
     # condition as the :/markdown/ embed and AWB_MD_PREVIEW_SUPPORTED below:
     # linking the adapter is what makes the QML window able to resolve
     # awbmd://runtime/… at all.
-    if (QT_VERSION_MAJOR EQUAL 6)
-        target_link_libraries(AgentWorkbench PRIVATE awb_markdown_webengine)
-    endif()
+    target_link_libraries(AgentWorkbench PRIVATE awb_markdown_webengine)
 endif()
 
 # The ribbon of the Markdown workbench page (AWB_ENABLE_RIBBON, see the root
@@ -316,17 +314,18 @@ awb_add_resources(AgentWorkbench "theme_resources"
         ${CMAKE_SOURCE_DIR}/resources/themes/latte-light.json
 )
 
-# --- Markdown preview runtime (Qt 6 + WebEngine only) -----------------------
+# --- Markdown preview runtime (WebEngine builds) ----------------------------
 # Third-party browser builds served to the embedded view over awbmd://. They
 # are embedded as-is (no build-time bundling) because the app must render
 # offline and a packaging machine may have no network at all.
 #
-# The guard is on purpose, and it is what keeps the Qt 5 route untouched: with
-# neither the preview pane nor these ~4 MiB embedded, a Qt 5 binary does not
-# contain the feature at all, rather than containing a broken version of it.
-# See src/markdown/MarkdownRuntime.cpp's isSupportedBuild() for the matching
-# compile-time gate and docs/development/markdown-workbench.md for the rationale.
-if (AWB_ENABLE_WEBENGINE AND QT_VERSION_MAJOR EQUAL 6)
+# The guard tracks the capability gate one-to-one (see
+# src/markdown/MarkdownRuntime.cpp's isSupportedBuild() and the pane
+# registration above): a binary either has the surface, the pane and these
+# ~4 MiB together, or none of them. Qt 5 notes: markdown-it / KaTeX /
+# highlight.js run on Chromium 87; mermaid does not (its build uses post-87
+# syntax) and the page degrades diagrams to the per-block error placeholder.
+if (AWB_ENABLE_WEBENGINE)
     awb_add_vendor_resources(AgentWorkbench "markdown_vendor"
         PREFIX "/markdown"
         ALIAS_PREFIX "vendor"

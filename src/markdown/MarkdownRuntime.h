@@ -71,6 +71,10 @@ public:
     static QString resourcePathForPath(const QString &path);
     // 按扩展名给 Content-Type；未知扩展返回空串（调用方据此 404）
     static QString mimeTypeForPath(const QString &path);
+    // 随包资源文本（:/markdown/<path>，UTF-8）：预览面在推入车道把
+    // theme.css 的文本喂给页面时用（fetch 车道由页面自己取，不经这里）。
+    // 读不到返回空串。
+    static QString resourceTextForPath(const QString &path);
 
     // --- 随包清单 ----------------------------------------------------------
     // 嵌入的 manifest.json（:/markdown/vendor/manifest.json）里的库版本表；
