@@ -35,6 +35,7 @@ cmake_install.cmake
 .zcode/
 .zcodeignore
 *.swp
+.obsidian/
 
 # OS
 .DS_Store

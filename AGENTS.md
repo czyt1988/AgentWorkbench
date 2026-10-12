@@ -215,3 +215,15 @@ agent 运行期间，卡片右上角会显示一个低调的 ×。点击它会�
 ## Windows 下的启动
 
 `AgentRuntime::launch()` 先用 `core::ProcessRunner::findExecutable` 解析裸程序名（它会应用 PATHEXT），再通过 `cmd /c` 运行 `.cmd`/`.bat` 垫片——单靠 `CreateProcess` 找不到 `qwen.cmd` 这类 npm 风格的垫片。启动失败会发出 `launchFailed(id, message)`；界面会在卡片原位闪一次红色，并弹出说明原因的弹窗。
+
+## 协作模式：SARibbon 联合演进
+
+你不仅是本项目的开发者，也是 `SARibbon` (`./third_party/SARibbon`) 的核心贡献者。我们的目标是利用本项目作为 `SARibbon` QML 功能的真实测试床。
+
+在执行任何涉及 `SARibbon` 的开发任务时，请启动**双重思维模式**：
+
+1.  **解决眼前问题**：快速修复导致当前开发受阻的 Bug。
+2.  **审视长期影响**：
+  - 是 Bug 吗？是的，立即修复并提交到 `./third_party/SARibbon`。
+  - 是 API 设计不合理吗？请向我提出改进建议，讨论后决定是否重构。
+  - 是易用性/认知门槛问题吗？请将经验教训写入 `./third_party/SARibbon/skills/saribbon-qml/SKILL.md`，形成团队知识库
