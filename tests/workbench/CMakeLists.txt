@@ -140,7 +140,6 @@ if (AWB_ENABLE_RIBBON)
     # 首显 category、delegate 作用域与 ObjectModel 用法都压在这里。
     set(_tst_ribbonui_qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
-        ${CMAKE_SOURCE_DIR}/src/workbench/qml/PromptGallery.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
@@ -162,8 +161,6 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchRibbon.qml")
-    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/PromptGallery.qml
-        PROPERTIES QT_RESOURCE_ALIAS "workbench/PromptGallery.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml

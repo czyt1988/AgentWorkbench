@@ -19,6 +19,9 @@ Rectangle {
     /// 宿主页面（MarkdownWorkbenchPage）：动作与状态的唯一来源。
     property var win: null
 
+    // 工具栏形态没有折叠预览（Ribbon 形态才有）；保留同签名，页面统一绑定。
+    readonly property bool categoryPreviewUp: false
+
     implicitHeight: 40
     color: theme.chromeBg
 

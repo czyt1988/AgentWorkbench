@@ -56,6 +56,9 @@ Item {
     property string findNeedle: ""
     // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
+    // 左栏（工作区文件树）宽度，180–520；拖到下限以下即收起（窄边还原）。
+    // 同为页面内状态，不落盘。
+    property real leftPanelWidth: 320
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
     property int landingPolls: 0
@@ -175,6 +178,18 @@ Item {
         tools.addFavorite("", promptEditor.text)
         workbench.notify("success", qsTr("Saved to favorites"),
                          qsTr("Insert it from the favorites panel."))
+    }
+
+    // 把一条收藏的正文插到草稿光标处（收藏 gallery 的动作出口：标题即 id，
+    // 门面按标题找正文）。找不到（已被删）就什么都不做。
+    function insertFavorite(title) {
+        const all = tools.favorites
+        for (let i = 0; i < all.length; ++i) {
+            if (all[i].title === title) {
+                insertTextAtCursor(all[i].body)
+                return
+            }
+        }
     }
 
     // 模板 id → 显示标题（左栏与表单共用；空 id 给空串）。
@@ -743,6 +758,10 @@ Item {
             id: commandBarLoader
 
             Layout.fillWidth: true
+            // Ribbon 折叠态的 category 预览要盖住下方内容：预览越过命令条
+            // 底边绘制，而 z 只在兄弟之间比较，宿主 Loader 必须跟 ribbon
+            // 一起抬升（两份命令条皮都暴露 categoryPreviewUp 同一签名）。
+            z: item && item.categoryPreviewUp ? 20 : 0
             source: "qrc:/qt/qml/AgentWorkbench/workbench/WorkbenchRibbon.qml"
 
             onStatusChanged: {
@@ -766,27 +785,33 @@ Item {
 
         // --- 主体：左侧属性区 | 中间文档区 | 右侧属性区 -------------------
         RowLayout {
+            id: workbenchRow
+
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
 
-            // --- 左侧：工作区文件树（可折叠为窄边） -----------------------
-            // 树是「拿什么素材」的浏览器，不是动作区；折叠后留一条可点击
-            // 的窄边。提示词预设默认展开，文档预设默认收起。
+            // --- 左侧：工作区文件树（宽度可拖） ---------------------------
+            // 树是「拿什么素材」的浏览器，不是动作区。宽度经右缘分隔条拖拽
+            // （与编辑/预览分栏同一交互），180–520 之间；页面内存态，不落盘
+            // ——拖一下不该写设置（与 editorShare 同一条纪律）。拖到 180 以
+            // 下即收起（窄边只留展开按钮——它是收起态唯一的还原入口，头部
+            // 不再放「收起」按钮：2026-10 用户报告该按钮没有意义）。提示词
+            // 预设默认开，文档预设默认收起。
             Rectangle {
                 id: leftPanel
 
                 readonly property bool stripMode: !leftOpen
 
                 Layout.fillHeight: true
-                Layout.preferredWidth: stripMode ? 26 : 320
-                Layout.minimumWidth: stripMode ? 26 : 220
+                Layout.preferredWidth: stripMode ? 26 : leftPanelWidth
+                Layout.minimumWidth: 26
                 color: stripMode ? theme.chromeBg : theme.surfaceBg
                 border.color: stripMode ? "transparent" : theme.borderSubtle
                 border.width: 1
                 clip: true
 
-                // 窄边：一条竖排的展开按钮。
+                // 窄边：一条竖排的展开按钮（恢复上次宽度）。
                 Item {
                     anchors.fill: parent
                     visible: leftPanel.stripMode
@@ -817,17 +842,6 @@ Item {
                         Layout.fillWidth: true
                         Layout.margins: theme.spacingXs
                         spacing: theme.spacingXs
-
-                        AIconButton {
-                            iconSource: "qrc:/icons/chevron-left.svg"
-                            tooltip: qsTr("Hide the workspace tree")
-                            onClicked: {
-                                if (preset === "prompt")
-                                    promptLeftOpen = false
-                                else
-                                    documentLeftOpen = false
-                            }
-                        }
 
                         AComboBox {
                             id: workspaceCombo
@@ -1168,6 +1182,52 @@ Item {
                         }   // 内容容器收尾
 
                     // workspaceSection 的收尾（段内容到此为止）。
+                    }
+                }
+            }
+
+            // --- 左栏宽度手柄：视觉 4px，命中 12px -------------------------
+            // 与编辑/预览分栏的分隔条同一交互。拖动在 180–520 之间改宽度；
+            // 拖到 140 以下（带 40px 滞回，避免贴边抖动）收起左栏——展开
+            // 入口留在窄边上。收起态手柄退场（窄边的展开按钮接手）。
+            Item {
+                implicitWidth: 12
+                Layout.fillHeight: true
+                Layout.preferredWidth: 12
+                visible: leftOpen
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: (parent.width - 4) / 2
+                    width: 4
+                    height: parent.height
+                    radius: 2
+                    color: leftResizeDrag.containsMouse
+                           ? theme.borderStrong : theme.separator
+                }
+
+                MouseArea {
+                    id: leftResizeDrag
+                    anchors.fill: parent
+                    cursorShape: Qt.SplitHCursor
+                    hoverEnabled: true
+                    // 用绝对坐标算宽度（与 docArea 分隔条同一条纪律：相对
+                    // 增量要折坐标系，x 本来就是唯一需要的数）。
+                    onPositionChanged: function(mouse) {
+                        if (!pressed)
+                            return
+                        const at = mapToItem(workbenchRow, mouse.x, 0)
+                        const width = at.x - leftPanel.width - 12
+                        if (width < 140) {
+                            if (leftOpen) {
+                                if (preset === "prompt")
+                                    promptLeftOpen = false
+                                else
+                                    documentLeftOpen = false
+                            }
+                            return
+                        }
+                        leftPanelWidth = Math.max(180, Math.min(520, width))
                     }
                 }
             }

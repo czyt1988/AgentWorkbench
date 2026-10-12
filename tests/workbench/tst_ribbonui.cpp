@@ -16,6 +16,8 @@
 #include <SARibbonQml/SARibbonQmlGlobal.h>
 #include <SARibbonQml/SARibbonQmlBar.h>
 #include <SARibbonQml/SARibbonQmlCategory.h>
+#include <SARibbonQml/SARibbonQmlGallery.h>
+#include <SARibbonQml/SARibbonQmlTab.h>
 #include <SARibbonQml/SARibbonQmlToolButton.h>
 
 #include "core/OpResult.h"
@@ -560,33 +562,26 @@ private Q_SLOTS:
         QVERIFY2(newDraftTabButton != nullptr,
                  "the tab bar has no new-draft button");
 
-        // delegate 作用域（2026-10 首显缺陷 b）：gallery 格子与 tab 行的
-        // 处理器都经 scope 引用页面根——裸 id 的写法在点下去的瞬间抛
-        // ReferenceError（消息钩子抓到即失败）。先点一格模板：这会驱动
-        // scope.insertTemplate → applyPreset → 草稿会话建立 → tab 出现；
-        // 再点那个 tab：驱动 fileTab 处理器里的 scope.switchDraftTo /
-        // scope.applyPreset（正是用户日志里报错的那条路径）。
-        QQuickItem *const templateGallery = findItemByName(
-            page, QStringLiteral("templateGallery"));
-        QVERIFY2(templateGallery != nullptr,
-                 "the ribbon has no template gallery");
+        // 模板 gallery（SARibbon 真 gallery，2026-10 从自绘格子换入）：
+        // 数据驱动填充（addItem/clear 重建），激活走库的 activateItem——
+        // 叶子单元格点击的同一终点，页面的 onTriggered 转发
+        // win.insertTemplate（未限定的 win 名靠组件作用域链解析，解析不到
+        // 恰是消息钩子要抓的 ReferenceError）。切到「提示词」页再激活
+        // （tab 序 = Start 0 / Prompt 1 / View 2）。
+        SARibbonQml::RibbonGallery *templateGallery = nullptr;
         QTRY_VERIFY2_WITH_TIMEOUT(
-            templateGallery->property("entries").toList().count() > 0,
-            "the template gallery never filled with entries", 5000);
-        // gallery 在 Ribbon 的当前 tab 上才实例化格子：把命令条切到
-        // 「提示词」页（tab 序 = Start 0 / Prompt 1 / View 2）。
+            (templateGallery = page->findChild<SARibbonQml::RibbonGallery *>(
+                 QStringLiteral("templateGallery"))) != nullptr,
+            "the ribbon has no template gallery", 5000);
         QMetaObject::invokeMethod(
             page, "setRibbonTab", Q_ARG(int, 1));
-        QQuickItem *galleryCell = nullptr;
         QTRY_VERIFY2_WITH_TIMEOUT(
-            (galleryCell = findItemByName(
-                 page, QStringLiteral("galleryCell"))) != nullptr,
-            "the template gallery instantiated no cells", 5000);
-        const QPointF cellCenter = galleryCell->mapToScene(
-            QPointF(galleryCell->width() / 2,
-                    galleryCell->height() / 2));
-        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
-                          cellCenter.toPoint());
+            templateGallery->groupCount() > 0
+                && templateGallery->groupAt(0)->itemCount() > 0,
+            "the template gallery never filled with entries", 5000);
+        QVERIFY2(QMetaObject::invokeMethod(
+                     templateGallery, "activateItem", Q_ARG(int, 0)),
+                 "activating the first template cell failed");
         // 模板插入后草稿会话在场 → tab 出现。注意 Repeater 的 delegate 只
         // 有视觉父（QObject 父为 null），findChild 的 QObject 树找不
         // 到——按视觉树找（itemAt 经 QMetaObject，页面 QML 侧的解析
@@ -614,6 +609,145 @@ private Q_SLOTS:
         QVERIFY2(g_ribbonWarnings.isEmpty(),
                  qPrintable(QStringLiteral("QML warnings during the page ")
                             + QStringLiteral("first-show: ")
+                            + g_ribbonWarnings.join(QLatin1Char(';'))));
+    }
+
+    // 2026-10 用户报告「折叠功能区后点 tab 没反应」的回归用例：折叠态点
+    // tab 要把 category 行作为悬浮预览再升起（SARibbon 的 minimumModeExpanded），
+    // 且页面要把命令条 Loader 的 z 抬到内容之上——预览越过命令条底边绘制，
+    // z 只在兄弟之间比较，宿主不抬就会被下方内容盖住（用户看到的就是
+    // 「点了没反应」）。几何判据：预览的底边要越过命令条底边（覆盖式，
+    // 不推挤内容）。
+    void testCollapsedTabClickRaisesCategoryPreview()
+    {
+        QTemporaryDir dataRoot;
+        QVERIFY2(dataRoot.isValid(), "a temporary dir failed");
+        QVERIFY2(seedThemes(), "seeding the builtin themes failed");
+        Settings settings;
+        ThemeRegistry registry;
+        Theme theme(&settings, &registry);
+        theme.applyTheme(QStringLiteral("mocha-dark"));
+        ToolsFacade tools(dataRoot.path());
+        // 折叠位在页面装载前写进 tools.json：页面建起时 ribbon 就是折叠态。
+        tools.setRibbonCollapsed(true);
+        MarkdownEdit markdownEdit(&theme);
+        MarkdownPreviewController markdown(&settings, &theme);
+        WorkbenchStub workbench;
+        NavStub nav;
+        UiStub ui;
+
+        QQmlEngine engine;
+        saRibbonRegisterQmlTypes(&engine);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+#endif
+        qRegisterMetaType<awb::core::OpResult>();
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Theme",
+                                     &theme);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0, "Tools",
+                                     &tools);
+        qmlRegisterSingletonInstance("AgentWorkbench.App", 1, 0,
+                                     "MarkdownEdit", &markdownEdit);
+
+        QQmlContext context(engine.rootContext());
+        context.setContextProperty(QStringLiteral("theme"), &theme);
+        context.setContextProperty(QStringLiteral("tools"), &tools);
+        context.setContextProperty(QStringLiteral("markdown"), &markdown);
+        context.setContextProperty(QStringLiteral("workbench"), &workbench);
+        context.setContextProperty(QStringLiteral("nav"), &nav);
+        context.setContextProperty(QStringLiteral("ui"), &ui);
+
+        g_ribbonWarnings.clear();
+        g_previousHandler = qInstallMessageHandler(ribbonMessageHandler);
+        QQmlComponent component(&engine, QUrl(QStringLiteral(
+            "qrc:/qt/qml/AgentWorkbench/workbench/MarkdownWorkbenchPage.qml")));
+        QVERIFY2(!component.isError(),
+                 qPrintable(component.errorString()));
+        std::unique_ptr<QQuickItem> pageOwner(
+            qobject_cast<QQuickItem *>(component.create(&context)));
+        QVERIFY2(pageOwner != nullptr,
+                 qPrintable(QStringLiteral("the page root is not a ")
+                            + QStringLiteral("QQuickItem: ")
+                            + component.errorString()));
+        QQuickItem *const page = pageOwner.get();
+
+        QQuickView view(&engine, nullptr);
+        view.setResizeMode(QQuickView::SizeRootObjectToView);
+        view.setContent(QUrl(), nullptr, pageOwner.release());
+        view.resize(1200, 800);
+        view.show();
+        QVERIFY2(QTest::qWaitForWindowExposed(&view),
+                 "the page window never became exposed");
+
+        SARibbonQml::RibbonBar *bar = nullptr;
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            (bar = page->findChild<SARibbonQml::RibbonBar *>()) != nullptr,
+            "the page never produced a RibbonBar (ribbon path not taken)",
+            5000);
+        QVERIFY2(bar->isMinimumMode(),
+                 "the ribbon did not start in minimum mode");
+        QVERIFY2(!bar->isMinimumModeExpanded(),
+                 "the collapsed preview started raised");
+
+        QQuickItem *const commandBarLoader = bar->parentItem()
+            ? bar->parentItem()->parentItem() : nullptr;
+        QVERIFY2(commandBarLoader != nullptr,
+                 "the RibbonBar is not hosted by the command bar Loader");
+        QVERIFY2(qFuzzyIsNull(commandBarLoader->z()),
+                 "the command bar loader is raised without a preview");
+
+        // 点当前 tab（真实点击驱动 RibbonTab 的 MouseArea，与用户操作同一
+        // 条路径）：预览升起，当前 category 可见且底边越过命令条底边，
+        // 宿主 Loader 的 z 同步抬到内容之上。
+        const auto tabs = bar->findChildren<SARibbonQml::RibbonTab *>();
+        QVERIFY2(!tabs.isEmpty(), "the ribbon bar has no tabs");
+        QQuickItem *const tab = tabs.first();
+        const QPointF tabCenter = tab->mapToScene(
+            QPointF(tab->width() / 2, tab->height() / 2));
+        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
+                          tabCenter.toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(bar->isMinimumModeExpanded(),
+                                  "clicking the tab never raised the "
+                                  "collapsed preview", 5000);
+
+        SARibbonQml::RibbonCategory *visibleCategory = nullptr;
+        const auto categories = bar->findChildren<SARibbonQml::RibbonCategory *>();
+        for (SARibbonQml::RibbonCategory *category : categories) {
+            if (category->isVisible() && category->height() > 0) {
+                visibleCategory = category;
+                break;
+            }
+        }
+        QVERIFY2(visibleCategory != nullptr,
+                 "no visible category while the collapsed preview is up");
+        const qreal previewBottom = bar->mapToScene(
+            QPointF(0, visibleCategory->y() + visibleCategory->height())).y();
+        const qreal commandBarBottom = commandBarLoader->mapToScene(
+            QPointF(0, commandBarLoader->height())).y();
+        QVERIFY2(previewBottom > commandBarBottom + 8,
+                 qPrintable((QStringLiteral("the preview bottom (%1) does ")
+                             + QStringLiteral("not overlay the content below ")
+                             + QStringLiteral("the command bar (%2)"))
+                                .arg(previewBottom).arg(commandBarBottom)));
+        QTRY_VERIFY2_WITH_TIMEOUT(commandBarLoader->z() > 0,
+                                  "the command bar loader never raised "
+                                  "above the page content", 5000);
+
+        // 折叠预览之外：点击预览区域以外要把它收回去（Qt::Popup 关闭语义
+        // 的回归断言——SARibbon 的窗口级事件过滤器负责这条路径）。
+        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier,
+                          QPoint(20, view.height() - 40));
+        QTRY_VERIFY2_WITH_TIMEOUT(!bar->isMinimumModeExpanded(),
+                                  "clicking outside never dropped the "
+                                  "collapsed preview", 5000);
+        QVERIFY2(qFuzzyIsNull(commandBarLoader->z()),
+                 "the loader stayed raised after the preview dropped");
+
+        qInstallMessageHandler(g_previousHandler);
+        g_previousHandler = nullptr;
+        QVERIFY2(g_ribbonWarnings.isEmpty(),
+                 qPrintable(QStringLiteral("QML warnings during the ")
+                            + QStringLiteral("collapsed-preview round: ")
                             + g_ribbonWarnings.join(QLatin1Char(';'))));
     }
 };

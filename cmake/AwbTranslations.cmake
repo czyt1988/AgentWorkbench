@@ -81,7 +81,6 @@ set(AWB_TS_SOURCES
     # labels can never be translated in the builds where users see them.
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
-    ${CMAKE_SOURCE_DIR}/src/workbench/qml/PromptGallery.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
 )

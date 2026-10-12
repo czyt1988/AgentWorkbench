@@ -1,7 +1,6 @@
 import QtQuick
 import SARibbon 3.0
 import AgentWorkbench
-import AgentWorkbench.App
 import "RibbonIcons.js" as RibbonIcons
 
 // 工作台窗口的命令条：SARibbon 形态。
@@ -22,10 +21,9 @@ import "RibbonIcons.js" as RibbonIcons
 //   视图——Markdown 编辑器视图（预览/分栏/源码/字号/栏宽/大纲）与
 //     ribbon 自身（样式/主题跟随/折叠）。
 //
-// MarkdownEdit 单例（AgentWorkbench.App）供「开始」页格式按钮的 checkable
-// 状态查询（isBoldAt 等光标态）：单例名与 theme/tools/markdown 这类经上下
-// 文件作用域解析的页面别名不同，必须经 import 引入，否则绑定报
-// ReferenceError 且按钮的选中态永远不亮（0.5.0 首显缺陷之一）。
+// MarkdownEdit 的动作入口（applyBold 等）在页面动作层（win.applyFormat），
+// 本文件不直接引用它：格式按钮的 checkable 已随 2026-10 整改移除（光标
+// 态查询进不了 QML 绑定，勾选态只会骗人），单例 import 也随之退役。
 //
 // 主题桥是两套设计系统的唯一接触面：应用主题 → RibbonTheme 单向推。
 // tab 栏（标题行）背景跟应用 chrome 底色、面板底色跟 surface、文字跟
@@ -38,6 +36,12 @@ Item {
 
     /// 宿主页面（MarkdownWorkbenchPage）：动作与状态的唯一来源。
     property var win: null
+
+    // 折叠态的 category 预览是否正悬着：预览越过命令条底边画到页面内容
+    // 之上，而 z 只在兄弟之间生效——宿主 Loader 必须同时把自己抬起来，
+    // 否则预览永远被下方内容盖住（嵌入契约见 SARibbon 的 RibbonBar 头
+    // 注释；2026-10 用户报告「折叠后点 tab 没反应」的根因）。
+    readonly property bool categoryPreviewUp: ribbonBar.minimumModeExpanded
 
     implicitHeight: ribbonBar.implicitHeight
 
@@ -163,8 +167,10 @@ Item {
             }
 
             // 行内格式与列表（任务字面结构的 Panel 2：十枚 icon-only 同
-            // 一面板）；checkable 的状态源是 MarkdownEdit 的光标查询
-            //（没有查询侧的动作不许设 checkable——按钮不许骗人）。
+            // 一面板）。格式按钮一律不做 checkable：选中态要跟光标处的
+            // 文本走，而「光标位置」不进 QML 绑定（MarkdownEdit 的查询是
+            // 函数调用，绑定不会在光标移动时重求值），假勾选态只会骗人
+            //（2026-10 用户报告：勾选态既不跟光标也不跟选区）。
             RibbonPanel {
                 panelTitle: qsTr("Format")
 
@@ -173,9 +179,6 @@ Item {
                     toolButtonStyle: Ribbon.IconOnly
                     iconSource: commandBar.icon("bold")
                     toolTip: qsTr("Bold (**)")
-                    checkable: true
-                    checked: win && win.activeEditor
-                             && MarkdownEdit.isBoldAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("bold")
                 }
@@ -184,9 +187,6 @@ Item {
                     toolButtonStyle: Ribbon.IconOnly
                     iconSource: commandBar.icon("italic")
                     toolTip: qsTr("Italic (*)")
-                    checkable: true
-                    checked: win && win.activeEditor
-                             && MarkdownEdit.isItalicAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("italic")
                 }
@@ -195,9 +195,6 @@ Item {
                     toolButtonStyle: Ribbon.IconOnly
                     iconSource: commandBar.icon("underline")
                     toolTip: qsTr("Underline (<u></u>)")
-                    checkable: true
-                    checked: win && win.activeEditor
-                             && MarkdownEdit.isUnderlineAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("underline")
                 }
@@ -206,9 +203,6 @@ Item {
                     toolButtonStyle: Ribbon.IconOnly
                     iconSource: commandBar.icon("strike")
                     toolTip: qsTr("Strikethrough (~~)")
-                    checkable: true
-                    checked: win && win.activeEditor
-                             && MarkdownEdit.isStrikeAt(win.activeEditor)
                     enabled: win && win.activeEditor
                     onClicked: if (win) win.applyFormat("strike")
                 }
@@ -399,49 +393,86 @@ Item {
         RibbonCategory {
             title: qsTr("Prompt")
 
-            // 模板库 gallery：点击格子即插入。SARibbon 声明式 gallery 是
-            // 静态 listProperty（动态模板表塞不进它的声明面），用自绘
-            // gallery 承载，见 PromptGallery.qml。
+            // 模板库 gallery：SARibbon 的真 gallery（全高网格 + 分组翻页 +
+            // 展开视口）。模板是用户数据，走动态填充（gallery.clear() →
+            // addItem() 重建，SARibbon 3.0 的动态数据入口）：tools.templates
+            // 每次变化重灌，格子 userData 携带模板 id，激活经 triggered 回跳。
             RibbonPanel {
                 panelTitle: qsTr("Templates")
 
-                RibbonControlContainer {
-                    enableShowIcon: false
-                    enableShowTitle: false
+                RibbonGallery {
+                    id: templateGallery
+                    objectName: "templateGallery"
 
-                    control: PromptGallery {
-                        objectName: "templateGallery"
-                        scope: win
-                        entries: tools.filteredTemplates("", "")
+                    property var templates: tools.templates
+                    onTemplatesChanged: rebuild()
+                    Component.onCompleted: rebuild()
+
+                    function rebuild() {
+                        clear()
+                        // 按 category 聚组（首见序，空串归默认组）。
+                        const order = []
+                        const byName = {}
+                        for (let i = 0; i < templates.length; ++i) {
+                            const t = templates[i]
+                            const name = t.category && t.category.length > 0
+                                    ? t.category
+                                    : qsTr("My templates")
+                            if (byName[name] === undefined) {
+                                byName[name] = []
+                                order.push(name)
+                            }
+                            byName[name].push(t)
+                        }
+                        for (let g = 0; g < order.length; ++g) {
+                            const group = addGroup(order[g])
+                            const rows = byName[order[g]]
+                            for (let r = 0; r < rows.length; ++r) {
+                                const item = group.addItem(
+                                        rows[r].title, "", rows[r].title,
+                                        rows[r].id)
+                                item.selectable = false
+                            }
+                        }
+                        currentGroupIndex = 0
+                    }
+
+                    onTriggered: function (item, index) {
+                        if (win)
+                            win.insertTemplate(item.userData)
                     }
                 }
             }
 
-            // 收藏：与模板同一 gallery 形态（成稿的陈列）。
+            // 收藏：同一 gallery 形态（成稿的陈列）。收藏没有分类，单组。
             RibbonPanel {
                 panelTitle: qsTr("Favorites")
 
-                RibbonControlContainer {
-                    enableShowIcon: false
-                    enableShowTitle: false
+                RibbonGallery {
+                    id: favoriteGallery
+                    objectName: "favoriteGallery"
 
-                    control: PromptGallery {
-                        objectName: "favoriteGallery"
-                        // 收藏没有 category：全部落进默认组。
-                        entries: {
-                            const rows = []
-                            const all = tools.favorites
-                            for (let i = 0; i < all.length; ++i) {
-                                rows.push({
-                                    id: all[i].title,
-                                    title: all[i].title,
-                                    category: "",
-                                    builtin: false
-                                })
-                            }
-                            return rows
+                    property var favorites: tools.favorites
+                    onFavoritesChanged: rebuild()
+                    Component.onCompleted: rebuild()
+
+                    function rebuild() {
+                        clear()
+                        const group = addGroup(qsTr("Favorites"))
+                        for (let i = 0; i < favorites.length; ++i) {
+                            const entry = favorites[i]
+                            const item = group.addItem(entry.title, "",
+                                                       entry.title,
+                                                       entry.title)
+                            item.selectable = false
                         }
-                        defaultGroupTitle: qsTr("Favorites")
+                        currentGroupIndex = 0
+                    }
+
+                    onTriggered: function (item, index) {
+                        // 收藏的 id 就是标题（addFavorite 用标题定位）。
+                        if (win)
+                            win.insertFavorite(item.userData)
                     }
                 }
             }
