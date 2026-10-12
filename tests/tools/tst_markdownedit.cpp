@@ -450,6 +450,8 @@ private Q_SLOTS:
 
     void testFenceWithLanguage()
     {
+        // 整行围栏：开围栏插在首行行首、闭围栏补在末行行尾，选中的行整体
+        // 变成代码块内容（不再前置一个空行——首行行首插即围栏行）。
         QTextDocument document;
         QTextCursor cursor;
         document.setPlainText(QStringLiteral("a\nbc"));
@@ -458,12 +460,16 @@ private Q_SLOTS:
         cursor.setPosition(4, QTextCursor::KeepAnchor);
         MarkdownEdit::applyFenceToCursor(cursor, QStringLiteral("cpp"));
         QCOMPARE(document.toPlainText(),
-                 QStringLiteral("\n```cpp\na\nbc\n```\n"));
+                 QStringLiteral("```cpp\na\nbc\n```"));
+        // 结果选区 = 围栏之间的内容行。
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("a\nbc"));
     }
 
-    void testFenceSingleLineFallsBackToInline()
+    void testFenceSingleLineAlsoFences()
     {
-        // 单行内容配围栏没有意义：退化为行内代码（applyCode 的形态）。
+        // 单行选区同样是围栏：一行内容配围栏是常见形态（把一行命令标成
+        // bash 块），不再退化为行内代码（2026-10 用户报告：代码块按钮与
+        // 行内代码没有区别）。
         QTextDocument document;
         QTextCursor cursor;
         document.setPlainText(QStringLiteral("foo bar"));
@@ -471,7 +477,35 @@ private Q_SLOTS:
         cursor.setPosition(0);
         cursor.setPosition(3, QTextCursor::KeepAnchor);
         MarkdownEdit::applyFenceToCursor(cursor, QStringLiteral("cpp"));
-        QCOMPARE(document.toPlainText(), QStringLiteral("`foo` bar"));
+        QCOMPARE(document.toPlainText(), QStringLiteral("```cpp\nfoo bar\n```"));
+    }
+
+    void testFenceCursorOnEmptyLineInsertsSkeleton()
+    {
+        // 空选区 + 空行：围栏骨架，光标停在两道围栏之间等着写内容。
+        QTextDocument document;
+        QTextCursor cursor;
+        document.setPlainText(QStringLiteral("x\n\ny"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(2);
+        MarkdownEdit::applyFenceToCursor(cursor, QStringLiteral("bash"));
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("x\n```bash\n\n```\ny"));
+        QCOMPARE(cursor.position(), 2 + QStringLiteral("```bash\n").length());
+        QVERIFY(!cursor.hasSelection());
+    }
+
+    void testFenceCursorMidLineFencesWholeLine()
+    {
+        // 空选区落在有内容的行上：整行围栏（行首插开围栏、行尾补闭围栏）。
+        QTextDocument document;
+        QTextCursor cursor;
+        document.setPlainText(QStringLiteral("hello"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(2);
+        MarkdownEdit::applyFenceToCursor(cursor, QString());
+        QCOMPARE(document.toPlainText(), QStringLiteral("```\nhello\n```"));
+        QCOMPARE(cursor.selectedText(), QStringLiteral("hello"));
     }
 
     void testInsertTableSkeleton()

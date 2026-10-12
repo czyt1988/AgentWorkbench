@@ -67,8 +67,8 @@ public:
     // 有选区：[选区](url) 且光标停在 url 处；无选区：[](url) 光标停在方括号中间
     Q_INVOKABLE void applyLink(QObject *textArea);
 
-    // 围栏代码块并标注语言（applyCode 的换行围栏分支 + 语言标注；空语言
-    // 与 applyCode 输出一致）
+    // 围栏代码块并标注语言：按整行围栏（空选区在空行上插围栏骨架，
+    // 光标停在两道围栏之间）；与 applyCode 的行内形态分工见 .cpp
     Q_INVOKABLE void applyFence(QObject *textArea, const QString &language);
 
     // 在光标处插入表格骨架：表头行 + 分隔行 + 一行示例（列数可指定，默认 3）

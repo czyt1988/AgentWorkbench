@@ -849,9 +849,11 @@ void MarkdownEdit::applyLinkToCursor(QTextCursor &cursor)
 /**
  * @brief 围栏代码块 + 语言标注
  *
- * 选区含换行时：```lang 围栏（与 applyCode 的换行分支同一补行策略），
- * 空语言 = 纯 ```。单行/空选区时退化为行内代码（一行内容配围栏没有
- * 意义，applyCode 已覆盖该形态）。
+ * 围栏必须独占一行：动作永远按**整行**围栏——开围栏行插在首行行首、
+ * 闭围栏行补在末行行尾，选区或光标所在行整体变成代码块内容（行内包裹
+ * 不是合法的代码块，那是 applyCode 的行内形态）。
+ * 唯一的例外是空选区落在空行上：插入围栏骨架（```lang + 空行 + ```），
+ * 光标停在空行行首等着写内容。
  *
  * @param cursor 选区光标
  * @param language 语言标注（原样写入，调用方负责合法值）
@@ -859,34 +861,51 @@ void MarkdownEdit::applyLinkToCursor(QTextCursor &cursor)
 void MarkdownEdit::applyFenceToCursor(QTextCursor &cursor,
                                       const QString &language)
 {
-    if (!cursor.hasSelection()
-        || !selectedText(cursor).contains(QLatin1Char('\n'))) {
-        applyCodeToCursor(cursor);
+    const QString fence = QStringLiteral("```") + language;
+    QTextDocument *document = cursor.document();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    // 选区末尾恰好贴在换行后（光标位于下一行行首）时那行没选到内容，
+    // 围栏只罩到有内容的最后一行（与 applyBullet 同一条边界纪律）。
+    const QTextBlock lastBlock = document->findBlock(
+                selectionEnd > selectionStart ? selectionEnd - 1
+                                              : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
         return;
     }
 
-    const QString fence = QStringLiteral("```") + language;
-    const int selectionStart = cursor.selectionStart();
-    const int selectionEnd = cursor.selectionEnd();
-    const QString selected = selectedText(cursor);
+    // 空选区 + 空行：围栏骨架，光标停在两道围栏之间。
+    if (!cursor.hasSelection() && firstBlock.text().isEmpty()) {
+        const int position = firstBlock.position();
+        cursor.beginEditBlock();
+        cursor.insertText(fence + QLatin1Char('\n') + QLatin1Char('\n')
+                          + QStringLiteral("```"));
+        cursor.setPosition(position + fence.length() + 1);
+        cursor.endEditBlock();
+        return;
+    }
+
+    // 块 length 含尾部分隔符（末块也含一份），文字终点 = position+length-1。
+    // 这两个终点都在开围栏插入**之前**算出（旧坐标）：QTextBlock 句柄读的是
+    // 活坐标，插入之后再读会拿到平移后的值，再补 openLength 就会双重偏移
+    // （单块场景下句柄还会指到新围栏块）。纯位置算术不受插入影响：
+    // 开围栏在 firstPos 处插入 openLength 个字符，其后一切坐标平移那么多。
+    const int firstPos = firstBlock.position();
+    const int lineEnd = lastBlock.position() + lastBlock.length() - 1;
 
     cursor.beginEditBlock();
-    const bool startsWithNewline = selected.startsWith(QLatin1Char('\n'));
-    const bool endsWithNewline = selected.endsWith(QLatin1Char('\n'));
-    const QString open = startsWithNewline
-            ? fence + QLatin1Char('\n')
-            : QLatin1Char('\n') + fence + QLatin1Char('\n');
-    const QString close = endsWithNewline
-            ? QStringLiteral("\n```") : QStringLiteral("\n```\n");
-    cursor.setPosition(startsWithNewline ? selectionStart + 1
-                                        : selectionStart);
-    cursor.insertText(open);
-    const int contentStart =
-            selectionStart + (startsWithNewline ? 1 : 0) + open.length();
-    const int contentEnd =
-            selectionEnd + open.length() - (endsWithNewline ? 1 : 0);
-    cursor.setPosition(contentEnd);
-    cursor.insertText(close);
+    // 开围栏插在首行行首：行内已有文字被推到下一行，围栏独占一行。
+    cursor.setPosition(firstPos);
+    cursor.insertText(fence + QLatin1Char('\n'));
+    const int openLength = fence.length() + 1;
+    // 闭围栏补在末行文字之后：行尾分隔保留在闭围栏后面，围栏自成一行。
+    cursor.setPosition(lineEnd + openLength);
+    cursor.insertText(QStringLiteral("\n```"));
+    // 结果选区：围栏之间的内容行（键入即替换，与 applyCode 的换行分支
+    // 同一交互）。
+    const int contentStart = firstPos + openLength;
+    const int contentEnd = lineEnd + openLength;
     cursor.setPosition(contentStart);
     cursor.setPosition(contentEnd, QTextCursor::KeepAnchor);
     cursor.endEditBlock();
