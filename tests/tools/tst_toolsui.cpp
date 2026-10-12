@@ -443,6 +443,68 @@ private Q_SLOTS:
         QVERIFY(!menu->property("opened").toBool());
     }
 
+    // 左栏（工作区面板）宽度手柄的拖拽语义（2026-10 用户报告「一拖整个
+    // 面板就收起来」的回归）：向右拖 80 面板要跟着变宽且保持展开；随后
+    // 把指针拖到收起阈值以下才收起。宽度公式必须按指针的绝对位置减去
+    // 按下时记录的**恒定**抓取偏移——手柄会随面板宽度挪位置，逐事件读
+    // mouse.x（早前版本甚至减 leftPanel.width）都会把拖动算错。
+    void testLeftPanelHandleDragResizesNotCollapses()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools),
+                 qPrintable(error));
+
+        QQuickItem *const handle = window->findChild<QQuickItem *>(
+            QStringLiteral("leftPanelHandle"));
+        QVERIFY2(handle != nullptr, "leftPanelHandle not found by objectName");
+        QVERIFY2(handle->isVisible() && handle->width() > 4,
+                 "the left panel handle is not visible or too small");
+        // 页面根（leftPanelWidth / promptLeftOpen 的持有者）：setContent
+        // 把页面根挂成 contentItem 的独子。
+        QQuickItem *const page = window->contentItem()->childItems()
+                .isEmpty() ? nullptr
+                           : window->contentItem()->childItems().constFirst();
+        QVERIFY2(page != nullptr, "the page root is not on the window");
+        const qreal widthBefore = page->property("leftPanelWidth").toReal();
+        QVERIFY2(page->property("promptLeftOpen").toBool(),
+                 "the workspace panel did not start open");
+
+        // --- 拖宽 +80：面板跟手变宽，收起分支绝不允许触发 -----------------
+        const QPointF start = handle->mapToScene(
+            QPointF(handle->width() / 2, handle->height() / 2));
+        const QPoint from = start.toPoint();
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(window, QPoint(from.x() + 40, from.y()));
+        QTest::mouseMove(window, QPoint(from.x() + 80, from.y()));
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier,
+                            QPoint(from.x() + 80, from.y()));
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            qAbs(page->property("leftPanelWidth").toReal()
+                 - (widthBefore + 80)) <= 2,
+            qPrintable(QStringLiteral("the panel width stayed at ")
+                       + QString::number(
+                             page->property("leftPanelWidth").toReal())
+                       + QStringLiteral(" after a +80 drag")), 5000);
+        QVERIFY2(page->property("promptLeftOpen").toBool(),
+                 "an ordinary widening drag collapsed the panel");
+
+        // --- 把指针拖到阈值以下：这次才收起（窄边的展开按钮接管） --------
+        // 手柄已随宽度右移，重新取它当前的位置。
+        const QPointF start2 = handle->mapToScene(
+            QPointF(handle->width() / 2, handle->height() / 2));
+        const QPoint from2 = start2.toPoint();
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, from2);
+        QTest::mouseMove(window, QPoint(from2.x() - 320, from2.y()));
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier,
+                            QPoint(from2.x() - 320, from2.y()));
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            !page->property("promptLeftOpen").toBool(),
+            "dragging far past the threshold never collapsed the panel",
+            5000);
+    }
+
     // 文件树右键的「Preview Markdown」：workbench 说有预览能力时条目出场，
     // 真实点击把这一行的绝对路径交给 previewMarkdown。
     void testTreeRowPreviewMenuItemAppearsAndOpens()

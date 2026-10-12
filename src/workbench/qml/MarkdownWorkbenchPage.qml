@@ -1191,6 +1191,9 @@ Item {
             // 拖到 140 以下（带 40px 滞回，避免贴边抖动）收起左栏——展开
             // 入口留在窄边上。收起态手柄退场（窄边的展开按钮接手）。
             Item {
+                id: leftPanelHandle
+                objectName: "leftPanelHandle"
+
                 implicitWidth: 12
                 Layout.fillHeight: true
                 Layout.preferredWidth: 12
@@ -1211,13 +1214,23 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.SplitHCursor
                     hoverEnabled: true
-                    // 用绝对坐标算宽度（与 docArea 分隔条同一条纪律：相对
-                    // 增量要折坐标系，x 本来就是唯一需要的数）。
+                    // 抓取点在行内的偏移（按下时记录）。宽度一律按指针的
+                    // 绝对位置算（与 docArea 分隔条同一条纪律），且必须减
+                    // 这个**恒定**的按下偏移：手柄会随面板宽度跟着挪位置，
+                    // 逐事件读 mouse.x 的话它含着本轮拖动的位移，两项相减
+                    // 恒等于面板当前宽度，拖动就成了无操作（早前版本减
+                    // leftPanel.width 更是把任何拖动都算成负宽度、直接收起
+                    // ——2026-10 用户报告「一拖就收起」的根因）。
+                    property real grabOffset: 0
+                    onPressed: function(mouse) {
+                        grabOffset = mapToItem(workbenchRow, mouse.x, 0).x
+                                - leftPanel.width
+                    }
                     onPositionChanged: function(mouse) {
                         if (!pressed)
                             return
                         const at = mapToItem(workbenchRow, mouse.x, 0)
-                        const width = at.x - leftPanel.width - 12
+                        const width = at.x - grabOffset
                         if (width < 140) {
                             if (leftOpen) {
                                 if (preset === "prompt")
