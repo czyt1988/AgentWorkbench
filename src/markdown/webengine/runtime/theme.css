@@ -59,6 +59,16 @@
     contain-intrinsic-size: auto 48px;
 }
 
+/* 旧引擎兜底（bridge.js 按能力探测挂上 awb-no-cv）：auto 关键字是
+   Chromium 98 才有的，87–97（Qt 5 全线与 Qt 6.2–6.5）不认这条复合值、
+   整条声明作废——屏外锁死块零高度占位，滚动高度失真（页面被压扁、
+   滚动条跳变），87 还会在滚动触发的锁转换里撞合成需求更新器的
+   CHECK 崩渲染进程（2026-10 用户报告）。这些引擎上退回普通布局：
+   丢掉屏外跳过的收益，换回真实的滚动高度与稳定的渲染进程。 */
+html.awb-no-cv .awb-block {
+    content-visibility: visible;
+}
+
 html,
 body {
     margin: 0;

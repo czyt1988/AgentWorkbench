@@ -956,8 +956,15 @@ void TestMarkdownPreviewController::testPageUrlAndPreviewEligibility()
     MarkdownPreviewController controller(m_settings, nullptr);
     controller.setSurfaceReady(true);
 
+    // Qt < 6.6 的地址带车道提示（pageUrl 的版本分支）：页面 boot 读到
+    // lane=push 即定格推入车道，省掉那次注定失败的探测 fetch。
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    QCOMPARE(controller.pageUrl().toString(),
+             QStringLiteral("awbmd://runtime/app/shell.html?lane=push"));
+#else
     QCOMPARE(controller.pageUrl().toString(),
              QStringLiteral("awbmd://runtime/app/shell.html"));
+#endif
 
     // 后缀清单（大小写不敏感）；`\z` 锚定，所以 .md.bak 不算 Markdown
     QVERIFY(controller.canPreviewPath(QStringLiteral("/tmp/NOTE.MD")));

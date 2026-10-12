@@ -15,9 +15,12 @@
 //     与样式表文本推进页面；信标改走 console 打点（AWBEVT: 前缀，C++ 侧
 //     javaScriptConsoleMessage 解析——javaScriptConsoleMessage 一旦连接，
 //     console 就是页面向 C++ 说话的现成通道，不必另开一套）。
-// 车道由页面自探（boot 试一次 fetch）：定格后 AWB.channel() 同步可读，
-// QML 轮询它、读到 "push" 才开始投递——runJavaScript 的回调在旧引擎上
-// 等不到 Promise，车道结论不能靠回调带回。
+// 车道由宿主提示 + 页面实测共同决定：Qt < 6.6 的构建在 shell.html 的 URL
+// 上带 lane=push（C++ 知道自己没注册 FetchApiAllowed，见 pageUrl），boot
+// 读到即定格、不做那次注定失败的探测 fetch；没带提示的才实测（boot 试一次
+// fetch）。定格后 AWB.channel() 同步可读，QML 轮询它、读到 "push" 才开始
+// 投递——runJavaScript 的回调在旧引擎上等不到 Promise，车道结论不能靠
+// 回调带回。
 // 页面里没有任何可翻译源串：文案随 doc.json 的 strings 下发（见 MarkdownRuntime
 // 的 pageStrings()），因为 .js 文件对 lupdate 与门禁都不可见。
 
@@ -45,8 +48,35 @@ const pushed = {
 
 // 车道名："" = 还在探，"fetch" = 页面自己拉，"push" = 等 QML 推。
 // runJavaScript 的回调等不到 Promise（旧引擎），车道结论由页面自己定格、
-// QML 经 AWB.channel() 轮询读取。
+// QML 经 AWB.channel() 轮询读取。宿主在 shell.html 的 URL 上带 lane=push
+// 提示（Qt < 6.6）时 boot 不做那次注定失败的探测 fetch——它除了在引擎
+// 控制台留一条 "URL scheme is not supported" 警告没有任何收获。
 let channel = "";
+
+// content-visibility 是否完整可用。能力探测而非 UA 嗅探：auto 要不拖累
+// 滚动，屏外块必须有 intrinsic 占位（contain-intrinsic-size: auto 48px）；
+// auto 关键字 Chromium 98 才有，不认它的引擎（87–97：Qt 5 全线与
+// Qt 6.2–6.5）整条声明作废——锁死块零高度、滚动高度失真，87 还会在滚动
+// 触发的锁转换里撞合成需求更新器的 CHECK 崩渲染进程（2026-10 用户报告，
+// backtrace 落在 compositing_requirements_updater.cc）。不完整的引擎由
+// boot 挂 awb-no-cv 退回普通布局（theme.css 的兜底规则）。
+function contentVisibilityUsable()
+{
+    return typeof CSS !== "undefined" && !!CSS.supports
+        && CSS.supports("content-visibility", "auto")
+        && CSS.supports("contain-intrinsic-size", "auto 48px");
+}
+
+// 车道提示（宿主写在 shell.html 的 URL 上）：lane=push = fetch 车道确定
+// 不存在（Qt < 6.6 没有 FetchApiAllowed）。其它值与没带提示都照旧实测
+// 探测——URL 只是提示，真相以实测为准（registerScheme 的标志没生效时
+// 页面自己会发现，回退推入车道）。
+function laneHint()
+{
+    const search = (globalThis.location && globalThis.location.search) || "";
+    const match = /[?&]lane=([a-z]+)/.exec(search);
+    return match ? match[1] : "";
+}
 
 function beacon(kind, payload)
 {
@@ -203,15 +233,25 @@ function boot()
         onFrame: function (frame) { beacon("frame", frame); }
     });
 
-    if (typeof fetch !== "function") {
-        // 引擎连 fetch API 都没有（不可能的兜底）：定格推入车道。
+    // 旧引擎兜底：cv 不完整的引擎退回普通布局（见 contentVisibilityUsable
+    // 的注释）。必须在第一块挂载前挂 class——块一旦带着 auto 挂上去，
+    // 滚动就开始踩那条锁转换的崩溃路径。
+    if (!contentVisibilityUsable()) {
+        document.documentElement.classList.add("awb-no-cv");
+    }
+
+    if (laneHint() === "push" || typeof fetch !== "function") {
+        // 宿主已知 fetch 车道不存在（Qt < 6.6，URL 提示），或引擎连 fetch
+        // API 都没有：直接定格推入车道。lane 已是同步可读，QML 轮询
+        // AWB.channel() 读到 "push" 即投递（push 到来即启动）。
         channel = "push";
         return;
     }
     // 车道探测 = 直接试着取 doc.json。FetchApiAllowed 开着的引擎
-    // （Qt ≥ 6.6）一步成功，顺带完成启动；没开的（Qt 5 与 Qt 6.2–6.5）
-    // fetch 对自定义 scheme 立即拒绝——定格推入车道，等 QML 轮询
-    // AWB.channel() 读到 "push" 后推文档进来（push 到来即启动）。
+    // （Qt ≥ 6.6）一步成功，顺带完成启动；没开的（Qt 6.2–6.5 的漏网
+    // 场景——按版本注册了提示但标志没生效）fetch 对自定义 scheme 立即
+    // 拒绝——定格推入车道，等 QML 轮询 AWB.channel() 读到 "push" 后推
+    // 文档进来（push 到来即启动）。
     fetchJson(documentUrl(0)).then(function (payload) {
         channel = "fetch";
         // 导出要内联的样式表：boot 时取一次即可（随包内容不会变）
@@ -238,11 +278,10 @@ function finishBoot(payload)
             rev: payload.rev,
             blocks: (payload.blocks || []).length,
             firstPaintMs: painted,
-            // 能力位与 C++ 侧的判定对齐：content-visibility 不在这里就等于
-            // 大文档的滚动优化没生效，日志里要看得见
-            contentVisibility: typeof CSS !== "undefined"
-                && CSS.supports
-                && CSS.supports("content-visibility", "auto"),
+            // 能力位报告**实际生效**的值（引擎支持但被旧引擎兜底退掉的
+            // 报 false）：content-visibility 没生效就等于大文档的滚动优化
+            // 没生效，日志里要看得见。
+            contentVisibility: contentVisibilityUsable(),
             fetchApi: channel === "fetch"
         });
     }
@@ -304,8 +343,8 @@ globalThis.AWB = {
         return {
             page: PAGE_REVISION,
             fetchApi: channel === "fetch",
-            contentVisibility: typeof CSS !== "undefined" && !!CSS.supports
-                && CSS.supports("content-visibility", "auto"),
+            // 实际生效值（被旧引擎兜底退掉的报 false，见 contentVisibilityUsable）
+            contentVisibility: contentVisibilityUsable(),
             markdownIt: typeof globalThis.markdownit === "function",
             katex: !!(globalThis.katex
                       && typeof globalThis.katex.renderToString === "function"),

@@ -92,10 +92,6 @@ Item {
     // 正在走变量表单流程的模板（{id, title}）；null = 无流程在飞。
     property var pendingTemplate: null
 
-    // 左栏工作区段的折叠态（窗口内存）。
-    // 段容器常驻、只藏内容——段头上的开关是折叠态唯一的还原入口。
-    property bool workspaceSectionExpanded: true
-
     // 体检结果（悬浮窗消费；null = 还没跑过——窗显示引导文案）。
     property var draftCheckResults: null
 
@@ -799,13 +795,14 @@ Item {
 
             // --- 左侧：工作区文件树（宽度可拖） ---------------------------
             // 树是「拿什么素材」的浏览器，不是动作区。宽度经右缘分隔条拖拽
-            // （与编辑/预览分栏同一交互），180–520 之间；页面内存态，不落盘
+            //（与编辑/预览分栏同一交互），180–520 之间；页面内存态，不落盘
             // ——拖一下不该写设置（与 editorShare 同一条纪律）。拖到 180 以
-            // 下即收起（窄边只留展开按钮——它是收起态唯一的还原入口，头部
-            // 不再放「收起」按钮：2026-10 用户报告该按钮没有意义）。提示词
-            // 预设默认开，文档预设默认收起。
+            // 下、以及段头上的收起键（workspaceSectionToggle），都把整个左
+            // 栏收成窄边——窄边上只留展开按钮，它是收起态唯一的还原入口。
+            // 提示词预设默认开，文档预设默认收起。
             Rectangle {
                 id: leftPanel
+                objectName: "leftPanel"
 
                 readonly property bool stripMode: !leftOpen
 
@@ -823,6 +820,7 @@ Item {
                     visible: leftPanel.stripMode
 
                     AIconButton {
+                        objectName: "leftPanelRestoreButton"
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top: parent.top
                         anchors.topMargin: theme.spacingXs
@@ -938,19 +936,19 @@ Item {
                         }
                     }
 
-                    // --- 段 1 · 工作区与文件树（可折叠段，默认展开） --------
-                    // 段容器常驻可见：收起只藏内容，段头（连同它的开关）留在
-                    // 原地——段头是折叠态唯一的还原入口。旧版把 visible 绑在
-                    // 段上，收起连段头一起藏掉，页面上再没有任何控件能把段
-                    // 展开（2026-10 用户报告「收起后无法还原」）。
+                    // --- 段 · 工作区与文件树 --------------------------------
+                    // 左栏唯一的一段，不再有段级折叠（2026-10 用户报告：段折叠
+                    // 是早期左栏多段布局的遗留，收起语义应当属于整个左栏）。
+                    // 段头右侧的收起键收起整个左栏（与分隔条拖到 140 以下同效，
+                    // 窄边上的展开键是还原入口）。
                     ColumnLayout {
                         id: workspaceSection
                         objectName: "workspaceSection"
 
-                        // 展开时树吃掉全部剩余高度；收起时段缩到段头高，
-                        // 空间留白给下方（不另设弹簧项）。
+                        // 树吃掉全部剩余高度；无工作区时空态占位
+                        //（不另设弹簧项）。
                         Layout.fillWidth: true
-                        Layout.fillHeight: workspaceSectionExpanded
+                        Layout.fillHeight: true
                         spacing: theme.spacingXs
 
                         ASectionHeader {
@@ -959,25 +957,16 @@ Item {
 
                             AIconButton {
                                 objectName: "workspaceSectionToggle"
-                                iconSource: "qrc:/icons/chevron-right.svg"
-                                rotation: workspaceSectionExpanded ? 90 : 0
-                                tooltip: workspaceSectionExpanded
-                                        ? qsTr("Hide the file tree")
-                                        : qsTr("Show the file tree")
-                                onClicked:
-                                    workspaceSectionExpanded = !workspaceSectionExpanded
+                                iconSource: "qrc:/icons/chevron-left.svg"
+                                tooltip: qsTr("Hide the workspace tree")
+                                onClicked: {
+                                    if (preset === "prompt")
+                                        promptLeftOpen = false
+                                    else
+                                        documentLeftOpen = false
+                                }
                             }
                         }
-
-                        // 内容容器：收起时整块隐藏（树与两个空态都在里面；
-                        // ListView 自己不许挂 visible——视图自身的可见性
-                        // 翻转在段布局重排时会无限递归（历史缺陷），容器
-                        // 级翻转是验证过的安全路径）。
-                        ColumnLayout {
-                            visible: workspaceSectionExpanded
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: theme.spacingXs
 
                         // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
                         // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
@@ -1160,34 +1149,32 @@ Item {
                         }
                     }
 
-                    // 树的空态与未选态也收进工作区段（段收起时一起藏）。
-                    Label {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 60
-                        visible: tools.currentWorkspace.length > 0
-                                 && tools.model.visibleCount === 0
-                        Layout.margins: theme.spacingM
-                        text: qsTr("The workspace folder is empty or unavailable.")
-                        color: theme.textMuted
-                        font.pixelSize: theme.fontSizeCaption
-                        wrapMode: Text.Wrap
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                        // 树的空态与未选态跟在树后面（无工作区时占位）。
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 60
+                            visible: tools.currentWorkspace.length > 0
+                                     && tools.model.visibleCount === 0
+                            Layout.margins: theme.spacingM
+                            text: qsTr("The workspace folder is empty or unavailable.")
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                            wrapMode: Text.Wrap
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
 
-                    AEmptyState {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 160
-                        visible: tools.currentWorkspace.length === 0
-                        iconSource: "qrc:/icons/folder.svg"
-                        title: qsTr("No workspace selected")
-                        description: qsTr("Add a folder to browse its files and insert references into the prompt.")
-                        actionText: qsTr("Add Folder...")
-                        onActionClicked: workbenchWindow.addWorkspaceViaDialog()
-                    }
-                        }   // 内容容器收尾
-
-                    // workspaceSection 的收尾（段内容到此为止）。
+                        AEmptyState {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 160
+                            visible: tools.currentWorkspace.length === 0
+                            iconSource: "qrc:/icons/folder.svg"
+                            title: qsTr("No workspace selected")
+                            description: qsTr("Add a folder to browse its files and insert references into the prompt.")
+                            actionText: qsTr("Add Folder...")
+                            onActionClicked: workbenchWindow.addWorkspaceViaDialog()
+                        }
+                    // workspaceSection 的收尾（树与两个空态到此为止）。
                     }
                 }
             }

@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
+#include <QUrlQuery>
 
 namespace awb::markdown {
 
@@ -677,14 +678,24 @@ const QVector<MarkdownBlock> &MarkdownPreviewController::blocks() const
 
 /**
  * @brief 预览页面的地址
- * @return awbmd://runtime/app/shell.html
+ * @return awbmd://runtime/app/shell.html（Qt < 6.6 追加 ?lane=push）
  *
  * 视图的 url 由 QML 绑到这里，而不是在 QML 里拼字符串：scheme 名、host 与
- * 资源前缀的定义只有 MarkdownRuntime 一处。
+ * 资源前缀的定义只有 MarkdownRuntime 一处。Qt < 6.6 的构建没有
+ * FetchApiAllowed（见 MarkdownPreviewProvider::registerScheme 的同一个版本
+ * 分支），fetch 车道根本不存在——地址上带 lane=push 提示，页面 boot 读到
+ * 即定格推入车道，省掉那次注定失败的探测 fetch（它只在引擎控制台留一条
+ * "URL scheme awbmd is not supported" 警告，2026-10 用户报告的启动噪声）。
  */
 QUrl MarkdownPreviewController::pageUrl() const
 {
-    return MarkdownRuntime::appUrl(QStringLiteral("shell.html"));
+    QUrl url = MarkdownRuntime::appUrl(QStringLiteral("shell.html"));
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("lane"), QStringLiteral("push"));
+    url.setQuery(query);
+#endif
+    return url;
 }
 
 /**

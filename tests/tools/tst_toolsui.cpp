@@ -561,59 +561,52 @@ private Q_SLOTS:
             4000);
     }
 
-    // 左栏段的收起必须可以还原（2026-10 用户报告「收起键一点整个段消失，
-    // 没有任何办法再展开」）：段容器常驻、只藏内容，段头上的开关是折叠态
-    // 唯一的还原入口。断言两层：收起后段对象仍然可见（旧缺陷把 visible
-    // 绑在段上，收起即整段消失）、段高缩到段头；再点一次开关段高回来。
-    // 2026-10 重组后左栏只剩工作区段，它就是这条纪律的全部现场。
-    void testSectionCollapseKeepsHeaderAndRestores()
+    // 左栏的收起键收起的是**整个左栏**（2026-10 用户报告：段折叠开关是早期
+    // 左栏多段布局的遗留，点它应当与把分隔条拖到最左边同效——左栏缩成
+    // 窄边，窄边上的展开键是收起态唯一的还原入口）。断言三层：收起后左栏
+    // 宽度就是窄边宽（26）、窄边展开键可见（还原入口在场）、再点它左栏
+    // 回到展开宽。拖拽手柄的「拖到 140 以下即收起」与这个按钮收的是同一份
+    // 状态（promptLeftOpen / documentLeftOpen）。
+    void testLeftPanelCollapseAndRestore()
     {
         QString error;
         QQuickWindow *window = nullptr;
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
 
-        // --- 工作区段（默认展开，无工作区时空态占位） ----------------------
-        QQuickItem *const workspace = window->findChild<QQuickItem *>(
-            QStringLiteral("workspaceSection"));
-        QQuickItem *const workspaceToggle = window->findChild<QQuickItem *>(
+        // 提示词预设默认左栏开（本套件的窗口停在提示词模式）。
+        QQuickItem *const panel = window->findChild<QQuickItem *>(
+            QStringLiteral("leftPanel"));
+        QQuickItem *const toggle = window->findChild<QQuickItem *>(
             QStringLiteral("workspaceSectionToggle"));
-        QVERIFY2(workspace, "workspaceSection not found by objectName");
-        QVERIFY2(workspaceToggle, "the workspace header has no toggle");
+        QQuickItem *const restore = window->findChild<QQuickItem *>(
+            QStringLiteral("leftPanelRestoreButton"));
+        QVERIFY2(panel, "leftPanel not found by objectName");
+        QVERIFY2(toggle, "workspaceSectionToggle not found by objectName");
+        QVERIFY2(restore, "leftPanelRestoreButton not found by objectName");
 
-        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height() > 80,
-                                  "the workspace section did not start "
-                                  "expanded", 4000);
-        const qreal workspaceExpanded = workspace->height();
-
-        // 点收起：段可见、开关可见（还原入口还在）、段缩到段头。
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          workspaceToggle->mapToScene(QPointF(
-                              workspaceToggle->width() / 2.0,
-                              workspaceToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height()
-                                      < workspaceExpanded - 40,
-                                  "the workspace section did not collapse",
-                                  4000);
-        QVERIFY2(workspace->isVisible(),
-                 "the collapsed workspace section is invisible — its toggle "
-                 "is gone with it and nothing can expand it again");
-        QVERIFY2(workspaceToggle->isVisible()
-                     && workspaceToggle->height() > 0,
-                 "the workspace toggle must stay visible to re-expand");
-
-        // 再点一次：内容回来。
-        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
-                          workspaceToggle->mapToScene(QPointF(
-                              workspaceToggle->width() / 2.0,
-                              workspaceToggle->height() / 2.0)).toPoint());
-        QTRY_VERIFY2_WITH_TIMEOUT(workspace->height() > 80,
-                                  "the workspace section did not expand back",
+        QTRY_VERIFY2_WITH_TIMEOUT(panel->width() > 200,
+                                  "the left panel did not start expanded",
                                   4000);
 
-        // 收藏与模板段已随左右业务侧栏退役（2026-10）：模板与收藏的入口
-        // 在命令条（Ribbon 的 gallery / 工具栏的模板菜单），左侧只留
-        // 工作区树这一段。收起可还原的纪律由上面的工作区段代表。
+        // 点收起：左栏缩成窄边，段头与开关随之退场（旧实现只折段、左栏
+        // 留着一段空白——那就是用户报告的遗留行为）。
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          toggle->mapToScene(QPointF(
+                              toggle->width() / 2.0,
+                              toggle->height() / 2.0)).toPoint());
+        QTRY_COMPARE_WITH_TIMEOUT(panel->width(), 26.0, 4000);
+        QVERIFY2(restore->isVisible(),
+                 "the strip restore button must stay visible to re-expand");
+
+        // 点窄边展开键：左栏回到展开宽。
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          restore->mapToScene(QPointF(
+                              restore->width() / 2.0,
+                              restore->height() / 2.0)).toPoint());
+        QTRY_VERIFY2_WITH_TIMEOUT(panel->width() > 200,
+                                  "the left panel did not expand back",
+                                  4000);
     }
 
     // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。

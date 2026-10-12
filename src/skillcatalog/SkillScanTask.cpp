@@ -295,7 +295,11 @@ void scanRoot(const SkillRoot &root, const SkillScanParams &params,
     for (const QString &entry : std::as_const(concrete)) {
         const QDir dir(entry);
         if (!dir.exists()) {
-            qWarning().noquote() << QStringLiteral(
+            // 不存在的根是正常跳过而非异常：插件缓存升级后旧版本路径自然
+            // 失效、项目目录默认探测 .agents/.claude 子目录——每次启动按
+            // WARNING 刷屏是误导（2026-10 用户报告的启动噪声）。整根跳过
+            // 已计入 stats 的 skippedRoots，汇总行里看得见。
+            AWB_DEBUG << QStringLiteral(
                 "SkillScanner: root %1 does not exist; skipping it")
                 .arg(entry);
             continue;

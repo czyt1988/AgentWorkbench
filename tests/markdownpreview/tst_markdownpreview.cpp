@@ -158,6 +158,10 @@ Window {
             beaconSink.reportFindResult(payload)
     }
 
+    // 渲染进程的死亡计数：滚动用例的判据之一（renderer 崩了 runJavaScript
+    // 只会沉默，计数把「崩过」变成可断言的事实，而不是只看探针超时）。
+    property int rendererCrashes: 0
+
     WebEngineView {
         objectName: "awbProbeView"
         anchors.fill: parent
@@ -174,6 +178,9 @@ Window {
             // 编译型 QML 的信号处理器里，跨对象根 id 会 ReferenceError——
             // 经 probeWindow 引用（AGENTS.md「QML 契约」同一条纪律）。
             probeWindow.forwardBeacon(String(message))
+        }
+        onRenderProcessTerminated: function (status, exitCode) {
+            probeWindow.rendererCrashes += 1
         }
     }
 }
@@ -303,13 +310,19 @@ public:
             *error = QStringLiteral("the probe view is missing from the QML");
             return false;
         }
-        view->setProperty(
-            "url", MarkdownRuntime::appUrl(QStringLiteral("shell.html"))
-                       .toString());
+        // 与产品同源：url 绑 controller.pageUrl()（含 Qt < 6.6 的车道提示，
+        // 页面侧的 lane 短路分支在本套件里也被真实行使）。
+        view->setProperty("url", controller.pageUrl().toString());
         return true;
     }
 
     MarkdownPreviewController *state() { return &controller; }
+
+    /// 渲染进程的死亡计数（kViewQml 的 onRenderProcessTerminated 记的）
+    int rendererCrashes() const
+    {
+        return topWindow->property("rendererCrashes").toInt();
+    }
 
     /**
      * @brief 问页面一个问题并等回答
@@ -862,6 +875,87 @@ Fourth paragraph.
                               "})()",
                               &reason),
                  qPrintable(reason));
+    }
+
+    /**
+     * @brief 滚到最底不崩渲染进程（Chromium 87 的 content-visibility 合成缺陷）
+     *
+     * 2026-10 用户报告（Qt 5.15.16 / Chromium 87）：预览拉到最底部，渲染进程
+     * 以 compositing_requirements_updater.cc 的 CHECK 失败整只终止——content-
+     * visibility: auto 让屏外块被 display-lock 锁回，而 87 的合成需求更新器
+     * 在锁回与合成状态同步上有缺陷，滚出视口的块一多就撞上 DCHECK。bridge.js
+     * 现按引擎代次退掉旧引擎上的 content-visibility（html.awb-no-cv，见
+     * theme.css）。本用例把现场钉住：长文档挂载完，滚到底、回顶、再到底，
+     * 渲染进程必须全程应答（探针回话 + 死亡计数为零）。修复缺失时（旧引擎
+     * + auto），程序化滚动驱动的是同一批视口相交转换，这一滚就是对实弹。
+     */
+    void testScrollToBottomKeepsRendererAlive()
+    {
+        // 混合形状：标题、段落、代码围栏、表格（README 的成分——用户崩的
+        // 就是它）。96 块足够让「滚到底」真的滚过一批屏外块。
+        QString text;
+        for (int index = 0; index < 16; ++index) {
+            text += QStringLiteral(
+                        "## Section %1\n\n"
+                        "Paragraph %1: the quick brown fox jumps over the "
+                        "lazy dog while a renderer counts block hashes.\n\n"
+                        "```cpp\nint f%1() { return %1; }\n```\n\n"
+                        "| a | b |\n| - | - |\n| %1 | %1 |\n\n")
+                        .arg(index);
+        }
+
+        Page page;
+        QString error;
+        QVERIFY2(page.open(text, &error), qPrintable(error));
+
+        const int blocks = page.state()->blocks().size();
+        QString reason;
+        QVERIFY2(page.waitMounted(blocks, &reason), qPrintable(reason));
+
+        // 滚动高度必须反映真实布局（每块至少 40px 的下限——含标题与表格，
+        // 两种引擎上的真实布局都远高于它）。退化的现场：content-visibility
+        // 挂在 auto 而引擎不认 contain-intrinsic-size 的 auto 关键字
+        //（Chromium 87–97），锁死块零高度占位，整篇 96 块被压进一屏半——
+        // 用户拖滚动条「永远拉不到真正的底」，87 还会在这条锁转换序列上
+        // 崩渲染进程（见用例头注释）。
+        QString heightJson;
+        QVERIFY2(page.probe(QStringLiteral("height"),
+                            QStringLiteral(
+                                "document.documentElement.scrollHeight"),
+                            &heightJson),
+                 "the page did not answer the height probe");
+        const int height = static_cast<int>(jsonTextValue(heightJson).toDouble());
+        QVERIFY2(height >= blocks * 40,
+                 qPrintable(QStringLiteral("scroll height %1 for %2 blocks "
+                                           "means offscreen blocks take no "
+                                           "space (content-visibility "
+                                           "regression)")
+                                .arg(height)
+                                .arg(blocks)));
+
+        // 滚动往返：每步都给合成一帧的时间——display-lock 的锁与解锁排在
+        // 滚动后的渲染更新里，滚完立刻断言会把「还没崩」读成「不会崩」。
+        const char *steps[] = {"document.documentElement.scrollHeight",
+                               "0",
+                               "document.documentElement.scrollHeight"};
+        for (const char *step : steps) {
+            QString answer;
+            QVERIFY2(page.probe(QStringLiteral("scroll"),
+                                QStringLiteral("window.scrollTo(0, %1); "
+                                                "'scrolled'")
+                                    .arg(QString::fromLatin1(step)),
+                                &answer),
+                     "the page did not answer the scroll probe");
+            QTest::qWait(400);
+        }
+
+        // 崩了的 renderer：探针不再回话（上面已挡住一半），窗口的死亡
+        // 计数把另一半也钉死。
+        QString stats;
+        QVERIFY2(page.probe(QStringLiteral("alive"), QStringLiteral(
+                                "AWB.stats().blocks"), &stats),
+                 "the renderer stopped answering after scrolling");
+        QCOMPARE(page.rendererCrashes(), 0);
     }
 
     /**
