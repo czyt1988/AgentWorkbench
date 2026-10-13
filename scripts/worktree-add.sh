@@ -14,6 +14,11 @@
 #     with each other or with the main checkout.
 #   * The local git (2.7.2) has no `git worktree remove`, so --remove does
 #     the equivalent: rm -rf the registered worktree + `git worktree prune`.
+#   * Submodule init recurses into nested submodules. SARibbon is a submodule
+#     that has submodules of its own (3rdparty/qwindowkit → qmsetup →
+#     syscmdline), and the workbench's QML module hard-requires that chain:
+#     stopping at the top level fails at CMake configure time, not at link
+#     time, with an error that does not mention this script.
 #
 # Usage:
 #   bash scripts/worktree-add.sh <branch> [base]    create a worktree
@@ -57,41 +62,51 @@ MAIN_WT=$(worktree_paths | head -n1)
 cd "$MAIN_WT"
 
 # Populate every submodule of the worktree at $1 offline, cloning from the
-# first worktree that already has that submodule checked out.
+# first worktree that already has that submodule checked out. Recurses into
+# nested submodules: SARibbon carries a chain of its own (3rdparty/qwindowkit
+# → qmsetup → syscmdline) and the workbench's QML module hard-requires it, so
+# a worktree that stops at the top level does not merely miss a target — it
+# fails to configure. $2 is the path of the repository being read, relative to
+# the worktree root (empty at the top level); nested commits are recorded in
+# the parent submodule's tree, so the tree to read moves down with it.
 init_submodules() {
     local wt=$1
-    local modfile="$wt/.gitmodules"
+    local rel=${2:-}
+    local dir="$wt${rel:+/$rel}"
+    local modfile="$dir/.gitmodules"
     if [ ! -f "$modfile" ]; then
         return 0
     fi
-    local key path name sha donor p
+    local key path name child sha donor p
     while read -r key path; do
         name=${key#submodule.}
         name=${name%.path}
-        sha=$(git -C "$wt" ls-tree HEAD "$path" | awk '$1 == "160000" {print $3}')
+        child="${rel:+$rel/}$path"
+        sha=$(git -C "$dir" ls-tree HEAD "$path" 2>/dev/null | awk '$1 == "160000" {print $3}')
         if [ -z "$sha" ]; then
             continue    # not recorded in this tree (removed upstream)
         fi
-        if [ "$(git -C "$wt/$path" rev-parse --verify --quiet HEAD 2>/dev/null)" = "$sha" ]; then
-            echo "  submodule: $path @ ${sha:0:7} (already present)"
-            continue
-        fi
-        donor=""
-        while IFS= read -r p; do
-            if [ -e "$p/$path/.git" ]; then
-                donor="$p/$path"
-                break
+        if [ "$(git -C "$wt/$child" rev-parse --verify --quiet HEAD 2>/dev/null)" = "$sha" ]; then
+            echo "  submodule: $child @ ${sha:0:7} (already present)"
+        else
+            donor=""
+            while IFS= read -r p; do
+                if [ -e "$p/$child/.git" ]; then
+                    donor="$p/$child"
+                    break
+                fi
+            done < <(worktree_paths)
+            if [ -z "$donor" ]; then
+                die "no populated checkout of '$child' in any worktree — initialize it in the main worktree first (needs network once): git -C '$dir' submodule update --init $path"
             fi
-        done < <(worktree_paths)
-        if [ -z "$donor" ]; then
-            die "no populated checkout of '$path' in any worktree — initialize it in the main worktree first (needs network once): git submodule update --init $path"
+            # protocol.file.allow：git ≥2.38.1 默认拒绝 file:// 协议的子模块
+            # 克隆（CVE-2022-39253 缓解），本地 donor 路径是合法用途，显式放行。
+            git -C "$dir" -c "submodule.$name.url=$donor" -c protocol.file.allow=always \
+                submodule update --init "$path" >&2 \
+                || die "offline submodule init failed for '$child' (donor: $donor). If the donor lacks commit $sha, fetch it there first (needs network) or pick a base the donor covers."
+            echo "  submodule: $child @ ${sha:0:7} (cloned from $donor)"
         fi
-        # protocol.file.allow：git ≥2.38.1 默认拒绝 file:// 协议的子模块
-        # 克隆（CVE-2022-39253 缓解），本地 donor 路径是合法用途，显式放行。
-        git -C "$wt" -c "submodule.$name.url=$donor" -c protocol.file.allow=always \
-            submodule update --init "$path" >&2 \
-            || die "offline submodule init failed for '$path' (donor: $donor). If the donor lacks commit $sha, fetch it there first (needs network) or pick a base the donor covers."
-        echo "  submodule: $path @ ${sha:0:7} (cloned from $donor)"
+        init_submodules "$wt" "$child"
     done < <(git config -f "$modfile" --get-regexp '^submodule\..*\.path$')
 }
 
