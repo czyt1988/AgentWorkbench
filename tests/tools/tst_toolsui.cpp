@@ -60,11 +60,12 @@ using awb::tools::ToolsFacade;
 // workbench/ui 桩：窗口加载与交互路径只用 notify/copyText/pickFolder
 // 这几个名字，行为不在断言范围内。
 //
-// 预览那两条是例外：文件树右键的「Preview Markdown」条目出不出场、点下去
-// 交出的是哪条路径，全靠 canPreviewMarkdown/previewMarkdown 这两个名字接
-// 得上——名字拼错一个字母，绑定抛 TypeError、条目停在默认值上，窗口加载
-// 的冒烟照样全绿。所以桩把结论交给用例（previewCapable 由 loadPage 灌，
-// askedAbout/previewed 是来路记录）。「哪些后缀归预览管」的真判定在纯层，
+// 预览那三条是例外：文件树右键的「Preview Markdown」条目可不可用、点下去
+// 交出的是哪条路径、双击文件开到哪条车道，全靠 canPreviewMarkdown/
+// previewMarkdown/openLocalFileExternal 这三个名字接得上——名字拼错一个
+// 字母，绑定抛 TypeError、条目停在默认值上，窗口加载的冒烟照样全绿。所以
+// 桩把结论交给用例（previewCapable 由 loadPage 灌，askedAbout/previewed/
+// externallyOpened 是来路记录）。「哪些后缀归预览管」的真判定在纯层，
 // 由 tst_markdown 覆盖，这里不重复实现一遍。
 class WorkbenchStub : public QObject
 {
@@ -73,6 +74,7 @@ public:
     bool previewCapable = false;
     QStringList askedAbout;
     QStringList previewed;
+    QStringList externallyOpened;
 
     Q_INVOKABLE void notify(const QString &, const QString &, const QString &) {}
     Q_INVOKABLE void copyText(const QString &) {}
@@ -94,9 +96,12 @@ public:
         return result;
     }
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
-    // 导出落地回调（onMarkupWritten 用）；本套件不触发导出，只为名字
-    // 解析完整。
-    Q_INVOKABLE void openLocalFileExternal(const QString &) {}
+    // 双击文件树的非 Markdown 文件与导出落地回调（onMarkupWritten）都走
+    // 这里；记录来路供双击用例断言（不真开系统程序）。
+    Q_INVOKABLE void openLocalFileExternal(const QString &path)
+    {
+        externallyOpened.append(path);
+    }
 };
 
 // nav 桩：工作台页是 keepAlive 页，快捷键与回页复查门控在读
@@ -505,9 +510,9 @@ private Q_SLOTS:
             5000);
     }
 
-    // 文件树右键的「Preview Markdown」：workbench 说有预览能力时条目出场，
+    // 文件树右键的「Preview Markdown」：workbench 说有预览能力时条目可用，
     // 真实点击把这一行的绝对路径交给 previewMarkdown。
-    void testTreeRowPreviewMenuItemAppearsAndOpens()
+    void testTreeRowPreviewMenuItemEnabledAndOpens()
     {
         m_previewCapable = true;
         QString error;
@@ -517,9 +522,10 @@ private Q_SLOTS:
         runRowMenuCase(window, tools, true);
     }
 
-    // 同一个菜单在没有预览能力的构建里（workbench 恒答否）：条目不出场，
-    // 也不会因为点在别处而误发预览。
-    void testTreeRowPreviewMenuItemHiddenWithoutCapability()
+    // 同一个菜单在目标不适用时（workbench 恒答否）：条目**可见但禁用**
+    //（2026-10 用户报告：隐藏会让菜单顶部空出一块，且无从得知「动作存在
+    // 但此处不可用」），也不会因为点在别处而误发预览。
+    void testTreeRowPreviewMenuItemDisabledWithoutCapability()
     {
         m_previewCapable = false;
         QString error;
@@ -527,6 +533,129 @@ private Q_SLOTS:
         ToolsFacade *tools = nullptr;
         QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
         runRowMenuCase(window, tools, false);
+    }
+
+    // 双击文件的打开路由（动作层 openFileFromTree）：canPreviewMarkdown
+    // 说「行」时交给 previewMarkdown 开成 tab，说「不行」时交给系统打开
+    // 器。桩不带后缀判定（真判定在纯层，由 tst_markdown 覆盖），两条
+    // 车道就用两种装配各压一条。双击手势本身（TapHandler 的双击识别）
+    // 是框架行为，这里锁页面收到路径后的分车道；路由不碰文件树，无需
+    // 装配工作区。
+    void testTreeDoubleClickOpensFile()
+    {
+        // 车道一：可以预览 → previewMarkdown（新 tab 的入口）。
+        m_previewCapable = true;
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
+        const QString docPath = m_dataRoot->path()
+                + QStringLiteral("/note.md");
+        QFile doc(docPath);
+        QVERIFY(doc.open(QIODevice::WriteOnly));
+        doc.write("# hi\n");
+        doc.close();
+        QVERIFY(QMetaObject::invokeMethod(pageRoot, "openFileFromTree",
+                                          Q_ARG(QVariant, QVariant(docPath))));
+        QVERIFY2(m_workbench->previewed.contains(docPath),
+                 qPrintable(QStringLiteral("openFileFromTree routed ")
+                            + docPath + QStringLiteral(" to ")
+                            + m_workbench->previewed.join(QLatin1Char(';'))
+                            + QStringLiteral(" instead of previewMarkdown")));
+        QVERIFY(m_workbench->externallyOpened.isEmpty());
+
+        // 车道二：不能预览（无能力的构建 / 不归预览管的文件）→ 系统打
+        // 开器；同一个双击入口两种车道，不串。loadPage 会换新的临时数据
+        // 目录，文件跟着新目录重建。
+        m_previewCapable = false;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+        QObject *const pageRoot2 = m_view->rootObject();
+        QVERIFY2(pageRoot2, "no page root in the host view");
+        const QString docPath2 = m_dataRoot->path()
+                + QStringLiteral("/note.md");
+        QFile doc2(docPath2);
+        QVERIFY(doc2.open(QIODevice::WriteOnly));
+        doc2.write("# hi\n");
+        doc2.close();
+        QVERIFY(QMetaObject::invokeMethod(pageRoot2, "openFileFromTree",
+                                          Q_ARG(QVariant, QVariant(docPath2))));
+        QVERIFY2(m_workbench->externallyOpened.contains(docPath2),
+                 qPrintable(QStringLiteral("openFileFromTree routed ")
+                            + docPath2 + QStringLiteral(" to ")
+                            + m_workbench->externallyOpened.join(
+                                  QLatin1Char(';'))
+                            + QStringLiteral(" instead of the system opener")));
+        QVERIFY(m_workbench->previewed.isEmpty());
+    }
+
+    // 右键菜单的「Insert path at cursor」：双击改开文件后，插引用的指针
+    // 入口搬到这里（原双击的行为）。点击后草稿编辑器收到这一行的
+    // `./相对路径` 引用（形状与拖放共用 ToolsFacade::fileReference）。
+    void testTreeRowInsertPathMenuItem()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        const QString root = m_dataRoot->path()
+                + QStringLiteral("/insertws");
+        QVERIFY(QDir().mkpath(root));
+        const QString docPath = QDir(root).filePath(QStringLiteral("note.md"));
+        QFile doc(docPath);
+        QVERIFY(doc.open(QIODevice::WriteOnly));
+        doc.write("# hi\n");
+        doc.close();
+        QVERIFY(tools->addWorkspace(root).ok);
+
+        QQuickItem *const tree = window->findChild<QQuickItem *>(
+            QStringLiteral("fileTree"));
+        QVERIFY(tree);
+        QTRY_VERIFY2(tree->width() > 10 && tree->height() > 10,
+                     "file tree never got a size from the layout");
+        QTRY_COMPARE(tree->property("count").toInt(), 1);
+        QTRY_VERIFY2_WITH_TIMEOUT(rowMenu(tree) != nullptr,
+                                  "the file tree never rendered a row delegate",
+                                  4000);
+
+        // 右键行中心弹出菜单，找「Insert path at cursor」条目。
+        QTest::mouseClick(window, Qt::RightButton, Qt::NoModifier,
+                          tree->mapToScene(QPointF(30, 12)).toPoint());
+        QObject *const menu = rowMenu(tree);
+        QVERIFY2(menu, "treeRowMenu not found by objectName");
+        QTRY_VERIFY2(menu->property("opened").toBool(),
+                     "right-click did not open the tree row menu");
+
+        QObject *insertItem = nullptr;
+        const auto items = menu->findChildren<QObject *>();
+        for (QObject *child : items) {
+            if (child->property("text").toString()
+                    == QStringLiteral("Insert path at cursor")) {
+                insertItem = child;
+                break;
+            }
+        }
+        QVERIFY2(insertItem,
+                 "Insert path at cursor item not found in treeRowMenu");
+        QVERIFY2(insertItem->property("enabled").toBool(),
+                 "Insert path at cursor must be enabled on a file row");
+
+        // 真实点击：草稿编辑器收到 `./note.md`（fileReference 的形状：
+        // 反引号包裹的相对路径）。
+        QQuickItem *const row = qobject_cast<QQuickItem *>(insertItem);
+        QVERIFY2(row, "Insert path at cursor item is not a QQuickItem");
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          row->mapToScene(QPointF(row->width() / 2.0,
+                                                  row->height() / 2.0)).toPoint());
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QString draft = editor->property("text").toString();
+        QVERIFY2(draft.contains(QStringLiteral("`./note.md`")),
+                 qPrintable(QStringLiteral("draft does not contain the file ")
+                            + QStringLiteral("reference: ") + draft.left(120)));
     }
 
     // --- 模板与收藏（M2 的界面冒烟） ---------------------------------------
@@ -1111,8 +1240,9 @@ private:
     }
 
     // 造一个只含 note.md 的工作区，右键那一行让菜单弹出，按 expectPreview
-    // 断言「Preview Markdown」条目的出场；期望出场时再真实点一次，断言交出
-    // 去的是这一行的绝对路径。两个用例共用它，只在装配前换一个开关。
+    // 断言「Preview Markdown」条目的可用态（可见但按需禁用）；可用时再真实
+    // 点一次，断言交出去的是这一行的绝对路径。两个用例共用它，只在装配前
+    // 换一个开关。
     void runRowMenuCase(QQuickWindow *window,
                         ToolsFacade *tools, bool expectPreview)
     {
@@ -1156,10 +1286,12 @@ private:
                 break;
             }
         }
-        // 条目在对象图里一直都在（visible=false 不销毁 delegate），两种构建
-        // 的差别就是这一个布尔——「没有预览能力就没有这一条」的承诺落到它身上。
+        // 条目恒可见（禁用态由 AMenuItem 自绘），两种装配的差别就是
+        // enabled 这一个布尔——「此处不可用」以禁用呈现，不再整条隐藏。
         QVERIFY2(previewItem, "Preview Markdown item not found in treeRowMenu");
-        QCOMPARE(previewItem->property("visible").toBool(), expectPreview);
+        QVERIFY2(previewItem->property("visible").toBool(),
+                 "Preview Markdown item must stay visible, disabled instead");
+        QCOMPARE(previewItem->property("enabled").toBool(), expectPreview);
 
         // 问过 workbench 的正是这一行的路径：后缀判断留在纯层，QML 只问结果。
         const QString rowPath = tools->model()

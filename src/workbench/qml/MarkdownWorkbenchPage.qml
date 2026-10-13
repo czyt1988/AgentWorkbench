@@ -414,6 +414,18 @@ Item {
                              result.error)
     }
 
+    // 双击文件树的一行：打开这个文件。Markdown 走预览域开成新 tab（同
+    // 路径去重、「开满了」的报错都在那边，失败由它发 toast），其余文件
+    // 交给系统默认打开器——文件树的双击语义与系统文件管理器一致；无
+    // 预览能力的构建里 .md 也落到系统打开器（工作台里没有能开它的地
+    // 方）。往草稿插引用的入口是拖放与右键菜单，不再是双击。
+    function openFileFromTree(path) {
+        if (workbench.canPreviewMarkdown(path))
+            workbench.previewMarkdown(path)
+        else
+            workbench.openLocalFileExternal(path)
+    }
+
     // 格式动作与剪贴板动作都作用在当前编辑器上；焦点先归还，输入与
     // 选区写入才落在它身上（与 MarkdownContextMenu.run 同一条纪律）。
     // B1 补全后的全集（kind → MarkdownEdit 动作）。
@@ -996,6 +1008,10 @@ Item {
                             // 行被回收进池子到再次被复用之间为真。模型 reset
                             // 期间 role 会短暂换值，动画要闭嘴。
                             property bool rebinding: false
+                            // 页面引用显式传入：编译型 QML 的 delegate 信号
+                            // 处理器里解析文档根 id 不可靠（fileTab 同一条
+                            // 纪律），菜单动作经它调页面动作层。
+                            property var scope: workbenchWindow
 
                             // role 一律经 required property 声明；index 同理：
                             // Qt 5.15 里声明了任何 required property 后
@@ -1054,16 +1070,12 @@ Item {
                                 }
                             }
 
-                            // 双击文件：在草稿光标处插入引用（目录的双击被
-                            // 两次单击的展开/收起抵消）。
+                            // 双击文件 = 打开它（动作层 openFileFromTree；
+                            // 目录的双击被两次单击的展开/收起抵消）。
                             TapHandler {
                                 onDoubleTapped: {
-                                    if (!treeRow.isDir) {
-                                        promptEditor.insert(
-                                                    promptEditor.cursorPosition,
-                                                    tools.fileReference(
-                                                        treeRow.relativePath))
-                                    }
+                                    if (!treeRow.isDir)
+                                        scope.openFileFromTree(treeRow.path)
                                 }
                             }
 
@@ -1076,23 +1088,33 @@ Item {
                                 }
                             }
 
-                            // 右键：Markdown 文件多一条预览，其余仍是复制路径。
-                            // 条目出不出场交给 workbench.canPreviewMarkdown()——
-                            // 哪些后缀归预览管是纯层的事实，QML 不写后缀判断。
+                            // 右键：预览、插引用、复制路径。条目对本行不适
+                            // 用时**禁用而不隐藏**（2026-10 用户报告：隐藏
+                            // 会让菜单顶部空出一块，且用户无从得知「这个
+                            // 动作存在但此处不可用」）。可用性交给
+                            // workbench.canPreviewMarkdown()——哪些后缀归
+                            // 预览管是纯层的事实，QML 不写后缀判断。
                             AMenu {
                                 id: pathMenu
                                 // tst_toolsui 的锚点：右键弹出后按名字找到这份
-                                // 菜单，再断言「Preview Markdown」条目的出场。
+                                // 菜单，再断言「Preview Markdown」条目的可用态。
                                 objectName: "treeRowMenu"
 
                                 AMenuItem {
-                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                    enabled: workbench.canPreviewMarkdown(treeRow.path)
                                     icon.source: "qrc:/icons/file.svg"
                                     text: qsTr("Preview Markdown")
                                     onTriggered: workbench.previewMarkdown(treeRow.path)
                                 }
-                                AMenuSeparator {
-                                    visible: workbench.canPreviewMarkdown(treeRow.path)
+                                AMenuSeparator {}
+                                // 双击改开文件后，插引用的指针入口（原双击
+                                // 的行为挪到这里）。
+                                AMenuItem {
+                                    icon.source: "qrc:/icons/paste.svg"
+                                    text: qsTr("Insert path at cursor")
+                                    onTriggered: scope.insertTextAtCursor(
+                                        tools.fileReference(
+                                            treeRow.relativePath))
                                 }
                                 AMenuItem {
                                     icon.source: "qrc:/icons/copy.svg"
@@ -1390,6 +1412,7 @@ Item {
                                         const tab = fileTab.modelData
                                         const at = mapToItem(page,
                                                              mouse.x, mouse.y)
+                                        tabContextMenu.tabDocId = tab.docId
                                         tabContextMenu.draftTab
                                                 = tab.draft ? tab.docId : ""
                                         tabContextMenu.popup(at.x, at.y)
@@ -2351,36 +2374,40 @@ Item {
         }
     }
 
-    // --- tab 右键菜单（草稿 tab：重命名/删除；文件 tab：关闭） ------------
+    // --- tab 右键菜单（草稿 tab：重命名/删除；两种 tab 都可关闭） ---------
+    // 草稿专属条目对文件 tab **禁用而不隐藏**（与文件树右键菜单同一条
+    // 纪律，2026-10 用户报告：隐藏会在菜单里留出空白槽位，禁用让「动作
+    // 存在、此处不可用」可见）。关闭对草稿与文件 tab 都生效。
     AMenu {
         id: tabContextMenu
         objectName: "tabContextMenu"
 
-        // 右键落在草稿 tab 上时是草稿 id；空串 = 文件 tab（只给关闭）。
+        // 右键落在草稿 tab 上时是草稿 id；空串 = 文件 tab。docId 两种
+        // tab 都有（关闭动作按它走各自的会话关闭）。
         property string draftTab: ""
+        property string tabDocId: ""
 
         AMenuItem {
-            visible: tabContextMenu.draftTab.length > 0
+            enabled: tabContextMenu.draftTab.length > 0
             icon.source: "qrc:/icons/bold.svg"
             text: qsTr("Rename")
             onTriggered: workbenchWindow.renameCurrentDraft()
         }
         AMenuItem {
-            visible: tabContextMenu.draftTab.length > 0
+            enabled: tabContextMenu.draftTab.length > 0
             icon.source: "qrc:/icons/close.svg"
             text: qsTr("Delete draft")
             onTriggered: workbenchWindow.deleteCurrentDraft()
         }
-        AMenuSeparator {
-            visible: tabContextMenu.draftTab.length > 0
-        }
+        AMenuSeparator {}
         AMenuItem {
             icon.source: "qrc:/icons/close.svg"
             text: qsTr("Close tab")
             onTriggered: {
-                const id = tabContextMenu.draftTab
-                if (id.length > 0)
-                    markdown.closeDraftSession(id)
+                if (tabContextMenu.draftTab.length > 0)
+                    markdown.closeDraftSession(tabContextMenu.draftTab)
+                else if (tabContextMenu.tabDocId.length > 0)
+                    markdown.closeSession(tabContextMenu.tabDocId)
             }
         }
     }
