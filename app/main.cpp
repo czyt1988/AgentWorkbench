@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
     // Logging::uninstall 的落盘。放行第二实例、在这里自己决定去留，两条
     // 路径才都干净。launcher.singleInstance 关掉时不做这个早退，老行为
     // （多开）原样保留。
-    QGuiApplication::setApplicationVersion(QStringLiteral("0.4.0"));
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.5.0"));
     const bool singleInstance = settings.launcherOptions().singleInstance;
     SingleApplication app(argc, argv, true,
                           SingleApplication::Mode::User

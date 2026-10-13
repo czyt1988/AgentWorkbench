@@ -1,8 +1,8 @@
 IDI_ICON1 ICON "../icons/app-icon.ico"
 
 1 VERSIONINFO
- FILEVERSION 0,4,0,0
- PRODUCTVERSION 0,4,0,0
+ FILEVERSION 0,5,0,0
+ PRODUCTVERSION 0,5,0,0
  FILEOS 0x40004L
  FILETYPE 0x1L
  BEGIN
@@ -12,11 +12,11 @@ IDI_ICON1 ICON "../icons/app-icon.ico"
      BEGIN
        VALUE "CompanyName", "AgentWorkbench contributors"
        VALUE "FileDescription", "AgentWorkbench"
-       VALUE "FileVersion", "0.4.0"
+       VALUE "FileVersion", "0.5.0"
        VALUE "InternalName", "AgentWorkbench"
        VALUE "OriginalFilename", "AgentWorkbench.exe"
        VALUE "ProductName", "AgentWorkbench"
-       VALUE "ProductVersion", "0.4.0"
+       VALUE "ProductVersion", "0.5.0"
      END
    END
    BLOCK "VarFileInfo"

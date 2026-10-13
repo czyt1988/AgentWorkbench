@@ -4,10 +4,57 @@ All notable changes to **AgentWorkbench** (called AgentLauncher up to 0.3.0) are
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-10-13
+
+This release makes the Markdown workbench the app's centrepiece: prompt
+writing and the preview share one window again, and with it the whole preview
+lane reaches Qt 5. The prompt page's command bar is rebuilt as a three-tab
+ribbon on SARibbon 3.0, drafts become a set with version history, crash
+recovery, templates, favourites and a checks panel, and the shell gains a
+system tray and a single-instance guard.
 
 ### Changed
 
+- **The prompt page's command bar is grouped into three tabs.** **Start**
+  carries the clipboard, format, list, heading, insert and copy-prompt
+  actions plus the find field; **Prompt** holds the template and favourite
+  galleries, the save actions and the checks/history popups; **View** holds
+  the editor view and the ribbon style (the three-row style is retired). The
+  theme bridge now pushes `theme.chromeBg` as the SARibbon accent — the tab
+  row's background — so the bar matches the app chrome in both themes, and
+  the ribbon icons are tinted data-URL SVGs. The template library sits on
+  SARibbon's own `RibbonGallery`, filled through the upstream dynamic-data
+  API, instead of the self-drawn panel; the format buttons are no longer
+  checkable (a checked state would have to follow the cursor, and the cursor
+  position does not enter a QML binding); and the leftmost application button
+  is gone — it had no action, and the tab strip already names the open
+  document. On the page itself the left panel keeps only the workspace tree,
+  the right panel is gone (checks and history are non-modal popups), **New
+  Draft** moved to the tab strip's `+`, **Rename**/**Delete** moved into the
+  tab context menu, and find is unified: `Ctrl+F` focuses the command bar's
+  find field, while the separate draft find bar and preview search bar are
+  retired.
+- **Double-clicking a file row opens the file.** Markdown files land in a new
+  workbench tab (deduplicated by path, a capacity error is toasted) and every
+  other file — including `.md` in builds without the preview capability —
+  goes to the system's default opener. Inserting a reference moved to the
+  row's context menu as **Insert path at cursor**; drag-and-drop still
+  inserts.
+- **The workspace panel drags and folds as one surface.** Its width is
+  draggable between 180 and 520 px, and dragging past the lower bound
+  collapses it (with hysteresis). The section-header toggle now collapses the
+  entire left panel instead of only the workspace section, which had emptied
+  the panel while leaving its frame behind; the strip's edge button is the
+  single restore entry.
+- **The floating outline is user-shapeable.** A button in its header folds it
+  to the title row (click again to restore), a corner handle drags its height
+  and its left edge drags its width — the right edge stays anchored. Geometry
+  and the collapse flag are page memory, not persisted, like the split share.
+- **Context-menu entries that do not apply are disabled, not hidden.** Hiding
+  left blank slots (the menu's content item is a ListView) and made the
+  actions undiscoverable; **Preview Markdown** on a non-Markdown row and
+  **Rename**/**Delete** on file tabs are now greyed in place. The rule is
+  written into `designs.md`.
 - **The Markdown workbench lives in the main window again.** It is no longer
   a standalone window: the sidebar's **Agent Tools** group is back, and its
   **Prompt Writing** entry opens the workbench as a page inside the main
@@ -51,6 +98,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **The Markdown preview runs on the Qt 5 lane.** It used to exist on Qt 6 +
+  WebEngine only, which left the Qt 5.15 build with a permanently disabled
+  **View** tab and no way to see a rendered document. The adapter, the
+  `:/markdown/` runtime, the pane registration and the preview smoke tests are
+  all built on both majors now. Navigation requests answer through a compat
+  shim (Qt 6 calls `accept()`/`reject()` on the request object, Qt 5 writes
+  its `action` property — a direct call is a `TypeError` there, and the
+  exception silently lets the navigation through), and the MIME table lost its
+  `; charset=utf-8` suffixes: the Qt 5.15 job reply accepts a bare MIME only,
+  and a compound value made the whole response unparseable (the page loaded as
+  empty HTML with every script dropped).
+- **Underline**: Markdown has no plain-text underline marker, so `<u>` is the
+  only portable notation. The preview keeps `html: false` — the injection
+  surface is unchanged — releasing exactly that pair when it closes inside one
+  inline segment, everything else still escapes. The editor writes the pair
+  and reports the cursor's underline state; the highlighter draws it with an
+  underline font.
 - **Multiple drafts**: the prompt side of the workbench now holds **a set of
   drafts, not one** — each in its own tab (draft tabs mix with document
   tabs), each with its own undo history, all auto-saved. **New Draft**,
@@ -150,10 +214,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   Preview/Split/Source, byte-faithful saving, export — living in the same
   shell with its side panels collapsed. A **Full Tools** toggle switches
   presets; the two presets' interface state stays independent while the window
-  lives. The window itself now opens in **every** build (Qt 5, no WebEngine):
-  the prompt form is a plain editor there, while the document form and the
-  preview pane simply do not exist. Still no send path — the window delivers
-  by copy only. The window's QML lives in the workbench domain
+  lives. The window itself opens in **every** build: in a build without
+  WebEngine the prompt form is a plain editor there, while the document form
+  and the preview pane simply do not exist. Still no send path — the window
+  delivers by copy only. The window's QML lives in the workbench domain
   (`src/workbench/qml/`), which is the only layer allowed to span the tools
   and markdown domains; the preview surface is split into
   `MarkdownPreviewPane.qml`, loaded by resource URL only in builds that
@@ -216,11 +280,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   **Open in browser** and HTML export. Settings: `markdown.mode`
   (`preview` / `split` / `source`), `markdown.fontSizePx`,
   `markdown.contentWidthPx`, `markdown.showOutline` — written by the window
-  itself, there is no Settings page UI for them. **Qt 6 + WebEngine builds
-  only**: with `AWB_ENABLE_WEBENGINE=OFF`, or on Qt 5, the menu item does not
-  appear and none of the runtime reaches the binary (otherwise it costs about
-  4 MB, 2.6 MB of which is mermaid, requested only when a document contains a
-  diagram).
+  itself, there is no Settings page UI for them. From this release it runs on
+  both Qt majors; **WebEngine builds only**: with `AWB_ENABLE_WEBENGINE=OFF`
+  the menu item does not appear and none of the runtime reaches the binary
+  (otherwise it costs about 4 MB, 2.6 MB of which is mermaid, requested only
+  when a document contains a diagram).
 - **System tray**: an optional tray icon (Show/Hide/Quit menu, left-click
   toggle, one-time balloon hint) plus a close-choice dialog — while the tray
   is available the app no longer exits on last-window-closed; closing the
@@ -356,6 +420,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Dragging the workspace divider collapsed the tree on the first move.** The
+  width formula subtracted the panel's *current* width instead of the grab
+  offset recorded at press, so every drag landed in the collapse branch; the
+  handle also re-positions itself as the panel resizes, so the width has to be
+  the pointer's absolute position minus the grab offset. A `tst_toolsui`
+  regression case drives real mouse events (+80 widens, past the threshold
+  collapses).
+- **The tab menu's "Close tab" did nothing on file tabs** — it silently
+  returned; it closes them like any other tab now.
+- **The Markdown preview could take its renderer down on Chromium 87–97.**
+  `contain-intrinsic-size: auto …` needs Chromium 98: on older engines the
+  compound declaration is invalid, display-locked offscreen blocks take zero
+  height (the scroll height lies, so the scrollbar is uselessly short), and
+  Chromium 87 crashes on the resulting scroll-driven lock transitions. The
+  page now probes `CSS.supports('contain-intrinsic-size', 'auto 48px')` before
+  the first block mounts and demotes those engines to plain layout — real
+  scroll heights and a live renderer, in exchange for the offscreen-skip win,
+  which only returns where the feature is whole. The lane self-probe no longer
+  leaves a console warning on every start either.
+- **The "Start" tab's icon-only buttons rendered oversized in the loose ribbon
+  style.** SARibbon resolves an unset proportion to a large button, and a
+  large icon-only button stretches its icon over the whole button height. The
+  loose (two-row) style shows those buttons with captions now; the compact
+  single row stays icon-only.
+- **Code Block fenced single-line selections as inline code.** It now always
+  fences whole lines, and with the cursor on an empty line it drops a bare
+  skeleton and parks the caret between the fences.
+- **Skill-root scan noise**: a skill root that does not exist — a plugin
+  cache's old version path, a project without `.claude/` — is a normal skip,
+  not an anomaly, so four WARNING lines per start became debug-level lines.
 - **Icon buttons rendered blurry and oversized**: `AIconButton` used the
   icon `Image` directly as the Control's `contentItem`, so the control
   forced it to 28×28 and `PreserveAspectFit` upscaled the 16 px raster —
