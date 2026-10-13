@@ -226,9 +226,9 @@ Rectangle {
                 // 行被回收进池子到再次被复用之间为真。模型 reset
                 // 期间 role 会短暂换值，动画要闭嘴。
                 property bool rebinding: false
-                // 页面引用显式传入：编译型 QML 的 delegate 信号
+                // 组件根引用显式传入：编译型 QML 的 delegate 信号
                 // 处理器里解析文档根 id 不可靠（fileTab 同一条
-                // 纪律），菜单动作经它调页面动作层。
+                // 纪律），菜单动作经它发本组件的信号。
                 property var scope: root
 
                 // role 一律经 required property 声明；index 同理：
@@ -288,7 +288,7 @@ Rectangle {
                     }
                 }
 
-                // 双击文件 = 打开它（动作层 openFileFromTree；
+                // 双击文件 = 打开它（fileActivated 交给宿主；
                 // 目录的双击被两次单击的展开/收起抵消）。
                 TapHandler {
                     onDoubleTapped: {
