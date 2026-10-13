@@ -23,7 +23,7 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    ASplitHandle)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
-set(_tools_qml MarkdownContextMenu)
+set(_tools_qml MarkdownContextMenu PromptChecksPopup DraftHistoryPopup)
 # The Markdown workbench page lives in the workbench domain: it spans the
 # tools (draft, workspace tree) and markdown (preview session) domains, so
 # only L3 may reference both. Registered in EVERY build — the prompt mode is
@@ -95,6 +95,18 @@ if (AWB_ENABLE_RIBBON)
             QT_RESOURCE_ALIAS "workbench/${name}.qml")
     endforeach()
 endif()
+# Markdown-domain QML that needs no WebEngine: the outline panel is plain
+# QtQuick, so it is registered in EVERY build and the workbench page
+# instantiates it like any other component. Only the preview pane below is
+# capability-gated.
+set(_markdown_qml MarkdownOutlinePanel)
+foreach(name IN LISTS _markdown_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/markdown/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "markdown/${name}.qml")
+endforeach()
+
 # The preview pane is registered only where the feature can actually run:
 # WebEngine builds (both Qt majors), the same condition as the /markdown
 # runtime embed below and MarkdownRuntime::isSupportedBuild(). Elsewhere the

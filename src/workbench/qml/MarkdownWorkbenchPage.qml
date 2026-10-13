@@ -59,11 +59,6 @@ Item {
     // 左栏（工作区文件树）宽度，180–520；拖到下限以下即收起（窄边还原）。
     // 同为页面内状态，不落盘。
     property real leftPanelWidth: 320
-    // 悬浮大纲的几何状态（页面内存态，不落盘——与 editorShare 同一条
-    // 纪律）：收起位、用户拖出的宽度与高度（0 = 未拖过，走默认）。
-    property bool outlineCollapsed: false
-    property real outlinePanelWidth: 224
-    property real outlinePanelHeight: 0
 
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
@@ -270,7 +265,7 @@ Item {
         }
         // 门面把激活位顺延到下一条草稿；渲染会话跟上。
         activateActiveDraftSession()
-        snapshotList.rebuild()
+        historyPopup.rebuild()
     }
 
     // 关掉当前草稿的 tab（关视图不删草稿——与文件 tab 同一语义）。
@@ -295,7 +290,7 @@ Item {
         if (tools.activeDraftId.length === 0 || !promptEditor)
             return
         tools.addSnapshot(tools.activeDraftId, promptEditor.text, "manual")
-        snapshotList.rebuild()
+        historyPopup.rebuild()
         workbench.notify("success", qsTr("Version saved"),
                          qsTr("It is in the draft's history list."))
     }
@@ -317,7 +312,7 @@ Item {
             draftSyncTimer.restart()
         }
         rollbackConfirm.close()
-        snapshotList.rebuild()
+        historyPopup.rebuild()
     }
 
     // --- 预设应用（幂等：onCompleted 与意图写入各走一次也安全） ------------
@@ -1679,228 +1674,21 @@ Item {
                         // --- 悬浮大纲：渲染窗自己的导航（2026-10 自右栏迁来） --
                         // 大纲是「正在读的这份文档」的导航，住在渲染窗右缘、
                         // 悬浮于内容之上：不占布局（塞进右栏会与体检/历史
-                        // 挤扁彼此），也不改分栏比例。通高悬浮会整条盖住右
-                        // 缘的正文，所以面板可收可调：头部右侧的按钮把面板
-                        // 收成一行标题（点击还原）；右下角的手柄拖动调高度；
-                        // 左边界拖动调宽度（几何状态在页面属性上，不落盘）。
+                        // 挤扁彼此），也不改分栏比例。可收可调的那套交互与
+                        // 三个几何状态都在 MarkdownOutlinePanel 里（内存态，
+                        // 不落盘）。
                         // 纯源码态没有渲染窗，大纲随之退场（锚点跳转本来就
                         // 作用于渲染页）。面板自身可见性翻转是安全的（容器
                         // 级，见左栏三段的教训）。
-                        Rectangle {
+                        MarkdownOutlinePanel {
                             id: outlineFloat
                             objectName: "outlineFloat"
 
-                            // 顶部锚定不再锚底：高度由折叠态与用户拖出的
-                            // 高度决定（0 = 通高，保持初见观感）。
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: theme.spacingS
-                            width: workbenchWindow.outlinePanelWidth
-                            height: {
-                                if (workbenchWindow.outlineCollapsed)
-                                    return outlineHeader.implicitHeight
-                                           + theme.spacingS * 2
-                                const full = parent.height - theme.spacingS * 2
-                                return workbenchWindow.outlinePanelHeight > 0
-                                        ? Math.min(
-                                              workbenchWindow.outlinePanelHeight,
-                                              full)
-                                        : full
-                            }
+                            entries: markdown.outline
                             visible: markdown.showOutline && docArea.showsView
-                            // 高不透明：悬浮在正文之上，文字要稳读。
-                            color: theme.alpha(theme.surfaceBg, 0.93)
-                            border.color: outlineEdgeResize.containsMouse
-                                           || outlineGripDrag.containsMouse
-                                  ? theme.borderStrong : theme.borderSubtle
-                            border.width: 1
-                            radius: theme.radiusControl
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: theme.spacingS
-                                spacing: theme.spacingXs
-
-                                // 头部：标题 + 收起开关（收起态下整个面板
-                                // 只剩这一行，开关是唯一的还原入口）。
-                                RowLayout {
-                                    id: outlineHeader
-                                    Layout.fillWidth: true
-                                    spacing: theme.spacingXs
-
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: qsTr("Outline")
-                                        color: theme.textMuted
-                                        font.pixelSize: theme.fontSizeCaption
-                                        font.bold: true
-                                    }
-
-                                    AIconButton {
-                                        objectName: "outlineCollapseButton"
-                                        iconSource: "qrc:/icons/chevron-down.svg"
-                                        // 展开时箭头朝上（点了收起），
-                                        // 收起时朝下（点了展开）。
-                                        rotation: workbenchWindow.outlineCollapsed
-                                                  ? 0 : 180
-                                        tooltip: workbenchWindow.outlineCollapsed
-                                                 ? qsTr("Expand the outline")
-                                                 : qsTr("Collapse the outline")
-                                        onClicked:
-                                            workbenchWindow.outlineCollapsed
-                                            = !workbenchWindow.outlineCollapsed
-                                    }
-                                }
-
-                                // 数据是控制器算好的（level / text / anchor /
-                                // blockIndex），这里只画。点一条走
-                                // scrollToAnchor——页面会把那一块的解析插队
-                                // 到分片队列前面。收起时整块隐藏（Layout 对
-                                // 不可见子项不占位，面板随之缩到标题行）。
-                                ListView {
-                                    id: outlineList
-                                    objectName: "outlineList"
-
-                                    visible: !workbenchWindow.outlineCollapsed
-
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                    clip: true
-                                    boundsBehavior: Flickable.StopAtBounds
-                                    model: markdown.outline
-
-                                    ScrollBar.vertical: AScrollBar {}
-
-                                    delegate: Item {
-                                        id: outlineRow
-
-                                        required property var modelData
-                                        required property int index
-
-                                        width: outlineList.width
-                                        height: 26
-
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            radius: theme.radiusControl
-                                            color: theme.surfaceHoverBg
-                                            visible: outlineHover.hovered
-                                        }
-
-                                        HoverHandler {
-                                            id: outlineHover
-                                        }
-
-                                        TapHandler {
-                                            onSingleTapped: markdown.scrollToAnchor(
-                                                outlineRow.modelData.anchor,
-                                                outlineRow.modelData.blockIndex)
-                                        }
-
-                                        Label {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            // 缩进按标题级别：level 1 不缩进。
-                                            x: theme.spacingS
-                                               + Math.max(0, outlineRow.modelData.level - 1)
-                                                 * theme.spacingM
-                                            width: parent.width - x - theme.spacingS
-                                            text: outlineRow.modelData.text
-                                            color: theme.textPrimary
-                                            font.pixelSize: theme.fontSizeBody
-                                            elide: Text.ElideRight
-                                        }
-                                    }
-
-                                    Label {
-                                        anchors.centerIn: parent
-                                        visible: outlineList.count === 0
-                                        text: qsTr("No headings")
-                                        color: theme.textMuted
-                                        font.pixelSize: theme.fontSizeCaption
-                                    }
-                                }
-                            }
-
-                            // --- 左边界：调宽（视觉只染边框，命中 8px） ------
-                            // 右缘是锚定的：往左拖面板变宽、往右拖变窄。
-                            // 宽度按指针在 docArea 里的位置反推（与分栏
-                            // 分隔条同一条绝对坐标纪律）。
-                            MouseArea {
-                                id: outlineEdgeResize
-                                objectName: "outlineWidthEdge"
-
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                width: 8
-                                cursorShape: Qt.SplitHCursor
-                                hoverEnabled: true
-
-                                onPositionChanged: function(mouse) {
-                                    if (!pressed)
-                                        return
-                                    const at = mapToItem(docArea, mouse.x, 0)
-                                    const edge = docArea.width - theme.spacingS
-                                    workbenchWindow.outlinePanelWidth
-                                            = Math.max(
-                                                  160,
-                                                  Math.min(320, edge - at.x))
-                                }
-                            }
-
-                            // --- 右下角手柄：调高（QSizeGrip 形态） ----------
-                            // 收起态高度只有一行，调高没有意义，手柄退场。
-                            Item {
-                                id: outlineGrip
-                                objectName: "outlineSizeGrip"
-
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                width: 14
-                                height: 14
-                                visible: !workbenchWindow.outlineCollapsed
-
-                                // 三道斜纹：QSizeGrip 的经典记号，主题弱化色
-                                //（纯装饰，命中区是整个 14×14）。主题换色时
-                                // 重画（Canvas 不跟令牌走绑定）。
-                                Canvas {
-                                    anchors.fill: parent
-                                    property color gripColor: theme.textDisabled
-                                    onGripColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d")
-                                        ctx.reset()
-                                        ctx.strokeStyle = gripColor
-                                        ctx.lineWidth = 1.4
-                                        for (var i = 1; i <= 3; ++i) {
-                                            var o = i * 4
-                                            ctx.beginPath()
-                                            ctx.moveTo(width - o - 1, height - 3)
-                                            ctx.lineTo(width - 3, height - o - 1)
-                                            ctx.stroke()
-                                        }
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: outlineGripDrag
-                                    anchors.fill: parent
-                                    cursorShape: Qt.SizeVerCursor
-                                    hoverEnabled: true
-                                    onPositionChanged: function(mouse) {
-                                        if (!pressed)
-                                            return
-                                        const at = mapToItem(docArea, 0, mouse.y)
-                                        const top = outlineFloat.y
-                                        workbenchWindow.outlinePanelHeight
-                                                = Math.max(
-                                                      110,
-                                                      Math.min(
-                                                          docArea.height
-                                                          - theme.spacingS * 2,
-                                                          at.y - top))
-                                    }
-                                }
+                            onAnchorActivated: function(anchor, blockIndex) {
+                                markdown.scrollToAnchor(anchor, blockIndex)
                             }
                         }
                     }
@@ -2056,301 +1844,34 @@ Item {
     // 从右侧栏迁来（2026-10）：体检结果占一整条右栏会把编辑区挤窄，迁成
     // 悬浮窗后它想停多久停多久、不用时关掉即全屏写作。空态分两种：没跑
     // 过给引导（开窗动作会顺路跑一次）；跑过且为空 = 真的没问题。
-    Popup {
+    PromptChecksPopup {
         id: checksPopup
         objectName: "checksPopup"
 
-        // 大纲悬浮面板贴渲染窗右缘（宽 224）：浮窗右移让出它的地盘，
-        // 两个「右侧」不互相盖。
-        x: Math.max(parent.width - width - 248, theme.spacingM)
-        y: 108
-        width: 300
-        height: Math.min(checksColumn.implicitHeight + theme.spacingS * 2,
-                         parent.height - y - theme.spacingM)
-        modal: false
-        closePolicy: Popup.NoAutoClose | Popup.CloseOnEscape
+        results: workbenchWindow.draftCheckResults
         visible: workbenchWindow.checksVisible
 
-        background: Rectangle {
-            color: theme.surfaceBg
-            border.color: theme.borderSubtle
-            border.width: 1
-            radius: theme.radiusCard
-        }
-
-        ColumnLayout {
-            id: checksColumn
-            anchors.fill: parent
-            anchors.margins: theme.spacingS
-            spacing: theme.spacingS
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                Label {
-                    Layout.fillWidth: true
-                    text: qsTr("Checks")
-                    color: theme.textPrimary
-                    font.pixelSize: theme.fontSizeSubtitle
-                    font.bold: true
-                }
-                AIconButton {
-                    iconSource: "qrc:/icons/close.svg"
-                    tooltip: qsTr("Close")
-                    onClicked: workbenchWindow.checksVisible = false
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                visible: workbenchWindow.draftCheckResults === null
-                text: qsTr("Run a check for concrete suggestions.")
-                color: theme.textMuted
-                font.pixelSize: theme.fontSizeCaption
-                wrapMode: Text.Wrap
-            }
-
-            // 命中列表：色点按严重度（0 提示 / 1 提醒 / 2 警告），点行
-            // 跳到编辑区对应区间并选中。「不再提醒」按规则关闭（写
-            // tools.json 的 checks 段），该类命中即刻隐去。
-            ListView {
-                id: checkList
-                objectName: "checkList"
-
-                visible: workbenchWindow.draftCheckResults !== null
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.minimumHeight: 120
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                model: workbenchWindow.draftCheckResults || []
-
-                ScrollBar.vertical: AScrollBar {}
-
-                delegate: Item {
-                    id: checkRow
-
-                    required property var modelData
-                    required property int index
-
-                    // 同 fileTab：作用域显式传入（编译型 QML 的 delegate
-                    // 处理器里文档根 id 会 ReferenceError）。
-                    property var scope: workbenchWindow
-
-                    width: checkList.width
-                    // 两行文字 + 关闭按钮的行高；消息长短不定，按内容给。
-                    height: checkText.implicitHeight
-                            + theme.spacingS
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: theme.radiusControl
-                        color: theme.surfaceHoverBg
-                        visible: checkHover.hovered
-                    }
-
-                    HoverHandler {
-                        id: checkHover
-                    }
-
-                    TapHandler {
-                        // 区间可定位（start >= 0）才可跳转；规则级的
-                        // 命中（如缺验收标准）没有对应区间。
-                        onSingleTapped: {
-                            if (checkRow.modelData.start >= 0)
-                                scope.selectDraftRange(
-                                    checkRow.modelData.start,
-                                    checkRow.modelData.length)
-                        }
-                    }
-
-                    // 严重度色点：提醒用注意色、警告用警示色、提示用弱
-                    // 化色（不抢注意力）。
-                    Rectangle {
-                        x: theme.spacingS
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: checkRow.modelData.severity === 2
-                               ? theme.danger
-                               : (checkRow.modelData.severity === 1
-                                  ? theme.warning : theme.textDisabled)
-                    }
-
-                    Label {
-                        id: checkText
-                        x: theme.spacingS + 14
-                        width: parent.width - x - theme.spacingS - 20
-                        text: checkRow.modelData.message
-                        color: theme.textPrimary
-                        font.pixelSize: theme.fontSizeCaption
-                        wrapMode: Text.Wrap
-                    }
-
-                    AIconButton {
-                        anchors.right: parent.right
-                        anchors.rightMargin: theme.spacingXs
-                        anchors.verticalCenter: parent.verticalCenter
-                        iconSource: "qrc:/icons/close.svg"
-                        tooltip: qsTr("Don't remind me of this again")
-                        onClicked: {
-                            const disabled =
-                                    tools.disabledCheckIds.slice()
-                            disabled.push(checkRow.modelData.ruleId)
-                            tools.disabledCheckIds = disabled
-                            // 关掉即重跑：该类命中从当前清单消失。
-                            scope.runDraftChecks()
-                        }
-                    }
-                }
-
-                Label {
-                    anchors.centerIn: parent
-                    visible: checkList.count === 0
-                    text: qsTr("No issues found.")
-                    color: theme.textMuted
-                    font.pixelSize: theme.fontSizeCaption
-                }
-            }
+        onCloseRequested: workbenchWindow.checksVisible = false
+        onRerunRequested: workbenchWindow.runDraftChecks()
+        onRangeRequested: function(start, length) {
+            workbenchWindow.selectDraftRange(start, length)
         }
     }
 
     // --- 历史悬浮窗（非模态，与体检窗错位） --------------------------------
     // 草稿的快照清单与回滚入口（从右侧栏迁来）。点一版 = 回滚（先确认
     // ——回滚是破坏性替换；当前版会被自动存成 rollback 快照）。
-    Popup {
+    DraftHistoryPopup {
         id: historyPopup
         objectName: "historyPopup"
 
-        // 体检窗在场时排在它下面，两个浮窗不互相盖；不在场时贴右上。
-        x: checksPopup.visible
-           ? checksPopup.x
-           : Math.max(parent.width - width - 248, theme.spacingM)
-        y: checksPopup.visible
-           ? Math.min(checksPopup.y + checksPopup.height + 8,
-                      parent.height - height - theme.spacingM)
-           : 108
-        width: 300
-        height: Math.min(historyColumn.implicitHeight + theme.spacingS * 2,
-                         260)
-        modal: false
-        closePolicy: Popup.NoAutoClose | Popup.CloseOnEscape
+        sibling: checksPopup
         visible: workbenchWindow.historyVisible
 
-        background: Rectangle {
-            color: theme.surfaceBg
-            border.color: theme.borderSubtle
-            border.width: 1
-            radius: theme.radiusCard
-        }
-
-        ColumnLayout {
-            id: historyColumn
-            anchors.fill: parent
-            anchors.margins: theme.spacingS
-            spacing: theme.spacingXs
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: theme.spacingS
-
-                Label {
-                    Layout.fillWidth: true
-                    text: qsTr("History")
-                    color: theme.textPrimary
-                    font.pixelSize: theme.fontSizeSubtitle
-                    font.bold: true
-                }
-                AButton {
-                    objectName: "saveVersionButton"
-                    text: qsTr("Save version")
-                    variant: "ghost"
-                    onClicked: workbenchWindow.saveDraftVersion()
-                }
-                AIconButton {
-                    iconSource: "qrc:/icons/close.svg"
-                    tooltip: qsTr("Close")
-                    onClicked: workbenchWindow.historyVisible = false
-                }
-            }
-
-            ListView {
-                id: snapshotList
-                objectName: "snapshotList"
-
-                Layout.fillWidth: true
-                // 按内容给高并封顶（快照列表是浏览态，不需要吃满浮窗）。
-                implicitHeight: Math.min(contentHeight, 170)
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                spacing: 2
-
-                // 同页内其余列表：JS 数组模型（ObjectModel 是 Qt 6.5+
-                // 类型；数组整体赋值即模型重置）。
-                property var rows: []
-                function rebuild() {
-                    // 按当前草稿重建快照清单（新在前）。
-                    const id = tools.activeDraftId
-                    rows = id.length === 0 ? [] : tools.snapshots(id)
-                }
-
-                model: rows
-                delegate: snapshotRow
-
-                Component {
-                    id: snapshotRow
-
-                    AListRow {
-                        id: histRow
-                        required property var modelData
-
-                        // 同体检行：作用域显式传入。
-                        property var scope: workbenchWindow
-
-                        width: snapshotList.width
-                        rowHeight: 30
-
-                        // 行内容直接注入（AListRow 的内容 RowLayout 负
-                        // 责摆位）。
-                        Label {
-                            Layout.fillWidth: true
-                            // 时间（HH:mm）+ 原因。
-                            text: {
-                                const when = new Date(
-                                    histRow.modelData.createdAt)
-                                const hh = ("0" + when.getHours()).slice(-2)
-                                const mm = ("0" + when.getMinutes()).slice(-2)
-                                return hh + ":" + mm
-                                       + "  ·  "
-                                       + histRow.modelData.reason
-                                       + "  ·  "
-                                       + histRow.modelData.charCount
-                            }
-                            color: theme.textSecondary
-                            font.pixelSize: theme.fontSizeCaption
-                            elide: Text.ElideMiddle
-                        }
-
-                        TapHandler {
-                            onSingleTapped:
-                                scope.rollbackDraftVersion(
-                                    histRow.modelData.createdAt)
-                        }
-                    }
-                }
-
-                Label {
-                    anchors.centerIn: parent
-                    visible: snapshotList.count === 0
-                    text: qsTr("Versions appear when you copy, replace or switch.")
-                    color: theme.textMuted
-                    font.pixelSize: theme.fontSizeCaption
-                    wrapMode: Text.Wrap
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
+        onCloseRequested: workbenchWindow.historyVisible = false
+        onSaveVersionRequested: workbenchWindow.saveDraftVersion()
+        onRollbackRequested: function(createdAt) {
+            workbenchWindow.rollbackDraftVersion(createdAt)
         }
     }
 
@@ -2505,7 +2026,7 @@ Item {
                 draftSyncTimer.stop()
             }
             workbenchWindow.activateActiveDraftSession()
-            snapshotList.rebuild()
+            historyPopup.rebuild()
             workbenchWindow.draftCheckResults = null
         }
 
@@ -2517,7 +2038,7 @@ Item {
                 markdown.setDraftTitle(tools.activeDraftId,
                                        workbenchWindow.draftTitleById(
                                            tools.activeDraftId))
-            snapshotList.rebuild()
+            historyPopup.rebuild()
         }
     }
 

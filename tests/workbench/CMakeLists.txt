@@ -143,6 +143,9 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+        ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
+        ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
+        ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ATextArea.qml
@@ -168,6 +171,12 @@ if (AWB_ENABLE_RIBBON)
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
         PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
+        PROPERTIES QT_RESOURCE_ALIAS "tools/PromptChecksPopup.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
+        PROPERTIES QT_RESOURCE_ALIAS "tools/DraftHistoryPopup.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
+        PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownOutlinePanel.qml")
     foreach(_comp AButton AIconButton ATextArea ATextField AEmptyState AScrollBar
                  ASearchField APill ADialog AConfirmDialog ASectionHeader AListRow
                  AMenu AMenuItem AMenuSeparator AComboBox ASplitHandle)

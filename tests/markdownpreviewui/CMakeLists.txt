@@ -110,7 +110,10 @@ set(_tst_markdownpreviewui_qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
+    ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AIconButton.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASearchField.qml
@@ -135,8 +138,14 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolb
     PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
     PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownPreviewPane.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
+    PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownOutlinePanel.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
+    PROPERTIES QT_RESOURCE_ALIAS "tools/PromptChecksPopup.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
+    PROPERTIES QT_RESOURCE_ALIAS "tools/DraftHistoryPopup.qml")
 foreach(_comp AButton AIconButton ASearchField ATextField ATextArea AScrollBar
              AEmptyState APill ADialog AConfirmDialog ASpotlight ASectionHeader
              AListRow AMenu AMenuItem AMenuSeparator AComboBox ASplitHandle)
