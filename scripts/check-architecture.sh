@@ -23,6 +23,11 @@
 #      "…is not a function" / "read-only property" at click time, which
 #      page-load smoke never exercises (this exact gap hid three broken
 #      sidebar/settings interactions until a manual run found them).
+#   6. Component shelf purity: QML under src/shell/qml/components/ is shared by
+#      every domain, so a shelf component must not reference a domain facade
+#      (tools./markdown./workbench./agents./web./skills./environment.). The
+#      shell's own singletons (theme./ui./nav./shell./notifications.) are its
+#      own and stay allowed.
 
 set -u
 
@@ -170,6 +175,28 @@ for alias in $ALIASES; do
         fail "QML assigns ${alias}.${p} = … but ${hdr} has no WRITE accessor (read-only property; TypeError at click time)"
     done < <(grep -rhoP "\b${alias_re}\.\K[A-Za-z_][A-Za-z0-9_]*(?=\s*=(?!=))" $QML_FILES 2>/dev/null | sort -u)
 done
+
+# --- 6. Component shelf purity ----------------------------------------------
+# src/shell/qml/components/ is shared by every domain: a page in tools, in
+# markdown or in workbench may all use these components. That is exactly why
+# the components must not know about any of those domains — the moment a shelf
+# component reads tools./markdown./workbench./… every consumer drags that
+# domain behind it, and the shelf turns into a second application layer. The
+# shell's own singletons are what the shelf stands on, so it keeps theme.
+# ui. nav. shell. notifications. legal.
+#
+# One `grep` over the whole shelf, not one per facade: process startup is the
+# expensive part of this script on this machine, and 11 facades times 27 files
+# of spawns would add minutes to a gate that already runs for minutes. -H puts
+# the filename in each hit; a full-line comment may name a facade in prose, so
+# those are filtered out and only code counts.
+SHELF_HITS="$(grep -nHE \
+    '(^|[^A-Za-z0-9_.])(tools|markdown|workbench|agents|skills|web|environment|MarkdownEdit|MarkdownPreview|WebProfiles|WebEngineCompat)\.[A-Za-z_]' \
+    src/shell/qml/components/*.qml 2>/dev/null \
+    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//' || true)"
+if [ -n "$SHELF_HITS" ]; then
+    fail "src/shell/qml/components/: shelf components are shared by every domain and must stay domain-free, but these lines reach for a domain facade:"$'\n'"$SHELF_HITS"
+fi
 
 if [[ $status -eq 0 ]]; then
     echo "check-architecture: OK"

@@ -95,13 +95,14 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 ### 依赖方向与门禁
 
-`app → workbench → {shell, agentcatalog, skillcatalog, web, tools, markdown, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。链接 Qt WebEngine 的只有 `*_webengine` 适配器目标（`awb_web_webengine` 与 `awb_markdown_webengine`）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 5 条规则，违反即构建失败：
+`app → workbench → {shell, agentcatalog, skillcatalog, web, tools, markdown, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。链接 Qt WebEngine 的只有 `*_webengine` 适配器目标（`awb_web_webengine` 与 `awb_markdown_webengine`）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 6 条规则，违反即构建失败：
 
 1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web,tools,markdown}` 不许 include `shell/`、`workbench/` 或彼此的目录；
 2. QML 字面颜色：不许 `#rrggbb`/`#rgb`，也不许 `Qt.rgba(<数字>, …)`（`"transparent"` 与 `Qt.rgba(theme.…)` 这类表达式允许）；
 3. i18n：`tr()`/`qsTr()` 的源串必须是 ASCII；
 4. core/theme 纯净：`src/core/`、`src/theme/` 不许出现 `QtQuick`、`QQuick*`、`QQml*`、`Qt6::Quick`、`QtWebEngine`；
-5. QML → C++ 可调用性（见下）。
+5. QML → C++ 可调用性（见下）；
+6. 组件货架纯净：`src/shell/qml/components/` 不许引用领域门面（`tools.`/`markdown.`/`workbench.`/`agents.`/`web.`/`skills.`/`environment.`；shell 自己的 `theme.`/`ui.`/`nav.`/`shell.`/`notifications.` 放行）。
 
 ### QML 契约
 
