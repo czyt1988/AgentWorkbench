@@ -106,7 +106,7 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 
 | 测试 | 覆盖内容 |
 |---|---|
-| `check_architecture` | QML 无字面颜色（十六进制或数字字面量的 `Qt.rgba`）、无反向/横向模块 include、源串只有 ASCII、core/theme 保持与 UI 无关、每个 QML 单例方法调用都有 `Q_INVOKABLE` 且每个属性写入都有 `WRITE` |
+| `check_architecture` | QML 无字面颜色（十六进制或数字字面量的 `Qt.rgba`）、无反向/横向模块 include、源串只有 ASCII、core/theme 保持与 UI 无关、每个 QML 单例方法调用都有 `Q_INVOKABLE` 且每个属性写入都有 `WRITE`、组件货架（`src/shell/qml/components/`）不引用任何领域门面 |
 | `tst_core` | 路径、JSON 读写、设置、日志、进程执行器、脚本执行器、HTTP 探测、插件 manifest 解析、旧数据导入 |
 | `tst_agentcatalog` | 仓库同步语义、模型角色、门面增删改、脚本日志、URL、运行期启动/停止/强制停止 |
 | `tst_theme` | 加载器校验规则、注册表覆盖行为 |

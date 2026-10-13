@@ -133,6 +133,7 @@ The rules that go with the shelf:
 - **Never hand-write a dialog skeleton** — no `Popup` plus overlay background plus `ColumnLayout` plus title, body and buttons. Confirmation goes through `AConfirmDialog`, errors and notices through `AAlertDialog`, and unusual shapes (the three-button exit confirmation) build directly on `ADialog`.
 - **Never hand-write a menu.** `AMenu` plus `AMenuItem` and, for grouping, `AMenuSeparator`.
 - **Never reimplement a status dot**, and never hand-write a themed text field.
+- **A shelf component is domain-free and presentational.** It reads `theme.*` and its own properties, takes its data in through properties and reports intent through signals — never a facade. The shelf is shared by every domain, so a component that reads `tools.` or `markdown.` drags that domain behind every consumer; `check_architecture` rule 6 rejects it at build time. Wanting a facade is the signal that the component is really a *container*: see [Layers and dependencies](layers-and-dependencies.md) for the three tiers and where a container component goes.
 - New general-purpose components go into `src/shell/qml/components/`, are named with an `A` prefix, use theme tokens only, and must be registered both in the `_component_qml` list in `app/CMakeLists.txt` and in `AWB_TS_SOURCES` in `cmake/AwbTranslations.cmake` when they contain `qsTr()`. A page-private component stays under its module's `qml/` directory and does not join the shelf.
 
 ## The AMenu family is the only menu shape

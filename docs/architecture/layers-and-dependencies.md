@@ -104,12 +104,31 @@ Corollary: a domain may not push UI types down into `core` to "share" them. If a
 
 Dependencies point downward: `app → workbench → domains → theme → core`. If you find yourself wanting an upward pointer (a domain calling back into `workbench`, or `core` needing something from `shell`), the answer is a signal or a callback, not an include. Every upward need so far has been solved that way — `WorkbenchContext` connects signals, `BuiltinPages` wires rules, `PluginServices` implements an interface declared in `plugin_api`.
 
+### 5. QML components come in three tiers
+
+The layers above answer "may these two modules know each other". Components answer a different question — "what is this piece of UI allowed to depend on" — and leaving it unanswered is how a single page grows to three thousand lines. Every `.qml` file is one of three things:
+
+| Tier | Reads | Otherwise | Example |
+|---|---|---|---|
+| **Presentational** | its own properties and `theme.*` — never a facade | reports intent through signals | the draggable splitter, the outline panel, the tab strip |
+| **Container** | the facade of **its own domain**, and nothing else | emits a signal wherever it needs another domain, or the page | the workspace tree panel (reads `tools.*`) |
+| **Page** | every facade it needs | — | `MarkdownWorkbenchPage.qml` |
+
+- **A presentational component receives data through properties and reports intent through signals.** That is exactly what makes it reusable by any page in any domain without dragging that domain behind it.
+- **A container component may read its own domain's facade and nothing else.** When it needs to act on another domain, it emits a signal and the page wires it up. This is rule 1 one level down: the file tree must not reach for the preview controller, so it asks its host instead.
+- **A page holds state, actions and wiring**, and it is the only tier allowed to name two domains at once.
+
+Why the split pays: a presentational component drops into a second window with nothing but data, a container component is reusable by any page of its own domain, and the page shrinks to the part that is genuinely about this page. The cost is wiring — a call that used to sit inline in a handler becomes a signal and a connection. Budget for it, and account for every handler: a missed `onX` is a silently dead interaction, because page-load smoke never clicks.
+
+Only presentational components may join the component shelf, and only when they are general-purpose — that is what gate rule 6 checks. A presentational component whose look belongs to one page stays under its module's `qml/` directory, exactly like a container component.
+
 ## Where does new code go?
 
 | You are adding | It belongs in | Because |
 |---|---|---|
 | A new sidebar page for a new domain concept | a new `src/<domain>/` module + registration in `BuiltinPages` | a page's logic is domain logic; `shell` must not learn it |
-| A general-purpose widget used by several pages | `src/shell/qml/components/` (name it `A*`) | the shelf is the only sanctioned place for shared UI |
+| A general-purpose widget used by several pages | `src/shell/qml/components/` (name it `A*`) | the shelf is the only sanctioned place for shared UI, and rule 6 requires it to be domain-free |
+| A widget that belongs to one page, or reads a facade | that module's `qml/` directory | page-private UI is domain UI; see rule 5 for which tier it is |
 | An action that needs two domains (launch this agent *and* open its web UI) | `awb_workbench` / `WorkbenchContext` | the only layer allowed to know both |
 | A dialog, a toast, clipboard access, a native file/folder picker | `awb_shell` (`UiServices`, `Notifications`, `A*` dialogs) | these are UI framework facilities, not domain features |
 | Something that has to render in the embedded browser engine | a domain module for the state, plus a `*_webengine` adapter for the engine | only adapter targets link WebEngine, so an `AWB_ENABLE_WEBENGINE=OFF` build still compiles and simply lacks the capability |
@@ -128,12 +147,15 @@ Dependencies point downward: `app → workbench → domains → theme → core`.
 | 3 | `tr()`/`qsTr()` source strings must be ASCII | the source language is English; non-English source strings silently break translation extraction |
 | 4 | `src/core/` and `src/theme/` must not reference Qt Quick, QML or WebEngine | see rule 2 above; a QML-engine include in `core` is how this rule was originally discovered |
 | 5 | Every `<alias>.<method>(` call in QML must resolve to a `Q_INVOKABLE` method, and `<alias>.<prop> =` must resolve to a `Q_PROPERTY` with `WRITE` | a bare method is not in the meta-object method table: QML throws "…is not a function" at click time, and page-load smoke tests never click. This exact gap hid three broken sidebar/settings interactions until a manual run caught them |
+| 6 | QML under `src/shell/qml/components/` must not reference a domain facade (`tools.`, `markdown.`, `workbench.`, `agents.`, `web.`, `skills.`, `environment.`) | the shelf is shared by every domain, so a shelf component that reads one drags it behind every consumer. `theme.`, `ui.`, `nav.`, `shell.` and `notifications.` belong to the shell, which owns the shelf, and stay legal |
 
 Rule 5 is worth internalising: it is the only one whose violations are invisible to every other check. When you add a method intended for QML, mark it `Q_INVOKABLE`; when you add a property QML will assign, give it a `WRITE` accessor. `tst_shell::testQmlCalledMethodsAreInvokable` reproduces the same class of bug through `QMetaObject::invokeMethod`.
 
+Rules 1 and 6 are the same rule at two scales — modules must not reach sideways, and neither must the components that modules share. Rule 1 covers C++ includes; rule 6 covers the one place where every domain's QML meets, which C++ linking cannot police because all QML compiles into a single module.
+
 ## Three things that look like exceptions but are not
 
-- **`shell` ships `A*` components.** The component shelf lives in `awb_shell` because it is generic UI framework, not because `shell` knows about business. The components themselves reference only `theme.*` tokens and their own properties.
+- **`shell` ships `A*` components.** The component shelf lives in `awb_shell` because it is generic UI framework, not because `shell` knows about business. The components themselves reference only `theme.*` tokens and their own properties — which is not a convention but rule 6, enforced at build time.
 - **`workbench` links every domain.** That is its definition, not a layering violation — it is L3, and the layers below it still do not link each other.
 - **The Markdown workbench is a `keepAlive` page in `Workspace`.** The page QML belongs to `src/workbench/qml/` — the workbench domain, because the page spans two domains (the `tools` draft and the `markdown` preview session) and only L3 may name both. `BuiltinPages` registers it like any other page (id `tools`, under the `Agent Tools` group label), handing `PageDescriptor::source` a resource URL, so the shell never reaches into a domain: `awb_shell` neither links nor includes any domain library, and `Workspace` instantiates the page on its first visit like every other keepAlive page (the Web page being the other one). The page itself loads in **every** build — the prompt form is a plain QML editor — and gates the preview pane (and the whole document form) on the `Markdown` singleton's `available` property, loading that pane by resource URL too, only in builds that registered it. The shell exception this section used to describe (a domain-owned window behind a Loader in `MainWindow.qml`) is gone: the workbench is a plain page again.
 
@@ -141,6 +163,6 @@ Rule 5 is worth internalising: it is the only one whose violations are invisible
 
 - [Architecture overview](index.md) — the module map and runtime assembly.
 - [C++ library design](cpp-design.md) — the patterns that make cross-module contracts safe (facades, model roles, `OpResult`).
-- [Frontend design](frontend-design.md) — the QML side of rules 2 and 5.
+- [Frontend design](frontend-design.md) — the QML side of rules 2, 5 and 6.
 - [Extension points](extension-points.md) — the sanctioned ways to add behaviour without breaking these rules.
 - [Development: Markdown workbench](../development/markdown-workbench.md) — a domain plus its adapter and a window hosted by the shell, i.e. all three rules in one feature.

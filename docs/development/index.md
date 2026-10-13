@@ -108,7 +108,7 @@ ctest runs one executable per module plus the architecture gate:
 
 | Test | Covers |
 |---|---|
-| `check_architecture` | no literal colors in QML (hex or numeric `Qt.rgba`), no reverse/sideways module includes, English-only source strings, core/theme stay UI-free, every QML singleton method call is `Q_INVOKABLE` and every property write has a `WRITE` accessor |
+| `check_architecture` | no literal colors in QML (hex or numeric `Qt.rgba`), no reverse/sideways module includes, English-only source strings, core/theme stay UI-free, every QML singleton method call is `Q_INVOKABLE` and every property write has a `WRITE` accessor, and no component-shelf file references a domain facade |
 | `tst_core` | paths, JSON store, settings, logging, process runner, script runner, HTTP probe, plugin manifest parsing, legacy import |
 | `tst_agentcatalog` | repository sync semantics, model roles, facade CRUD, script logging, URLs, runtime launch/stop/force-stop |
 | `tst_theme` | loader validation rules, registry override behaviour |
