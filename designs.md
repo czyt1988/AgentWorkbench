@@ -160,6 +160,7 @@
 
 - **玻璃质感底座**：半透明 `surfaceBg`（深色 0.90 / 浅色 0.95）让下层内容隐约透出；外扩两层 `overlayBg` 软阴影 + 内缘 1px 高光（仅深色主题）营造悬浮厚度。**不做指针光影跟随**（那是 ASpotlight 的聚光职责，菜单不需要）。Qt Quick 没有 backdrop blur，真模糊跨 Qt 大版本不可移植——半透明 + 顶部反光纱（上半区 `textOnAccent` 极淡纵向渐变）是可移植的折衷近似，不要试图引入 QtGraphicalEffects/Qt5Compat 换真模糊。
 - **条目**：16px 图标槽**恒占位**（无图标条目的文字与有图标条目对齐，Windows 原生惯例）；悬停是 accent 半透明圆角块（内缩 2px），不是整行换底色。
+- **不适用的条目禁用，不隐藏**（2026-10 交互规则）：动作对当前目标不适用时——非 Markdown 文件上的「预览 Markdown」、文件 tab 上的「重命名草稿」，乃至整个功能在本构建缺席时菜单里的那一条——条目**置灰留在原位**（`AMenuItem.enabled`），不要 `visible: false`。两个理由：Menu 的 contentItem 是 ListView，隐藏的子项仍占位、菜单会空出一块（用户看到的就是「菜单顶部一片空白」）；置灰还让「动作存在、此处不可用」可见。构建级缺席只作用于**非菜单表面**（预览面、视图切换器整个不出现）与独立入口（设置里的关联动作），不豁免菜单条目。
 - **顶部工具栏（异型菜单）**：工具行作为第一个子项直接声明普通 `Item`（Menu 的 contentItem 按声明顺序竖排）——**不带背景色**、图标**左对齐**（不居中），与条目融成一个窗口菜单；与条目区之间用 `theme.separator` 极淡分隔线区分（参考 `MarkdownContextMenu`）。
 - 进出场：淡入 + 0.95→1 微展开（`durationFast`）、退出只淡出。动效时长不发明新值。
 - 弹出前把菜单要操作的目标（如编辑器）设进菜单属性（`editorMenu.editor = promptEditor` + `popup(mouse.x, mouse.y)`），动作统一经 `run()`：先关菜单、把焦点还给目标、再执行——否则输入与选区写入落不到目标上。
@@ -211,6 +212,7 @@ ColumnLayout {
 - [ ] 新卡片复刻 §2.3 玻璃卡配方；百级集合的网格用 `GridView` 惰性加载，没有 Flow+Repeater 全量建卡。
 - [ ] 会吞 hover 的子项已并入宿主的聚光判据（面板用计数而非布尔，悬停中被销毁的要补释放）；通高面板的 `ASpotlight` 半径与峰值不透明度按主题覆写、画在内容之下的光不许被实心子背景盖住（§2.4）。
 - [ ] 通用件先查 §3 的表；没有旁路 `AButton`/`ADialog` 写裸件。
+- [ ] 菜单条目对目标不适用时是 `enabled: false` 置灰，不是 `visible: false` 隐藏（§3.1）。
 - [ ] 状态不只靠颜色表达；tooltip 文案是英文源串 + `qsTr()`。
 - [ ] 若页面声明了 `keepAlive`：非当前页时该页的 `ApplicationShortcut` 已全部禁用；布局内子项尺寸经 `implicitWidth`/`implicitHeight` 提供（0x0 创建后的重排会踩掉直接 `width`/`height` 绑定）。
 - [ ] `bash scripts/build.sh --test` 全绿（含 `check_architecture`）。
