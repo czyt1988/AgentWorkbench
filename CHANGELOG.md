@@ -4,6 +4,28 @@ All notable changes to **AgentWorkbench** (called AgentLauncher up to 0.3.0) are
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The Markdown workbench page is broken into components.** The page had
+  grown to three thousand lines; the blocks that could stand on their own are
+  now separate files, placed by which facade they actually need: the workspace
+  tree panel and the two popups are `tools`-domain containers, the floating
+  outline is a presentational `markdown`-domain component, and the draggable
+  divider is `ASplitHandle` on the component shelf. Components take data
+  through properties and report intent through signals, so a host can reuse
+  them without dragging a domain behind it. The page keeps state, actions and
+  wiring only.
+- **`check_architecture` has a sixth rule**: a component-shelf file must not
+  reference a domain facade (`tools.`, `markdown.`, `workbench.`, `agents.`,
+  `web.`, `skills.`, `environment.`). Rule 1 covers C++ includes, but all QML
+  compiles into one module, so the shelf had no gate at all.
+- **Architecture docs gained the three QML component tiers** (presentational /
+  container / page) — `layers-and-dependencies.md` section 5 — and
+  `worktree-add.sh` now initializes SARibbon's nested submodules, without
+  which every new worktree failed at CMake configure time.
+
 ## [0.5.0] - 2026-10-13
 
 This release makes the Markdown workbench the app's centrepiece: prompt

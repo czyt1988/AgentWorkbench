@@ -4,6 +4,23 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，本项目遵循[语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
 
+## [Unreleased]
+
+### 变更
+
+- **Markdown 工作台页拆成了组件。** 这个页面长到了三千行；能独立成件的区块现在
+  各自成文件，并按「它到底依赖哪个门面」落位：工作区文件树面板与两个悬浮窗是
+  `tools` 域的容器件，悬浮大纲是 markdown 域的展示件，可拖分隔条则是组件货架上
+  的 `ASplitHandle`。组件的数据经属性传入、意图经信号报出，宿主复用它们时不必把
+  某个域一起拽过来。页面只剩状态、动作与接线。
+- **`check_architecture` 增加第六条规则**：组件货架里的文件不许引用领域门面
+  （`tools.`、`markdown.`、`workbench.`、`agents.`、`web.`、`skills.`、
+  `environment.`）。规则 1 只管 C++ 的 include，而所有 QML 编进同一个模块，
+  货架此前完全没有门禁。
+- **架构文档补上 QML 组件三层分工**（展示件 / 容器件 / 页面）——见
+  `layers-and-dependencies.md` 第 5 节；`worktree-add.sh` 现在会初始化 SARibbon
+  的嵌套子模块，否则每个新工作树都会在 CMake 配置期失败。
+
 ## [0.5.0] - 2026-10-13
 
 本次版本把 Markdown 工作台做成应用的中心：提示词撰写与预览重新合回一扇窗口，
