@@ -1202,61 +1202,49 @@ Item {
             }
 
             // --- 左栏宽度手柄：视觉 4px，命中 12px -------------------------
-            // 与编辑/预览分栏的分隔条同一交互。拖动在 180–520 之间改宽度；
-            // 拖到 140 以下（带 40px 滞回，避免贴边抖动）收起左栏——展开
-            // 入口留在窄边上。收起态手柄退场（窄边的展开按钮接手）。
-            Item {
+            // 与编辑/预览分栏的分隔条共用 ASplitHandle：同一交互只有一处
+            // 实现，两条分隔条各自的「位置代表什么」留在下面两个处理器里。
+            // 拖动在 180–520 之间改宽度；拖到 140 以下（带 40px 滞回，避免
+            // 贴边抖动）收起左栏——展开入口留在窄边上。收起态手柄退场
+            //（窄边的展开按钮接手）。
+            ASplitHandle {
                 id: leftPanelHandle
                 objectName: "leftPanelHandle"
 
-                implicitWidth: 12
                 Layout.fillHeight: true
-                Layout.preferredWidth: 12
+                Layout.preferredWidth: hitWidth
                 visible: leftOpen
 
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: (parent.width - 4) / 2
-                    width: 4
-                    height: parent.height
-                    radius: 2
-                    color: leftResizeDrag.containsMouse
-                           ? theme.borderStrong : theme.separator
-                }
+                visualWidth: 4
+                barRadius: 2
+                // 坐标换算到承载左栏的那一行：宽度按指针在这一行里的
+                // 绝对位置算。
+                host: workbenchRow
 
-                MouseArea {
-                    id: leftResizeDrag
-                    anchors.fill: parent
-                    cursorShape: Qt.SplitHCursor
-                    hoverEnabled: true
-                    // 抓取点在行内的偏移（按下时记录）。宽度一律按指针的
-                    // 绝对位置算（与 docArea 分隔条同一条纪律），且必须减
-                    // 这个**恒定**的按下偏移：手柄会随面板宽度跟着挪位置，
-                    // 逐事件读 mouse.x 的话它含着本轮拖动的位移，两项相减
-                    // 恒等于面板当前宽度，拖动就成了无操作（早前版本减
-                    // leftPanel.width 更是把任何拖动都算成负宽度、直接收起
-                    // ——2026-10 用户报告「一拖就收起」的根因）。
-                    property real grabOffset: 0
-                    onPressed: function(mouse) {
-                        grabOffset = mapToItem(workbenchRow, mouse.x, 0).x
-                                - leftPanel.width
-                    }
-                    onPositionChanged: function(mouse) {
-                        if (!pressed)
-                            return
-                        const at = mapToItem(workbenchRow, mouse.x, 0)
-                        const width = at.x - grabOffset
-                        if (width < 140) {
-                            if (leftOpen) {
-                                if (preset === "prompt")
-                                    promptLeftOpen = false
-                                else
-                                    documentLeftOpen = false
-                            }
-                            return
+                // 抓取点在行内的偏移（按下时记录）。宽度一律按指针的绝对
+                // 位置算（与 docArea 分隔条同一条纪律），且必须减这个
+                // **恒定**的按下偏移：手柄会随面板宽度跟着挪位置，逐事件
+                // 读局部坐标的话它含着本轮拖动的位移，两项相减恒等于面板
+                // 当前宽度，拖动就成了无操作（早前版本减 leftPanel.width
+                // 更是把任何拖动都算成负宽度、直接收起——2026-10 用户报告
+                // 「一拖就收起」的根因）。
+                property real grabOffset: 0
+
+                onDragStarted: function(x, y) {
+                    leftPanelHandle.grabOffset = x - leftPanel.width
+                }
+                onDragged: function(x, y) {
+                    const width = x - leftPanelHandle.grabOffset
+                    if (width < 140) {
+                        if (leftOpen) {
+                            if (preset === "prompt")
+                                promptLeftOpen = false
+                            else
+                                documentLeftOpen = false
                         }
-                        leftPanelWidth = Math.max(180, Math.min(520, width))
+                        return
                     }
+                    leftPanelWidth = Math.max(180, Math.min(520, width))
                 }
             }
 
@@ -1664,35 +1652,27 @@ Item {
                         }
 
                         // --- 分隔条：视觉 4px，命中 12px -------------------
-                        Rectangle {
+                        // 与左栏宽度手柄同一个 ASplitHandle；这里位置代表
+                        // 比例，换算留在 onDragged 里。
+                        ASplitHandle {
                             id: handle
                             x: docArea.splitX
                             y: 0
                             width: docArea.showsBoth ? theme.spacingXs : 0
                             height: parent.height
                             visible: width > 0
-                            color: splitDrag.containsMouse ? theme.borderStrong
-                                                           : theme.separator
 
-                            MouseArea {
-                                id: splitDrag
-                                width: 12
-                                height: parent.height
-                                x: (parent.width - width) / 2
-                                enabled: docArea.showsBoth
-                                cursorShape: Qt.SplitHCursor
-                                // 用绝对坐标算比例：相对增量要在 docArea
-                                // 坐标系里折，而 x / width 本来就是这里唯一
-                                // 需要的两个数。
-                                onPositionChanged: function(mouse) {
-                                    if (!pressed || !docArea.showsBoth)
-                                        return
-                                    const at = mapToItem(docArea, mouse.x, 0)
-                                    workbenchWindow.editorShare = Math.max(
-                                                0.15,
-                                                Math.min(0.75,
-                                                         at.x / docArea.width))
-                                }
+                            visualWidth: theme.spacingXs
+                            host: docArea
+                            interactive: docArea.showsBoth
+
+                            // 用绝对坐标算比例：相对增量要在 docArea 坐标系
+                            // 里折，而 x / width 本来就是这里唯一需要的两个
+                            // 数。
+                            onDragged: function(x, y) {
+                                workbenchWindow.editorShare = Math.max(
+                                            0.15,
+                                            Math.min(0.75, x / docArea.width))
                             }
                         }
 

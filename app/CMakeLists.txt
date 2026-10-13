@@ -19,7 +19,8 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    AToastStack AStatusDot ATextField AFormLabel AListRow
                    ATextArea AScrollBar AgentAvatar ASpotlight
                    AWorkspaceGlow AMenu AMenuItem AMenuSeparator
-                   AComboBox AColorPicker AColorSwatch AColorField)
+                   AComboBox AColorPicker AColorSwatch AColorField
+                   ASplitHandle)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
 set(_tools_qml MarkdownContextMenu)

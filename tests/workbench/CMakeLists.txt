@@ -158,7 +158,8 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
-        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml
+        ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASplitHandle.qml)
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchRibbon.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
@@ -169,7 +170,7 @@ if (AWB_ENABLE_RIBBON)
         PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
     foreach(_comp AButton AIconButton ATextArea ATextField AEmptyState AScrollBar
                  ASearchField APill ADialog AConfirmDialog ASectionHeader AListRow
-                 AMenu AMenuItem AMenuSeparator AComboBox)
+                 AMenu AMenuItem AMenuSeparator AComboBox ASplitHandle)
         set_source_files_properties(
             ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
             PROPERTIES QT_RESOURCE_ALIAS "components/${_comp}.qml")

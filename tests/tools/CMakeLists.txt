@@ -176,7 +176,8 @@ set(_tst_toolsui_qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenu.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuItem.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AMenuSeparator.qml
-    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml)
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AComboBox.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/components/ASplitHandle.qml)
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
@@ -187,7 +188,7 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/shell/qml/PageHeader.qml
     PROPERTIES QT_RESOURCE_ALIAS "shell/PageHeader.qml")
 foreach(_comp AButton AIconButton ATextArea ATextField AEmptyState AScrollBar
              ASearchField APill ADialog AConfirmDialog ASectionHeader AListRow
-             AMenu AMenuItem AMenuSeparator AComboBox)
+             AMenu AMenuItem AMenuSeparator AComboBox ASplitHandle)
     set_source_files_properties(
         ${CMAKE_SOURCE_DIR}/src/shell/qml/components/${_comp}.qml
         PROPERTIES QT_RESOURCE_ALIAS "components/${_comp}.qml")
