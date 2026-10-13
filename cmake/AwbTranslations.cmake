@@ -71,6 +71,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
+    ${CMAKE_SOURCE_DIR}/src/tools/qml/WorkspaceTreePanel.qml
     # markdown preview (the page's JS strings come from MarkdownRuntime's
     # dictionary instead: lupdate does not see .js/.css files)
     ${CMAKE_SOURCE_DIR}/src/markdown/MarkdownDocument.cpp

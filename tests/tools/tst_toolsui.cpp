@@ -466,13 +466,18 @@ private Q_SLOTS:
         QVERIFY2(handle != nullptr, "leftPanelHandle not found by objectName");
         QVERIFY2(handle->isVisible() && handle->width() > 4,
                  "the left panel handle is not visible or too small");
-        // 页面根（leftPanelWidth / promptLeftOpen 的持有者）：setContent
-        // 把页面根挂成 contentItem 的独子。
+        // 面板本体：宽度状态住在 WorkspaceTreePanel 里（组件化时从页面
+        // 属性搬进去的——它只在面板内部用，搬走后面板才能独立复用）。
+        QQuickItem *const panel = window->findChild<QQuickItem *>(
+            QStringLiteral("leftPanel"));
+        QVERIFY2(panel != nullptr, "leftPanel not found by objectName");
+        // 页面根（promptLeftOpen 的持有者）：setContent 把页面根挂成
+        // contentItem 的独子。
         QQuickItem *const page = window->contentItem()->childItems()
                 .isEmpty() ? nullptr
                            : window->contentItem()->childItems().constFirst();
         QVERIFY2(page != nullptr, "the page root is not on the window");
-        const qreal widthBefore = page->property("leftPanelWidth").toReal();
+        const qreal widthBefore = panel->property("panelWidth").toReal();
         QVERIFY2(page->property("promptLeftOpen").toBool(),
                  "the workspace panel did not start open");
 
@@ -486,11 +491,11 @@ private Q_SLOTS:
         QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier,
                             QPoint(from.x() + 80, from.y()));
         QTRY_VERIFY2_WITH_TIMEOUT(
-            qAbs(page->property("leftPanelWidth").toReal()
+            qAbs(panel->property("panelWidth").toReal()
                  - (widthBefore + 80)) <= 2,
             qPrintable(QStringLiteral("the panel width stayed at ")
                        + QString::number(
-                             page->property("leftPanelWidth").toReal())
+                             panel->property("panelWidth").toReal())
                        + QStringLiteral(" after a +80 drag")), 5000);
         QVERIFY2(page->property("promptLeftOpen").toBool(),
                  "an ordinary widening drag collapsed the panel");

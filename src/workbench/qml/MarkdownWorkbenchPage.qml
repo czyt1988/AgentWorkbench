@@ -56,9 +56,6 @@ Item {
     property string findNeedle: ""
     // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
-    // 左栏（工作区文件树）宽度，180–520；拖到下限以下即收起（窄边还原）。
-    // 同为页面内状态，不落盘。
-    property real leftPanelWidth: 320
 
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
@@ -801,398 +798,48 @@ Item {
             spacing: 0
 
             // --- 左侧：工作区文件树（宽度可拖） ---------------------------
-            // 树是「拿什么素材」的浏览器，不是动作区。宽度经右缘分隔条拖拽
-            //（与编辑/预览分栏同一交互），180–520 之间；页面内存态，不落盘
-            // ——拖一下不该写设置（与 editorShare 同一条纪律）。拖到 180 以
-            // 下、以及段头上的收起键（workspaceSectionToggle），都把整个左
-            // 栏收成窄边——窄边上只留展开按钮，它是收起态唯一的还原入口。
-            // 提示词预设默认开，文档预设默认收起。
-            Rectangle {
+            // 面板本体在 WorkspaceTreePanel 里（树、工作区切换、空态、窄边
+            // 还原按钮、内部宽度）；这里只接线：开合落到两种预设各自的状态
+            //（它们要落盘），预览能力由 workbench 决定。
+            // 宽度经右缘分隔条拖拽（与编辑/预览分栏同一交互）；拖到下限
+            // 以下、以及段头上的收起键，都把整个左栏收成窄边——窄边上只留
+            // 展开按钮，它是收起态唯一的还原入口。提示词预设默认开，文档
+            // 预设默认收起。
+            WorkspaceTreePanel {
                 id: leftPanel
-                objectName: "leftPanel"
 
-                readonly property bool stripMode: !leftOpen
-
-                Layout.fillHeight: true
-                Layout.preferredWidth: stripMode ? 26 : leftPanelWidth
-                Layout.minimumWidth: 26
-                color: stripMode ? theme.chromeBg : theme.surfaceBg
-                border.color: stripMode ? "transparent" : theme.borderSubtle
-                border.width: 1
-                clip: true
-
-                // 窄边：一条竖排的展开按钮（恢复上次宽度）。
-                Item {
-                    anchors.fill: parent
-                    visible: leftPanel.stripMode
-
-                    AIconButton {
-                        objectName: "leftPanelRestoreButton"
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        anchors.topMargin: theme.spacingXs
-                        iconSource: "qrc:/icons/chevron-right.svg"
-                        tooltip: qsTr("Show the workspace tree")
-                        onClicked: {
-                            if (preset === "prompt")
-                                promptLeftOpen = true
-                            else
-                                documentLeftOpen = true
-                        }
-                    }
+                expanded: leftOpen
+                canPreview: function(path) {
+                    return workbench.canPreviewMarkdown(path)
                 }
 
-                // 展开态：头部一排（工作区切换 + 选文件夹 + 刷新）+ 文件树。
-                // 与原提示词页同一套结构，objectName 契约不变。
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-                    visible: !leftPanel.stripMode
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.margins: theme.spacingXs
-                        spacing: theme.spacingXs
-
-                        AComboBox {
-                            id: workspaceCombo
-
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 110
-                            model: tools.workspaces
-                            currentIndex: {
-                                for (let i = 0; i < tools.workspaces.length; ++i) {
-                                    if (tools.workspaces[i] === tools.currentWorkspace)
-                                        return i
-                                }
-                                return -1
-                            }
-                            enabled: tools.workspaces.length > 0
-
-                            // 路径可能很长，中部省略让盘符与末段同时可见。
-                            contentItem: Text {
-                                text: workspaceCombo.displayText
-                                font.pixelSize: theme.fontSizeCaption
-                                color: workspaceCombo.enabled ? theme.textPrimary
-                                                              : theme.textDisabled
-                                verticalAlignment: Text.AlignVCenter
-                                elide: Text.ElideMiddle
-                                leftPadding: 10
-                                rightPadding: 34
-                            }
-
-                            onActivated: function(index) {
-                                tools.currentWorkspace = tools.workspaces[index]
-                            }
-
-                            delegate: ItemDelegate {
-                                id: workspaceChoice
-
-                                required property var modelData
-                                required property int index
-
-                                width: workspaceCombo.width
-                                highlighted: workspaceCombo.highlightedIndex === index
-                                // 弹层底色随 AComboBox 主题化后，条目悬停态也要跟令
-                                // 牌走（默认 ItemDelegate 背景是硬编码浅色系）。
-                                background: Rectangle {
-                                    color: workspaceChoice.hovered
-                                           || workspaceChoice.highlighted
-                                           ? theme.surfaceHoverBg : "transparent"
-                                }
-
-                                contentItem: RowLayout {
-                                    spacing: theme.spacingS
-
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: workspaceChoice.modelData
-                                        color: theme.textPrimary
-                                        font.pixelSize: theme.fontSizeCaption
-                                        elide: Text.ElideMiddle
-                                    }
-
-                                    AIconButton {
-                                        iconSource: "qrc:/icons/close.svg"
-                                        tooltip: qsTr("Remove this workspace")
-                                        onClicked: {
-                                            const result =
-                                                    tools.removeWorkspace(workspaceChoice.modelData)
-                                            if (!result.ok)
-                                                workbench.notify("error",
-                                                                 qsTr("Could not remove the workspace"),
-                                                                 result.error)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // 选工作区文件夹：只放图标，说明走 tooltip。
-                        AIconButton {
-                            iconSource: "qrc:/icons/folder.svg"
-                            tooltip: qsTr("Choose a workspace folder")
-                            onClicked: workbenchWindow.addWorkspaceViaDialog()
-                        }
-
-                        AIconButton {
-                            iconSource: "qrc:/icons/refresh.svg"
-                            tooltip: qsTr("Refresh the file tree")
-                            enabled: tools.currentWorkspace.length > 0
-                            onClicked: tools.refresh()
-                        }
-                    }
-
-                    // --- 段 · 工作区与文件树 --------------------------------
-                    // 左栏唯一的一段，不再有段级折叠（2026-10 用户报告：段折叠
-                    // 是早期左栏多段布局的遗留，收起语义应当属于整个左栏）。
-                    // 段头右侧的收起键收起整个左栏（与分隔条拖到 140 以下同效，
-                    // 窄边上的展开键是还原入口）。
-                    ColumnLayout {
-                        id: workspaceSection
-                        objectName: "workspaceSection"
-
-                        // 树吃掉全部剩余高度；无工作区时空态占位
-                        //（不另设弹簧项）。
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        spacing: theme.spacingXs
-
-                        ASectionHeader {
-                            Layout.fillWidth: true
-                            text: qsTr("Workspace")
-
-                            AIconButton {
-                                objectName: "workspaceSectionToggle"
-                                iconSource: "qrc:/icons/chevron-left.svg"
-                                tooltip: qsTr("Hide the workspace tree")
-                                onClicked: {
-                                    if (preset === "prompt")
-                                        promptLeftOpen = false
-                                    else
-                                        documentLeftOpen = false
-                                }
-                            }
-                        }
-
-                        // 文件树消费扁平投影（FileTreeFlatModel，经 tools.model
-                        // 暴露）：Qt 6.3 的 TreeView 在 Qt 5.15 不存在，两个版本
-                        // 统一用 ListView + depth/expanded role 渲染同一份数据。
-                        // 交互级冒烟（tst_toolsui）经 objectName 定位本树。
-                        ListView {
-                            id: fileTree
-                            objectName: "fileTree"
-
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            visible: tools.currentWorkspace.length > 0
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            model: tools.model
-
-                            ScrollBar.vertical: AScrollBar {}
-
-                        delegate: Item {
-                            id: treeRow
-
-                            width: fileTree.width
-                            height: 28
-
-                            // DropArea 据此识别拖拽来源（见草稿区的 onDropped）。
-                            readonly property bool isFileReferenceDrag: true
-                            // 行被回收进池子到再次被复用之间为真。模型 reset
-                            // 期间 role 会短暂换值，动画要闭嘴。
-                            property bool rebinding: false
-                            // 页面引用显式传入：编译型 QML 的 delegate 信号
-                            // 处理器里解析文档根 id 不可靠（fileTab 同一条
-                            // 纪律），菜单动作经它调页面动作层。
-                            property var scope: workbenchWindow
-
-                            // role 一律经 required property 声明；index 同理：
-                            // Qt 5.15 里声明了任何 required property 后
-                            // contextObject 即被清空，裸 index 会抛
-                            // ReferenceError。
-                            required property string name
-                            required property string path
-                            required property string relativePath
-                            required property bool isDir
-                            required property string iconSource
-                            required property int depth
-                            required property bool expanded
-                            required property bool hasChildren
-                            required property int index
-
-                            Connections {
-                                target: tools.model
-                                function onModelReset() {
-                                    treeRow.rebinding = true
-                                }
-                            }
-                            Component.onCompleted: treeRow.rebinding = false
-
-                            // 拖出文件引用：Automatic 型拖拽，Drag.active 置真
-                            // 即开始（mimeData 在会话开始时求值）。
-                            Drag.dragType: Drag.Automatic
-                            Drag.supportedActions: Qt.CopyAction
-                            Drag.mimeData: {
-                                "text/plain": tools.fileReference(treeRow.relativePath)
-                            }
-                            Drag.active: rowDragHandler.active
-
-                            DragHandler {
-                                id: rowDragHandler
-                                target: null
-                            }
-
-                            // 悬停高亮：读树时逐行反馈落点。
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: theme.radiusControl
-                                color: theme.surfaceHoverBg
-                                visible: rowHover.hovered
-                            }
-
-                            HoverHandler {
-                                id: rowHover
-                            }
-
-                            // 单击目录：切换展开（fetch 兜底在模型的
-                            // toggleExpanded 内部完成）。
-                            TapHandler {
-                                onSingleTapped: {
-                                    if (treeRow.isDir)
-                                        tools.model.toggleExpanded(index)
-                                }
-                            }
-
-                            // 双击文件 = 打开它（动作层 openFileFromTree；
-                            // 目录的双击被两次单击的展开/收起抵消）。
-                            TapHandler {
-                                onDoubleTapped: {
-                                    if (!treeRow.isDir)
-                                        scope.openFileFromTree(treeRow.path)
-                                }
-                            }
-
-                            // 右键复制路径：只吃右键，左键留给上面的 TapHandler。
-                            MouseArea {
-                                anchors.fill: parent
-                                acceptedButtons: Qt.RightButton
-                                onClicked: function(mouse) {
-                                    pathMenu.popup(mouse.x, mouse.y)
-                                }
-                            }
-
-                            // 右键：预览、插引用、复制路径。条目对本行不适
-                            // 用时**禁用而不隐藏**（2026-10 用户报告：隐藏
-                            // 会让菜单顶部空出一块，且用户无从得知「这个
-                            // 动作存在但此处不可用」）。可用性交给
-                            // workbench.canPreviewMarkdown()——哪些后缀归
-                            // 预览管是纯层的事实，QML 不写后缀判断。
-                            AMenu {
-                                id: pathMenu
-                                // tst_toolsui 的锚点：右键弹出后按名字找到这份
-                                // 菜单，再断言「Preview Markdown」条目的可用态。
-                                objectName: "treeRowMenu"
-
-                                AMenuItem {
-                                    enabled: workbench.canPreviewMarkdown(treeRow.path)
-                                    icon.source: "qrc:/icons/file.svg"
-                                    text: qsTr("Preview Markdown")
-                                    onTriggered: workbench.previewMarkdown(treeRow.path)
-                                }
-                                AMenuSeparator {}
-                                // 双击改开文件后，插引用的指针入口（原双击
-                                // 的行为挪到这里）。
-                                AMenuItem {
-                                    icon.source: "qrc:/icons/paste.svg"
-                                    text: qsTr("Insert path at cursor")
-                                    onTriggered: scope.insertTextAtCursor(
-                                        tools.fileReference(
-                                            treeRow.relativePath))
-                                }
-                                AMenuItem {
-                                    icon.source: "qrc:/icons/copy.svg"
-                                    text: qsTr("Copy relative path")
-                                    onTriggered: workbench.copyText(treeRow.relativePath)
-                                }
-                                AMenuItem {
-                                    icon.source: "qrc:/icons/copy.svg"
-                                    text: qsTr("Copy absolute path")
-                                    onTriggered: workbench.copyText(treeRow.path)
-                                }
-                            }
-
-                            // 展开箭头：收起朝右，展开转 90 度朝下。
-                            Image {
-                                x: 4 + treeRow.depth * 16
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 14
-                                height: 14
-                                source: "qrc:/icons/chevron-right.svg"
-                                // sourceSize 与显示尺寸一致：SVG 不设时按
-                                // 24px 自然尺寸栅格再缩小绘制，箭头会发糊。
-                                sourceSize: Qt.size(14, 14)
-                                visible: treeRow.hasChildren
-                                rotation: treeRow.expanded ? 90 : 0
-
-                                Behavior on rotation {
-                                    enabled: !treeRow.rebinding
-                                    NumberAnimation {
-                                        duration: theme.durationFast
-                                    }
-                                }
-                            }
-
-                            // 图标由模型按文件名/后缀查表给出（见 FileIcons）。
-                            Image {
-                                x: 4 + treeRow.depth * 16 + 18
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 16
-                                height: 16
-                                source: treeRow.iconSource
-                                sourceSize: Qt.size(16, 16)
-                            }
-
-                            Label {
-                                x: 4 + treeRow.depth * 16 + 40
-                                width: parent.width - x - 4
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: treeRow.name
-                                color: theme.textPrimary
-                                font.pixelSize: theme.fontSizeCaption
-                                elide: Text.ElideMiddle
-                            }
-                        }
-                    }
-
-                        // 树的空态与未选态跟在树后面（无工作区时占位）。
-                        Label {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 60
-                            visible: tools.currentWorkspace.length > 0
-                                     && tools.model.visibleCount === 0
-                            Layout.margins: theme.spacingM
-                            text: qsTr("The workspace folder is empty or unavailable.")
-                            color: theme.textMuted
-                            font.pixelSize: theme.fontSizeCaption
-                            wrapMode: Text.Wrap
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        AEmptyState {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 160
-                            visible: tools.currentWorkspace.length === 0
-                            iconSource: "qrc:/icons/folder.svg"
-                            title: qsTr("No workspace selected")
-                            description: qsTr("Add a folder to browse its files and insert references into the prompt.")
-                            actionText: qsTr("Add Folder...")
-                            onActionClicked: workbenchWindow.addWorkspaceViaDialog()
-                        }
-                    // workspaceSection 的收尾（树与两个空态到此为止）。
-                    }
+                onExpandRequested: {
+                    if (preset === "prompt")
+                        promptLeftOpen = true
+                    else
+                        documentLeftOpen = true
+                }
+                onCollapseRequested: {
+                    if (preset === "prompt")
+                        promptLeftOpen = false
+                    else
+                        documentLeftOpen = false
+                }
+                onAddWorkspaceRequested: workbenchWindow.addWorkspaceViaDialog()
+                onFileActivated: function(path) {
+                    workbenchWindow.openFileFromTree(path)
+                }
+                onReferenceRequested: function(reference) {
+                    workbenchWindow.insertTextAtCursor(reference)
+                }
+                onCopyRequested: function(text) {
+                    workbench.copyText(text)
+                }
+                onPreviewRequested: function(path) {
+                    workbench.previewMarkdown(path)
+                }
+                onNotifyRequested: function(level, title, body) {
+                    workbench.notify(level, title, body)
                 }
             }
 
@@ -1239,7 +886,7 @@ Item {
                         }
                         return
                     }
-                    leftPanelWidth = Math.max(180, Math.min(520, width))
+                    leftPanel.panelWidth = Math.max(180, Math.min(520, width))
                 }
             }
 

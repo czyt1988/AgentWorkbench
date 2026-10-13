@@ -23,7 +23,8 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    ASplitHandle)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
-set(_tools_qml MarkdownContextMenu PromptChecksPopup DraftHistoryPopup)
+set(_tools_qml MarkdownContextMenu PromptChecksPopup DraftHistoryPopup
+                WorkspaceTreePanel)
 # The Markdown workbench page lives in the workbench domain: it spans the
 # tools (draft, workspace tree) and markdown (preview session) domains, so
 # only L3 may reference both. Registered in EVERY build — the prompt mode is
