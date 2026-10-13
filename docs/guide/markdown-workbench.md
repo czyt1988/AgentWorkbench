@@ -7,10 +7,10 @@ Find it in the sidebar under the **Agent Tools** label, as the row **Prompt Writ
 ## Opening the workbench
 
 - **From the sidebar.** Click **Prompt Writing** (under **Agent Tools**). The workbench fills the work area; the first visit takes a moment to set itself up, after that switching back is instant.
-- **From a file.** In the file tree, **right-click a `.md` or `.markdown` file** and choose **Preview Markdown**. The workbench opens with that document as a new tab.
+- **From a file.** In the file tree, **double-click a `.md` or `.markdown` file**, or **right-click it** and choose **Preview Markdown**. The workbench opens with that document as a new tab.
 - **From a double-click.** Once the app is associated with Markdown files (see [Settings](settings.md)), double-clicking a `.md` file in your file manager opens it here. If the app is already running, the file opens as a new tab and the app comes to the front; otherwise the app starts and shows it. **What starts is the full application** — the whole window with the sidebar — not a lightweight viewer, so give it the usual start-up moment.
 
-**Why is there no Preview Markdown entry?** Two possibilities: the file is not a Markdown file by extension, or this build of the app cannot preview at all — the preview needs the version that embeds a browser engine. When the capability is missing the entry never appears, so there is nothing to discover and fail at.
+**Why is Preview Markdown greyed out?** Two possibilities: the file is not a Markdown file by extension, or this build of the app cannot preview at all — the preview needs the version that embeds a browser engine. The entry stays in the menu either way, disabled rather than hidden, so an unusable action never leaves a blank gap where it used to be.
 
 ## The two shapes
 
@@ -50,7 +50,7 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
 1. Pick a folder from the workspace menu at the top of the file tree, or click the **folder button** (tooltip **Choose a workspace folder**) beside it to add one.
 2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
-3. Bring in files from the tree: **drag a file row into the editor**, or **double-click a file row**. This inserts a reference to that file, written as `` `./relative/path` ``, at the cursor.
+3. Bring in files from the tree: **drag a file row into the editor**, or **right-click a file row** and choose **Insert path at cursor**. Either way a reference to that file, written as `` `./relative/path` ``, lands at the cursor. Double-clicking a file row does something else now: it **opens** the file (a Markdown file becomes a new document tab; anything else goes to the app your system associates with it).
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
 **Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there.
@@ -206,9 +206,9 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 ## Using the file tree
 
 - **Click a folder** to expand or collapse it. Folders with contents show an arrow.
-- **Double-click a file** to insert a reference to it into the draft.
+- **Double-click a file** to open it: a Markdown file opens as a new document tab in the workbench, any other file opens with whatever app your system associates with it.
 - **Drag a file row** into the draft to insert its reference at the drop point.
-- **Right-click a file row** for **Copy relative path** or **Copy absolute path**. On a Markdown file the menu also offers **Preview Markdown**. The entry only appears when this build can preview and the file is a Markdown file by extension.
+- **Right-click a file row** for **Preview Markdown**, **Insert path at cursor**, **Copy relative path** or **Copy absolute path**. **Insert path at cursor** puts the file's `` `./relative/path` `` reference into the draft where your cursor is. **Preview Markdown** is greyed out when the file is not a Markdown file by extension or when this build cannot preview — it stays visible, disabled rather than hidden.
 - The tree refreshes automatically when files change; the refresh button next to the workspace menu forces a refresh.
 
 ## Managing workspace folders

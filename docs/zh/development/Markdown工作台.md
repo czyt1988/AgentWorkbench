@@ -2,7 +2,7 @@
 
 Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提示词撰写页与 Markdown 预览窗合为一体：一个页面、两种预设、多个会话。**提示词模式**对着工作区文件树撰写提示词；**文档模式**阅读并编辑 Markdown 文件，一个文件一个 tab。它从侧栏 **Agent Tools** 分组下的 **Prompt Writing** 条目、工作区文件树、或系统文件管理器里双击已关联的 `.md` 文件进入。它是 `keepAlive` 页：首次进入时创建，之后常驻到应用关闭——编辑器的撤销栈、滚动位置与分屏比例在切页之间原样保留。
 
-它为三个具体理由而存在。在提示词里引用文件，通常要手拼相对路径——文件树经拖放或双击插入 `` `./相对路径` `` 引用。直接把提示词敲进 agent CLI，有在半成品上误触回车的风险——因此工作台**没有发送动作**：回车只换行，什么都不会离开这个页面，交付只有复制。以及：几百 KB 的文档，首屏时间被**第一趟**而不是**整篇文档**决定——「渲染器：分趟、攒批与可见性」一节写的是这句承诺怎么兑现，数字与实验过程记在调研记录里（`docs/research/markdown-preview-runtime.md`，调研记录只写英文、不做镜像）。
+它为三个具体理由而存在。在提示词里引用文件，通常要手拼相对路径——文件树经拖放或右键菜单的「Insert path at cursor」插入 `` `./相对路径` `` 引用（双击留给**打开**文件：Markdown 开成新文档 tab，其余交给系统默认打开器）。直接把提示词敲进 agent CLI，有在半成品上误触回车的风险——因此工作台**没有发送动作**：回车只换行，什么都不会离开这个页面，交付只有复制。以及：几百 KB 的文档，首屏时间被**第一趟**而不是**整篇文档**决定——「渲染器：分趟、攒批与可见性」一节写的是这句承诺怎么兑现，数字与实验过程记在调研记录里（`docs/research/markdown-preview-runtime.md`，调研记录只写英文、不做镜像）。
 
 用户视角见 [Markdown 工作台](../guide/Markdown工作台.md)。
 架构背景见 [分层与依赖](../architecture/分层与依赖.md) 与
@@ -20,7 +20,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
   2026-10 的重组拆掉了两侧业务侧栏：左栏只剩工作区文件树，右栏整个移除——编辑区占满中栏。体检与草稿历史改为**非模态悬浮窗**（从命令条「提示词」页打开，可关、从不挡操作），大纲仍是**渲染窗右缘的悬浮面板**——跟进轮起可收成一行标题、可拖动调大小（服务**活跃会话**——草稿也有标题）。从侧栏进入得到提示词模式；从工作区文件树打开一份 Markdown 文件得到文档模式（或让活着的工作台切到那个文件）；点草稿或文件 tab 切到各自的预设。渲染不了的文档预设（无能力、无文件 tab）会退回提示词模式，而不是亮出一片坏区。用户视角里没有「模式」这个概念——只有同一个工作台、工具多一点少一点。
 - **页面常驻，会话也常驻。** 页面是 `Workspace` 常驻 Repeater 里的一个 `keepAlive` 条目：首次进入（导航或预览请求）时实例化，之后活到进程退出，别的页面在前面时仅仅隐藏。`Component.onCompleted` 报一次 `MarkdownPreviewController::notifyWindowOpened()`——从此控制器排队命令，页面里的 `Connections` 即使在隐藏状态也泵它们（预览面活着，往返照常；没有任何东西要等到重新可见才处理）。一轮运行里会话从不睡觉；它们随进程一起死。只有关 tab 才真正销毁一个会话。常驻的代价是一个 WebEngine 视图（连带它那约 4 MB 的运行时）在首次进入后一直温着——这是「切页不丢写作现场」的价格，也是页面**不**在启动时就创建的原因：只有用户第一次需要它时它才存在。
-- **提示词模式在每种构建里都可用。** 它是纯 QML 编辑器加高亮；Qt 5 与无 WebEngine 的构建里预览面根本不装载（进程里不存在 `WebEngineView`）、视图切换器不出现，文档模式的入口如实降级——文件树的菜单项不出现，打开请求报出原因（见「能力门禁」一节）。
+- **提示词模式在每种构建里都可用。** 它是纯 QML 编辑器加高亮；Qt 5 与无 WebEngine 的构建里预览面根本不装载（进程里不存在 `WebEngineView`）、视图切换器不出现，文档模式的入口如实降级——文件树的菜单项可见但禁用（2026-10 起：目标不适用是禁用，不是隐藏），打开请求报出原因（见「能力门禁」一节）。
 - **一个渲染面，多个会话。** 控制器是会话容器：每个会话带着自己的文档、块序列、大纲、rev、每 tab 三态与导出目录，按 `docId` 寻址。同一时刻只有一个**活跃会话**；切换会话整篇重建页面（`setDocument`）。`doc.json` 供活跃会话，而 `asset/<docId>/…` 对**所有活着的会话**解析——刚切走的 tab 的图片请求可能还在飞。每个内嵌视图都是一个 Chromium 帧、各自带着渲染进程那侧的内存，所以只有一个且复用，不做池化。
 - **文件 tab 上限 8 个。** 同一路径再开是激活既有 tab（按绝对路径去重）；开第 9 份会被拒绝并说明原因，而不是静默挤掉最久没看的——用户正在改的 tab 不该因为又开了一份文件而消失。
 - **存盘不能改写文件。** 一份 CRLF + BOM 的 README，Ctrl+S 之后必须还是 CRLF + BOM——文档管线在载入时记下字节形态、存盘时按原样编回（见「纯层」一节）。草稿则从不直接碰文件系统：它活在 `tools.json` 里。
@@ -121,7 +121,7 @@ sequenceDiagram
 
 ## 文件 tab 条
 
-中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则），处理器经 delegate 根上的 `scope` 属性调页面动作层——编译型页面（qmlcachegen）里 delegate 信号处理器直接写文档根 id（`workbenchWindow`）会抛 `ReferenceError`（2026-10 缺陷：解释器与编译引擎对此不一致，UI 测试因此漏抓）。**页面引用要在触碰模型之前先取进局部变量**：`activateSession` / `switchDraftTo` 同步发 `tabsChanged`，tab 条的 Repeater 随之重建、当前 delegate 的作用域当场失效——模型变更之后再解析 `scope` 同样抛 `ReferenceError`（2026-10 用户报的「点文件 tab 左栏整个收起」就是它：预设切换死在 handler 半路）；局部变量活在 JS 栈上，不受 delegate 销毁影响。tab 条右端是**新建草稿（+）**——新建住在这里、不住 ribbon——与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。tab 条只回答「在哪份文档」，「怎么看」的一切住在命令条**视图**页。草稿 tab 右键出菜单（**Rename / Delete draft / Close tab**）；文件 tab 右键只有 **Close tab**。
+中间区顶部那条渲染 `markdown.tabs`：一个**文件或草稿**会话一个 delegate——标题、脏圆点（不只靠颜色）和关闭按钮（`AIconButton`）。点 tab 激活该会话并切到文档预设；delegate 的根是普通 `Item`、视觉放在子项里（required-property 遮蔽规则），处理器经 delegate 根上的 `scope` 属性调页面动作层——编译型页面（qmlcachegen）里 delegate 信号处理器直接写文档根 id（`workbenchWindow`）会抛 `ReferenceError`（2026-10 缺陷：解释器与编译引擎对此不一致，UI 测试因此漏抓）。**页面引用要在触碰模型之前先取进局部变量**：`activateSession` / `switchDraftTo` 同步发 `tabsChanged`，tab 条的 Repeater 随之重建、当前 delegate 的作用域当场失效——模型变更之后再解析 `scope` 同样抛 `ReferenceError`（2026-10 用户报的「点文件 tab 左栏整个收起」就是它：预设切换死在 handler 半路）；局部变量活在 JS 栈上，不受 delegate 销毁影响。tab 条右端是**新建草稿（+）**——新建住在这里、不住 ribbon——与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。tab 条只回答「在哪份文档」，「怎么看」的一切住在命令条**视图**页。草稿与文件 tab 共用一份右键菜单（**Rename / Delete draft / Close tab**）；草稿专属条目在文件 tab 上**禁用而不隐藏**——隐藏会在菜单里留出空白槽位、也让动作无从被发现（2026-10 的交互规则：目标不适用是禁用，只有构建级缺席的功能才可以整个消失）——**Close tab** 对两种会话都生效。
 
 草稿 tab 与文件 tab 混排。会话文件在文件 tab 的路径旁边用 `draftId` 记草稿 tab；草稿已从 `tools.json` 删除的 tab 恢复时跳过——与「文件不存在跳过」同一条容错纪律。**关草稿 tab 不删草稿**：`tools.json` 记录还在，再开即回；删草稿是一个显式、要确认、不可撤销的动作（快照与恢复副本一起走）。页面把预设与会话耦合：提示词预设激活当前草稿的会话，文档预设激活用户上次看的文件会话（`lastFileDocId`——prompt ⇄ document 来回切时回到正在读的那份，而不是最新打开的）。
 
@@ -142,7 +142,7 @@ sequenceDiagram
 
 三件套，仅 Windows，都不做轻量查看器：
 
-1. **命令行。** `app/main.cpp` 扫描参数里真实存在、后缀认作 Markdown 的路径（`isMarkdownPath()`——与文件树菜单项同一个后缀判定），UI 装载完成后逐条经 `previewMarkdown()` 开成 tab。无能力的构建如实弹原因 toast，与在那里点右键一样。
+1. **命令行。** `app/main.cpp` 扫描参数里真实存在、后缀认作 Markdown 的路径（`isMarkdownPath()`——与文件树菜单项、双击同一个后缀判定），UI 装载完成后逐条经 `previewMarkdown()` 开成 tab。无能力的构建如实弹原因 toast；那种构建里树的菜单项是禁用的、双击退到系统打开器，所以 toast 只能从命令线来。
 2. **单实例消息。** 带文件参数的第二实例不再发裸 `"raise"`，而是 `"open:<JSON 路径数组>"`（`WorkbenchContext::encodeOpenMessage()` / `decodeOpenMessage()`；无请求时仍是 `"raise"`）。首实例逐条开成 tab 并导航到工作台页（`WorkbenchContext::previewMarkdown()` 的最后一步是 `showPage("tools")`）。
 3. **设置页动作。** **关联 .md 文件**（启动器分区）只写 HKCU：ProgId `AgentWorkbench.Markdown.1` 的 `shell\open\command` 指向当前可执行文件，并在 `.md` 与 `.markdown` 的 `OpenWithProgids` 里登记。**绝不碰 UserChoice**——Win10+ 的默认应用选择有签名保护，静默抢默认既不可靠也不礼貌；目标是出现在「打开方式」列表里，默认应用由用户在系统设置里选，界面文案说的就是这句话。注册表被策略挡住时如实报错。卸载不清理这些键（残留无害，Windows 惯例）。
 
@@ -349,7 +349,7 @@ description: My own shape for bug reports.
 
 - 左侧面板 2026-10 重组后**只剩工作区文件树**这一段（带 `ASectionHeader`：顶部一排紧凑头部，`Layout.fillWidth` 的工作区 `AComboBox`、选文件夹的 `AIconButton`、刷新 `AIconButton`，下面是树；段头上的收起键收起的是**整个左栏**——与把分隔条拖过收起阈值是同一状态，不是段级折叠：段折叠是多段布局时代的遗留，同一轮 2026-10 已删除；窄边上的箭头是收起态唯一的还原入口，文档模式预设默认收起）。模板与收藏两段搬去了命令条「提示词」页；右栏整个移除。面板与编辑器在相接处都不带圆角——直角齐平。面板右缘是拖拽手柄（视觉 4px、命中 12px），在 180–520 之间调 `leftPanelWidth`；拖过 140 收起面板，窄边上的箭头还原。宽度公式是「会挪动的手柄」这一类陷阱：手柄随面板变宽变窄跟着挪位，宽度必须按指针的绝对位置减去**按下时**记录的抓取偏移——减逐事件的相对坐标会让拖动彼此抵消成无操作，减面板*当前*宽度（2026-10 用户报告「一拖整个面板就收起」）则任何拖动都直接落进收起分支。
 - 大纲是渲染窗右缘的**悬浮面板**（`outlineFloat`），跟在大纲开关后面，服务**活跃会话**——草稿也有标题。它不占布局空间，纯源码态退场（没有渲染窗可悬浮）。2026-10 跟进轮起面板**可收起、可调大小**，不再强制通高：头部右侧的按钮（`outlineCollapseButton`）把它收成一行标题、再点还原；右下角手柄（`outlineSizeGrip`）拖高度；左边界（`outlineWidthEdge`）拖宽度——右缘恒锚在渲染窗右缘。收起位与拖出的几何（`outlineCollapsed` / `outlinePanelWidth` / `outlinePanelHeight`）是页面属性、只在内存：拖一下不该写设置，与 `editorShare` 同一条纪律。首次拖动前高度就是整个渲染窗（初见观感），收起态下手柄退场。**体检窗与历史窗**是页面右侧的非模态 `Popup`（体检窗给大纲条让位左移；两窗同开时历史窗排在体检窗下方）——它们不挡任何操作，× 或 `Esc` 关闭。
-- 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件或草稿会话一个 tab，带标题、脏圆点与关闭按钮；条右端是**新建草稿 +** 与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。草稿 tab 右键出**重命名 / 删除草稿 / 关闭**。切换器与字号、栏宽选择住在命令条「视图」页。
+- 中间区的头部是**文件 tab 条**（`Repeater` 消费 `markdown.tabs`）：一个文件或草稿会话一个 tab，带标题、脏圆点与关闭按钮；条右端是**新建草稿 +** 与文档形态的 **More actions** 菜单（保存、复制、导出、重载）。草稿与文件 tab 右键出共用的**重命名 / 删除草稿 / 关闭**菜单（草稿条目在文件 tab 上禁用；**关闭**对两种都生效）。切换器与字号、栏宽选择住在命令条「视图」页。
 - 中间主体是**一套两栏结构服务两种预设**：编辑槽位在草稿会话激活时装草稿编辑器、文件会话激活时装文件源码区，预览面渲染活跃会话。是手写两栏布局，不是 `SplitView`：三态里有两态要把一栏挤成 0 宽，而 `SplitView` 对 `visible` 栏的处理跨 Qt 版本不一致。分隔条视觉 4 px、命中区 12 px；分栏比例（`editorShare`）是页面内状态——拖一下不该碰磁盘。
 - 中间区底部是**状态行**：提示词模式显示草稿的字符数、行数**与 token 估算**（「~N tokens (estimated)」，颜色跟分级走，tooltip 写明上下文窗口基数——见「编辑动作、体检与预算」一节）；文档模式显示文件路径、**有未保存的改动** 标记、只读原因（若有）、文件大小、渲染器版本号**与同一估算对文件文本的数字**。状态永远不只靠颜色——脏与只读都写成文字。
 - 提示词模式的 Ribbon 偏好（折叠位、样式档、上次标签页、主题跟随）持久化在 `tools.json` 的 `ribbon` 段里。每预设的面板状态与文档模式的 Ribbon 折叠位持久化在**会话文件**里；一轮应用之内它们随页面的常驻天然活过切页。
@@ -370,7 +370,7 @@ description: My own shape for bug reports.
 
 - **工作区 `AComboBox`。** `model: tools.workspaces`。`contentItem` 与 `delegate` 都被覆写——默认 `ItemDelegate` 的背景是硬编码浅色系、深色主题下不可读——内容行里带逐项删除的 `AIconButton`。
 - **文件树 `ListView`（`objectName: "fileTree"`）。** `model: tools.model`（扁平投影）、`AScrollBar.vertical`、工作区已设但 `tools.model.visibleCount === 0` 时的空提示，以及未选工作区时的 `AEmptyState`。
-- **delegate。** 每个 role 都声明为 `required property`（`name`、`path`、`relativePath`、`isDir`、`iconSource`、`depth`、`expanded`、`hasChildren`）**外加** `index`——Qt 5.15 里一旦声明任何 required property `contextObject` 就被清空，裸 `index` 会抛 `ReferenceError`、单击展开的 handler 整段中止。一个由 `Connections` 监听 `onModelReset` 翻转的 `rebinding` 标记让模型 reset 期间箭头动画保持安静。拖出用 `Drag.Automatic`、`Drag.mimeData` 取 `tools.fileReference(relativePath)`。两个 `TapHandler` 负责单击展开与双击插入；只吃右键的 `MouseArea` 弹一份 `AMenu`（`objectName: "treeRowMenu"`），里面是两条复制路径，外加——当 `workbench.canPreviewMarkdown(treeRow.path)` 说是时——**预览 Markdown** 和一条把它们分开的分隔线。后缀清单与能力判定都住在预览域里，QML 从不判断后缀，所以没有这个能力的构建里菜单就只剩两条复制项。
+- **delegate。** 每个 role 都声明为 `required property`（`name`、`path`、`relativePath`、`isDir`、`iconSource`、`depth`、`expanded`、`hasChildren`）**外加** `index`——Qt 5.15 里一旦声明任何 required property `contextObject` 就被清空，裸 `index` 会抛 `ReferenceError`、单击展开的 handler 整段中止。一个由 `Connections` 监听 `onModelReset` 翻转的 `rebinding` 标记让模型 reset 期间箭头动画保持安静。拖出用 `Drag.Automatic`、`Drag.mimeData` 取 `tools.fileReference(relativePath)`。两个 `TapHandler` 负责单击展开与双击**打开**：双击转发到页面动作 `openFileFromTree(path)`，由同一个判定分车道——Markdown 交给 `previewMarkdown()` 开成新 tab（同路径去重），其余（含无预览能力构建里的 `.md`）交给系统默认打开器（`workbench.openLocalFileExternal()`）；插引用挪进了菜单与拖放。只吃右键的 `MouseArea` 弹一份 `AMenu`（`objectName: "treeRowMenu"`）：**预览 Markdown** 恒可见、`enabled: workbench.canPreviewMarkdown(treeRow.path)`——这一行不是 Markdown 时**禁用而非隐藏**（2026-10 的交互规则），外加**Insert path at cursor**（原双击的行为，经页面的 `insertTextAtCursor`）与两条复制路径。后缀清单与能力判定都住在预览域里，QML 从不判断后缀。
 - **`AEmptyState` 的约束。** 它的根是普通 `Item`，不能带 `anchors`；内部用 `Column` 而不是 `ColumnLayout`（Qt 5 的递归重排）。
 
 ### 编辑器右键菜单与命令带的两张皮
@@ -466,7 +466,7 @@ flowchart TD
 
 ### 工作区记忆与文件引用
 
-工作区列表按 MRU 排序、上限 20，当前项要么在列表里要么为空；删除当前项把剩余列表的队首顺延上来；空串是合法的当前值。`ToolsFacade::fileReference()` 产出 `` `./相对路径` ``——反引号包裹、正斜杠——拖放与双击都走它，提示词收到的形状始终一致。
+工作区列表按 MRU 排序、上限 20，当前项要么在列表里要么为空；删除当前项把剩余列表的队首顺延上来；空串是合法的当前值。`ToolsFacade::fileReference()` 产出 `` `./相对路径` ``——反引号包裹、正斜杠——拖放与右键菜单的「Insert path at cursor」都走它，提示词收到的形状始终一致。
 
 ## 渲染管线
 
@@ -545,13 +545,13 @@ sequenceDiagram
 
 ### 一个预览面
 
-渲染管线住在 `MarkdownPreviewPane.qml` 后面，仅当 `markdown.available` 时按资源 URL 装载——无 WebEngine 的构建里进程根本不建 `WebEngineView`。页面里只有一个预览面，它渲染**活跃会话**：文件 tab 或草稿。无能力的构建里预览面缺席、视图切换器不出现（缺席而非灰着——与预览入口同一条原则），草稿的三态退到源码。
+渲染管线住在 `MarkdownPreviewPane.qml` 后面，仅当 `markdown.available` 时按资源 URL 装载——无 WebEngine 的构建里进程根本不建 `WebEngineView`。页面里只有一个预览面，它渲染**活跃会话**：文件 tab 或草稿。无能力的构建里预览面与视图切换器缺席（构建级的功能整个消失）；而「目标不适用」的条目——比如文件树菜单里的**预览 Markdown**——只是灰着：2026-10 的交互规则把这两种情形分开。草稿的三态退到源码。
 
 ## 入口与接线
 
-文件树只问，不判断。它的右键菜单里写的是 `visible: workbench.canPreviewMarkdown(treeRow.path)` 与 `onTriggered: workbench.previewMarkdown(treeRow.path)`。后缀清单归预览域管（`isMarkdownPath()`），QML 只对它手上已有的路径问一个结果。`canPreviewMarkdown()` 是**方法**而不是绑定源，这一点有关系：这个表达式不会重算，条目可见性在菜单建出来时就算定了——这里可以接受，因为能力位不可能在进程运行期间改变。
+文件树只问，不判断。它的右键菜单绑定 `enabled: workbench.canPreviewMarkdown(treeRow.path)` 与 `onTriggered: workbench.previewMarkdown(treeRow.path)`；双击转发到页面动作 `openFileFromTree(path)`，按同一个答案分车道（答「行」走 `previewMarkdown()`，答「不行」走 `workbench.openLocalFileExternal()`）。后缀清单归预览域管（`isMarkdownPath()`），QML 只对它手上已有的路径问一个结果。`canPreviewMarkdown()` 是**方法**而不是绑定源，这一点有关系：这个表达式不会重算，条目的可用态在菜单建出来时就算定了——这里可以接受，因为能力位不可能在进程运行期间改变。
 
-同一个 `previewMarkdown()` 是一切「打开一份 Markdown 文件」意图的落点：文件树、命令行参数、第二实例消息、资源管理器里双击已关联的文件。一个入口、一套失败路径、一次 MRU 触碰。
+同一个 `previewMarkdown()` 是一切「打开一份 Markdown 文件」意图的落点：文件树（右键菜单与双击）、启动页的最近文档行、命令行参数、第二实例消息、资源管理器里双击已关联的文件。一个入口、一套失败路径、一次 MRU 触碰。
 
 `WorkbenchContext` 是唯一可以同时点名这两个域的地方（`src/tools` 不许 include `src/markdown`，门禁规则 1）。它持有预览控制器的可空指针，由 `app/main.cpp` 经 `setMarkdownPreview()` 设一次。指针为空——或者控制器自报没有能力——时，`previewMarkdown()` 只发一条带原因的 toast，不做别的，于是失败只有一条解释路径而不是两条。第二个意图 `openMarkdownWorkbench()` 是纯导航（自动打开的启动项也调它）。会话意图——页面首次创建时的 `restoreMarkdownSession()`、页面变化背后的 `saveMarkdownSession()`——与文件关联那一对都住在这里，全都挂在 QML 已经对话的那个对象上。
 
@@ -573,7 +573,7 @@ sequenceDiagram
 
 Qt 5.15.16 拿得出预览需要的整面 C++ 表面——`QWebEngineUrlScheme`（注册加 `CorsEnabled`，正是那一代引擎让自定义 scheme 上 `fetch()` 可用的组合）、`QQuickWebEngineProfile`、预览面声明的那几个 QML 视图信号。唯一的显式版本分支是导航请求的应答面（`WebEngineCompat::respondNavigation()`）：Qt 6 调请求对象的 `accept()`/`reject()`，Qt 5 写它的 `action` 属性。**mermaid 在 Qt 5 的 Chromium 87 上跑不了**——11.x 的构建用了 87 之后的语法（类静态块），任何 polyfill 都接不住——图表退化为逐块错误占位，正文、公式与代码高亮照常。**屏外块跳过在 Chromium 87–97 上同样关着**：能力门（见上文「渲染器：分趟、攒批与可见性」一节）只在 `contain-intrinsic-size: auto` 存在的引擎上保留 `content-visibility: auto`，Qt 5 因此把每块都正常排版——滚动高度真实、滚动不再崩渲染进程——代价是丢掉布局跳过的收益。这些是 Qt 5 车线与同一套 vendor 共存的既定代价。
 
-运行期只会收紧、不会放松：`available` 是 `m_surfaceReady && isSupportedBuild()`，而 `m_surfaceReady` 由提供者在 handler 真的装到 profile 上之后置位。`unavailableReason()` 负责给用户那句话说清楚。没有能力的构建里，文件树的预览条目压根不出现、预览面的 `Loader` 永不激活、视图切换器缺席、文档预设的请求退回提示词模式——功能是**不存在**，而不是存在且坏掉。提示词模式一样都不需要，照常全可用，草稿的三态退到源码。
+运行期只会收紧、不会放松：`available` 是 `m_surfaceReady && isSupportedBuild()`，而 `m_surfaceReady` 由提供者在 handler 真的装到 profile 上之后置位。`unavailableReason()` 负责给用户那句话说清楚。没有能力的构建里，文件树的预览条目保持可见但禁用、预览面的 `Loader` 永不激活、视图切换器缺席、文档预设的请求退回提示词模式——「目标不适用」的条目灰着（不适用的动作是禁用而非隐藏，菜单里不留空白槽位），构建级的表面则干脆不存在。提示词模式一样都不需要，照常全可用，草稿的三态退到源码。
 
 文档 tab 与文件关联的入口在无能力构建里如实报因而不是静默失败：到达的打开请求产生一条如实的 toast（关联入口则干脆隐藏——登记一个只会报错的条目，比不提供更糟）。
 
