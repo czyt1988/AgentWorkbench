@@ -26,6 +26,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `worktree-add.sh` now initializes SARibbon's nested submodules, without
   which every new worktree failed at CMake configure time.
 
+### Fixed
+
+- **The portable zip shipped without the MSVC C++ runtime.** `windeployqt`
+  deploys Qt and nothing else — its `--compiler-runtime` only drops the
+  redistributable *installer* into the package, which needs an administrator on
+  every target machine — and the build machine always has the runtime
+  installed, so the package started there and died on a fresh one with
+  "MSVCP140.dll was not found". `package.sh` now copies the runtime DLLs out of
+  `<VC>/Redist/MSVC/<version>/x64/Microsoft.VC*.CRT` into the package
+  (app-local deployment: no installer, no administrator), and verifies the
+  result before zipping — the files the application cannot start without, plus
+  the imports of every DLL and executable in the package, which have to be in
+  the package or ship with Windows (the MSVC runtime counts as neither). An
+  incomplete package now fails the run instead of shipping quietly;
+  `AWB_ALLOW_INCOMPLETE=1` overrides that, and `build.sh --print-redist` reports
+  the runtime folder it deploys from.
+
 ## [0.5.0] - 2026-10-13
 
 This release makes the Markdown workbench the app's centrepiece: prompt
