@@ -38,7 +38,7 @@ bash scripts/build.sh --release    # Release 构建到 build-release/
 bash scripts/build.sh --help       # 全部选项
 ```
 
-其它值得知道的选项：`--target NAME` 只构建单个目标、`--no-tests` 以 `-DBUILD_TESTING=OFF` 配置（打包用的就是这个）、`--run` 构建后启动应用、`--clean` 删掉并重新配置构建目录、`--print-exe` 打印可执行文件路径。
+其它值得知道的选项：`--target NAME` 只构建单个目标、`--no-tests` 以 `-DBUILD_TESTING=OFF` 配置（打包用的就是这个）、`--run` 构建后启动应用、`--clean` 删掉并重新配置构建目录、`--print-exe` 打印可执行文件路径、`--print-redist` 打印要随包部署的 MSVC 运行库目录（打包脚本用它）。
 
 Qt 的解析顺序是：`QT_PREFIX`（或 `--qt`）→ 构建目录 CMake 缓存里记录的前缀 → 各盘常见安装位置（含 Qt 在线安装器的嵌套布局）→ `PATH` 上的 `qmake`/`qtpaths` → 最后是逐盘限时扫描（`AWB_QT_DEEP_SEARCH=0` 可跳过，`QT_DEEP_TIMEOUT` 设每盘的时间预算，单位秒）。版本低于要求的安装会被拒绝，而不是静默使用。一个可用的都找不到时，脚本会列出它见到的每个 Qt 及不可用原因，在终端上询问前缀；无人值守的运行（agent、CI）则以该报告直接失败，不会阻塞等待。
 
@@ -50,6 +50,19 @@ Windows + MSVC 下从 Git Bash 驱动编译器需要一个装载 `vcvars64.bat` 
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
+
+## 打包
+
+`scripts/package.sh` 产出交给用户的便携包。它把编译交给 `build.sh`（带 `--no-tests`，测试目标不进包），自己只负责部署步骤：`windeployqt`、MSVC C++ 运行库、`qt.conf`、两道完整性校验，最后生成 `dist/AgentWorkbench-<version>-win64-Portable.zip`。
+
+这个包必须能在既没装 Visual Studio、也没装 VC++ 运行库的机器上启动，而 `windeployqt` 做不到这一点：它的 `--compiler-runtime` 只把运行库的**安装程序**放进包里，那台目标机器上还得有管理员权限去运行它。所以脚本改为直接从 `<VC>/Redist/MSVC/<version>/x64/Microsoft.VC*.CRT` 拷出运行库 DLL——即 app-local 部署，这正是微软为此给出的方式：不需要安装程序，并且优先于目标机器上碰巧装着的运行库。`bash scripts/build.sh --print-redist` 会打印这个目录；它的版本取自构建缓存里记录的编译器，因此部署的运行库属于产出该二进制的那个工具集。
+
+压缩之前，两道校验决定这个包能不能发出去：
+
+- **必需文件**：可执行文件、Qt 各库、`platforms/qwindows.dll`、MSVC 运行库，以及构建里带上 WebEngine 时的那些部件（`QtWebEngineProcess.exe`、`resources/`）。
+- **导入表**：包内每个 DLL 与可执行文件导入的东西，要么在包内，要么是 Windows 自带的。MSVC 运行库一律算作「不是 Windows 自带」，哪怕本机 `System32` 里有一份——待在那里的那份正是运行库，而新机器恰恰缺的就是它。
+
+两道校验都是硬失败。不完整的包正是「在构建机上能跑、在新机器上起不来」的那种，而这个脚本存在的意义就是拦住它。`AWB_ALLOW_INCOMPLETE=1` 允许带着警告照常打包。
 
 ## 目录结构
 

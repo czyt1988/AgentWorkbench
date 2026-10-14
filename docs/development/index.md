@@ -38,7 +38,7 @@ bash scripts/build.sh --release    # Release build in build-release/
 bash scripts/build.sh --help       # all options
 ```
 
-Other options worth knowing: `--target NAME` builds a single target, `--no-tests` configures with `-DBUILD_TESTING=OFF` (what packaging uses), `--run` starts the application after building, `--clean` deletes and reconfigures the build directory, and `--print-exe` prints the executable path.
+Other options worth knowing: `--target NAME` builds a single target, `--no-tests` configures with `-DBUILD_TESTING=OFF` (what packaging uses), `--run` starts the application after building, `--clean` deletes and reconfigures the build directory, `--print-exe` prints the executable path, and `--print-redist` prints the MSVC runtime folder to deploy (used by packaging).
 
 Qt is resolved in this order: `QT_PREFIX` (or `--qt`), the prefix recorded in the build directory's CMake cache, the usual install locations (including the Qt online installer's nested layout), a `qmake`/`qtpaths` on `PATH`, and finally a time-capped scan of each drive (`AWB_QT_DEEP_SEARCH=0` skips it, `QT_DEEP_TIMEOUT` sets the per-drive budget in seconds). An installation older than the required version is rejected rather than used silently. When nothing usable is found, the script lists every Qt it saw and why it cannot be used, and on a terminal asks for the prefix — an unattended run (agent, CI) fails with that report instead of blocking.
 
@@ -50,6 +50,19 @@ Building by hand still works, but you have to set up the MSVC environment yourse
 cmake -B build -DCMAKE_PREFIX_PATH="C:/Qt/6.7.3/msvc2019_64"
 cmake --build build
 ```
+
+## Packaging
+
+`scripts/package.sh` produces the portable zip that gets handed to users. It delegates the compile to `build.sh` (with `--no-tests`, since the test targets are not shipped) and adds the deployment steps: `windeployqt`, the MSVC C++ runtime, `qt.conf`, two completeness checks and finally `dist/AgentWorkbench-<version>-win64-Portable.zip`.
+
+The package has to start on a machine that has neither Visual Studio nor the VC++ redistributable installed, and `windeployqt` does not get it there on its own: its `--compiler-runtime` only puts the redistributable *installer* into the package, which then needs an administrator on every target machine. The script therefore copies the runtime DLLs out of `<VC>/Redist/MSVC/<version>/x64/Microsoft.VC*.CRT` instead — app-local deployment, which is what Microsoft documents for this case, needs no installer and wins over whatever runtime the target machine happens to have. `bash scripts/build.sh --print-redist` prints which folder that is; its version comes from the compiler recorded in the build cache, so the deployed runtime belongs to the toolset that produced the binary.
+
+Before zipping, two checks decide whether the result may be shipped at all:
+
+- **Required files**: the executable, the Qt libraries, `platforms/qwindows.dll`, the MSVC runtime, and — when that module is part of the build — the WebEngine pieces (`QtWebEngineProcess.exe`, `resources/`).
+- **Imports**: everything the DLLs and executables of the package import has to be in the package itself or ship with Windows. The MSVC runtime counts as "does not ship with Windows" even when this machine has a copy in `System32`, because what sits there is the redistributable — the one thing a fresh machine lacks.
+
+Both are fatal. An incomplete package is exactly the kind that runs on the build machine and fails on a fresh one, which is the failure this script exists to prevent. `AWB_ALLOW_INCOMPLETE=1` packages such a result anyway and leaves the warnings in the output.
 
 ## Project layout
 

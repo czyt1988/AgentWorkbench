@@ -23,7 +23,7 @@ bash scripts/build.sh --help       # 全部选项
 
 日常编译请用 `scripts/build.sh`，不要直接手写 cmake 命令：它自动探测 Qt 与 MSVC、复用构建目录里已有的生成器与 Qt 前缀、在构建目录属于旧路径时清掉陈旧的 CMake 缓存，并生成 `compile_commands.json`。Git Bash 下无法用 `eval "$(cmd //c ... set)"` 把 vcvars64 环境导入当前 shell（cmd 收到的是转义后的引号，`cl.exe` 不会出现在 PATH 里），所以脚本改为生成一个 `.bat` 把 vcvars + cmake 包起来执行——这是在本仓库里从 Git Bash 驱动 MSVC 唯一可靠的做法，不要在其它写法上反复试错。构建目录、生成器与 Qt 前缀的解析顺序都写在脚本头部的注释里，需要手工排查时可直接读 `build/.build-agentworkbench.bat` 看实际执行的命令。
 
-其它常用选项：`--target NAME` 只构建一个目标、`--no-tests` 配置时关掉测试目标（`-DBUILD_TESTING=OFF`，打包用）、`--run` 构建后启动应用、`--clean` 删除构建目录重建、`--print-exe` 打印可执行文件路径。
+其它常用选项：`--target NAME` 只构建一个目标、`--no-tests` 配置时关掉测试目标（`-DBUILD_TESTING=OFF`，打包用）、`--run` 构建后启动应用、`--clean` 删除构建目录重建、`--print-exe` 打印可执行文件路径、`--print-redist` 打印要随包部署的 MSVC 运行库目录。
 
 Qt 探测顺序：`QT_PREFIX`/`--qt` → 构建目录 CMake 缓存里的前缀 → 各盘常见根目录（含 Qt 在线安装器的 `<盘>/Qt/<组>/<版本>/<编译器>` 嵌套布局）→ `PATH` 上的 `qmake`/`qtpaths` → 逐盘限时扫描（`AWB_QT_DEEP_SEARCH=0` 跳过，`QT_DEEP_TIMEOUT` 设每盘秒数）。**一个可用的 Qt 6 都找不到时它不会静默停留**：会列出探测到的每个安装及不可用原因（版本低于 6.5、无 `lib/cmake/Qt6` 等），有终端时询问前缀，非交互运行（agent/CI）则以该报告直接失败退出。
 
@@ -38,7 +38,7 @@ cmake --build build
 - 需要 CMake 3.16+，C++17。
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`AWB_ENABLE_RIBBON`（默认 ON，构建 `third_party/SARibbon` 的 QML 模块——Markdown 工作台页的 Ribbon，自 dev-3.0 起硬依赖树内构建的 QWindowKit 链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）；关掉时页面退回普通工具栏）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
-- 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。
+- 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + MSVC 运行库 + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。**包必须是自足的**：windeployqt 不管 MSVC 运行库（`--compiler-runtime` 只放安装程序，目标机需要管理员），所以运行库由 `build.sh --print-redist` 给出目录后按 app-local 方式拷进包根；打 zip 前还会校验必需文件与全包 DLL 的导入表（MSVC 运行库即便本机 `System32` 里有也算缺失——那份就是运行库），任一不过即失败，`AWB_ALLOW_INCOMPLETE=1` 才允许放行不完整的包。
 - 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与宿主层，仅 `AWB_ENABLE_WEBENGINE=ON` 时构建，两个 Qt 大版本都跑——Qt 5 车道的数据通道是推入+console 信标，见 docs/development/markdown-workbench.md）、`tst_workbench`、`tst_ribbonui`（仅 `AWB_ENABLE_RIBBON=ON` 时构建——命令条 QML 装载冒烟与上下文页色带断言：qrc 初始化、命令式注册时机、叶子创建、contextColor 与 accent 可区分、色带只覆盖自己的 tab）与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
