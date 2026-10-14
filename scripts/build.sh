@@ -32,6 +32,8 @@
 #       --qt PATH          Qt prefix override (same as QT_PREFIX=...)
 #       --print-qt         Print the resolved Qt prefix and exit (detection only)
 #       --print-exe        Print the built executable path and exit
+#       --print-redist     Print the MSVC C++ runtime directory to deploy
+#                          app-locally and exit (used by scripts/package.sh)
 #   -h, --help             Show this help
 #
 # Qt is auto-detected: an explicit QT_PREFIX first, then the prefix the build
@@ -528,6 +530,79 @@ find_vcvars() {
     return 1
 }
 
+# The Visual Studio <VC> directory the redistributable search settled on (empty
+# when it found none), for report_no_redist().
+VC_ROOT_SEEN=""
+
+# Print the MSVC C++ runtime directory that matches the compiler this project was
+# built with: <VC>/Redist/MSVC/<version>/x64/Microsoft.VC<major><minor>.CRT.
+# Those DLLs are what Microsoft documents for app-local deployment, i.e. what
+# makes a package run on a machine that has neither Visual Studio nor the VC++
+# redistributable installed. The version comes from the compiler recorded in the
+# build cache, so the deployed runtime always matches the toolset that produced
+# the binary; without a cache it falls back to the newest redistributable the
+# installation ships. x64 only — the package this serves is win64.
+find_vc_redist_crt() {
+    local vc_root="" vcvars="" cached="" toolset="" cand="" ver="" best="" best_ver=""
+
+    if [[ -n "${VCINSTALLDIR:-}" ]]; then
+        vc_root="${VCINSTALLDIR//\\//}"
+        vc_root="${vc_root%/}"
+        [[ -d "$vc_root/Redist/MSVC" ]] || vc_root=""
+    fi
+    if [[ -z "$vc_root" ]]; then
+        vcvars="$(find_vcvars || true)"
+        # <VC>/Auxiliary/Build/vcvars64.bat -> <VC>
+        [[ -n "$vcvars" ]] && vc_root="$(dirname "$(dirname "$(dirname "$vcvars")")")"
+    fi
+    if [[ -z "$vc_root" || ! -d "$vc_root/Redist/MSVC" ]]; then
+        VC_ROOT_SEEN="${vc_root:-}"
+        return 1
+    fi
+    VC_ROOT_SEEN="$vc_root"
+
+    # .../VC/Tools/MSVC/<version>/bin/Hostx64/x64/cl.exe names the toolset.
+    cached="$(cache_value "$BUILD_DIR/CMakeCache.txt" CMAKE_CXX_COMPILER || true)"
+    if [[ "$cached" =~ MSVC/([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        toolset="${BASH_REMATCH[1]}"
+        for cand in "$vc_root/Redist/MSVC/$toolset/x64/Microsoft.VC"*.CRT; do
+            if [[ -d "$cand" ]]; then
+                printf '%s\n' "$cand"
+                return 0
+            fi
+        done
+    fi
+
+    for cand in "$vc_root/Redist/MSVC"/*/x64/Microsoft.VC*.CRT; do
+        [[ -d "$cand" ]] || continue
+        ver="$(basename "$(dirname "$(dirname "$cand")")")"
+        if [[ -n "$best_ver" ]] && ! version_at_least "$ver" "$best_ver"; then
+            continue
+        fi
+        best="$cand"
+        best_ver="$ver"
+    done
+    [[ -n "$best" ]] || return 1
+    printf '%s\n' "$best"
+}
+
+# Explain a failed redistributable lookup. Goes to stderr, so --print-redist's
+# stdout stays a bare path.
+report_no_redist() {
+    echo "" >&2
+    echo "Error: no MSVC C++ runtime redistributable found under" >&2
+    echo "       <VC>/Redist/MSVC/<version>/x64/Microsoft.VC*.CRT" >&2
+    if [[ -n "$VC_ROOT_SEEN" ]]; then
+        echo "Found the Visual Studio directory $VC_ROOT_SEEN, but it ships no such folder." >&2
+    else
+        echo "No Visual Studio <VC> directory was found: VCINSTALLDIR is not set and" >&2
+        echo "vswhere reported no installation with the C++ tools." >&2
+    fi
+    echo "Install the 'Desktop development with C++' workload, or point VCINSTALLDIR" >&2
+    echo "at the <VC> directory of an installation that has it." >&2
+    echo "" >&2
+}
+
 # Print the vswhere generator matching the newest Visual Studio install, e.g.
 # "Visual Studio 16 2019". Used as a fallback when Ninja is unavailable.
 vs_generator() {
@@ -664,6 +739,7 @@ while [[ $# -gt 0 ]]; do
         --qt)            QT_PREFIX="${2:?--qt needs a value}"; shift ;;
         --print-qt)      ACTION="print-qt" ;;
         --print-exe)     ACTION="print-exe" ;;
+        --print-redist)  ACTION="print-redist" ;;
         -h|--help)       usage; exit 0 ;;
         --)              shift; EXTRA_CONFIGURE_ARGS+=( "$@" ); break ;;
         *)
@@ -697,6 +773,19 @@ fi
 [[ $DO_CLEAN -eq 1 ]] && rm -rf "$BUILD_DIR"
 
 drop_stale_build_dir
+
+# --- MSVC runtime -----------------------------------------------------------
+# Answered before Qt: the query is about the toolchain, not about the build, and
+# it reads the compiler out of the build cache.
+if [[ "$ACTION" == "print-redist" ]]; then
+    REDIST_CRT="$(find_vc_redist_crt || true)"
+    if [[ -z "$REDIST_CRT" ]]; then
+        report_no_redist
+        exit 1
+    fi
+    printf '%s\n' "$REDIST_CRT"
+    exit 0
+fi
 
 # --- Qt ---------------------------------------------------------------------
 # Resolved first because the Ninja fallback looks inside the Qt installation.
