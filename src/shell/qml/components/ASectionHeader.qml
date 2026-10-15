@@ -5,14 +5,19 @@ import AgentWorkbench
 import AgentWorkbench.App
 
 // 设置分组标题：副标题级文字 + 底部分割线，尾部 extra 插槽收纳右对齐的
-// 分节动作（与 PageHeader 的尾槽同构）。表单/设置页分节统一用它。
+// 分节动作（与 PageHeader 的 actions 尾槽同构）。表单/设置页分节统一用它。
 ColumnLayout {
     id: control
 
     // 分组标题文字。
     property string text: ""
-    // 尾部动作插槽：按钮、选择框等注入后贴行右缘。
-    property alias extra: extraSlot.data
+    // 尾部动作插槽：**默认属性**——使用点直接在 ASectionHeader 里声明
+    // 的子项（按钮、选择框）落进槽里、贴行右缘并垂直居中，与
+    // PageHeader.actions / ADialog.dialogContent 同款。必须经 default
+    // alias 接管：普通 alias 改变不了 ColumnLayout 的默认属性 data，
+    // 声明的子项会被收进本列自己的 data、排到分割线**下方**——2026-10
+    // 工作区段的收起键因此渲染在标题行下面。
+    default property alias extra: extraSlot.data
 
     spacing: theme.spacingXs
     Layout.fillWidth: true

@@ -117,7 +117,7 @@ Before writing any new UI element, look through the shelf. The components under 
 | `ADialog` | Modal skeleton | Every modal dialog. The `danger` variant gives a red title and border. |
 | `AConfirmDialog` | Confirmation dialog | Dangerous or ordinary confirmation, with confirm and cancel buttons; the `detailData` slot carries contextual warnings. |
 | `AAlertDialog` | Alert dialog | Errors and notices: message plus scrollable monospaced detail plus a dismiss button. |
-| `ASectionHeader` | Settings group header | Sectioning a form or settings page; `extra` right-aligns a trailing action. |
+| `ASectionHeader` | Settings group header | Sectioning a form or settings page; `extra` is the **default property**, so a trailing action is injected by declaring it inside the header (same as `PageHeader.actions`) — it lands right-aligned and vertically centred in the title row. |
 | `AStatusDot` | Status dot | On/off indication. Size, colour and tooltip are configurable; never rely on colour alone. |
 | `AToastStack` | Notification stack | The bottom-right toast stack. `MainWindow.qml` hosts it through `Toasts.qml`. |
 | `AMenu` | Context menu base | Every menu. Glass surface, outward soft shadow and a top sheen. |

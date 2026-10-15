@@ -406,7 +406,15 @@ Rectangle {
 
             AEmptyState {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 160
+                // 空态必须填满剩余高度，不能只给固定高：Quick Layouts 会把
+                // visible:false 的子项整个排除出布局（shouldIgnoreItem），
+                // 无工作区时段里唯一可增长的项（下面的 fileTree）不可见，
+                // 段落上报的最大高度就塌缩成隐式高——Layout.fillHeight 无
+                // 从伸长，剩余高度变成放大后的空格子、整段内容在格内居中
+                //（2026-10 用户报告「无工作区时标题悬在面板中间」的根因）。
+                // 空态填满后既给段落一个可增长的项，内容也在自己的块内居
+                // 中，两种诉求都满足。
+                Layout.fillHeight: true
                 visible: tools.currentWorkspace.length === 0
                 iconSource: "qrc:/icons/folder.svg"
                 title: qsTr("No workspace selected")

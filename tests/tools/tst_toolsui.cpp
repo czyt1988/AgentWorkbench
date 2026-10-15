@@ -743,6 +743,71 @@ private Q_SLOTS:
                                   4000);
     }
 
+    // 无工作区时左栏的布局契约（2026-10 用户报告「标题与收起键悬在面板
+    // 中间、组合框不贴顶」）。两个回归锚点：
+    // 1. workspaceSection 要从面板顶部附近开始并一直填到底。Quick
+    //    Layouts 把 visible:false 的子项整个排除出布局（shouldIgnoreItem），
+    //    无工作区时段里唯一可增长项（文件树）不可见；空态若只有固定高，
+    //    段落对上层上报的最大高度就塌缩成隐式高——Layout.fillHeight 无从
+    //    伸长，剩余高度变成放大后的空格子、整段内容在格内居中。空态改
+    //    fillHeight 后段落恢复可增长。
+    // 2. 收起键要落在段头标题行里。ASectionHeader 的 extra 槽曾是普通
+    //    alias（不是 default property），使用点声明的按钮被收进段头列自
+    //    己的 data、排到分割线下方。
+    void testLeftPanelPinnedWithoutWorkspace()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const panel = window->findChild<QQuickItem *>(
+            QStringLiteral("leftPanel"));
+        QQuickItem *const section = window->findChild<QQuickItem *>(
+            QStringLiteral("workspaceSection"));
+        QQuickItem *const toggle = window->findChild<QQuickItem *>(
+            QStringLiteral("workspaceSectionToggle"));
+        QVERIFY2(panel, "leftPanel not found by objectName");
+        QVERIFY2(section, "workspaceSection not found by objectName");
+        QVERIFY2(toggle, "workspaceSectionToggle not found by objectName");
+
+        QTRY_VERIFY2_WITH_TIMEOUT(panel->height() > 400,
+                                  "the left panel never got its height",
+                                  4000);
+
+        // 段落贴顶：起点紧随组合框行（行高 32 + 边距），异常时在 ~
+        // 面板中部（368/759）。
+        const qreal sectionTop =
+                section->mapToItem(panel, QPointF(0, 0)).y();
+        QTRY_VERIFY2_WITH_TIMEOUT(sectionTop <= 90.0,
+                                  qPrintable(QStringLiteral(
+                                      "the workspace section starts at ")
+                                      + QString::number(sectionTop)
+                                      + QStringLiteral(", not near the top")),
+                                  4000);
+
+        // 段落填满到底：fillHeight 要真的伸长（异常时只有隐式高 ~221）。
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            sectionTop + section->height() >= panel->height() - 10.0,
+            qPrintable(QStringLiteral(
+                "the workspace section ends at ")
+                + QString::number(sectionTop + section->height())
+                + QStringLiteral(" of ")
+                + QString::number(panel->height())
+                + QStringLiteral(", it must fill the panel")),
+            4000);
+
+        // 收起键在段头标题行内（分割线之上）：相对段落起点应 ~0，
+        // 异常时在 +29（分割线下方）。
+        const qreal toggleTop = toggle->mapToItem(panel, QPointF(0, 0)).y();
+        QVERIFY2(toggleTop - sectionTop < 20.0,
+                 qPrintable(QStringLiteral(
+                     "the collapse toggle sits at ")
+                     + QString::number(toggleTop - sectionTop)
+                     + QStringLiteral(" below the section top; it belongs in "
+                                      "the header row, above the separator")));
+    }
+
     // 点击模板行 → 变量表单弹出 → 确认 → 渲染产物进草稿编辑器。
     // 变量全部留空也没关系：跳过语义 = 占位符原样保留，渲染产物里看得见
     // 模板的第一行结构（「## Symptom」来自 fix-a-bug 模板正文）。

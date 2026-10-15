@@ -134,7 +134,7 @@
 | `ADialog` | 模态弹窗骨架 | 一切模态弹窗（`danger` 变体：红标题 + 红边框） |
 | `AConfirmDialog` | 确认弹窗 | 危险/常规确认（确认+取消双按钮，`detailData` 插槽放上下文警告） |
 | `AAlertDialog` | 提示弹窗 | 错误/通知（消息 + 可滚动 mono 详情 + 关闭按钮） |
-| `ASectionHeader` | 设置分组标题 | 表单/设置页分节（`extra` 尾部动作右对齐） |
+| `ASectionHeader` | 设置分组标题 | 表单/设置页分节（`extra` 是**默认属性**：使用点声明的子项落进尾部槽、贴行右缘并垂直居中，与 `PageHeader.actions` 同款注入方式） |
 | `AStatusDot` | 状态点 | on/off 指示（尺寸/颜色/tooltip 可配，永不只靠颜色） |
 | `AToastStack` | 通知栈 | 右下角 toast |
 | `AMenu` | 上下文菜单底座 | 一切菜单（玻璃质感：半透明表面 + 外扩软阴影 + 顶部反光纱；进场淡入微展开。顶部工具栏混排见 §3.1） |
