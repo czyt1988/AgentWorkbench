@@ -256,6 +256,10 @@ stateDiagram-v2
 图上有一处不对称值得注意：`markOnlineForAgent` 是**唯一**离开 `offline` 的迁移，而
 `retargetTabForAgent` 是唯一无需用户动作就能复活 `error`/`crashed` 的路径。
 
+每次迁移都记一条 `WebTabs: tab <id> state <old> -> <new>` 日志——表面回报（`setTabState`）与
+跨域规则都记——日志因此能看出是哪个动作方在何时动了标签。把这些行与表面的 `[web-load]` 行
+（见 [WebEngine 适配层](WebEngine适配层.md)）按时间配对，即可回放一次失败的加载。
+
 ### 内存策略
 
 两套相互独立的机制约束资源占用，都在 `settings.json` 里配置。
@@ -292,7 +296,7 @@ HTTP 401——只有 agent 自己输出里打出的每进程 URL 能过。没抓
 任何可能被人或第三方读到的 URL，都必须先过 `WebTabsFacade` 内部的 `redactedUrl()`。它同时抹掉
 **两种**拼写：`#token=…` 片段（qwen 的门禁）与 `?token=…` 查询项（dsh 的会话 URL），同时保留查询
 串与片段的其余部分。用到它的地方是 `externalOpened` 信号（转成 toast）、`openUrl` 成功/失败的
-日志行，以及外置打开的日志行。
+日志行、外置打开的日志行、弹窗开新标签（detached tab）的日志行，以及会话 URL 重定向的日志行。
 
 ## 跨域接线
 

@@ -53,10 +53,42 @@ Item {
         + "})()"
 
     // 抹掉 URL 里的 token 值（?token= 与 #token= 两种拼写）——控制台
-    // 转发日志里不允许出现明文 token（约定见 WebTabsFacade 的
-    // redactedUrl）。
+    // 转发日志与加载失败日志里都不允许出现明文 token（约定见
+    // WebTabsFacade 的 redactedUrl）。
+    function redactedUrl(url) {
+        return String(url).replace(/token=[^&#]*/g, "token=[redacted]")
+    }
+
     function redactedSource(sourceID) {
-        return String(sourceID).replace(/token=[^&#]*/g, "token=[redacted]")
+        return redactedUrl(sourceID)
+    }
+
+    // errorDomain 的裸数字在日志里读不出语义（0 = NoErrorDomain 时尤其
+    // 费解），换可读名字；枚举两版同名同值。
+    function errorDomainName(domain) {
+        switch (domain) {
+        case WebEngineView.NoErrorDomain: return "none"
+        case WebEngineView.InternalErrorDomain: return "internal"
+        case WebEngineView.ConnectionErrorDomain: return "connection"
+        case WebEngineView.CertificateErrorDomain: return "certificate"
+        case WebEngineView.HttpErrorDomain: return "http"
+        case WebEngineView.FtpErrorDomain: return "ftp"
+        case WebEngineView.DnsErrorDomain: return "dns"
+        }
+        return "unknown(" + domain + ")"
+    }
+
+    // navigationType 的可读名字（导航审计日志用；枚举两版同名同值）。
+    function navigationTypeName(type) {
+        switch (type) {
+        case WebEngineView.LinkClickedNavigation: return "link"
+        case WebEngineView.TypedNavigation: return "typed"
+        case WebEngineView.FormSubmittedNavigation: return "form"
+        case WebEngineView.BackForwardNavigation: return "back-forward"
+        case WebEngineView.ReloadNavigation: return "reload"
+        case WebEngineView.OtherNavigation: return "other"
+        }
+        return "unknown(" + type + ")"
     }
 
     WebEngineView {
@@ -113,38 +145,59 @@ Item {
                 web.setTabProgress(tab.id, loadProgress)
         }
         // Qt 6 没有 loadFinished——加载结果经 loadingChanged 的
-        // LoadStatus 枚举（状态机）到达。
+        // LoadStatus 枚举（状态机）到达。四种状态全部落日志：只记失败
+        // 时，「界面报打开异常但页面其实可用」这类问题无法回放。
         onLoadingChanged: function(loadingInfo) {
             if (!surface.hasTab)
                 return
+            const targetUrl = surface.redactedUrl(loadingInfo.url)
             if (loadingInfo.status === WebEngineView.LoadStartedStatus) {
+                console.info("[web-load] started", targetUrl)
                 // 新一轮加载开始：清零未捕获异常计数、撤掉待决的白屏
                 // 检查（两者都只针对「本次加载」的结果）。
                 surface.uncaughtErrors = 0
                 blankCheckTimer.stop()
             } else if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
+                console.info("[web-load] succeeded", targetUrl)
                 web.setTabProgress(tab.id, 100)
                 web.setTabState(tab.id, "ready")
                 blankCheckTimer.restart()
             } else if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
                 blankCheckTimer.stop()
-                console.error("WebEngine: failed to load",
-                              String(loadingInfo.url),
-                              "domain:", loadingInfo.errorDomain,
-                              "code:", loadingInfo.errorCode)
-                // 正的错误码是 HTTP 状态（如 token 门禁 harness 的
-                // 401）；网络错误为负。
-                web.setTabLastError(tab.id,
-                    loadingInfo.errorCode > 0
-                        ? qsTr("Failed to load %1 (HTTP %2)")
-                              .arg(String(loadingInfo.url))
-                              .arg(loadingInfo.errorCode)
-                        : qsTr("Failed to load %1")
-                              .arg(String(loadingInfo.url)))
+                // domain none / code 0 是 QtWebEngine 的特形：Chromium 把
+                // 主文档的 4xx/5xx 响应判成 ERR_HTTP_RESPONSE_CODE_FAILURE
+                // （如 token 门禁的 401、service worker 兜底的 503），Qt
+                // 再用导航项上的 HTTP 状态码替换错误码，而失败导航项的
+                // 状态码是 0——errorString 也为空，日志里只剩两个零。
+                // 真实状态码要 HTTP 探测目标 URL 才拿得到（2026-10 qwen
+                // /settings 的 401 即此形）。
+                const errorText = loadingInfo.errorString
+                                  ? String(loadingInfo.errorString) : ""
+                console.error("[web-load] failed", targetUrl,
+                              "domain:", surface.errorDomainName(loadingInfo.errorDomain),
+                              "code:", loadingInfo.errorCode,
+                              "errorString:", errorText,
+                              loadingInfo.errorCode === 0
+                                  ? "hint: Qt masked an HTTP error status of"
+                                    + " the document response as code 0; probe"
+                                    + " the URL for the real status"
+                                  : "")
+                // 正的错误码是 HTTP 状态（如 token 门禁 harness 的 401）；
+                // 网络错误为负；0 见上——errorString 恒为空。
+                let failureDetail = qsTr("Failed to load %1").arg(targetUrl)
+                if (loadingInfo.errorCode > 0) {
+                    failureDetail = qsTr("Failed to load %1 (HTTP %2)")
+                        .arg(targetUrl).arg(loadingInfo.errorCode)
+                } else if (errorText.length > 0) {
+                    failureDetail = qsTr("Failed to load %1: %2")
+                        .arg(targetUrl).arg(errorText)
+                }
+                web.setTabLastError(tab.id, failureDetail)
                 web.setTabState(tab.id, "error")
             } else if (loadingInfo.status === WebEngineView.LoadStoppedStatus) {
                 // 主动停止（工具栏 ✕ / 覆盖层「取消」）也要落定状态机——
                 // 否则转圈永远不停。
+                console.info("[web-load] stopped", targetUrl)
                 blankCheckTimer.stop()
                 web.setTabState(tab.id, "ready")
             }
@@ -167,6 +220,20 @@ Item {
                 console.warn("[js]", where, message)
             if (/^Uncaught\b/i.test(message))
                 surface.uncaughtErrors += 1
+        }
+        // --- 导航审计：主框架的每次文档导航都落一条日志。「界面报打开
+        // 异常但页面其实可用」的第一疑问是这次文档导航谁发起的：link
+        // （页面链接）/ typed（程序置 URL）/ reload / other（脚本改
+        // location 等）。只观察不拦：一律放行，应答经 WebEngineCompat.
+        // respondNavigation 收口（Qt 5 的请求对象只能写 action 属性，
+        // 直接调 request.accept() 是 TypeError），行为与不声明本处理器
+        // 时一致。
+        onNavigationRequested: function(request) {
+            if (request.isMainFrame)
+                console.info("[web-nav] main-frame",
+                             surface.navigationTypeName(request.navigationType),
+                             "->", surface.redactedUrl(request.url))
+            WebEngineCompat.respondNavigation(request, true)
         }
         // 渲染进程崩溃后绝不自动重载——崩溃循环比手动重载更糟。
         onRenderProcessTerminated: function(status, exitCode) {
@@ -287,6 +354,10 @@ Item {
                         || tab.state !== "ready")
                     return
                 const chrome = /Chrome\/(\d+)/.exec(String(info.ua))
+                console.error("[web-load] blank check tripped:",
+                              surface.uncaughtErrors, "uncaught error(s)",
+                              "and the body stayed blank; engine Chromium",
+                              chrome ? chrome[1] : "?")
                 web.setTabLastError(tab.id, qsTr("The page stayed blank because its scripts failed to run. The embedded browser engine (Chromium %1) is too old for this page; open it in an external browser.").arg(chrome ? chrome[1] : "?"))
                 web.setTabState(tab.id, "error")
             })

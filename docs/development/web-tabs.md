@@ -284,6 +284,11 @@ Note one asymmetry the diagram makes visible: `markOnlineForAgent` is the **only
 `offline`, and `retargetTabForAgent` is the only path that revives `error`/`crashed` without a user
 action.
 
+Every transition is logged as `WebTabs: tab <id> state <old> -> <new>` — from the surface reports
+(`setTabState`) and from the cross-domain rules alike — so the log shows which actor moved a tab
+and when. Pair these lines with the surface's `[web-load]` lines (see
+[WebEngine adapter](webengine-adapter.md)) to replay a failed load.
+
 ### Memory policy
 
 Two independent mechanisms bound resource usage, both configured in `settings.json`.
@@ -331,7 +336,8 @@ Everywhere a URL could be read by a human or a third party, it must first pass t
 `WebTabsFacade`'s internal `redactedUrl()` helper. It removes **both** spellings: the `#token=…`
 fragment (qwen's gate) and the `?token=…` query item (dsh's session URL), while preserving the rest
 of the query string and fragment. The places that use it are the `externalOpened` signal (turned
-into a toast), the successful/failed `openUrl` log lines, and the external-open log line.
+into a toast), the successful/failed `openUrl` log lines, the external-open log line, the
+detached-tab (popup) log line, and the session-URL retarget log line.
 
 ## Cross-domain wiring
 

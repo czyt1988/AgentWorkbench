@@ -219,16 +219,49 @@ flowchart TD
 
 ## Logging and redaction
 
+The surface is the only layer that sees engine-level load events, so it logs the full life cycle of
+every main-document load: all four `loadingChanged` statuses land in the log with the redacted URL
+(`[web-load] started / succeeded / stopped / failed`). Logging failures alone is not enough — the
+"the overlay says the page failed but the page is actually usable" class of problem can only be
+replayed from the complete sequence.
+
+A `failed` line carries the readable error-domain name, the error code and the engine's
+`errorString`; when the engine provides an `errorString`, the overlay's detail message
+(`lastError`) carries it too.
+
+### The `domain none / code 0` failure form
+
+A failure logged as `domain: none, code: 0` with an empty `errorString` is a QtWebEngine reporting
+quirk, not a mystery: Chromium judges a main-document response with a 4xx/5xx status as
+`ERR_HTTP_RESPONSE_CODE_FAILURE` (a token gate's 401, or a service worker's synthesized 503 while
+the daemon is unreachable), and Qt then replaces the error code with the HTTP status recorded on
+the navigation entry — which is 0 for a navigation that never committed. The `failed` line
+therefore appends a hint to probe the URL over HTTP for the real status. Observed in 2026-10 on
+qwen's `/settings` route: the daemon answers the document request with 401 because the session
+token lives in the URL fragment and never reaches the server, while the web shell navigates there
+with a real document navigation.
+
+### Navigation audit
+
+Every main-frame document navigation is logged as `[web-nav] main-frame <type> -> <url>` with the
+navigation type spelled out (`link`, `typed`, `form`, `back-forward`, `reload`, `other`) — the
+first question for a failed load is usually who started it. The handler only observes: it always
+accepts through `WebEngineCompat.respondNavigation()`, so the behaviour is identical to not
+declaring it, and the reply stays version-safe (Qt 5's request object has no `accept()`).
+
+### JS console forwarding
+
 Connecting `WebEngineView.javaScriptConsoleMessage` **disables the engine's default `[js]` log
 route** — on both majors the default handler returns as soon as it detects receivers. The surface
 therefore forwards the messages itself, and it must redact before it does: the default route would
-write a `?token=`/`#token=` URL into the log file verbatim. `redactedSource()` replaces every
-`token=…` occurrence in the `sourceID` with `token=[redacted]` before logging. `Info`-level messages
-are dropped to keep the log volume equal to the old default (whose `js` category defaulted to
-warning).
+write a `?token=`/`#token=` URL into the log file verbatim. `redactedUrl()` replaces every
+`token=…` occurrence with `token=[redacted]` before logging; `redactedSource()` is the same helper
+under its console-`sourceID` name. `Info`-level messages are dropped to keep the log volume equal
+to the old default (whose `js` category defaulted to warning).
 
 Uncaught-exception counting happens in the same handler; it is the evidence the blank-page probe
-needs (see above).
+needs (see above). When the probe trips, the surface logs `[web-load] blank check tripped` with the
+uncaught-error count and the engine's Chromium version before moving the tab to `error`.
 
 ## `WebEngineSurface.qml` overlays
 

@@ -192,13 +192,40 @@ flowchart TD
 
 ## 日志与脱敏
 
+表面是唯一能看到引擎级加载事件的一层，因此它把每次主文档加载的完整生命周期都落进日志：
+`loadingChanged` 的四种状态都带脱敏 URL 记录（`[web-load] started / succeeded / stopped /
+failed`）。只记失败是不够的——「覆盖层说页面失败、页面其实可用」这类问题只能靠完整序列回放。
+
+`failed` 行带可读的错误域名字、错误码与引擎的 `errorString`；引擎给出 `errorString` 时，覆盖层的
+详情文案（`lastError`）也会带上它。
+
+### `domain none / code 0` 的失败特形
+
+日志里 `domain: none, code: 0` 且 `errorString` 为空的失败是 QtWebEngine 的上报怪癖，不是谜：
+Chromium 把主文档的 4xx/5xx 响应判成 `ERR_HTTP_RESPONSE_CODE_FAILURE`（token 门禁的 401，或
+daemon 不可达时 service worker 合成的 503），Qt 再用导航项上记录的 HTTP 状态码替换错误码——而
+从未提交的导航项状态码是 0。因此 `failed` 行会附一条提示：用 HTTP 探测该 URL 拿真实状态码。
+2026-10 在 qwen 的 `/settings` 路由上实测到此形：daemon 对该文档请求回 401，因为会话 token 在
+URL 片段里、永远不会发给服务器，而 web shell 是用真实的文档导航去那里的。
+
+### 导航审计
+
+主框架的每次文档导航都记为 `[web-nav] main-frame <type> -> <url>`，导航类型写成可读名字
+（`link`、`typed`、`form`、`back-forward`、`reload`、`other`）——失败加载的第一个问题通常是
+「这次导航谁发起的」。处理器只观察：一律经 `WebEngineCompat.respondNavigation()` 放行，行为与
+不声明它完全一致，且应答保持版本安全（Qt 5 的请求对象没有 `accept()`）。
+
+### JS 控制台转发
+
 连接 `WebEngineView.javaScriptConsoleMessage` 会**关掉引擎默认的 `[js]` 日志路由**——两个大版本都是
 检测到 receivers 即 return。因此表面必须自己转发日志，而且转发前必须先脱敏：默认路由会把带
-`?token=`/`#token=` 的 URL 原样写进日志文件。`redactedSource()` 在把 `sourceID` 写进日志之前，把
-其中每处 `token=…` 替换为 `token=[redacted]`。`Info` 级信息被丢弃，以保持与旧默认路由相同的日志量
-（它的 `js` 分类缺省级别是 warning）。
+`?token=`/`#token=` 的 URL 原样写进日志文件。`redactedUrl()` 在写日志之前把其中每处 `token=…`
+替换为 `token=[redacted]`；`redactedSource()` 是同一个 helper 面向控制台 `sourceID` 的名字。
+`Info` 级信息被丢弃，以保持与旧默认路由相同的日志量（它的 `js` 分类缺省级别是 warning）。
 
-未捕获异常计数也在同一个处理器里完成；它就是白屏探测所需的证据（见上文）。
+未捕获异常计数也在同一个处理器里完成；它就是白屏探测所需的证据（见上文）。探测命中时，表面在把
+标签落到 `error` 之前记一条 `[web-load] blank check tripped`，带未捕获异常计数与引擎的 Chromium
+版本。
 
 ## `WebEngineSurface.qml` 的覆盖层
 

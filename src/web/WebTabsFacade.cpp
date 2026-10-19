@@ -352,7 +352,13 @@ QString WebTabsFacade::openDetachedTab(const QString &agentId,
     }
     QVariantMap fields;
     fields[QStringLiteral("title")] = title;
-    return createTab(agentId, parsed, fields);
+    const QString id = createTab(agentId, parsed, fields);
+    // 弹窗路径此前完全静默——事后排查「界面报异常但弹出的标签其实开了」
+    // 时，日志里既看不到新标签也查不到它的去向。
+    qInfo().noquote() << QStringLiteral(
+        "WebTabs: opened detached tab %1 for agent %2 (%3)")
+        .arg(id, agentId, redactedUrl(parsed));
+    return id;
 }
 
 /**
@@ -492,6 +498,10 @@ void WebTabsFacade::setTabState(const QString &id, const QString &state)
     if (!tab) {
         return;
     }
+    // 状态迁移落日志，与表面侧的 [web-load] 行按时间对照，才能回放
+    // 「标签何时进入 error、由哪次加载触发」。
+    qInfo().noquote() << QStringLiteral("WebTabs: tab %1 state %2 -> %3")
+        .arg(id, tab->state(), state);
     tab->setState(state);
     if (state == QStringLiteral("ready")) {
         tab->touch();
@@ -587,6 +597,9 @@ void WebTabsFacade::markOfflineForAgent(const QString &agentId)
         // （token 门禁的 HTTP 401）保持 error——每轮探测都重载它永远
         // 不会成功。
         || tab->state() == QStringLiteral("error")) {
+        qInfo().noquote() << QStringLiteral(
+            "WebTabs: tab %1 state %2 -> offline (agent %3 went away)")
+            .arg(tab->id(), tab->state(), agentId);
         tab->setState(QStringLiteral("offline"));
     }
 }
@@ -612,6 +625,9 @@ void WebTabsFacade::markOnlineForAgent(const QString &agentId)
     // 已通过），说明加载本身失败——只有 retarget 或手动 Retry 能改变
     // 结局。
     if (tab->state() == QStringLiteral("offline")) {
+        qInfo().noquote() << QStringLiteral(
+            "WebTabs: tab %1 state offline -> loading (agent %2 came back)")
+            .arg(tab->id(), agentId);
         tab->setLoadProgress(0);
         tab->setState(QStringLiteral("loading"));
     }
@@ -634,6 +650,10 @@ void WebTabsFacade::retargetTabForAgent(const QString &agentId, const QUrl &url)
     if (!tab || url.isEmpty() || !url.isValid()) {
         return;
     }
+    // 会话 URL 重定向此前不留日志——「标签为什么换了 URL」无从回放。
+    qInfo().noquote() << QStringLiteral(
+        "WebTabs: retargeted tab %1 for agent %2 -> %3")
+        .arg(tab->id(), agentId, redactedUrl(url));
     tab->setLoadProgress(0);
     tab->setLastError(QString());
     tab->setUrl(url);
