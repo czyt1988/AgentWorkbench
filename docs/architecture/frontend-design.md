@@ -98,7 +98,7 @@ Before writing any new UI element, look through the shelf. The components under 
 
 | Component | Purpose | When to use |
 |---|---|---|
-| `AButton` | Text button | Every text button. Variants are `primary`, `secondary`, `ghost` and `danger`; `primary` accepts an `accentColor` for runtime colouring (an agent's own colour). |
+| `AButton` | Text button | Every text button. Variants are `primary`, `secondary`, `ghost` and `danger`; `primary` accepts an `accentColor` for runtime colouring (an agent's own colour). `compact: true` switches to the 24 px / caption-size form for low strips such as status lines; the default stays 32 px / body size. |
 | `AIconButton` | Icon button | Every icon button. The tooltip is mandatory. In navigation contexts use `active` to fill the current destination. |
 | `ATextField` | Single-line input | Every text input, including the `invalid` red border and the 2px focus ring. Its height (32) aligns with `AButton`. |
 | `ATextArea` | Multi-line editor | Every multi-line text input. It uses the `surface` background — deliberately different from `ATextField`'s `surfaceAlt`, because a long editing area needs a whiter base in the light theme. A `TextArea` never scrolls its own text, so an input that must scroll (a long prompt) attaches it to a `Flickable` through the `TextArea.flickable` attached property; that keeps the frame and the focus ring pinned to the viewport and scrolls the caret into view (see the Markdown workbench page). The `cornerRadius` property defaults to `radiusControl` and is overridden to `0` where the editor must meet a splitter flush (the workbench editor's left edge). |

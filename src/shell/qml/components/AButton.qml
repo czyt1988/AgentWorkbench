@@ -22,14 +22,17 @@ Button {
     // 菜单打开期间由使用方置真：箭头区保持高亮，让菜单看起来锚在按钮上。
     property bool menuOpen: false
     // 忙碌指示：为真时文字左侧显示一个旋转的弧形转圈（颜色随 variant 取
-    // 主题令牌），表示按钮触发的操作正在后台进行。busy 只负责视觉；点击
+    // 主题令牌），表示按钮触发的操作正在后台执行。busy 只负责视觉；点击
     // 是否可用由使用方经 enabled 控制。
     property bool busy: false
+    // 紧凑档：高度 24 + caption 字号，给状态栏这类矮条容器里的文字按钮用；
+    // 默认档维持 32 + body 不变。
+    property bool compact: false
 
     signal dropdownActivated()
 
-    implicitHeight: 32
-    padding: theme.spacingM
+    implicitHeight: compact ? 24 : 32
+    padding: compact ? theme.spacingS : theme.spacingM
 
     background: Rectangle {
         radius: theme.radiusControl
@@ -92,7 +95,8 @@ Button {
                     return theme.textPrimary
                 }
             }
-            font.pixelSize: theme.fontSizeBody
+            font.pixelSize: control.compact ? theme.fontSizeCaption
+                                             : theme.fontSizeBody
             font.bold: control.variant === "primary" || control.variant === "danger"
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
