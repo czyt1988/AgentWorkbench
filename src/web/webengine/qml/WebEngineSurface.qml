@@ -14,6 +14,12 @@ Item {
 
     // 本视图渲染的 WebTab（标签模型的一个 role 对象）。
     property var tab: null
+    // 标签（重新）绑定时做首次 URL 同步——Loader 重建表面（released →
+    // 恢复）走的也是这条路。处理器同步跑在 tab 属性写入的瞬间，早于
+    // hasTab/profile 等绑定的重新求值；url 先于 profile 赋值与旧的声明
+    // 式绑定同序（视图的实际加载推迟到适配器初始化，届时两者都已就位），
+    // 但守卫必须直查 tab 而不是 hasTab（见 syncUrlFromTab）。
+    onTabChanged: syncUrlFromTab()
     // 全屏会隐藏标签栏；Esc 先退出全屏。
     signal fullScreenToggled(bool active)
 
@@ -91,13 +97,34 @@ Item {
         return "unknown(" + type + ")"
     }
 
+    // tab.url → view.url 的命令式同步，只在两者真不同时赋值。绝不能写
+    // 成声明式绑定 url: tab.url——绑定在 tab.url 的每次 NOTIFY 上都会
+    // 重新赋值，而 Qt 对 url 赋值即使同值也发起全新导航：页面自己的
+    // 客户端路由（pushState/replaceState）经 onUrlChanged → setTabUrl
+    // 绕回来，就被放大成一次页面从未要求的整页文档重载。对 token 门禁
+    // 的 daemon，这次计划外请求常常吃到 4xx（token 在片段/localStorage
+    // 里，随文档请求到不了服务器），标签随即落 error——覆盖层盖住的
+    // 其实是一张活着的页面（失败的预备导航不销毁已提交文档）。
+    // 2026-10-20 qwen /settings 实测即此链路。
+    function syncUrlFromTab() {
+        // 直接查 tab，不用 hasTab——hasTab 自身是绑定，onTabChanged 同步
+        // 执行时它还没重新求值（仍是 false），拿它做守卫会让首次同步静默
+        // 早退、视图永远不加载（tst_webengine 冒烟实测踩过这个坑）。
+        if (tab === null || tab === undefined)
+            return
+        const target = String(tab.url)
+        if (target.length > 0 && target !== String(view.url))
+            view.url = tab.url
+    }
+
     WebEngineView {
         id: view
         anchors.fill: parent
 
         visible: surface.hasTab && tab.state !== "released"
                  && tab.state !== "offline"
-        url: surface.hasTab ? tab.url : ""
+        // url 不做声明式绑定——命令式同步见 syncUrlFromTab()（绑定回馈
+        // 会把页面的客户端路由放大成整页重载）。
         zoomFactor: surface.hasTab ? tab.zoom : 1.0
         profile: surface.hasTab
                  ? WebProfiles.createProfile(tab.agentId) : null
@@ -123,14 +150,20 @@ Item {
             if (surface.hasTab)
                 web.setTabUrl(tab.id, String(url))
         }
+        // tab.url 的变化（C++ 侧 retarget、初始绑定）经命令式同步落到
+        // 视图；页面自己引发的 url 变化在 syncUrlFromTab() 的同值守卫下
+        // 是空操作——回馈环就此断开。
+        //
         // 标签状态机驱动加载：`loading` 表示「应当正在加载」。
-        // reloadTab()/markOnlineForAgent() 只翻转状态、不碰 URL（上面的
-        // url 绑定只在 URL 变化时触发），所以转到 loading 的实际加载必须
-        // 从这里发起。没有这一步转圈会转个不停，覆盖层的「取消」也没有
-        // 东西可停——空闲视图上的 view.stop() 永远不会发
-        // LoadStoppedStatus。
+        // reloadTab()/markOnlineForAgent() 只翻转状态、不碰 URL，所以
+        // 转到 loading 的实际加载必须从这里发起。没有这一步转圈会转个
+        // 不停，覆盖层的「取消」也没有东西可停——空闲视图上的
+        // view.stop() 永远不会发 LoadStoppedStatus。
         Connections {
             target: surface.tab
+            function onUrlChanged() {
+                surface.syncUrlFromTab()
+            }
             function onStateChanged() {
                 if (surface.hasTab && tab.state === "loading")
                     view.reload()
