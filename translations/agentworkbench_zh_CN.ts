@@ -4350,7 +4350,7 @@ Command: %2
     <message>
         <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="192"/>
         <source>Failed to load %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>无法加载 %1：%2</translation>
     </message>
     <message>
         <location filename="../src/web/webengine/qml/WebEngineSurface.qml" line="304"/>
