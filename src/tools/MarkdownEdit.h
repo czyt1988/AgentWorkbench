@@ -86,6 +86,12 @@ public:
     // 的「选区替换为 Tab」。
     Q_INVOKABLE void handleTab(QObject *textArea);
 
+    // Tab 的反向动作（Shift+Tab）：覆盖到的每行行首去掉一个缩进单位
+    // （一个 Tab，或至多 4 个空格）；无选区时作用于光标所在行。整段都
+    // 没有缩进时原样返回，不产生撤销步。QML 侧经 Keys.onBacktabPressed
+    // 接入。
+    Q_INVOKABLE void handleBacktab(QObject *textArea);
+
     // --- M3 查询侧（B1 约束：没有查询接口的动作不许设 checkable，这里
     //     就是 Ribbon checkable 按钮的数据源） ---
 
@@ -117,6 +123,7 @@ public:
     static void insertDividerToCursor(QTextCursor &cursor);
     static void applyTaskToCursor(QTextCursor &cursor);
     static void handleTabToCursor(QTextCursor &cursor);
+    static void handleBacktabToCursor(QTextCursor &cursor);
 
     // 纯查询（测试入口）：不修改文档
     static bool isBoldAtCursor(const QTextCursor &cursor);

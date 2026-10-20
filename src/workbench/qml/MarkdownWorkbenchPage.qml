@@ -84,6 +84,14 @@ Item {
         MarkdownEdit.handleTab(editor)
     }
 
+    // Shift+Tab：Tab 的反向动作，给覆盖到的每行行首去掉一个缩进单位
+    // （无选区时是光标所在行）。只读文档同样不接。
+    function handleEditorBacktab(editor) {
+        if (editor.readOnly)
+            return
+        MarkdownEdit.handleBacktab(editor)
+    }
+
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
     property int landingPolls: 0
@@ -1156,6 +1164,10 @@ Item {
                             // 自身的按键处理，处理后不再走默认的「替换选区」。
                             Keys.onTabPressed:
                                 workbenchWindow.handleEditorTab(promptEditor)
+                            // Shift+Tab：同一批行的反向动作（退一个缩进
+                            // 单位，无选区时是光标所在行）。
+                            Keys.onBacktabPressed:
+                                workbenchWindow.handleEditorBacktab(promptEditor)
                             // 只在初始化时从门面取草稿：常驻双向绑定会与
                             // 用户输入互相打架。
                             Component.onCompleted: {
@@ -1277,6 +1289,9 @@ Item {
                                 // handleEditorTab 门控）。
                                 Keys.onTabPressed:
                                     workbenchWindow.handleEditorTab(editorArea)
+                                // Shift+Tab：同一批行的反向动作。
+                                Keys.onBacktabPressed:
+                                    workbenchWindow.handleEditorBacktab(editorArea)
 
                                 // 只在初始化与「磁盘那份进来了」时写 text：
                                 // 常驻双向绑定会与用户输入互相打架。

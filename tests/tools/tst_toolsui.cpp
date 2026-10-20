@@ -1035,6 +1035,38 @@ private Q_SLOTS:
             4000);
     }
 
+    /// Shift+Tab 走完整的 QML 键链路（Keys.onBacktabPressed → 页面门控 →
+    /// MarkdownEdit.handleBacktab）：多行选区逐行退一个缩进单位，并成为
+    /// 一次可撤销的编辑。
+    void testShiftTabOutdentsSelectedLines()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        editor->setProperty("text", QStringLiteral("\taa\n\tbb"));
+        const QPointF center = editor->mapToScene(
+            QPointF(editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        QVERIFY2(editor->hasActiveFocus(),
+                 "clicking the editor did not give it focus");
+        QVERIFY(QMetaObject::invokeMethod(editor, "selectAll"));
+
+        QTest::keyClick(window, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_COMPARE(editor->property("text").toString(),
+                     QStringLiteral("aa\nbb"));
+
+        // 与 Tab 一样是一个撤销步：Ctrl+Z 整体回到缩进状态。
+        QTest::keyClick(window, Qt::Key_Z, Qt::ControlModifier);
+        QTRY_COMPARE(editor->property("text").toString(),
+                     QStringLiteral("\taa\n\tbb"));
+    }
+
     /// B9 + C4：体检面板在场可触发；预算估算出现在状态条。
     void testChecksPanelAndBudgetRun()
     {

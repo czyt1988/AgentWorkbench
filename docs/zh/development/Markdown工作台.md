@@ -258,6 +258,7 @@ description: My own shape for bug reports.
 两条编辑器行为接线在页面、实现在 `MarkdownEdit`/页面这一对上（两个编辑器共享）：
 
 - **Tab 配多行选区＝逐行缩进**（VSCode 语义）。两个编辑器的 `Keys.onTabPressed` 都转到 `MarkdownEdit.handleTab()`；静态 `handleTabToCursor()` 在一个编辑块里给覆盖到的每个块行首插一个 `\t`，再把选区重新罩住缩进后的范围——反复按 Tab 持续右移、一次撤销整体回退。无选区与单行选区保持原生行为——插入一个 Tab（单行选区被替换），这也是要拦截按键的原因：`TextArea` 默认会把**任何**选区替换成 Tab 字符，多行的也不例外。选区末尾恰好贴在换行后的那条边界纪律与 `applyBulletToCursor()` 一致（没选到内容的下一行不缩进）。只读文档由页面门控（`handleEditorTab()`）：`MarkdownEdit` 直接写文档光标，不经过 QML 的 `readOnly` 标志。
+- **Shift+Tab 是同一批行的反向动作。** 两个编辑器的 `Keys.onBacktabPressed` 都转到 `MarkdownEdit.handleBacktab()`；静态 `handleBacktabToCursor()` 在一个编辑块里给覆盖到的每行行首去掉一个缩进单位——一个 `\t`，或至多 4 个空格（手写的空格式嵌套列表因此也能一次退一级）——再让选区端点随内容左移（光标停在缩进内部时减到行首为止），反复按 Shift+Tab 持续左移、一次撤销整体回退。无选区时它作用于光标所在行，而 Tab 在同样位置只插一个字符：「Shift+Tab = 退一级」是编辑器的普遍预期，而单插的一个 Tab 字符没有别的键能收回。整段都没有缩进时原样返回，不留空撤销步；行范围的边界纪律与 Tab 一致。只读文档由页面门控（`handleEditorBacktab()`）。
 - **Ctrl+滚轮调编辑区字号。** 一块透明 `MouseArea` 盖住编辑槽位（中间区条目的最上层兄弟，几何绑 `docArea.splitX`），**只**吃带 Ctrl 的滚轮——普通滚轮 `accepted = false` 落回编辑器自己的滚动，`acceptedButtons: Qt.NoButton` 让点击、右键、文件树拖放全部照旧。字号是页面状态（`editorFontPx`，`0` = 跟随主题 `fontSizeBody`，夹在 8–40，滚一格 ±1 px），草稿区与文件源码区共用。**有意不落盘**：它是阅读缩放、不是设置，随进程退出复位——固定字号阶梯（`designs.md`）管的是布局外观，不管用户驱动的内容缩放（预览的字号设置是同一性质的例外，那边同样以 px 表达）。
 
 ### 查找

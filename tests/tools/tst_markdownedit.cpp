@@ -719,6 +719,92 @@ private Q_SLOTS:
         QCOMPARE(cursor.position(), 3);
     }
 
+    // --- Shift+Tab 反缩进 --------------------------------------------------
+
+    void testBacktabOutdentsEverySelectedLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 与 Tab 同一条边界纪律：选区终点 7 恰在第三行行首，cc 不参与。
+        apply(QStringLiteral("\taa\n\tbb\ncc"), 0, 7,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb\ncc"));
+        // 选区随内容左移：反复按 Shift+Tab 可以继续退，键位方向保持。
+        QCOMPARE(cursor.selectionStart(), 0);
+        QCOMPARE(cursor.selectionEnd(), 5);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+        QVERIFY(cursor.anchor() <= cursor.position());
+    }
+
+    void testTabAndBacktabAreInverse()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("\taa\n\tbb\ncc"));
+        MarkdownEdit::handleBacktabToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb\ncc"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+    }
+
+    void testBacktabLeavesUnindentedLinesAlone()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 8 空格退 4、2 空格全退、无缩进行不动：一次只退一个缩进单位。
+        apply(QStringLiteral("        deep\n  two\nplain"), 0, 24,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("    deep\ntwo\nplain"));
+    }
+
+    void testBacktabWithoutSelectionOutdentsCurrentLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 无选区（光标在第二行中间）：只退光标所在行，光标随之左移。
+        apply(QStringLiteral("\taa\n\tbb"), 5, 5,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("\taa\nbb"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 4);
+    }
+
+    void testBacktabClampsCaretInsideIndent()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 光标停在缩进内部：退到行首为止，不会跑到上一行去。
+        apply(QStringLiteral("\taa"), 0, 0,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa"));
+        QCOMPARE(cursor.position(), 0);
+    }
+
+    void testBacktabWithoutIndentIsNoOp()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 5,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+        // 没有可退的缩进时不留一个空撤销步。
+        QVERIFY(!document.isUndoAvailable());
+    }
+
+    void testBacktabIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("\taa\n\tbb"), 0, 7,
+              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("\taa\n\tbb"));
+    }
+
     // --- B2 查找 / 替换 ---------------------------------------------------
 
     void testFindForwardAndWrap()

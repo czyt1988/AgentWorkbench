@@ -61,6 +61,29 @@ TrimmedSelection trimWhitespace(const QString &selected)
 }
 
 /**
+ * @brief 行首一个缩进单位的长度（Shift+Tab 反缩进用）
+ *
+ * 行首是一个 Tab 就去掉它；空格缩进按一个 Tab 宽（4 个空格）算，不足
+ * 4 个就全去掉——Tab 插入的永远是 \t，但手写的空格式嵌套列表同样要能
+ * 一次退一级。
+ *
+ * @param line 行文本
+ * @return 要去掉的字符数（0 = 这行没有缩进）
+ */
+int leadingIndentLength(const QString &line)
+{
+    if (line.startsWith(QLatin1Char('\t'))) {
+        return 1;
+    }
+    int spaces = 0;
+    while (spaces < 4 && spaces < line.length()
+           && line.at(spaces) == QLatin1Char(' ')) {
+        ++spaces;
+    }
+    return spaces;
+}
+
+/**
  * @brief 光标块的 markdown 行内标记区间表
  *
  * 查询侧的判据是 **markdown 源码**，不是富文本格式：这个编辑器的所有
@@ -423,6 +446,16 @@ void MarkdownEdit::applyTask(QObject *textArea)
 void MarkdownEdit::handleTab(QObject *textArea)
 {
     editTextArea(textArea, &MarkdownEdit::handleTabToCursor);
+}
+
+/**
+ * @brief Shift+Tab 键的编辑器行为
+ * @param textArea 目标编辑器
+ * @sa handleBacktabToCursor
+ */
+void MarkdownEdit::handleBacktab(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::handleBacktabToCursor);
 }
 
 /**
@@ -1099,6 +1132,88 @@ void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
         cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
                            QTextCursor::KeepAnchor);
     }
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief Shift+Tab 键的编辑器行为（Tab 的反向动作）
+ *
+ * 覆盖到的每行行首去掉一个缩进单位（一个 Tab，或至多 4 个空格，见
+ * leadingIndentLength）。与 handleTabToCursor 的行范围同一条边界纪律：
+ * 选区末尾恰好贴在换行后的那行没选到内容，不参与反缩进。没有选区时
+ * 作用于光标所在行——Tab 在无选区时插的是一个字符，这里却是行级动作，
+ * 因为「Shift+Tab = 退一级」是编辑器的普遍预期，而单插一个 Tab 退不回
+ * 任何东西。
+ *
+ * 选区端点随内容左移（只减掉落在它前面的缩进，光标停在缩进内部时减到
+ * 行首为止），所以多行选区反复按 Shift+Tab 会逐级左移；整段都没有缩进
+ * 时原样返回，不留一个空撤销步。删除从后往前做，前面各行的位置在删除
+ * 过程中保持有效。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    if (!document) {
+        return;
+    }
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
+        return;
+    }
+
+    struct Removal
+    {
+        int position = 0;  ///< 行首位置（文档坐标）
+        int length = 0;    ///< 要去掉的字符数
+    };
+
+    QList<Removal> removals;
+    for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
+        const int indent = leadingIndentLength(block.text());
+        if (indent > 0) {
+            removals.append({block.position(), indent});
+        }
+        if (block == lastBlock) {
+            break;
+        }
+    }
+    if (removals.isEmpty()) {
+        return;
+    }
+
+    // 端点左移量：只算完全落在它前面的行，本行内算到端点为止。
+    const auto shifted = [&removals](int position) {
+        int removed = 0;
+        for (const Removal &removal : std::as_const(removals)) {
+            if (removal.position >= position) {
+                break;
+            }
+            removed += qMin(removal.length, position - removal.position);
+        }
+        return position - removed;
+    };
+    const int newAnchor = shifted(cursor.anchor());
+    const int newPosition = shifted(cursor.position());
+
+    cursor.beginEditBlock();
+    for (int index = removals.size() - 1; index >= 0; --index) {
+        const Removal &removal = removals.at(index);
+        cursor.setPosition(removal.position);
+        cursor.setPosition(removal.position + removal.length,
+                           QTextCursor::KeepAnchor);
+        cursor.insertText(QString());
+    }
+    // 先落锚点再带保持落位置，反向选区也保持原方向。
+    cursor.setPosition(newAnchor);
+    cursor.setPosition(newPosition, QTextCursor::KeepAnchor);
     cursor.endEditBlock();
 }
 
