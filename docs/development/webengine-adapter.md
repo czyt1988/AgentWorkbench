@@ -352,6 +352,7 @@ backports this adapter relies on (`lifecycleState`, `javaScriptDialogRequested`,
 ## Related
 
 - [Web tabs](web-tabs.md) — the tab model and the `embedded`/`external` surface policy this adapter plugs into.
+- [WebEngine crash troubleshooting](webengine-crash-troubleshooting.md) — renderer crashes, the Debug/Release DCHECK split, and capturing the engine's stderr verdict.
 - [Agent Launcher](agent-launcher.md) — where the agent and its token file come from.
 - [Workbench and pages](workbench-and-pages.md) — `openWeb()` and the popup/external routing entry points.
 - [Development index](index.md)

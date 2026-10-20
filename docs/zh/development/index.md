@@ -9,6 +9,7 @@
 | Agent 启动器（卡片网格、进程生命周期、健康检查） | [Agent 启动器](Agent启动器.md) | [Agent 启动器](../guide/Agent启动器.md) |
 | 内嵌 Web 标签页（标签模型、内存策略） | [Web 标签页](Web标签页.md) | [网页界面](../guide/网页界面.md) |
 | WebEngine 适配层（引擎差异、Qt 5/6 兼容） | [WebEngine 适配层](WebEngine适配层.md) | [网页界面](../guide/网页界面.md) |
+| WebEngine 崩溃排查（渲染进程崩溃、Debug/Release 的 DCHECK 分界） | [WebEngine 崩溃排查](WebEngine崩溃排查.md) | [出问题了](../guide/问题排查.md) |
 | Skill 浏览 | [Skill 浏览](Skill浏览.md) | [技能](../guide/技能.md) |
 | Markdown 工作台页（提示词撰写 + 文档预览、Ribbon、分块渲染） | [Markdown 工作台](Markdown工作台.md) | [Markdown 工作台](../guide/Markdown工作台.md) |
 | 外壳、导航与组件 | [外壳与导航](外壳与导航.md) | [入门](../guide/index.md) |

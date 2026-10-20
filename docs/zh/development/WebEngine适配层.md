@@ -307,6 +307,7 @@ Qt 5 的 QML 差异：`import QtWebEngine` 被改写为
 ## 相关
 
 - [Web 标签](Web标签页.md) —— 本适配层接入的标签模型与 `embedded`/`external` 表面策略。
+- [WebEngine 崩溃排查](WebEngine崩溃排查.md) —— 渲染进程崩溃、Debug/Release 的 DCHECK 分界与 stderr 抓取。
 - [Agent Launcher](Agent启动器.md) —— agent 与它的 token 文件的来源。
 - [Workbench 与页面](workbench与页面.md) —— `openWeb()` 与弹窗/外置路由入口。
 - [开发板块索引](index.md)

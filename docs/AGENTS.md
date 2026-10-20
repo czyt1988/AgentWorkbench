@@ -40,6 +40,7 @@ docs/
   | `development/agent-launcher.md` | `development/Agent启动器.md` |
   | `development/web-tabs.md` | `development/Web标签页.md` |
   | `development/webengine-adapter.md` | `development/WebEngine适配层.md` |
+  | `development/webengine-crash-troubleshooting.md` | `development/WebEngine崩溃排查.md` |
   | `development/skill-browser.md` | `development/Skill浏览.md` |
   | `development/markdown-workbench.md` | `development/Markdown工作台.md` |
   | `development/shell-and-navigation.md` | `development/外壳与导航.md` |

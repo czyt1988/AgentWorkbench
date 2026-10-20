@@ -62,6 +62,7 @@ plugins:
                 - Agent launcher: development/agent-launcher.md
                 - Web tabs: development/web-tabs.md
                 - WebEngine adapter: development/webengine-adapter.md
+                - WebEngine crash troubleshooting: development/webengine-crash-troubleshooting.md
                 - Skill browser: development/skill-browser.md
                 - Markdown workbench: development/markdown-workbench.md
                 - Shell and navigation: development/shell-and-navigation.md
@@ -104,6 +105,7 @@ plugins:
                 - Agent 启动器: development/Agent启动器.md
                 - Web 标签页: development/Web标签页.md
                 - WebEngine 适配层: development/WebEngine适配层.md
+                - WebEngine 崩溃排查: development/WebEngine崩溃排查.md
                 - Skill 浏览: development/Skill浏览.md
                 - Markdown 工作台: development/Markdown工作台.md
                 - 外壳与导航: development/外壳与导航.md

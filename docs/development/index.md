@@ -9,6 +9,7 @@ This section is for people **changing the code**. Each user-visible feature has 
 | Agent launcher (card grid, process lifecycle, health) | [Agent launcher](agent-launcher.md) | [Agent launcher](../guide/agent-launcher.md) |
 | Embedded web tabs (tab model, memory policy) | [Web tabs](web-tabs.md) | [Web interface](../guide/web-ui.md) |
 | WebEngine adapter (engine quirks, Qt 5/6 compatibility) | [WebEngine adapter](webengine-adapter.md) | [Web interface](../guide/web-ui.md) |
+| WebEngine crash troubleshooting (renderer crashes, the Debug/Release DCHECK split) | [WebEngine crash troubleshooting](webengine-crash-troubleshooting.md) | [Troubleshooting](../guide/troubleshooting.md) |
 | Skill browser | [Skill browser](skill-browser.md) | [Skills](../guide/skills.md) |
 | Markdown workbench page (prompt writing + document preview, ribbon, chunked rendering) | [Markdown workbench](markdown-workbench.md) | [Markdown workbench](../guide/markdown-workbench.md) |
 | Shell, navigation, components | [Shell and navigation](shell-and-navigation.md) | [Getting started](../guide/index.md) |
