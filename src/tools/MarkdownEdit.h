@@ -80,6 +80,12 @@ public:
     // 选区每行加 "- [ ] "（agent 提示词的验收清单形态）；无选区时作用于当前行
     Q_INVOKABLE void applyTask(QObject *textArea);
 
+    // Tab 键的编辑器行为（VSCode 语义）：多行选区给覆盖到的每行行首插
+    // 一个 Tab（选区随之扩展）；无选区或单行选区保持原生——插入一个
+    // Tab（单行选区被替换）。QML 侧经 Keys.onTabPressed 接入并吞掉默认
+    // 的「选区替换为 Tab」。
+    Q_INVOKABLE void handleTab(QObject *textArea);
+
     // --- M3 查询侧（B1 约束：没有查询接口的动作不许设 checkable，这里
     //     就是 Ribbon checkable 按钮的数据源） ---
 
@@ -110,6 +116,7 @@ public:
     static void insertTableToCursor(QTextCursor &cursor, int columns);
     static void insertDividerToCursor(QTextCursor &cursor);
     static void applyTaskToCursor(QTextCursor &cursor);
+    static void handleTabToCursor(QTextCursor &cursor);
 
     // 纯查询（测试入口）：不修改文档
     static bool isBoldAtCursor(const QTextCursor &cursor);

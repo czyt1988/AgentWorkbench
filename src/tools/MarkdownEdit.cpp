@@ -416,6 +416,16 @@ void MarkdownEdit::applyTask(QObject *textArea)
 }
 
 /**
+ * @brief Tab 键的编辑器行为
+ * @param textArea 目标编辑器
+ * @sa handleTabToCursor
+ */
+void MarkdownEdit::handleTab(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::handleTabToCursor);
+}
+
+/**
  * @brief 给选区加 ** 标记对
  *
  * 空选区时插入 **** 并把光标放到中间，随后的输入即被包裹。有选区时
@@ -1040,6 +1050,55 @@ void MarkdownEdit::applyTaskToCursor(QTextCursor &cursor)
     cursor.setPosition(firstBlock.position());
     cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
                        QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief Tab 键的编辑器行为（VSCode 语义）
+ *
+ * 多行选区（选区起点与终点落在不同块上）是行级缩进：覆盖到的每行行首
+ * 插一个 Tab，完成后重新选中整段（含新增缩进），反复按 Tab 连续右移。
+ * 无选区或单行选区保持编辑器原生语义：插入一个 Tab（单行选区被替换）。
+ * 选区末尾恰好贴在换行后（光标位于下一行行首）时那行没选到内容，不参
+ * 与缩进（与 applyBullet 同一条边界纪律）。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
+{
+    if (!cursor.hasSelection()) {
+        cursor.insertText(QStringLiteral("\t"));
+        return;
+    }
+    QTextDocument *document = cursor.document();
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    const QTextBlock firstBlock = document->findBlock(selectionStart);
+    const QTextBlock lastBlock =
+            document->findBlock(selectionEnd > selectionStart
+                                      ? selectionEnd - 1
+                                      : selectionStart);
+    if (!firstBlock.isValid() || !lastBlock.isValid()) {
+        return;
+    }
+    cursor.beginEditBlock();
+    if (firstBlock == lastBlock) {
+        // 单行选区：原生替换语义（删选区、插一个 Tab）。
+        cursor.removeSelectedText();
+        cursor.insertText(QStringLiteral("\t"));
+    } else {
+        for (QTextBlock block = firstBlock; block.isValid();
+             block = block.next()) {
+            cursor.setPosition(block.position());
+            cursor.insertText(QStringLiteral("\t"));
+            if (block == lastBlock) {
+                break;
+            }
+        }
+        cursor.setPosition(firstBlock.position());
+        cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
+                           QTextCursor::KeepAnchor);
+    }
     cursor.endEditBlock();
 }
 

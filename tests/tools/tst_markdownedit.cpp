@@ -662,6 +662,63 @@ private Q_SLOTS:
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
     }
 
+    // --- Tab 缩进（VSCode 语义） -------------------------------------------
+
+    void testTabIndentsEverySelectedLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 选区 0..5 盖住 aa 与 bb 两行；终点 5 恰在第三行行首（没选到
+        // 内容），cc 不参与缩进——与 applyBullet 同一条边界纪律。
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("\taa\n\tbb\ncc"));
+        // 结果选区覆盖两行连同新增缩进：反复按 Tab 可以继续右移。
+        QCOMPARE(cursor.selectionStart(), 0);
+        QCOMPARE(cursor.selectionEnd(), 7);
+        QCOMPARE(normalizedSelection(cursor),
+                 QStringLiteral("\taa\n\tbb"));
+        MarkdownEdit::handleTabToCursor(cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("\t\taa\n\t\tbb\ncc"));
+        QCOMPARE(normalizedSelection(cursor),
+                 QStringLiteral("\t\taa\n\t\tbb"));
+    }
+
+    void testTabIndentIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 5,
+              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testTabSingleLineSelectionReplaced()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 单行选区保持原生语义：选区被替换为一个 Tab。
+        apply(QStringLiteral("aa bb cc"), 3, 5,
+              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa \t cc"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 4);
+    }
+
+    void testTabWithoutSelectionInsertsTab()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("hello"), 2, 2,
+              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("he\tllo"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 3);
+    }
+
     // --- B2 查找 / 替换 ---------------------------------------------------
 
     void testFindForwardAndWrap()
