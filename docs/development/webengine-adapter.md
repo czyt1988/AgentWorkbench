@@ -265,15 +265,28 @@ uncaught-error count and the engine's Chromium version before moving the tab to 
 
 ## `WebEngineSurface.qml` overlays
 
-The surface binds `tab.url`, `tab.zoom` and the per-agent profile (`WebProfiles.createProfile(tab.agentId)`)
+The surface binds `tab.zoom` and the per-agent profile (`WebProfiles.createProfile(tab.agentId)`)
 to its `WebEngineView`, and reports changes back through the facade: `onUrlChanged` →
 `setTabUrl`, `onTitleChanged` → `setTabTitle`, `onLoadProgressChanged` → `setTabProgress`, and
 `loadingChanged` → `setTabProgress`/`setTabState`.
 
+**`tab.url` is deliberately not a declarative binding.** A `url: tab.url` binding re-assigns
+`view.url` on every `tab.url` notification, and Qt starts a fresh navigation even when the assigned
+URL equals the current one. Combined with the `onUrlChanged` → `setTabUrl` report-back, a page's own
+client-side routing (the qwen shell switches every route with pushState/replaceState) round-trips
+into a full document reload the page never asked for. Against a token-gated daemon that reload's
+document request often gets a 4xx — the token lives in the URL fragment or in localStorage and never
+reaches the server — and the tab lands in `error`: the overlay then covers a page that is actually
+alive and rendered, because a failed provisional navigation does not destroy the committed document
+(observed 2026-10-20 on qwen's `/settings` route; the retry succeeded because a single clean reload
+no longer races the report-back). The URL therefore syncs imperatively through `syncUrlFromTab()`,
+which assigns only when `tab.url` genuinely differs from `view.url` — the initial load (from
+`onTabChanged`) and C++-side retargets (from a `Connections` on `tab.urlChanged`) — while
+view-initiated URL changes are a no-op, breaking the feedback loop.
+
 A `Connections` block on `tab.stateChanged` calls `view.reload()` whenever the state becomes
-`loading`. This is required because the `url` binding only fires when the URL *changes*, so a reload
-that keeps the same URL — `reloadTab()`, `markOnlineForAgent()`, `reopen()` — would otherwise never
-reach the engine, and the loading spinner would never stop.
+`loading`: a reload that keeps the same URL — `reloadTab()`, `markOnlineForAgent()`, `reopen()` —
+has no other path to the engine, and without it the loading spinner would never stop.
 
 | State | Trigger | Overlay text and actions |
 |---|---|---|

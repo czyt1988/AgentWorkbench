@@ -229,14 +229,25 @@ URL 片段里、永远不会发给服务器，而 web shell 是用真实的文�
 
 ## `WebEngineSurface.qml` 的覆盖层
 
-表面把 `tab.url`、`tab.zoom` 与按 agent 取的 profile（`WebProfiles.createProfile(tab.agentId)`）
-绑到它的 `WebEngineView` 上，并把这些变化回报给门面：`onUrlChanged` → `setTabUrl`、
+表面把 `tab.zoom` 与按 agent 取的 profile（`WebProfiles.createProfile(tab.agentId)`）绑到它的
+`WebEngineView` 上，并把这些变化回报给门面：`onUrlChanged` → `setTabUrl`、
 `onTitleChanged` → `setTabTitle`、`onLoadProgressChanged` → `setTabProgress`，以及
 `loadingChanged` → `setTabProgress`/`setTabState`。
 
-一个挂在 `tab.stateChanged` 上的 `Connections` 会在状态变为 `loading` 时调 `view.reload()`。
-这是必需的，因为 `url` 绑定只在 URL **变化**时触发，不改 URL 的重载——`reloadTab()`、
-`markOnlineForAgent()`、`reopen()`——否则永远到不了引擎，转圈也永远不停。
+**`tab.url` 刻意不做声明式绑定。** `url: tab.url` 绑定会在 `tab.url` 的每次 NOTIFY 上重新赋值，
+而 Qt 对 url 赋值即使同值也发起全新导航。与 `onUrlChanged` → `setTabUrl` 的回报链组合，页面
+自己的客户端路由（qwen shell 的每次路由切换都是 pushState/replaceState）就被放大成一次页面
+从未要求的整页文档重载。对 token 门禁的 daemon，这次重载的文档请求常常吃到 4xx——token 在
+URL 片段或 localStorage 里，随文档请求到不了服务器——标签随即落 `error`：覆盖层盖住的其实是
+一张活着的、已渲染的页面，因为失败的预备导航不会销毁已提交的文档（2026-10-20 在 qwen 的
+`/settings` 路由实测；点重试能成功，是因为干净的单次重载不再与回报链竞争）。因此 URL 走
+`syncUrlFromTab()` 命令式同步：仅当 `tab.url` 与 `view.url` 真正不同才赋值——即初始加载（由
+`onTabChanged` 触发）与 C++ 侧重定向（由挂在 `tab.urlChanged` 上的 `Connections` 触发）——
+视图自己引发的 URL 变化则是空操作，回馈环就此断开。
+
+一个挂在 `tab.stateChanged` 上的 `Connections` 会在状态变为 `loading` 时调 `view.reload()`：
+不改 URL 的重载——`reloadTab()`、`markOnlineForAgent()`、`reopen()`——没有其它路径能到达
+引擎，少了它转圈永远不停。
 
 | 状态 | 触发者 | 覆盖层文案与动作 |
 |---|---|---|

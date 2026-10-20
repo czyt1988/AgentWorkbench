@@ -112,8 +112,10 @@ memory"），配 **Restore view** 按钮调 `web.reopen(tabId)`。该标签的 s
 | `lastError` | `QString` | 在 `crashed`/`error` 覆盖层展示 |
 | `zoom` | `double` | 夹到 0.5..2.0 |
 
-setter 都是边沿触发：值未变不发信号，表面的 `url` 绑定因此不会空转重新求值。`lastUsedMs()` 由
-`touch()` 刷新；构造即 touch，激活也 touch，因此全新标签或刚激活的标签在 LRU 策略里算刚用过。
+setter 都是边沿触发：值未变不发信号。但边沿触发本身断不开 URL 的往返——页面的客户端路由是
+真实的 URL 变化——所以表面把 `tab.url` 命令式同步进视图，且仅在两者确实不同时才赋值（见
+[WebEngine 适配层](WebEngine适配层.md)）。`lastUsedMs()` 由 `touch()` 刷新；构造即 touch，
+激活也 touch，因此全新标签或刚激活的标签在 LRU 策略里算刚用过。
 
 ### `WebTabsModel`
 

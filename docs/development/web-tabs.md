@@ -128,10 +128,12 @@ view. All properties have `NOTIFY` signals so the tab bar and the surface rebind
 | `lastError` | `QString` | shown in the `crashed`/`error` overlays |
 | `zoom` | `double` | clamped to 0.5..2.0 |
 
-The setters are edge-triggered: an unchanged value emits nothing, so the surface's `url` binding does
-not re-evaluate in a loop. `lastUsedMs()` is refreshed by `touch()`; construction touches
-immediately, and activation touches too, so a brand-new or just-activated tab counts as recently
-used for the LRU policy.
+The setters are edge-triggered: an unchanged value emits nothing. Edge-triggering alone does not
+close the URL round-trip, though — a page's client-side routing genuinely changes the URL — so the
+surface syncs `tab.url` into its view imperatively, and only when it differs (see
+[WebEngine adapter](webengine-adapter.md)). `lastUsedMs()` is refreshed by `touch()`; construction
+touches immediately, and activation touches too, so a brand-new or just-activated tab counts as
+recently used for the LRU policy.
 
 ### `WebTabsModel`
 
