@@ -55,7 +55,7 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 
 **Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there.
 
-The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions.
+The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions. **Tab** behaves like in a code editor: with several lines selected it indents every selected line (press it again to indent further, `Ctrl+Z` to step back); with nothing or one line selected it inserts a tab. **Hold Ctrl and scroll the mouse wheel** over the text to make the editor's letters bigger or smaller — a reading zoom that resets when the app restarts.
 
 The draft has a rendered view too, like any document — use the **Preview / Split / Source** buttons above it. **Split** is the natural way to write a long prompt: the text on the left, the rendered result on the right.
 
@@ -133,7 +133,12 @@ The status line at the bottom shows `~1,240 tokens (estimated)` for the draft (a
 
 ## The three views
 
-The **Preview / Split / Source** buttons live in the **View** group of the ribbon's **Start** tab (on the plain toolbar, at its right end). They switch what the middle shows — for the draft or for the active document tab:
+The **Preview / Split / Source** buttons switch what the middle shows — for the draft or for the active document tab. They live in two places, and the two always agree:
+
+- On the ribbon's **View** tab (on the plain toolbar, at its right end).
+- At the **right end of the status line** at the bottom of the workbench — **Source**, **Split**, **Preview**, then a divider, then the **Outline** switch — the copy within reach while you write.
+
+Exactly one of the three is always on; clicking the button that is already on keeps it on.
 
 - **Preview** — the rendered result only.
 - **Split** — the plain text on the left, the rendering on the right.

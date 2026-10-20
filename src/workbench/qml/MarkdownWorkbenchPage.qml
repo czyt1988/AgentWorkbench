@@ -57,6 +57,33 @@ Item {
     // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
 
+    // 编辑区字号（Ctrl+滚轮缩放，草稿区与文件源码区共用一份）：0 = 跟随
+    // 主题 fontSizeBody。同为页面内状态、不落盘——重启回到主题默认；这是
+    // 用户驱动的临时阅读缩放（与预览的字号设置同一性质），不属于界面固定
+    // 字号阶梯（designs.md §2.1 约束的是设计期取值）。
+    property int editorFontPx: 0
+    readonly property int editorFontResolved: editorFontPx > 0
+                                              ? editorFontPx
+                                              : theme.fontSizeBody
+
+    // Ctrl+滚轮的字号步进：每 120 单位 angleDelta（一格滚轮）±1 px，
+    // 夹在 8–40——再小看不清行间结构，再大单行容不下代码块。
+    function zoomEditorFont(steps) {
+        const next = editorFontResolved + steps
+        if (next < 8 || next > 40)
+            return
+        editorFontPx = next
+    }
+
+    // Tab 键的编辑器动作（VSCode 语义）：多行选区给每行行首插 Tab（选区
+    // 随内容扩展）；无选区/单行选区保持原生——插入一个 Tab（单行选区被
+    // 替换）。只读文档不接（MarkdownEdit 直接走光标，绕过 readOnly）。
+    function handleEditorTab(editor) {
+        if (editor.readOnly)
+            return
+        MarkdownEdit.handleTab(editor)
+    }
+
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
     property string pendingLanding: ""
     property int landingPolls: 0
@@ -1120,7 +1147,15 @@ Item {
                             id: promptEditor
                             objectName: "promptEditor"
 
+                            // Ctrl+滚轮缩放的字号（0 = 跟随主题）。
+                            font.pixelSize: workbenchWindow.editorFontResolved
+
                             placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this window.")
+                            // Tab：多行选区整段缩进（VSCode 语义），单行/
+                            // 无选区保持原生插入；Keys 附加属性先于编辑器
+                            // 自身的按键处理，处理后不再走默认的「替换选区」。
+                            Keys.onTabPressed:
+                                workbenchWindow.handleEditorTab(promptEditor)
                             // 只在初始化时从门面取草稿：常驻双向绑定会与
                             // 用户输入互相打架。
                             Component.onCompleted: {
@@ -1235,6 +1270,14 @@ Item {
                             TextArea.flickable: ATextArea {
                                 id: editorArea
 
+                                // Ctrl+滚轮缩放的字号（0 = 跟随主题）。
+                                font.pixelSize: workbenchWindow.editorFontResolved
+
+                                // Tab：与草稿区同一动作（只读由
+                                // handleEditorTab 门控）。
+                                Keys.onTabPressed:
+                                    workbenchWindow.handleEditorTab(editorArea)
+
                                 // 只在初始化与「磁盘那份进来了」时写 text：
                                 // 常驻双向绑定会与用户输入互相打架。
                                 Component.onCompleted: {
@@ -1337,6 +1380,27 @@ Item {
                             onAnchorActivated: function(anchor, blockIndex) {
                                 markdown.scrollToAnchor(anchor, blockIndex)
                             }
+                        }
+                    }
+
+                    // --- Ctrl+滚轮缩放编辑区字号 --------------------------------
+                    // 透明覆盖件，几何盖住编辑槽位（草稿区与文件源码区共用，
+                    // 两者互斥、同位置）。只吃带 Ctrl 的滚轮：普通滚轮
+                    // accepted=false 落回下面的编辑器滚动；不接受任何鼠标
+                    // 按钮，点击/右键/拖放全部照旧穿到编辑器。
+                    MouseArea {
+                        x: 0
+                        y: 0
+                        width: docArea.splitX
+                        height: parent.height
+                        visible: promptScroll.visible || editorScroll.visible
+                        acceptedButtons: Qt.NoButton
+                        onWheel: function(wheel) {
+                            wheel.accepted =
+                                    (wheel.modifiers & Qt.ControlModifier) !== 0
+                            if (wheel.accepted)
+                                workbenchWindow.zoomEditorFont(
+                                            Math.round(wheel.angleDelta.y / 120))
                         }
                     }
                 }
@@ -1479,6 +1543,58 @@ Item {
 
                             HoverHandler {
                                 id: versionHover
+                            }
+                        }
+
+                        // --- 视图切换的就近入口（状态行最右端的工具栏） -------
+                        // 与命令条「视图」页同一批动作、同一个真相源（markdown
+                        // 单例的 mode / showOutline），两处经绑定天然同步。
+                        // 排布：源码、分栏、预览 ── 分隔线 ── 大纲。单选语义
+                        // 与命令条一致：variant 由 mode 绑定、点击只写回
+                        // mode，按钮没有自己的可翻转状态，永不会「全不选」。
+                        // 无预览能力的构建整组退场（与命令条同一条能力门控）。
+                        RowLayout {
+                            id: statusViewSwitch
+                            objectName: "statusViewSwitch"
+                            visible: markdown.available
+                            spacing: theme.spacingXs
+
+                            AButton {
+                                compact: true
+                                text: qsTr("Source")
+                                variant: markdown.mode === "source"
+                                         ? "primary" : "ghost"
+                                enabled: markdown.splitAvailable
+                                onClicked: markdown.setMode("source")
+                            }
+                            AButton {
+                                compact: true
+                                text: qsTr("Split")
+                                variant: markdown.mode === "split"
+                                         ? "primary" : "ghost"
+                                enabled: markdown.splitAvailable
+                                onClicked: markdown.setMode("split")
+                            }
+                            AButton {
+                                compact: true
+                                text: qsTr("Preview")
+                                variant: markdown.mode === "preview"
+                                         ? "primary" : "ghost"
+                                onClicked: markdown.setMode("preview")
+                            }
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitWidth: 1
+                                implicitHeight: 16
+                                color: theme.separator
+                            }
+                            AButton {
+                                compact: true
+                                text: qsTr("Outline")
+                                variant: markdown.showOutline
+                                         ? "primary" : "ghost"
+                                onClicked: markdown.setShowOutline(
+                                               !markdown.showOutline)
                             }
                         }
                     }

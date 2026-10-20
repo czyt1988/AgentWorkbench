@@ -45,7 +45,7 @@ Markdown 工作台是**主窗 `Workspace` 里的一个页面**，把原先的提
 
 - **开始** 装着日常编辑动作，分组以不滚动为底线：剪贴板面板 **Paste / Cut / Undo / Redo**、格式与列表**同一面板**（**Bold / Italic / Underline / Strikethrough / Link / Bullets / Numbered / Task List / Quote / Divider**——十枚按钮；全都不 `checkable`——选中态得跟光标走，而光标位置进不了 QML 绑定，翻转态只能骗人；下划线写 `<u>` 记号对——唯一可移植的写法）、**Heading** 独占一个面板（菜单：1/2/3 与取消——不与列表混排）、插入组 **Inline Code / Code Block / Table**（icon + text；Code Block 带语言菜单：无、C++、Python、JavaScript、QML、Bash）、**Copy Prompt** 独占面板（交付动作），以及**查找**面板——一个常驻命令条的输入框（**Enter** 查找、再按 **Enter** 查下一个、× 清空并交还焦点；**Ctrl+F** 从任何地方直达）。每一个动作都转发到页面的动作层或 `MarkdownEdit` 静态操作——命令带只做入口，不含自己的逻辑。剪贴板、格式、标题与查找清除按钮的形态**随样式档走**：紧凑档 icon-only、宽松档带文字（`WorkbenchRibbon.qml` 的 `startIconStyle()`，绑 `tools.ribbonStyle`）——未显式设置的 `proportion` 解析为大按钮，而大按钮配 IconOnly 会把图标撑满整个按钮高度（2026-10 用户报告的「宽松档图标巨大失衡」正是它），于是宽松档给它们与插入组一致的图标加文字形态，紧凑档维持纯图标省行宽。ribbon **不声明应用按钮**（同一轮退役）：它没有任何动作——没有应用菜单、没有 backstage——「在哪份文档」由页面的 tab 条回答；`applicationLabel` 留空即整体退场。
 - **提示词**（2026-10 重组后是普通 category——原 `RibbonContextCategory` 退役：模板是常驻工具，不该跟着预设出现消失）装着**模板 gallery** 与**收藏 gallery**——SARibbon 的 `RibbonGallery`，经库的 `addGroup()`/`addItem()` 动态填充（见[模板与收藏](#模板与收藏)）、**Save as Template / Save Favorite**，以及打开两个非模态悬浮窗的 **Check Prompt / History** 开关。插入在文档形态下同样可用（插入目标是草稿，gallery 会先切回提示词形态）——原来把 tab 在文档形态藏掉的决定随上下文页一起退役。
-- **视图** 分两个面板：编辑器视图（对**活跃会话**生效的 **Preview / Split / Source** 三态——草稿也渲染，加**显示当前值**的 **Font Size** / **Width** 下拉，以及分隔线之后的**大纲**开关），以及 ribbon 自身（**Style** 下拉——紧凑/宽松，三行档 2026-10 退役——**Follow Theme**、**Collapse**）。
+- **视图** 分两个面板：编辑器视图（对**活跃会话**生效的 **Preview / Split / Source** 三态——草稿也渲染，加**显示当前值**的 **Font Size** / **Width** 下拉，以及分隔线之后的**大纲**开关），以及 ribbon 自身（**Style** 下拉——紧凑/宽松，三行档 2026-10 退役——**Follow Theme**、**Collapse**）。三枚视图按钮是外观与行为一致的单选组：一律声明 `checkable: false`、`checked` 绑定 `markdown.mode`——mode 是唯一真相，点击只写回 mode，按钮没有自己的可翻转状态。（在这里写 `checkable: true` 是确凿的错误：SARibbon 宿主在 `click()` 里先于 `onClicked` 翻转自身 `checked`，而点击的正是当前 mode 时绑定不会重求值——结果是「已选中的那枚被点成全不选」，2026-10 用户报告的不合理状态，同一轮修复。）同一组开关也住在**状态行最右端**（`statusViewSwitch`）：**Source / Split / Preview**、一条分隔线、**Outline**，用紧凑档 `AButton`，`variant` 绑同一个 `markdown.mode` / `markdown.showOutline`——两处入口零额外接线即同步，状态行这份是写作时顺手够得着的那份。
 
 单行是默认样式档，它的后果在加按钮前值得知道：面板标题隐藏，所有按钮不论 `proportion` 一律按小尺寸渲染——层级靠分组与按钮顺序表达，文字必须短。`minimumMode` 把功能带折叠成一行 tab；文档模式预设默认折叠，点 tab 行即再展开。
 
@@ -252,6 +252,13 @@ description: My own shape for bug reports.
 **查询侧**（`isBoldAt` / `isItalicAt` / `isStrikeAt` / `isCodeAt` / `headingLevelAt`）回答「光标处是什么状态」（格式查询看选区首字符，标题查询看行首 `#` 数量）。它曾喂给 Ribbon 的 checkable 格式按钮；2026-10 整改把那些翻转态删了——查询是函数调用，光标移动不会让 QML 绑定重算，选中态永远跟不上光标、只能停在原地骗人。查询仍是公开 API（测试与将来的消费者在用）；它教出的规矩留下来：状态进不了绑定的动作不许设 `checkable`。
 
 **统一编辑器的红利，如实陈述：**动作打在 `activeEditor` 上——提示词形态是草稿编辑器，文档形态是文件源码区（文件可编辑时）。格式化因此两边都生效，查找也一样（2026-10 的统一输入框在一个动作内按预设分流）。
+
+### 输入行为：Tab 缩进与字号缩放
+
+两条编辑器行为接线在页面、实现在 `MarkdownEdit`/页面这一对上（两个编辑器共享）：
+
+- **Tab 配多行选区＝逐行缩进**（VSCode 语义）。两个编辑器的 `Keys.onTabPressed` 都转到 `MarkdownEdit.handleTab()`；静态 `handleTabToCursor()` 在一个编辑块里给覆盖到的每个块行首插一个 `\t`，再把选区重新罩住缩进后的范围——反复按 Tab 持续右移、一次撤销整体回退。无选区与单行选区保持原生行为——插入一个 Tab（单行选区被替换），这也是要拦截按键的原因：`TextArea` 默认会把**任何**选区替换成 Tab 字符，多行的也不例外。选区末尾恰好贴在换行后的那条边界纪律与 `applyBulletToCursor()` 一致（没选到内容的下一行不缩进）。只读文档由页面门控（`handleEditorTab()`）：`MarkdownEdit` 直接写文档光标，不经过 QML 的 `readOnly` 标志。
+- **Ctrl+滚轮调编辑区字号。** 一块透明 `MouseArea` 盖住编辑槽位（中间区条目的最上层兄弟，几何绑 `docArea.splitX`），**只**吃带 Ctrl 的滚轮——普通滚轮 `accepted = false` 落回编辑器自己的滚动，`acceptedButtons: Qt.NoButton` 让点击、右键、文件树拖放全部照旧。字号是页面状态（`editorFontPx`，`0` = 跟随主题 `fontSizeBody`，夹在 8–40，滚一格 ±1 px），草稿区与文件源码区共用。**有意不落盘**：它是阅读缩放、不是设置，随进程退出复位——固定字号阶梯（`designs.md`）管的是布局外观，不管用户驱动的内容缩放（预览的字号设置是同一性质的例外，那边同样以 px 表达）。
 
 ### 查找
 
