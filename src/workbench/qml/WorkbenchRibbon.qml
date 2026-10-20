@@ -539,10 +539,16 @@ Item {
             RibbonPanel {
                 panelTitle: qsTr("Editor")
 
+                // 三视图是单选组（ActionGroup 语义）：真相只有 markdown.mode
+                // 一个，所以三个按钮一律 checkable: false、勾选态纯由
+                // checked 绑定驱动、点击只写回 mode。若设 checkable: true，
+                // 宿主在 click() 里先翻转自身 checked（绑定在 mode 不变时
+                // 不会重求值），点一下已选中的按钮就会「全不选」——2026-10
+                // 用户报告的状态不合理。
                 RibbonToolButton {
                     text: qsTr("Preview")
                     iconSource: commandBar.icon("preview")
-                    checkable: true
+                    checkable: false
                     checked: markdown.mode === "preview"
                     enabled: markdown.available
                     onClicked: markdown.setMode("preview")
@@ -550,7 +556,7 @@ Item {
                 RibbonToolButton {
                     text: qsTr("Split")
                     iconSource: commandBar.icon("split")
-                    checkable: true
+                    checkable: false
                     checked: markdown.mode === "split"
                     // 只读文档没有源码可编：Split/Source 直接禁用，而不是
                     // 让人切到一个只能看的编辑框。
@@ -561,7 +567,7 @@ Item {
                 RibbonToolButton {
                     text: qsTr("Source")
                     iconSource: commandBar.icon("source")
-                    checkable: true
+                    checkable: false
                     checked: markdown.mode === "source"
                     enabled: markdown.available
                              && markdown.splitAvailable
