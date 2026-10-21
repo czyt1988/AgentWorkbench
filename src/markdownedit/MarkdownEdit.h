@@ -1,7 +1,7 @@
-#ifndef AWB_TOOLS_MARKDOWNEDIT_H
-#define AWB_TOOLS_MARKDOWNEDIT_H
+#ifndef AWB_MARKDOWNEDIT_MARKDOWNEDIT_H
+#define AWB_MARKDOWNEDIT_MARKDOWNEDIT_H
 
-#include "tools/MarkdownHighlighter.h"
+#include "markdownedit/MarkdownHighlighter.h"
 
 #include <QObject>
 #include <QPointer>
@@ -15,11 +15,12 @@ namespace awb::theme {
 class Theme;
 } // namespace awb::theme
 
-namespace awb::tools {
+namespace awb::markdownedit {
 
-/// QML 单例（AgentWorkbench.App 上的 MarkdownEdit）：提示词编辑器的
-/// markdown 支持入口——attach 给编辑器挂语法高亮，applyBold/applyCode/
-/// applyBullet 是右键菜单工具栏调用的三个格式化动作。
+/// QML 单例：markdown 编辑支持入口——attach 给编辑器（TextArea）挂语法
+/// 高亮，applyBold/applyCode 等是右键菜单与命令条调用的格式化动作。
+/// 本应用把它注册为 AgentWorkbench.App 上的 MarkdownEdit；其它项目按
+/// 自己的 URI 注册即可（见 docs 的集成说明）。
 ///
 /// 动作全部经 QTextCursor 的编辑块完成（一次撤销一步），具体逻辑是
 /// 不依赖 QML 运行时的纯静态函数，测试直接拿 QTextDocument 驱动。
@@ -144,8 +145,8 @@ public:
 
     // QML 侧的查找/替换入口：编辑器（TextArea）+ 关键词 + 起点由调用方
     // 给；返回 QVariantMap（{start, length, wrapped}）——结构体不经
-    // QMetaType 注册，map 是 QML 可消费的形状。大小写/全词取 tools 单例
-    // 的偏好（调用方带入），保持纯层的参数化。
+    // QMetaType 注册，map 是 QML 可消费的形状。大小写/全词偏好由调用方
+    // 带入（宿主应用自己持久化），保持纯层的参数化。
     Q_INVOKABLE QVariantMap find(QObject *textArea, const QString &needle,
                                  int from, bool caseSensitive,
                                  bool wholeWords) const;
@@ -157,7 +158,7 @@ public:
                                bool caseSensitive, bool wholeWords) const;
 
     // 从 from 向后查找 needle（到尾部回卷一次）。大小写/全词由参数表达，
-    // 持久化偏好由调用方（tools.json 的 editor 段）带着进来。
+    // 持久化偏好由调用方带着进来（宿主应用自己决定存哪）。
     static FindResult findFrom(const QTextDocument *document,
                                const QString &needle, int from,
                                bool caseSensitive, bool wholeWords);
@@ -209,6 +210,6 @@ private:
     QList<QPointer<MarkdownHighlighter>> m_highlighters;  ///< 挂到各编辑器的高亮器（文档是父对象）
 };
 
-} // namespace awb::tools
+} // namespace awb::markdownedit
 
-#endif // AWB_TOOLS_MARKDOWNEDIT_H
+#endif // AWB_MARKDOWNEDIT_MARKDOWNEDIT_H

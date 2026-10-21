@@ -1,5 +1,5 @@
-#ifndef AWB_TOOLS_MARKDOWNHIGHLIGHTER_H
-#define AWB_TOOLS_MARKDOWNHIGHLIGHTER_H
+#ifndef AWB_MARKDOWNEDIT_MARKDOWNHIGHLIGHTER_H
+#define AWB_MARKDOWNEDIT_MARKDOWNHIGHLIGHTER_H
 
 #include <QColor>
 #include <QSyntaxHighlighter>
@@ -8,7 +8,7 @@
 class QString;
 class QTextDocument;
 
-namespace awb::tools {
+namespace awb::markdownedit {
 
 /// Markdown 高亮的配色令牌：颜色由 MarkdownEdit 从当前 Theme 取出灌入，
 /// 高亮器自身不认识 Theme——测试可以直接构造一组颜色验证规则。
@@ -27,7 +27,8 @@ struct MarkdownColors
 
 /// 轻量 Markdown 语法高亮器：逐块状态机 + 正则规则。
 ///
-/// 只覆盖提示词编写台需要的子集：围栏代码块（跨行状态）、标题、分隔线、
+/// 只覆盖日常 markdown 编辑需要的子集：围栏代码块（跨行状态）、标题、
+/// 分隔线、
 /// 引用、列表标记，以及行内的代码 / 粗体 / 斜体 / 删除线 / 链接。规则
 /// 刻意保持简单，不追求 CommonMark 全量正确（setext 标题、缩进代码块、
 /// 嵌套列表的严格语义不在目标内）。配色经 setColors 注入，主题切换后
@@ -52,6 +53,6 @@ private:
     MarkdownColors m_colors;
 };
 
-} // namespace awb::tools
+} // namespace awb::markdownedit
 
-#endif // AWB_TOOLS_MARKDOWNHIGHLIGHTER_H
+#endif // AWB_MARKDOWNEDIT_MARKDOWNHIGHLIGHTER_H

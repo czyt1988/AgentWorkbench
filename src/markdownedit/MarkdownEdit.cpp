@@ -1,4 +1,4 @@
-#include "tools/MarkdownEdit.h"
+#include "markdownedit/MarkdownEdit.h"
 
 #include "theme/Theme.h"
 
@@ -13,7 +13,7 @@
 #include <tuple>
 #include <utility>
 
-namespace awb::tools {
+namespace awb::markdownedit {
 
 namespace {
 
@@ -1852,4 +1852,4 @@ int MarkdownEdit::headingLevelAtCursor(const QTextCursor &cursor)
     return match.hasMatch() ? match.captured(1).length() : 0;
 }
 
-} // namespace awb::tools
+} // namespace awb::markdownedit

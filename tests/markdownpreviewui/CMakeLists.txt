@@ -19,6 +19,7 @@ target_link_libraries(tst_markdownpreviewui PRIVATE
     awb_markdown_webengine
     awb_web_webengine
     awb_tools
+    awb_markdownedit
     awb_core
     awb_theme
     awb_web
@@ -111,7 +112,7 @@ set(_tst_markdownpreviewui_qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreviewPane.qml
     ${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
-    ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    ${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/WorkspaceTreePanel.qml
@@ -141,8 +142,8 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownPreview
     PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownPreviewPane.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdown/qml/MarkdownOutlinePanel.qml
     PROPERTIES QT_RESOURCE_ALIAS "markdown/MarkdownOutlinePanel.qml")
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
-    PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
+    PROPERTIES QT_RESOURCE_ALIAS "markdownedit/MarkdownContextMenu.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     PROPERTIES QT_RESOURCE_ALIAS "tools/PromptChecksPopup.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml

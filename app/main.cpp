@@ -14,7 +14,7 @@
 #include "shell/UiServices.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
-#include "tools/MarkdownEdit.h"
+#include "markdownedit/MarkdownEdit.h"
 // Vendored 单实例守卫（third_party/SingleApplication，v3.5.6）：
 // QAPPLICATION_CLASS 配成 QApplication，与托盘一致。
 #include "SingleApplication.h"
@@ -253,9 +253,9 @@ int main(int argc, char *argv[])
     // 页不再触发任何扫描。
     skills.start();
     awb::tools::ToolsFacade tools(awb::core::Paths::dataRoot());
-    // Agent Tools 编辑器的 markdown 支持：语法高亮 + 右键菜单的格式化动作。
+    // 编辑器的 markdown 支持：语法高亮 + 右键菜单与命令条的格式化动作。
     // 配色跟 Theme 走（切换主题即时重扫）。
-    awb::tools::MarkdownEdit markdownEdit(&theme);
+    awb::markdownedit::MarkdownEdit markdownEdit(&theme);
     // Markdown 预览的状态与命令队列。纯层在每个构建里都存在——Qt 5 与关掉
     // WebEngine 的构建里它只是 available 恒为假，菜单项与窗口自然不出现；
     // 真正把能力点亮的是下面那个只在 Qt 6 分支上构造的 provider。

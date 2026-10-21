@@ -68,7 +68,9 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/skillcatalog/qml/SkillDetailFlyout.qml
     # tools
     ${CMAKE_SOURCE_DIR}/src/tools/ToolsFacade.cpp
-    ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    # markdown editing (the engine's context menu QML; the C++ layer has no
+    # user-facing strings)
+    ${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/WorkspaceTreePanel.qml

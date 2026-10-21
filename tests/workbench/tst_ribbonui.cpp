@@ -26,7 +26,7 @@
 #include "markdown/MarkdownPreviewController.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
-#include "tools/MarkdownEdit.h"
+#include "markdownedit/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
 // tst_ribbonui — SARibbon 命令条的运行期冒烟（仅 AWB_ENABLE_RIBBON 构建）。
@@ -72,7 +72,7 @@ using awb::core::Settings;
 using awb::markdown::MarkdownPreviewController;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
-using awb::tools::MarkdownEdit;
+using awb::markdownedit::MarkdownEdit;
 using awb::tools::ToolsFacade;
 
 namespace {

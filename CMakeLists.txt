@@ -135,7 +135,7 @@ if (AWB_ENABLE_RIBBON)
 endif()
 
 # Layered modules, bottom-up:
-#   core -> theme -> {shell, agentcatalog, skillcatalog, web, tools} -> workbench -> app
+#   core -> theme -> {shell, agentcatalog, skillcatalog, web, tools, markdownedit, markdown} -> workbench -> app
 add_subdirectory(src/plugin_api) # L0 plugin ABI (header-only)
 add_subdirectory(src/core)      # L0 infrastructure
 add_subdirectory(src/theme)     # L1 theme engine
@@ -144,6 +144,7 @@ add_subdirectory(src/shell)     # L2 window skeleton (UI framework)
 add_subdirectory(src/web)       # L2 web tabs (+ webengine adapter when ON)
 add_subdirectory(src/skillcatalog) # L2 skill catalog
 add_subdirectory(src/tools)     # L2 agent tools (workspace memory, prompt draft)
+add_subdirectory(src/markdownedit) # L2 markdown editing engine (reusable)
 add_subdirectory(src/markdown)  # L2 markdown preview (state layer; adapter when ON)
 add_subdirectory(src/workbench) # L3 application layer
 

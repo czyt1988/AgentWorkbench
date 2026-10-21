@@ -59,6 +59,7 @@ if (AWB_ENABLE_RIBBON)
     target_link_libraries(tst_ribbonui PRIVATE
         SARibbon::Qml
         awb_tools
+        awb_markdownedit
         awb_markdown
         awb_theme
         awb_core
@@ -142,7 +143,7 @@ if (AWB_ENABLE_RIBBON)
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchRibbon.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
         ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
-        ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+        ${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
         ${CMAKE_SOURCE_DIR}/src/tools/qml/WorkspaceTreePanel.qml
@@ -170,8 +171,8 @@ if (AWB_ENABLE_RIBBON)
         PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
         PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
-    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
-        PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
+        PROPERTIES QT_RESOURCE_ALIAS "markdownedit/MarkdownContextMenu.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
         PROPERTIES QT_RESOURCE_ALIAS "tools/PromptChecksPopup.qml")
     set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml

@@ -52,7 +52,7 @@
 #include "markdown/webengine/MarkdownPreviewProvider.h"
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
-#include "tools/MarkdownEdit.h"
+#include "markdownedit/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 #include "web/webengine/WebEngineCompat.h"
 
@@ -599,7 +599,7 @@ private:
     // WebEngineCompat 同样给真的：预览面的导航应答经它收口（Qt 5/Qt 6 的
     // 请求对象应答面不同），替身会把那条路径变成 ReferenceError。
     std::unique_ptr<awb::tools::ToolsFacade> m_tools;
-    std::unique_ptr<awb::tools::MarkdownEdit> m_markdownEdit;
+    std::unique_ptr<awb::markdownedit::MarkdownEdit> m_markdownEdit;
     WebEngineCompat m_webCompat;
     WorkbenchStub m_workbench;
     UiStub m_ui;
@@ -630,7 +630,7 @@ void TestMarkdownPreviewUi::init()
     m_provider.reset(new MarkdownPreviewProvider(m_controller.get()));
     // 工作区树与草稿走真的 ToolsFacade（独立数据根，不碰真实目录）。
     m_tools.reset(new awb::tools::ToolsFacade(m_dir->path()));
-    m_markdownEdit.reset(new awb::tools::MarkdownEdit(&m_theme));
+    m_markdownEdit.reset(new awb::markdownedit::MarkdownEdit(&m_theme));
     m_engine.reset(new QQmlEngine());
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     // main.cpp 在 Qt 5 上补的模块导入路径（见 tst_ribbonui 的同款说明）：

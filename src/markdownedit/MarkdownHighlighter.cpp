@@ -1,11 +1,11 @@
-#include "tools/MarkdownHighlighter.h"
+#include "markdownedit/MarkdownHighlighter.h"
 
 #include <QFont>
 #include <QRegularExpression>
 #include <QString>
 #include <QTextDocument>
 
-namespace awb::tools {
+namespace awb::markdownedit {
 
 namespace {
 
@@ -299,4 +299,4 @@ void MarkdownHighlighter::highlightBlock(const QString &text)
     }
 }
 
-} // namespace awb::tools
+} // namespace awb::markdownedit

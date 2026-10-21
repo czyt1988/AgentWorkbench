@@ -40,14 +40,15 @@ fail() {
 
 # --- 1. Dependency direction -------------------------------------------------
 # Domain modules: which sibling directories each one must not mention.
-for domain in agentcatalog skillcatalog web tools markdown; do
+for domain in agentcatalog skillcatalog web tools markdownedit markdown; do
     others=""
     case "$domain" in
-        agentcatalog)  others="skillcatalog web tools markdown" ;;
-        skillcatalog)  others="agentcatalog web tools markdown" ;;
-        web)           others="agentcatalog skillcatalog tools markdown" ;;
-        tools)         others="agentcatalog skillcatalog web markdown" ;;
-        markdown)      others="agentcatalog skillcatalog web tools" ;;
+        agentcatalog)  others="skillcatalog web tools markdownedit markdown" ;;
+        skillcatalog)  others="agentcatalog web tools markdownedit markdown" ;;
+        web)           others="agentcatalog skillcatalog tools markdownedit markdown" ;;
+        tools)         others="agentcatalog skillcatalog web markdownedit markdown" ;;
+        markdownedit)  others="agentcatalog skillcatalog web tools markdown" ;;
+        markdown)      others="agentcatalog skillcatalog web tools markdownedit" ;;
     esac
     # shell/ and workbench/ are also forbidden (domain modules never depend
     # on the UI framework or the application layer).
@@ -125,7 +126,7 @@ alias_header() {
         web) echo "src/web/WebTabsFacade.h" ;;
         skills) echo "src/skillcatalog/SkillsFacade.h" ;;
         tools) echo "src/tools/ToolsFacade.h" ;;
-        MarkdownEdit) echo "src/tools/MarkdownEdit.h" ;;
+        MarkdownEdit) echo "src/markdownedit/MarkdownEdit.h" ;;
         markdown) echo "src/markdown/MarkdownPreviewController.h" ;;
         MarkdownPreview) echo "src/markdown/webengine/MarkdownPreviewProvider.h" ;;
         workbench) echo "src/workbench/WorkbenchContext.h" ;;

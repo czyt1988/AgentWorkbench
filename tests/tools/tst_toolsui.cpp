@@ -19,7 +19,7 @@
 #include "theme/Theme.h"
 #include "theme/ThemeRegistry.h"
 #include "tools/FileTreeModel.h"
-#include "tools/MarkdownEdit.h"
+#include "markdownedit/MarkdownEdit.h"
 #include "tools/ToolsFacade.h"
 
 // tst_toolsui — Markdown 工作台页（提示词模式那条面）的交互级冒烟：
@@ -54,7 +54,7 @@ using awb::markdown::MarkdownPreviewController;
 using awb::theme::Theme;
 using awb::theme::ThemeRegistry;
 using awb::tools::FileTreeModel;
-using awb::tools::MarkdownEdit;
+using awb::markdownedit::MarkdownEdit;
 using awb::tools::ToolsFacade;
 
 // workbench/ui 桩：窗口加载与交互路径只用 notify/copyText/pickFolder

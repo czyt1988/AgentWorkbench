@@ -1,6 +1,6 @@
 # tst_tools — workspace store, lazy file tree model (tree + flat projection),
-# icon map, facade wiring, markdown editing support, prompt templates,
-# prompt checks and the context budget.
+# icon map, facade wiring, prompt templates, prompt checks and the context
+# budget. (The markdown editing engine has its own suite: tst_markdownedit.)
 add_executable(tst_tools
     tst_tools_main.cpp
     tst_toolsstore.cpp
@@ -8,7 +8,6 @@ add_executable(tst_tools
     tst_filetreeflatmodel.cpp
     tst_fileicons.cpp
     tst_toolsfacade.cpp
-    tst_markdownedit.cpp
     tst_prompttemplates.cpp
     tst_promptchecks.cpp
     ${CMAKE_SOURCE_DIR}/tests/awbtest_runner.cpp
@@ -63,6 +62,7 @@ target_include_directories(tst_toolsui PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(tst_toolsui PRIVATE
     awb_tools
+    awb_markdownedit
     awb_markdown
     awb_theme
     awb_core
@@ -159,7 +159,7 @@ awb_add_resources(tst_toolsui "toolsui_test_resources"
 set(_tst_toolsui_qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbenchPage.qml
     ${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
-    ${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
+    ${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml
     ${CMAKE_SOURCE_DIR}/src/tools/qml/WorkspaceTreePanel.qml
@@ -186,8 +186,8 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/MarkdownWorkbe
     PROPERTIES QT_RESOURCE_ALIAS "workbench/MarkdownWorkbenchPage.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/workbench/qml/WorkbenchToolbar.qml
     PROPERTIES QT_RESOURCE_ALIAS "workbench/WorkbenchToolbar.qml")
-set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/MarkdownContextMenu.qml
-    PROPERTIES QT_RESOURCE_ALIAS "tools/MarkdownContextMenu.qml")
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/markdownedit/qml/MarkdownContextMenu.qml
+    PROPERTIES QT_RESOURCE_ALIAS "markdownedit/MarkdownContextMenu.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/PromptChecksPopup.qml
     PROPERTIES QT_RESOURCE_ALIAS "tools/PromptChecksPopup.qml")
 set_source_files_properties(${CMAKE_SOURCE_DIR}/src/tools/qml/DraftHistoryPopup.qml

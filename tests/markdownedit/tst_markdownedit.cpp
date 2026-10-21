@@ -1,7 +1,7 @@
 #include "awbtest.h"
 
-#include "tools/MarkdownEdit.h"
-#include "tools/MarkdownHighlighter.h"
+#include "markdownedit/MarkdownEdit.h"
+#include "markdownedit/MarkdownHighlighter.h"
 
 #include <QColor>
 #include <QFont>
@@ -12,8 +12,8 @@
 #include <QTextLayout>
 #include <QtTest>
 
-using awb::tools::MarkdownColors;
-using awb::tools::MarkdownEdit;
+using awb::markdownedit::MarkdownColors;
+using awb::markdownedit::MarkdownEdit;
 
 namespace {
 
@@ -935,7 +935,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("# Title"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextLayout::FormatRange range =
@@ -950,7 +950,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("#nospace"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
         QCOMPARE(formatAt(document.firstBlock(), 0).length, 0);
     }
@@ -960,7 +960,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("```cpp\nint x;\n```\nplain"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock fenceOpen = document.firstBlock();
@@ -980,7 +980,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("> quoted\n---\n- item"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock quote = document.firstBlock();
@@ -998,7 +998,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("**bold** `code` *it* [x](y)"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock block = document.firstBlock();
@@ -1023,7 +1023,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("`**q**`"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock block = document.firstBlock();
@@ -1038,7 +1038,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("**q**"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock block = document.firstBlock();
@@ -1054,7 +1054,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("<u>word</u> open<u>"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
 
         const QTextBlock block = document.firstBlock();
@@ -1071,7 +1071,7 @@ private Q_SLOTS:
         const MarkdownColors colors = distinctColors();
         QTextDocument document;
         document.setPlainText(QStringLiteral("`code`"));
-        awb::tools::MarkdownHighlighter highlighter(&document, colors);
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
         highlighter.rehighlight();
         QCOMPARE(formatAt(document.firstBlock(), 1).format.foreground().color(),
                  colors.code);

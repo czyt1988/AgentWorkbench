@@ -23,8 +23,10 @@ set(_component_qml AButton AIconButton ASearchField ACard APill ADialog
                    ASplitHandle)
 set(_agentcatalog_qml AgentCard AgentGridPage AgentEditDialog)
 set(_skillcatalog_qml SkillGridPage SkillCard SkillDetailFlyout)
-set(_tools_qml MarkdownContextMenu PromptChecksPopup DraftHistoryPopup
-                WorkspaceTreePanel)
+# The markdown editing engine's context menu — see src/markdownedit/. It is
+# UI chrome over the MarkdownEdit singleton and reuses the shell AMenu set.
+set(_markdownedit_qml MarkdownContextMenu)
+set(_tools_qml PromptChecksPopup DraftHistoryPopup WorkspaceTreePanel)
 # The Markdown workbench page lives in the workbench domain: it spans the
 # tools (draft, workspace tree) and markdown (preview session) domains, so
 # only L3 may reference both. Registered in EVERY build — the prompt mode is
@@ -82,6 +84,12 @@ foreach(name IN LISTS _tools_qml)
     set_source_files_properties(${_f} PROPERTIES
         QT_RESOURCE_ALIAS "tools/${name}.qml")
 endforeach()
+foreach(name IN LISTS _markdownedit_qml)
+    set(_f ${CMAKE_SOURCE_DIR}/src/markdownedit/qml/${name}.qml)
+    list(APPEND AWB_QML_FILES ${_f})
+    set_source_files_properties(${_f} PROPERTIES
+        QT_RESOURCE_ALIAS "markdownedit/${name}.qml")
+endforeach()
 foreach(name IN LISTS _workbench_qml)
     set(_f ${CMAKE_SOURCE_DIR}/src/workbench/qml/${name}.qml)
     list(APPEND AWB_QML_FILES ${_f})
@@ -136,6 +144,7 @@ target_link_libraries(AgentWorkbench PRIVATE
     awb_agentcatalog
     awb_core
     awb_markdown
+    awb_markdownedit
     awb_shell
     awb_skillcatalog
     awb_theme
