@@ -10,6 +10,9 @@ dist-*/
 # Parallel-development worktrees (scripts/worktree-add.sh)
 .worktree/
 
+# Local scratch notes and working files (anchored: nested tmp/ dirs stay visible)
+/tmp/
+
 # Qt Creator / user-specific
 *.user
 *.user.*
