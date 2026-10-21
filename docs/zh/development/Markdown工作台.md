@@ -261,11 +261,33 @@ description: My own shape for bug reports.
 - **Shift+Tab 是同一批行的反向动作。** 两个编辑器的 `Keys.onBacktabPressed` 都转到 `MarkdownEdit.handleBacktab()`；静态 `handleBacktabToCursor()` 在一个编辑块里给覆盖到的每行行首去掉一个缩进单位——一个 `\t`，或至多 4 个空格（手写的空格式嵌套列表因此也能一次退一级）——再让选区端点随内容左移（光标停在缩进内部时减到行首为止），反复按 Shift+Tab 持续左移、一次撤销整体回退。无选区时它作用于光标所在行，而 Tab 在同样位置只插一个字符：「Shift+Tab = 退一级」是编辑器的普遍预期，而单插的一个 Tab 字符没有别的键能收回。整段都没有缩进时原样返回，不留空撤销步；行范围的边界纪律与 Tab 一致。只读文档由页面门控（`handleEditorBacktab()`）。
 - **Ctrl+滚轮调编辑区字号。** 一块透明 `MouseArea` 盖住编辑槽位（中间区条目的最上层兄弟，几何绑 `docArea.splitX`），**只**吃带 Ctrl 的滚轮——普通滚轮 `accepted = false` 落回编辑器自己的滚动，`acceptedButtons: Qt.NoButton` 让点击、右键、文件树拖放全部照旧。字号是页面状态（`editorFontPx`，`0` = 跟随主题 `fontSizeBody`，夹在 8–40，滚一格 ±1 px），草稿区与文件源码区共用。**有意不落盘**：它是阅读缩放、不是设置，随进程退出复位——固定字号阶梯（`designs.md`）管的是布局外观，不管用户驱动的内容缩放（预览的字号设置是同一性质的例外，那边同样以 px 表达）。
 
-### 查找
+### 查找、替换与计数
 
-纯层是 `MarkdownEdit::findFrom()` 对 `QTextDocument::find()` 的包装：`find(textArea, needle, from, caseSensitive, wholeWords)` 返回 `{start, length, wrapped}`——`wrapped` 就是 UI 说「已从头开始」的依据，而不是把尾部命中装作下一个。
+纯层是 `MarkdownEdit::findFrom()` 对文档文本的扫描（`QTextDocument::find` 的 flags 重载在两代 Qt 上默认值有出入，所以匹配逻辑——逐字符大小写折叠、全词按单词字符边界——手写在 `needleMatchesAt()` 里，查找、计数、高亮三处共用）：`find(textArea, needle, from, caseSensitive, wholeWords)` 返回 `{start, length, wrapped}`——`wrapped` 就是 UI 说「已从头开始」的依据，而不是把尾部命中装作下一个。
 
-2026-10 的重组把草稿查找条、预览搜索条连同替换/全部替换的随行件换成了**一个常驻命令条的查找框**——页面动作层的 `findNext(needle)` 按预设分流：提示词形态经 `MarkdownEdit.find` 查草稿源码，文档形态经 `markdown.requestFind` 查渲染页。**Enter** 查找、再按 **Enter** 查下一个，× 清空并把焦点还给编辑器，**Ctrl+F** 从任何地方直达。大小写/全词偏好（`tools.json` → `editor.findCaseSensitive` / `findWholeWords`）仍喂给纯层，但重组后没有 UI 开关——带七个随行按钮的查找条正是这次要清掉的杂乱。替换与全部替换随查找条退役：`replaceAndFindNext()` / `replaceAll()` 留在 `MarkdownEdit`（纯层与它们的测试都在），只是页面不再有入口。
+2026-10 的重组把草稿查找条、预览搜索条连同替换/全部替换的随行件换成了**一个常驻命令条的查找框**——页面动作层的 `findNext(needle)` 按预设分流：提示词形态经 `MarkdownEdit.find` 查草稿源码，文档形态经 `markdown.requestFind` 查渲染页。**Enter** 查找、再按 **Enter** 查下一个，× 清空并把焦点还给编辑器，**Ctrl+F** 从任何地方直达。大小写/全词偏好（`tools.json` → `editor.findCaseSensitive` / `findWholeWords`）仍喂给纯层，但重组后没有 UI 开关——带七个随行按钮的查找条正是这次要清掉的杂乱。
+
+**替换回来了，长在同一个面板上**（C 批次）：Find 面板带一个替换输入框与 **Replace** / **Replace All** 两个按钮，**Ctrl+H** 直达替换框。页面的 `replaceNext()` 先对齐——选区不是当前命中（关键词刚换、还没找过）时先找一条选中——再调纯层的 `replaceAndFindNext()` 并选中下一个命中；`replaceEverywhere()` 包一层纯 `replaceAll()`，toast 报替换次数。替换永远写**源码文本**：提示词形态落草稿编辑器，文档形态落文件源码区（渲染出的 DOM 无从写回）——这与 `Ctrl+F` 在文档形态查渲染页是刻意的不对称。
+
+两处计数随行：查找框旁的 **`N/M`**（当前命中在不重叠计数里的 1 起序号，来自 `countMatches()` / `matchIndexAt()`），状态行在空间允许时显示同一组数字。源码里的每个命中都有**背景高亮**——`MarkdownEdit.setSearchHighlight()` 把关键词推给挂着的 `MarkdownHighlighter`，它在语法规则**之后**给每个命中画一层低透明度的 accent 背景（高亮器在逐字符格式网格里合成语法色与查找底色后统一写出——`setFormat` 是逐字符覆盖，直接二次上色会把命中处的语法色抹掉）；× / `Esc` 同时清掉计数与高亮。正文编辑后，命中块的重新高亮由高亮器自己的文档钩子白拿；计数按 300 ms 防抖重算。
+
+### 行、块与大小写操作
+
+B 批次的编辑器操作住在 `MarkdownEdit` 里，与格式动作同一形状（静态 `*ToCursor` + `Q_INVOKABLE`，一个编辑块一次撤销）：
+
+| 动作 | 键位 / 入口 | 行为 |
+|---|---|---|
+| `moveLineUp()` / `moveLineDown()` | `Alt+↑` / `Alt+↓`、右键菜单 | 选区覆盖到的行（无选区 = 光标所在行）与上一/下一行交换位置；选区跟着行走（端点保持段内相对偏移）。到文档边缘原样返回，不留空撤销步 |
+| `duplicateLine()` | `Shift+Alt+↓`、右键菜单 | 覆盖到的行在紧随其后复制一份（含行尾分隔符）；选区落在副本上，继续输入作用于副本。按住不放可以叠出多份 |
+| `deleteLine()` | `Ctrl+Shift+K`、右键菜单 | 连同行尾分隔符整段删掉（不留空行）；光标落到紧随其后的行行首 |
+| `selectLine()` | `Ctrl+L` | 选区扩展到覆盖到的整行（不含换行）。不改文档，只读源码同样可用 |
+| `selectWord()` | `Ctrl+D` | 选中光标处的词（字母/数字/下划线连成的段）；贴在词边界时取右侧的词，在空白上不动 |
+| `convertCase(mode)` | 右键菜单 | `UpperCase` / `LowerCase` / `TitleCase` 作用于选区，无选区时光标处的词。已是目标形态的输入原样返回（不留空撤销步） |
+| `promoteHeading()` / `demoteHeading()` | Ribbon 的 Heading 菜单 | 对选区覆盖到的每个标题行升降级：`#` 数 −1 / +1，封顶 6。H1 再升 = 去标题（与 `applyHeading` 同级再点去掉的循环语义一致）；非标题行不动——普通行不会因为按了降级就凭空变成标题 |
+
+按键路由在页面的 `handleEditorKey()`（两个编辑器共用，挂在 `Keys.onPressed`）：只吃上面这批组合，会改文档的按 `readOnly` 门控，其余全部放行——页面级 `Shortcut`（`Ctrl+F`/`Ctrl+H`/`Ctrl+G`）是 `Qt.ApplicationShortcut`，优先级本来就在 `Keys` 之上。右键菜单是同一批动作的平铺条目（`MarkdownContextMenu` 与格式工具行一样直呼单例）。
+
+**跳转到行**（`Ctrl+G`）与**状态行光标位置**补齐导航：`Ctrl+G` 弹一个小对话框（1 起的行号）；状态行对在场的编辑器显示 `Ln x, Col y`（提示词模式跟草稿，文档模式跟可见的源码区）。两者都只动光标，只读文档同样可用。
 
 ### 提示词体检（纯规则）
 
