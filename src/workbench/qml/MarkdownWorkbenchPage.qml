@@ -54,6 +54,10 @@ Item {
     // --- 页面自己的状态 ----------------------------------------------------
     // 查找状态：当前关键词（命令条查找框的镜像——命中判定由页面统一做）。
     property string findNeedle: ""
+    // 查找的命中统计（「N/M」，命令条与状态行消费）：正文编辑后由
+    // findStatsTimer 防抖重算，动作结束（findNext/replace*）立即重算。
+    property int findMatchCount: 0
+    property int findMatchIndex: 0
     // 两栏布局里编辑区占的比例。页面内状态，不进设置：拖一下不该落盘。
     property real editorShare: 0.45
 
@@ -90,6 +94,45 @@ Item {
         if (editor.readOnly)
             return
         MarkdownEdit.handleBacktab(editor)
+    }
+
+    // --- 行级编辑动作（B 批次）：编辑器聚焦时的组合键路由 -------------------
+    // 只处理行操作相关的修饰键组合，匹配到就执行并吞掉按键；没匹配到的
+    // （普通输入、其它 Ctrl 组合）原样放行。Alt/Ctrl 组合只会在编辑器聚
+    // 焦时到达这里，与页面级 Shortcut（Ctrl+F/Ctrl+H/Ctrl+G/Ctrl+S）不
+    // 打架。
+    function handleEditorKey(editor, event) {
+        const alt = (event.modifiers & Qt.AltModifier) !== 0
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+        const key = event.key
+
+        // Alt+↑/↓ 移动行、Shift+Alt+↓ 复制行、Ctrl+Shift+K 删行：纯编
+        // 辑动作，只读文档不接（MarkdownEdit 直接走文档光标）。
+        // Ctrl+L 选整行、Ctrl+D 选词不改文档，只读也放行。
+        if (ctrl && shift && key === Qt.Key_K) {
+            if (editor.readOnly)
+                return false
+            MarkdownEdit.deleteLine(editor)
+        } else if (ctrl && !shift && key === Qt.Key_L) {
+            MarkdownEdit.selectLine(editor)
+        } else if (ctrl && !shift && key === Qt.Key_D) {
+            MarkdownEdit.selectWord(editor)
+        } else {
+            if (alt && editor.readOnly)
+                return false
+            if (alt && !shift && key === Qt.Key_Up) {
+                MarkdownEdit.moveLineUp(editor)
+            } else if (alt && !shift && key === Qt.Key_Down) {
+                MarkdownEdit.moveLineDown(editor)
+            } else if (alt && shift && key === Qt.Key_Down) {
+                MarkdownEdit.duplicateLine(editor)
+            } else {
+                // 没匹配到的组合原样放行（普通输入也走这里）。
+                return false
+            }
+        }
+        return true
     }
 
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
@@ -493,6 +536,10 @@ Item {
             MarkdownEdit.applyHeading(editor, 3)
         else if (kind === "heading0")
             MarkdownEdit.applyHeading(editor, 0)
+        else if (kind === "headingUp")
+            MarkdownEdit.promoteHeading(editor)
+        else if (kind === "headingDown")
+            MarkdownEdit.demoteHeading(editor)
     }
 
     // 围栏代码块 + 语言（Ribbon 的 Fence 菜单转发到这里）。
@@ -504,10 +551,23 @@ Item {
         MarkdownEdit.applyFence(editor, language)
     }
 
-    // --- 统一查找（命令条查找框的唯一动作出口） ---------------------------
-    // 一次「查找/下一个」：关键词变了就从选区尾部找（首个回车 = 从头），
-    // 没变就找下一个。文档模式查预览渲染区（分片 DOM 的查找），提示词
-    // 模式查草稿源码。命中即选中（TextArea 的 select 经光标位置）。
+    // --- 统一查找/替换（命令条查找框与替换框的唯一动作出口） -------------
+    // 编辑器侧的一次「查找/下一个」（草稿区与源码区共用）：关键词变了就
+    // 从头找，没变从选区尾部找；命中即选中。返回 {start, length, wrapped}。
+    function findInEditor(editor, needle, changed) {
+        const from = changed || editor.selectedText.length === 0
+                ? 0 : editor.selectionEnd
+        const hit = MarkdownEdit.find(
+                    editor, needle, from,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        if (hit.start >= 0)
+            editor.select(hit.start, hit.start + hit.length)
+        return hit
+    }
+
+    // 一次「查找/下一个」：文档模式查预览渲染区（分片 DOM 的查找），提
+    // 示词模式查草稿源码。文档模式的替换走源码区，所以这里顺路给源码区
+    // 挂上命中高亮（替换动作对齐选区要用）。
     function findNext(needle) {
         if (needle === null || needle === undefined)
             return
@@ -517,17 +577,23 @@ Item {
             // restart：关键词变了从头，同一个词继续向下。
             markdown.requestFind(needle, true,
                                  tools.findCaseSensitive, changed)
+            if (markdown.canEdit) {
+                MarkdownEdit.setSearchHighlight(
+                            editorArea, needle, tools.findCaseSensitive,
+                            tools.findWholeWords)
+            }
+            refreshFindStats()
             return
         }
         if (needle.length === 0 || !promptEditor)
             return
         findNeedle = needle
-        const from = changed || promptEditor.selectedText.length === 0
-                ? 0 : promptEditor.selectionEnd
-        const hit = MarkdownEdit.find(
-                    promptEditor, needle, from,
-                    tools.findCaseSensitive, tools.findWholeWords)
+        MarkdownEdit.setSearchHighlight(
+                    promptEditor, needle, tools.findCaseSensitive,
+                    tools.findWholeWords)
+        const hit = findInEditor(promptEditor, needle, changed)
         if (hit.start < 0) {
+            refreshFindStats()
             workbench.notify("info", qsTr("Find"),
                              qsTr("No more matches."))
             return
@@ -535,15 +601,133 @@ Item {
         if (hit.wrapped)
             workbench.notify("info", qsTr("Find"),
                              qsTr("Searched from the start."))
-        promptEditor.select(hit.start, hit.start + hit.length)
+        refreshFindStats()
     }
 
     // 取消查找：清关键词、把焦点还给编辑器（查找框留在命令条上，随用随
-    // 输；「可取消」清的是搜索现场）。
+    // 输；「可取消」清的是搜索现场——包括命中的背景高亮与计数）。
     function cancelFind() {
         findNeedle = ""
+        findMatchCount = 0
+        findMatchIndex = 0
+        if (promptEditor)
+            MarkdownEdit.setSearchHighlight(promptEditor, "",
+                                            tools.findCaseSensitive,
+                                            tools.findWholeWords)
+        if (editorArea)
+            MarkdownEdit.setSearchHighlight(editorArea, "",
+                                            tools.findCaseSensitive,
+                                            tools.findWholeWords)
         if (promptEditor)
             promptEditor.forceActiveFocus()
+    }
+
+    // 查找统计（「N/M」）：分母 = 编辑器全文命中总数，分子 = 选区起点起
+    // 的第一个命中序号。编辑器不在（文档模式只读）或关键词为空时归零；
+    // 正文变化经 300 ms 防抖重算（逐键全篇扫描没有意义）。
+    function refreshFindStats() {
+        const editor = activeEditor
+        if (findNeedle.length === 0 || !editor) {
+            findMatchCount = 0
+            findMatchIndex = 0
+            return
+        }
+        findMatchCount = MarkdownEdit.findCount(
+                    editor, findNeedle, tools.findCaseSensitive,
+                    tools.findWholeWords)
+        const from = editor.selectedText.length > 0
+                ? editor.selectionStart : editor.cursorPosition
+        findMatchIndex = MarkdownEdit.findIndexOf(
+                    editor, findNeedle, from, tools.findCaseSensitive,
+                    tools.findWholeWords)
+    }
+
+    // 选区是否正是 needle 的这次命中（替换动作的前置判据）。
+    function selectionMatchesNeedle(editor, needle) {
+        if (!editor || editor.selectedText.length !== needle.length)
+            return false
+        if (tools.findCaseSensitive)
+            return editor.selectedText === needle
+        return editor.selectedText.toLowerCase() === needle.toLowerCase()
+    }
+
+    // 替换当前命中并找下一个（替换框回车 / Replace 按钮）。选区不是这
+    // 次命中（关键词刚换、还没找过）时先在编辑器里找一条对齐；全文没有
+    // 命中时什么都不动。替换永远作用于源码文本（渲染区的 DOM 无从写
+    // 回），文档模式下与 Ctrl+F 的分流是刻意的不对称。
+    function replaceNext(replacement, needle) {
+        if (needle === null || needle === undefined
+                || needle.length === 0)
+            return
+        const editor = activeEditor
+        if (!editor || editor.readOnly)
+            return
+        editor.forceActiveFocus()
+        if (needle !== findNeedle)
+            findNeedle = needle
+        MarkdownEdit.setSearchHighlight(
+                    editor, needle, tools.findCaseSensitive,
+                    tools.findWholeWords)
+        if (!selectionMatchesNeedle(editor, needle)) {
+            const hit = findInEditor(editor, needle, true)
+            if (hit.start < 0 || !selectionMatchesNeedle(editor, needle))
+                return
+        }
+        const hit = MarkdownEdit.replaceAndFindNext(
+                    editor, replacement, needle,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        if (hit.start >= 0)
+            editor.select(hit.start, hit.start + hit.length)
+        refreshFindStats()
+    }
+
+    // 全部替换（Replace All 按钮）：一次撤销步全部回退，toast 报次数。
+    function replaceEverywhere(replacement, needle) {
+        if (needle === null || needle === undefined
+                || needle.length === 0)
+            return
+        const editor = activeEditor
+        if (!editor || editor.readOnly)
+            return
+        editor.forceActiveFocus()
+        findNeedle = needle
+        const count = MarkdownEdit.replaceAll(
+                    editor, needle, replacement,
+                    tools.findCaseSensitive, tools.findWholeWords)
+        workbench.notify("success", qsTr("Replace"),
+                         qsTr("Replaced %n occurrence(s).", "", count))
+        refreshFindStats()
+    }
+
+    // 跳转到行（Ctrl+G）：行号 1 起，光标落到该行行首。提示词模式落草稿
+    // 编辑器；文档模式落文件源码区（预览态没有源码面，提示切回源码）。
+    // 只读文档同样可导航——跳转只动光标。
+    function gotoLineNumber(line) {
+        const target = preset === "prompt"
+                ? promptEditor
+                : (docArea.showsEditor && !markdown.draftActive
+                   ? editorArea : null)
+        if (!target) {
+            workbench.notify("info", qsTr("Go to line"),
+                             qsTr("Switch to the source view first."))
+            return
+        }
+        const lines = target.text.split("\n")
+        const clamped = Math.max(1, Math.min(line, lines.length))
+        let offset = 0
+        for (let i = 0; i < clamped - 1; ++i)
+            offset += lines[i].length + 1
+        target.cursorPosition = offset
+        target.forceActiveFocus()
+    }
+
+    // 跳转对话框的确认：解析行号并跳转（校验器已挡掉非数字）。
+    function doGotoLine() {
+        const line = parseInt(gotoLineField.text)
+        gotoLineDialog.close()
+        if (!line || line < 1)
+            return
+        gotoLineNumber(line)
     }
 
     // --- 体检与历史（非模态悬浮窗的开关） ---------------------------------
@@ -771,6 +955,21 @@ Item {
         // 预设分流到草稿源码或预览渲染区）。
         enabled: pageCurrent && commandBarLoader.item
         onActivated: commandBarLoader.item.focusFind()
+    }
+    // 替换入口：焦点直达命令条替换框（动作与查找共用一套关键词/偏好）。
+    Shortcut {
+        sequence: "Ctrl+H"
+        context: Qt.ApplicationShortcut
+        enabled: pageCurrent && commandBarLoader.item
+                 && commandBarLoader.item.focusReplace
+        onActivated: commandBarLoader.item.focusReplace()
+    }
+    // 跳转到行（1 起；提示词模式落草稿，文档模式落源码区）。
+    Shortcut {
+        sequence: "Ctrl+G"
+        context: Qt.ApplicationShortcut
+        enabled: pageCurrent
+        onActivated: gotoLineDialog.open()
     }
     // F5 是「重读磁盘」而不是「重载页面」：内容本来就在本地，重载视图只会
     // 把已经挂好的 DOM 丢掉重来一遍。
@@ -1168,6 +1367,12 @@ Item {
                             // 单位，无选区时是光标所在行）。
                             Keys.onBacktabPressed:
                                 workbenchWindow.handleEditorBacktab(promptEditor)
+                            // 行级动作组合键（Alt+↑/↓ 移动、Shift+Alt+↓
+                            // 复制、Ctrl+Shift+K 删行、Ctrl+L 选行、Ctrl+D
+                            // 选词）：路由与只读门控都在 handleEditorKey。
+                            Keys.onPressed: if (workbenchWindow.handleEditorKey(
+                                                    promptEditor, event))
+                                                event.accepted = true
                             // 只在初始化时从门面取草稿：常驻双向绑定会与
                             // 用户输入互相打架。
                             Component.onCompleted: {
@@ -1183,6 +1388,7 @@ Item {
                             onTextChanged: {
                                 tools.draft = text
                                 draftSyncTimer.restart()
+                                findStatsTimer.restart()
                             }
 
                             // 拖放目标：接住来自文件树的行，把文件引用插到
@@ -1246,6 +1452,14 @@ Item {
                         }
                     }
 
+                    // 查找统计的防抖重算：正文编辑后 300 ms 再全篇扫描
+                    //（逐键扫没有意义——中间态马上会被改掉）。
+                    Timer {
+                        id: findStatsTimer
+                        interval: 300
+                        onTriggered: workbenchWindow.refreshFindStats()
+                    }
+
                     // 两栏主体（编辑槽位 + 预览面 + 分隔条）。
                     Item {
                         id: docArea
@@ -1292,6 +1506,10 @@ Item {
                                 // Shift+Tab：同一批行的反向动作。
                                 Keys.onBacktabPressed:
                                     workbenchWindow.handleEditorBacktab(editorArea)
+                                // 行级动作组合键（与草稿区同一批）。
+                                Keys.onPressed: if (workbenchWindow.handleEditorKey(
+                                                        editorArea, event))
+                                                    event.accepted = true
 
                                 // 只在初始化与「磁盘那份进来了」时写 text：
                                 // 常驻双向绑定会与用户输入互相打架。
@@ -1313,6 +1531,7 @@ Item {
                                     if (workbenchWindow.applyingExternal)
                                         return
                                     editorSyncTimer.restart()
+                                    findStatsTimer.restart()
                                 }
                             }
                         }
@@ -1450,6 +1669,41 @@ Item {
                             color: theme.textMuted
                             font.pixelSize: theme.fontSizeCaption
                         }
+                        // 查找命中统计（「N/M」）：分子随当前选区走，分母
+                        // 是全文命中数。只在查找进行中露面。
+                        Label {
+                            visible: workbenchWindow.findNeedle.length > 0
+                                     && workbenchWindow.findMatchCount > 0
+                            text: "%1/%2".arg(workbenchWindow.findMatchIndex)
+                                          .arg(workbenchWindow.findMatchCount)
+                            color: theme.textSecondary
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+
+                        // 光标位置（Ln/Col）：提示词模式跟草稿编辑器，文档
+                        // 模式跟源码区（源码面不在场时隐藏）。cursorPosition
+                        // 是 Q_PROPERTY，光标移动时绑定自动重算。
+                        Label {
+                            visible: workbenchWindow.preset === "prompt"
+                                     || (docArea.showsEditor
+                                         && !markdown.draftActive)
+                            text: {
+                                const editor = workbenchWindow.preset === "prompt"
+                                        ? promptEditor
+                                        : (markdown.draftActive
+                                           ? null : editorArea)
+                                if (!editor)
+                                    return ""
+                                const pos = editor.cursorPosition
+                                const before = editor.text.substring(0, pos)
+                                const line = before.split("\n").length
+                                const col = pos - before.lastIndexOf("\n")
+                                return qsTr("Ln %1, Col %2").arg(line).arg(col)
+                            }
+                            color: theme.textMuted
+                            font.pixelSize: theme.fontSizeCaption
+                        }
+
                         // C4 预算条：估算 token 与分级色（只影响文字颜色
                         //——状态行里没有地方画进度条，颜色 + 文案即分级）。
                         Label {
@@ -2238,6 +2492,53 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
                     onClicked: deleteDraftDialog.close()
+                }
+            }
+        }
+    }
+
+    // 跳转到行（Ctrl+G）：小对话框输行号（1 起）。两种预设都可跳：提示
+    // 词模式落草稿，文档模式落源码区；导航只动光标，只读文档同样可用。
+    ADialog {
+        id: gotoLineDialog
+        objectName: "gotoLineDialog"
+        width: 360
+        titleText: qsTr("Go to line")
+
+        onOpened: {
+            gotoLineField.text = ""
+            gotoLineField.forceActiveFocus()
+        }
+
+        ColumnLayout {
+            width: gotoLineDialog.availableWidth
+            spacing: theme.spacingM
+
+            ATextField {
+                id: gotoLineField
+                objectName: "gotoLineField"
+
+                Layout.fillWidth: true
+                placeholderText: qsTr("Line number")
+                // 只收正整数（校验器挡掉其余输入，确认时不必再猜解析）。
+                validator: IntValidator { bottom: 1; top: 9999999 }
+                onAccepted: workbenchWindow.doGotoLine()
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item {
+                    Layout.fillWidth: true
+                }
+                AButton {
+                    text: qsTr("Cancel")
+                    onClicked: gotoLineDialog.close()
+                }
+                AButton {
+                    variant: "primary"
+                    text: qsTr("Go")
+                    onClicked: workbenchWindow.doGotoLine()
                 }
             }
         }

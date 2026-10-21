@@ -86,6 +86,13 @@ Item {
         findField.selectAll()
     }
 
+    // Ctrl+H 的落点：焦点进替换框并全选（替换流：打关键词、Tab、打替换
+    // 串、回车）。
+    function focusReplace() {
+        replaceField.forceActiveFocus()
+        replaceField.selectAll()
+    }
+
     // 切标签页（tab 序 = 开始 0 / 提示词 1 / 视图 2）：页面动作层转发
     // （gallery 的格子只在其 tab 被实例化时存在，跨页跳转经这里）。
     function setTabIndex(index) {
@@ -274,6 +281,7 @@ Item {
                     toolTip: qsTr("Set the heading level")
                     popupMode: Ribbon.MenuButtonPopup
                     // 三级 + 文本判定：同级再点 = 去标题（菜单里独立条目）。
+                    // 升/降级是增量动作（# 数 ±1，升降到头时去标题/封顶 6）。
                     menuActions: [
                         RibbonAction {
                             text: qsTr("Heading 1")
@@ -290,6 +298,14 @@ Item {
                         RibbonAction {
                             text: qsTr("Remove heading")
                             onTriggered: if (win) win.applyFormat("heading0")
+                        },
+                        RibbonAction {
+                            text: qsTr("Promote heading")
+                            onTriggered: if (win) win.applyFormat("headingUp")
+                        },
+                        RibbonAction {
+                            text: qsTr("Demote heading")
+                            onTriggered: if (win) win.applyFormat("headingDown")
                         }
                     ]
                 }
@@ -360,10 +376,10 @@ Item {
                 }
             }
 
-            // 查找：输入框常驻面板（回车查找、再回车下一个；动作与分流
-            // 都在页面动作层）。「可取消」= 清空并把焦点还给编辑器。
+            // 查找/替换：输入框常驻面板（回车查找、再回车下一个；动作与
+            // 分流都在页面动作层）。「可取消」= 清空并把焦点还给编辑器。
             // SARibbon 的右侧按钮组只接受工具按钮、嵌不了输入控件，
-            // 查找框落在「开始」页的收尾面板（Ctrl+F 仍然直达）。
+            // 查找框落在「开始」页的收尾面板（Ctrl+F 直达）。
             RibbonPanel {
                 panelTitle: qsTr("Find")
 
@@ -371,16 +387,60 @@ Item {
                     enableShowIcon: false
                     enableShowTitle: false
 
+                    // 命中统计「N/M」挂在容器的 suffix 槽：贴着查找框右
+                    // 缘显示，没有查找进行时是空串、整条 suffix 退场。
+                    suffixText: win && win.findMatchCount > 0
+                            ? "%1/%2".arg(win.findMatchIndex)
+                                     .arg(win.findMatchCount)
+                            : ""
+
                     control: ATextField {
                         id: findField
                         objectName: "ribbonFindField"
 
-                        width: 170
+                        width: 150
                         placeholderText: qsTr("Find in prompt")
                         // 回车即动作：首个回车从头查找、后续回车下一个
                         // （「是否首个」由页面按命中状态判断）。
                         onAccepted: if (win) win.findNext(findField.text)
                         Keys.onEscapePressed: if (win) win.cancelFind()
+                    }
+                }
+                RibbonToolButton {
+                    text: qsTr("Replace")
+                    toolButtonStyle: commandBar.startIconStyle()
+                    iconSource: commandBar.icon("search")
+                    toolTip: qsTr("Replace the current match and find the next (Ctrl+H focuses the field)")
+                    enabled: win && win.activeEditor
+                             && findField.text.length > 0
+                    onClicked: if (win)
+                                   win.replaceNext(replaceField.text,
+                                                   findField.text)
+                }
+                RibbonToolButton {
+                    text: qsTr("Replace All")
+                    toolButtonStyle: commandBar.startIconStyle()
+                    iconSource: commandBar.icon("check")
+                    toolTip: qsTr("Replace every match in the document")
+                    enabled: win && win.activeEditor
+                             && findField.text.length > 0
+                    onClicked: if (win)
+                                   win.replaceEverywhere(replaceField.text,
+                                                         findField.text)
+                }
+                RibbonControlContainer {
+                    enableShowIcon: false
+                    enableShowTitle: false
+
+                    control: ATextField {
+                        id: replaceField
+                        objectName: "ribbonReplaceField"
+
+                        width: 150
+                        placeholderText: qsTr("Replace with")
+                        onAccepted: if (win)
+                                        win.replaceNext(replaceField.text,
+                                                        findField.text)
                     }
                 }
                 RibbonToolButton {
