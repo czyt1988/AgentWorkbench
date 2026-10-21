@@ -53,7 +53,7 @@ src/
   shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web/markdown/tools；所有业务页面——含 workbench 域的 Markdown 工作台页——都经 NavigationModel 以资源 URL 注册，见 docs/architecture/分层与依赖.md）
   skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
   tools/         L2：提示词撰写域：ToolsStore（工作区记忆 + 草稿 + ribbon 段，tools.json）、FileTreeModel（懒加载文件树 + watcher + 增量刷新）、FileIcons（名字/后缀 → 图标）、ToolsFacade + qml/
-  markdownedit/  L2：Markdown 编辑引擎（自足可复用模块，只依赖 theme）：MarkdownEdit（格式化动作/查找替换/Tab 语义，静态光标操作 + Q_INVOKABLE 包装）、MarkdownHighlighter（逐块状态机高亮，配色注入）+ qml/（编辑器右键菜单）
+  markdownedit/  L2：Markdown 编辑引擎（自足可复用模块，只依赖 theme）：MarkdownEdit（格式化动作/查找替换/输入动作——可配置缩进、回车延续、标记配对，静态光标操作 + Q_INVOKABLE 包装）、MarkdownHighlighter（逐块状态机高亮，配色注入）+ qml/（编辑器右键菜单）
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（链接 Qt WebEngine 的两个目标之一，含 WebEngineSurface.qml）
   markdown/      L2：Markdown 预览域：MarkdownDocument（逐字节读写）、MarkdownChunker（分块 + 差异）、MarkdownRuntime（awbmd:// URL、MIME、主题串）、MarkdownPreviewController + qml/（预览渲染面 MarkdownPreviewPane，仅能力构建注册）

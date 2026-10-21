@@ -40,7 +40,7 @@ Boundaries:
 | `src/shell/qml/Toasts.qml` | `Toasts` | Anchors `AToastStack` to the bottom-right of the window | `Notifications` |
 | `src/shell/qml/PageHeader.qml` | `PageHeader` | Title + subtitle + an `actions` slot pushed to the right edge | every page |
 | `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Settings shell: left section nav + right `StackLayout`, pinned app version | `Settings*Page.qml` (see [Settings](settings.md)) |
-| `src/shell/qml/Settings{Appearance,Launchers,Environment,Skills,Web,Plugins,Advanced}Page.qml` | seven section pages | One settings section each; kept instantiated by the `StackLayout` | `theme`, `agents`, `environment`, `skills`, `shell`, `workbench` |
+| `src/shell/qml/Settings{Appearance,Launchers,Environment,Skills,Web,Markdown,Plugins,Advanced}Page.qml` | eight section pages | One settings section each; kept instantiated by the `StackLayout` | `theme`, `agents`, `environment`, `skills`, `shell`, `workbench` |
 | `src/shell/qml/components/*.qml` | the `A*` shelf | 26 reusable themed components (see the shelf table below) | every page |
 | `src/shell/CMakeLists.txt` | build target `awb_shell` | Static library | — |
 
@@ -78,7 +78,11 @@ The window assembles the frame:
 - **Global shortcuts.** `Ctrl+B` toggles `shell.sidebarCollapsed`; `Ctrl+,` calls
   `workbench.showPage("settings")`; `Ctrl+1`…`Ctrl+9` call `goToPageNumber(n)`,
   which reads `nav.pageIdsInOrder()` and calls `nav.setCurrentPageId()`. Pinned
-  pages sort last, so Ctrl+9 reaching a `system` page is expected.
+  pages sort last, so Ctrl+9 reaching a `system` page is expected. One scoped
+  exception lives outside the shell: the Markdown workbench's editors accept
+  `Ctrl+B` (bold) via `Keys.onShortcutOverride` while they hold focus, so the
+  window-level shortcut simply never sees those key presses — no rebinding and
+  no arbitration needed (see [Markdown workbench](markdown-workbench.md)).
 - **Font binding.** `font.family: theme.family.length > 0 ? theme.family :
   undefined`, so an empty token falls back to the system default; `theme.changed`
   makes it live.

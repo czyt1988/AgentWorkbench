@@ -72,7 +72,7 @@ These work anywhere in the window:
 | Shortcut | What it does |
 |---|---|
 | `Ctrl+1` … `Ctrl+9` | Jump to the 1st, 2nd, … page in sidebar order |
-| `Ctrl+B` | Collapse or expand the sidebar |
+| `Ctrl+B` | Collapse or expand the sidebar (in the Markdown workbench's editor it is bold instead — see below) |
 | `Ctrl+,` | Open **Settings** |
 
 These work while the **Agent Web UI** page is open:
@@ -92,8 +92,13 @@ In the **Markdown workbench** window: the usual text shortcuts apply in the
 editor (`Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to
 cut, copy and paste); `Ctrl+S` saves the open document, `Ctrl+F` opens the
 in-document search, `Esc` closes that search bar, and `F5` re-reads the file
-from disk. These only apply while the workbench itself is the page you are
-on, so they cannot steal a `Ctrl+S` from anywhere else.
+from disk. While the editor itself has focus, `Ctrl+B` is bold, `Ctrl+I`
+italic, `Ctrl+K` link and `Ctrl+E` inline code — the global sidebar `Ctrl+B`
+steps aside for them and works again everywhere else. These only apply while
+the workbench itself is the page you are on, so they cannot steal a `Ctrl+S`
+from anywhere else. The editor-scoped shortcuts (like Enter continuing lists,
+Tab inserting spaces and mark auto-pairing) can be turned off in
+**Settings → Markdown**.
 
 ## Where your data lives
 

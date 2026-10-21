@@ -62,7 +62,10 @@ Missing keys take their defaults in place — there is no migration code:
   "plugins": { "enabled": false, "disabledIds": [] },
   "markdown": { "mode": "preview", "fontSizePx": 0,
                "contentWidthPx": 0, "showOutline": true,
-               "autoOpenWorkbench": false }
+               "autoOpenWorkbench": false },
+  "markdownEditor": { "indentWithSpaces": true, "indentWidth": 2,
+               "smartEnter": true, "formatShortcuts": true,
+               "autoPair": true }
 }
 ```
 
@@ -132,6 +135,19 @@ Missing keys take their defaults in place — there is no migration code:
   keys. Only Qt 6 + WebEngine builds contain the document preview; elsewhere
   the keys are still read and preserved, but the preview-dependent ones cannot
   change. See [Markdown workbench](guide/markdown-workbench.md).
+- `markdownEditor.*` is the workbench editor's typing behavior (all switches
+  have a control in Settings → Markdown and apply at once):
+  `indentWithSpaces` (default `true`) makes `Tab` insert spaces instead of a
+  tab character — Markdown renderers read a tab as code indentation, so spaces
+  are the portable way to nest lists; `indentWidth` (default `2`, clamped to
+  `[1, 8]`) is how many spaces one indent level is (`Shift+Tab` removes one
+  such unit); `smartEnter` (default `true`) continues list / numbered / quote /
+  task markers on `Enter` and leaves the list on an empty item;
+  `formatShortcuts` (default `true`) enables `Ctrl+B` / `Ctrl+I` / `Ctrl+K` /
+  `Ctrl+E` while the editor has focus (elsewhere `Ctrl+B` keeps collapsing the
+  sidebar); `autoPair` (default `true`) pairs typed Markdown marks (`*`,
+  backtick, `~`, `[`, `(`) and skips over closers.
+  See [Markdown workbench](guide/markdown-workbench.md).
 
 ## The prompt workbench's own files
 

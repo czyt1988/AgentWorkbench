@@ -13,7 +13,7 @@ The boundary is vertical, not horizontal: `workbench` may depend on every L2 mod
 
 | File | Class | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, `previewMarkdown`, …), general actions (copy, notify, open URL/folder/config dir, quit) and the plugin toggle API | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `MarkdownPreviewController`, `Settings` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | The QML singleton behind `workbench`: navigation intents, cross-domain intents (`openWeb`, `launchAgent`, `previewMarkdown`, …), general actions (copy, notify, open URL/folder/config dir, quit), the plugin toggle API and the Markdown editor's typing-behaviour settings | `NavigationModel`, `UiServices`, `Notifications`, `AgentsFacade`, `WebTabsFacade`, `MarkdownPreviewController`, `Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | Registers the five built-in pages plus the sidebar group label, and wires badges, current-page persistence and the cross-domain Web rules | `NavigationModel`, `ShellController`, `AgentsFacade`, `WebTabsFacade`, `SkillsFacade`, `ToolsFacade`, `Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | Python/Node.js detection for the status bar and the Settings page: dispatches the probe to the thread pool, merges verdicts into the known state, persists the cache and retries inconclusive rounds | `EnvironmentProbe`, `EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe` (with `RuntimeState`, `RuntimeProbe`, `EnvironmentSnapshot`) | The thread-safe worker: probes the candidate programs, asks the runtime where it lives, folds a verdict into the known state | `ProcessRunner`, `TextUtils` |
@@ -34,6 +34,7 @@ Properties:
 
 - `currentPageId` — a read-through to `NavigationModel::currentPageId()`.
 - `legacyImportNotice` — the one-time import notice; empty on a normal start. The assembly layer sets it once. The `AAlertDialog` in `MainWindow.qml` reads it.
+- `markdownEditorIndentWithSpaces` / `markdownEditorIndentWidth` / `markdownEditorSmartEnter` / `markdownEditorFormatShortcuts` / `markdownEditorAutoPair` — the Markdown workbench editor's typing behaviour (`settings.json` group `markdownEditor`), all READ-only properties sharing one `markdownEditorSettingsChanged` notify, fed by filtering `Settings::valueChanged` on the `markdownEditor.` prefix. The workbench page reads them per keystroke (so a settings change applies to an already-open page at once); the Settings → Markdown section writes them through the matching `setMarkdownEditor*()` invokables, which persist immediately and skip the write when the value did not change.
 
 Navigation intent:
 

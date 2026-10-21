@@ -1,6 +1,6 @@
 # Markdown workbench
 
-The Markdown workbench is **one place for two jobs**: writing prompts at your own pace, and reading or tidying Markdown files — several at once, in tabs. **Nothing is ever sent from this place** — pressing Enter only adds a new line, and when the text is ready you copy it and paste it into the agent yourself.
+The Markdown workbench is **one place for two jobs**: writing prompts at your own pace, and reading or tidying Markdown files — several at once, in tabs. **Nothing is ever sent from this place** — pressing Enter only adds a new line (or continues the list you are in), and when the text is ready you copy it and paste it into the agent yourself.
 
 Find it in the sidebar under the **Agent Tools** label, as the row **Prompt Writing**. It is an advanced tool of the Agent Tools family that lives inside the app's main window — not a separate window: it fills the work area between the sidebar and the status bar.
 
@@ -49,13 +49,13 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 ## Writing a prompt
 
 1. Pick a folder from the workspace menu at the top of the file tree, or click the **folder button** (tooltip **Choose a workspace folder**) beside it to add one.
-2. Write your prompt in the middle. Pressing Enter inserts a new line — it does not send anything. The line at the bottom keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
+2. Write your prompt in the middle. Pressing Enter never sends anything — on a plain line it inserts a new line, and on a list, numbered, quote or task item it continues the marker on the next line (an empty item leaves the list instead). The line at the bottom keeps count of your characters and lines, and estimates the prompt's token size (an estimate — see [The token estimate](#the-token-estimate)).
 3. Bring in files from the tree: **drag a file row into the editor**, or **right-click a file row** and choose **Insert path at cursor**. Either way a reference to that file, written as `` `./relative/path` ``, lands at the cursor. Double-clicking a file row does something else now: it **opens** the file (a Markdown file becomes a new document tab; anything else goes to the app your system associates with it).
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
 **Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there.
 
-The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions. **Tab** behaves like in a code editor: with several lines selected it indents every selected line (press it again to indent further, `Ctrl+Z` to step back); with nothing or one line selected it inserts a tab. **Hold Ctrl and scroll the mouse wheel** over the text to make the editor's letters bigger or smaller — a reading zoom that resets when the app restarts.
+The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). While the editor has focus, `Ctrl+B` is bold, `Ctrl+I` italic, `Ctrl+K` link and `Ctrl+E` inline code — everywhere else `Ctrl+B` keeps its global meaning (collapse the sidebar). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions. **Tab** behaves like in a code editor: with several lines selected it indents every selected line (press it again to indent further, `Shift+Tab` to outdent, `Ctrl+Z` to step back); with nothing or one line selected it inserts one indent unit — spaces by default (2 per level, the portable way to nest Markdown lists), configurable in [Settings → Markdown](settings.md#markdown). **Typing a Markdown mark pairs it**: `*`, a backtick, `~`, `[` or `(` also inserts the closing mark and puts the cursor in between; typing the mark again skips over the closer. All of these typing behaviors have switches in [Settings → Markdown](settings.md#markdown). **Hold Ctrl and scroll the mouse wheel** over the text to make the editor's letters bigger or smaller — a reading zoom that resets when the app restarts.
 
 The draft has a rendered view too, like any document — use the **Preview / Split / Source** buttons above it. **Split** is the natural way to write a long prompt: the text on the left, the rendered result on the right.
 
@@ -98,11 +98,11 @@ Templates are skeletons with holes to fill; **favorites** are complete prompts y
 The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Italic**, **Underline**, **Strikethrough**, **Inline Code**, **Link**, **Heading** (a menu with levels 1, 2, 3 and a remove option), **Bullets**, **Numbered**, **Task List**, **Quote**, **Divider**, **Code Block** (a menu of common languages) and **Table**.
 
 - Everything is **one undo step**: press `Ctrl+Z` right after any of them and the whole change reverts.
-- Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`.
+- Toggles are honest: applying **Numbered** to lines that are all numbered removes the numbers again; headings change level instead of stacking `###` onto `##`. **Bold**, **Italic**, **Underline**, **Strikethrough** and **Inline Code** toggle too — selecting text that is already bold and pressing **Bold** (or `Ctrl+B`) removes the markers instead of doubling them.
 - **Inline Code wraps, Code Block fences.** Inline Code wraps the selection in backticks. Code Block fences whole lines — the selected lines (or the line the cursor is on) become a code block with the language you picked on its first line; with the cursor on an empty line it drops an empty block and puts the cursor inside, ready to type.
 - In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
 
-The only keyboard shortcut the workbench adds is `Ctrl+F` (find — see the next section). Everything else is a button.
+Besides `Ctrl+F` (find — see the next section) and the formatting shortcuts above (`Ctrl+B` / `Ctrl+I` / `Ctrl+K` / `Ctrl+E`, active while the editor has focus), everything else is a button.
 
 ## Finding
 

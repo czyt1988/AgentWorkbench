@@ -83,8 +83,8 @@ src/
                 草稿、模板）+ QML
   web/          L2：标签、表面、内存策略 + QML
     webengine/  L2 适配器（链接 Qt WebEngine；这样的目标有两个）
-  markdownedit/ L2：Markdown 编辑引擎（格式化动作、查找替换、高亮器）——
-                自足可复用模块
+  markdownedit/ L2：Markdown 编辑引擎（格式化动作、输入动作、查找替换、
+                高亮器）——自足可复用模块
   markdown/     L2：Markdown 文档管线（文档读写、分块、awbmd:// URL、预览控制器）
     webengine/  L2 适配器（链接 Qt WebEngine；awbmd:// 的 handler——仅 Qt 6）
   workbench/    L3：跨域意图、内置页面、环境检测、插件服务
@@ -133,7 +133,7 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 | `tst_workbench` | 跨域意图：`openWeb` 导航、外部表面不建标签的路径、交浏览器打开时的 URL 交接 |
 | `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
 | `tst_tools` | 工作区记忆语义、懒加载树模型（角色/取子/增量刷新）、图标映射、门面接线、QML 可调用面 |
-| `tst_markdownedit` | 编辑引擎：格式动作的光标语义（粗体/斜体/代码/列表/标题/查找替换/Tab）、高亮器的逐块状态机——纯 `QTextDocument` 层，不依赖主题与 QML 运行时 |
+| `tst_markdownedit` | 编辑引擎：格式动作的光标语义（粗体/斜体/代码/列表/标题/查找替换）、输入动作（可配置的 Tab/Shift+Tab 缩进、智能回车、标记自动配对）与高亮器的逐块状态机——纯 `QTextDocument` 层，不依赖主题与 QML 运行时 |
 | `tst_markdown` | 纯层：文档逐字节读写、分块与差异、`awbmd://` URL 与 MIME 映射、主题转 CSS 字符串、控制器状态——不碰 WebEngine，每个构建都跑 |
 | `tst_markdownpreview` | 真引擎里的页面：模块脚本图、按块挂载、KaTeX/mermaid/highlight.js 的实际产物、增量替换、搜索、序列化（仅 Qt 6 + WebEngine） |
 | `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`：它能编译加载、命令泵真在跑、find/serialize 往返、报到契约与 keepAlive 常驻（仅 Qt 6 + WebEngine） |

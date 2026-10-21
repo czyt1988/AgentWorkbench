@@ -126,6 +126,32 @@ machine, or if you simply prefer your own browser. **Open in browser** always
 remains available from the launcher and the web page, whatever you pick here.
 See [Embedded web interface](web-ui.md).
 
+## Markdown
+
+How the Markdown workbench's editor behaves while you type. Every switch takes
+effect at once, also in a workbench that is already open.
+
+- **Indent with spaces** - on by default: `Tab` inserts spaces instead of a tab
+  character. Markdown renderers read a tab as code indentation, so spaces are
+  the reliable way to nest list items.
+- **Spaces per indent** - how many spaces one `Tab` press inserts (2, 4 or 8;
+  default 2). `Shift+Tab` removes one such unit again. Only used while
+  **Indent with spaces** is on.
+- **Continue lists on Enter** - on by default: pressing `Enter` on a bullet,
+  numbered, quote or task item starts the next line with the same marker
+  (numbers count up, a checked task continues unchecked). On an empty item,
+  `Enter` leaves the list instead of adding another marker.
+- **Formatting shortcuts** - on by default: while the editor has focus,
+  `Ctrl+B` is bold, `Ctrl+I` italic, `Ctrl+K` link and `Ctrl+E` inline code.
+  Outside the editor `Ctrl+B` keeps its global meaning (collapse the sidebar).
+- **Auto-pair markdown marks** - on by default: typing `*`, a backtick, `~`,
+  `[` or `(` also inserts the closing mark and puts the cursor in between;
+  typing the same mark again skips over the closer instead of repeating it.
+  Inside an empty pair, typing the mark once more upgrades it (`*` becomes
+  `**`, `~` becomes `~~`).
+
+See [Markdown workbench](markdown-workbench.md) for the editor itself.
+
 ## Plugins
 
 Third-party extensions that can add pages to the app. This is **off by default**

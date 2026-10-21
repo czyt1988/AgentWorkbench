@@ -6,8 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Markdown workbench editor: the "input feel" batch**, with every part of it
+  switchable in the new **Settings → Markdown** section (`settings.json` group
+  `markdownEditor`):
+  - **Configurable indentation** — `Tab` / `Shift+Tab` insert and remove one
+    indent unit: spaces by default (2 per level, the portable way to nest
+    Markdown lists) instead of a literal tab, with the width pickable (2/4/8)
+    and the tab-character mode one switch away
+    (`markdownEditor.indentWithSpaces` / `indentWidth`).
+  - **Smart Enter** — pressing Enter on a bullet, numbered, quote or task item
+    continues the marker (numbers increment, a checked task continues
+    unchecked); on an empty item Enter leaves the list
+    (`markdownEditor.smartEnter`).
+  - **Formatting shortcuts** — `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link
+    and `Ctrl+E` inline code while the editor has focus. The global `Ctrl+B`
+    (collapse sidebar) is not rebound: the editors claim the combination via
+    shortcut-override only while they hold focus, so everywhere else it keeps
+    working as before (`markdownEditor.formatShortcuts`).
+  - **Auto-pairing** — typing `*`, a backtick, `~`, `[` or `(` inserts the
+    closing mark and parks the caret between; typing the same mark again skips
+    over the closer, and inside an empty pair it upgrades the pair
+    (`*` → `**`, `~` → `~~`) (`markdownEditor.autoPair`).
+- **Format actions toggle.** Bold, italic, strikethrough, underline and inline
+  code now remove their markers when the selection — or the caret — is already
+  inside a matching pair, instead of stacking a second pair (`****x****`).
+  The toggle decides with the same source-level marker judgement the cursor
+  queries formalise. One undo step either way, in the ribbon, the context menu and the
+  new shortcuts alike.
+
 ### Changed
 
+- **The workbench editor's `Tab` inserts spaces by default** (2 per level)
+  instead of a literal tab character: Markdown renderers read a tab as code
+  indentation, which broke nested lists. The previous behaviour is one switch
+  away in Settings → Markdown.
 - **The Markdown editing engine is its own module: `awb_markdownedit`.**
   `MarkdownEdit` (formatting actions, find/replace, Tab semantics) and
   `MarkdownHighlighter` moved out of `awb_tools` into `src/markdownedit/`,

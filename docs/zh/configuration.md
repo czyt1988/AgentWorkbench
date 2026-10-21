@@ -45,7 +45,10 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   "plugins": { "enabled": false, "disabledIds": [] },
   "markdown": { "mode": "preview", "fontSizePx": 0,
                "contentWidthPx": 0, "showOutline": true,
-               "autoOpenWorkbench": false }
+               "autoOpenWorkbench": false },
+  "markdownEditor": { "indentWithSpaces": true, "indentWidth": 2,
+               "smartEnter": true, "formatShortcuts": true,
+               "autoPair": true }
 }
 ```
 
@@ -91,6 +94,17 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   启动起生效；设置 → 启动器 里有开关）。视图键由窗口在你用下拉与开关时自己
   写入——视图那一组没有设置页。文档预览只存在于 Qt 6 + WebEngine 的构建里，
   其它构建照样读取并保留这几个键，但依赖预览的那些改不了。参见
+  [Markdown 工作台](guide/Markdown工作台.md)。
+- `markdownEditor.*` 是工作台编辑器的输入行为（每个开关在 设置 → Markdown
+  里都有对应控件，改动即时生效）：`indentWithSpaces`（默认 `true`）让
+  `Tab` 插空格而不是制表符——markdown 渲染器把制表符当代码缩进，空格才是
+  嵌套列表的可移植写法；`indentWidth`（默认 `2`，钳制 `[1, 8]`）是每级缩进
+  的空格数（`Shift+Tab` 一次退掉一个单位）；`smartEnter`（默认 `true`）让
+  回车延续列表 / 编号 / 引用 / 任务项的标记，空项上回车则退出列表；
+  `formatShortcuts`（默认 `true`）开启编辑器聚焦时的 `Ctrl+B` / `Ctrl+I` /
+  `Ctrl+K` / `Ctrl+E`（焦点在别处时 `Ctrl+B` 仍是折叠侧栏）；`autoPair`
+  （默认 `true`）让输入的 markdown 标记（`*`、反引号、`~`、`[`、`(`）自动
+  补全配对、再输入同一标记时跳过闭合符。参见
   [Markdown 工作台](guide/Markdown工作台.md)。
 
 ## 提示词工作台自己的文件

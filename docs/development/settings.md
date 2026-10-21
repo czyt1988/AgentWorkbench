@@ -26,18 +26,19 @@ Boundaries:
 
 | File | Class / component | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/core/Settings.h` | `Settings` plus `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings`, `MarkdownSettings` | The typed schema: one struct per section, all defaults inline; property-style getters and setters; `valueChanged(key)` | every module; `MarkdownSettings` is read and written by `awb_markdown`, not by a Settings page |
+| `src/core/Settings.h` | `Settings` plus `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings`, `MarkdownSettings`, `MarkdownEditorSettings` | The typed schema: one struct per section, all defaults inline; property-style getters and setters; `valueChanged(key)` | every module; `MarkdownSettings` is read and written by `awb_markdown`, not by a Settings page; `MarkdownEditorSettings` is exposed to QML through `WorkbenchContext` and edited in `SettingsMarkdownPage` |
 | `src/core/Settings.cpp` | `Settings::load()/save()` | Key-set validation, typed reads with clamping, unknown-key warnings, atomic write | `core::JsonStore`, `core::Logging` |
-| `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the seven section pages |
+| `src/shell/qml/SettingsPage.qml` | `SettingsPage` | Left section nav + right `StackLayout`; section list is the single source of order; pinned app version | the eight section pages |
 | `src/shell/qml/SettingsAppearancePage.qml` | `SettingsAppearancePage` | Theme, follow-system switch and font selection | `theme.applyTheme()`, `theme.setFollowSystem()`, `theme.setFontFamily()`, `theme.availableThemes`, `theme.followSystem`, `theme.canFollowSystem`, `theme.fontFamilies` |
 | `src/shell/qml/SettingsLaunchersPage.qml` | `SettingsLaunchersPage` | Startup version-check switch, tray/close-choice/single-instance switches, launcher list with add/edit/delete and confirmation dialogs | `agents.startupVersionCheck()`, `agents.setStartupVersionCheck()`, `shell.trayEnabled`, `shell.closeToTray`, `shell.rememberCloseAction`, `shell.singleInstance`, `agents.model`, `agents.removeAgent()`, `agents.isDefaultAgent()`, `AgentEditDialog` |
 | `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | One row per runtime (version + install path) and a Re-detect action | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
 | `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
+| `src/shell/qml/SettingsMarkdownPage.qml` | `SettingsMarkdownPage` | Markdown workbench editor typing behaviour: indent-with-spaces switch, spaces-per-indent picker, smart-Enter / formatting-shortcuts / auto-pair switches | `workbench.markdownEditor*` properties and `workbench.setMarkdownEditor*()` invokables |
 | `src/shell/qml/SettingsPluginsPage.qml` | `SettingsPluginsPage` | Plugin master switch, per-plugin switches, trust notice | `workbench.pluginsEnabled()`, `workbench.setPluginsEnabled()`, `workbench.pluginList()`, `workbench.setPluginEnabled()`, `workbench.pluginTrustNotice()` |
 | `src/shell/qml/SettingsAdvancedPage.qml` | `SettingsAdvancedPage` | Data-file path, open data folder, restore default launchers | `agents.configFilePath()`, `agents.restoreDefaults()`, `workbench.openFolder()` |
 | `src/shell/ShellController.h` / `.cpp` | `ShellController` | Window-level keys as bindable properties; setters persist immediately; `valueChanged` re-broadcast | `core::Settings` |
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | Plugin switches and trust notice; `legacyImportNotice` | `core::Settings`, `PluginHost` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | Plugin switches and trust notice; `legacyImportNotice`; the `markdownEditor*` properties (READ + `markdownEditorSettingsChanged`, fed by filtering `Settings::valueChanged` on the `markdownEditor.` prefix) with persisting setters | `core::Settings`, `PluginHost` |
 | `src/theme/Theme.h` / `.cpp` | `Theme` | `applyTheme()` (rejects unknown ids) and `setFontFamily()`; `availableThemes`, `family`, `fontFamilies` | `core::Settings`, `ThemeRegistry` |
 | `src/core/Logging.h` / `.cpp` | `Logging` | `install()` and `isValidLevelName()` used to validate `logging.level` | `core::Settings` |
 | `app/main.cpp` | `main()` | Reads settings before the application object, applies Chromium flags and logging options, loads the translator and font, drives plugin loading, runs the single-instance guard | `core::Settings`, `SingleApplication` |
@@ -53,9 +54,9 @@ on the right.
 - **Section list.** A `readonly property var sections` array of
   `{id, title}` is the single source of both the nav order and the
   `StackLayout` order: `Appearance`, `Launchers`, `Environment`, `Skills`, `Web`,
-  `Plugins`, `Advanced`. `sectionIndex(id)` maps an id to a `StackLayout` index
-  (unknown ids fall back to 0).
-- **Kept instantiated.** The `StackLayout` holds all seven section pages and only
+  `Markdown`, `Plugins`, `Advanced`. `sectionIndex(id)` maps an id to a
+  `StackLayout` index (unknown ids fall back to 0).
+- **Kept instantiated.** The `StackLayout` holds all eight section pages and only
   changes `currentIndex`, so half-typed input (e.g. a new skill root) survives a
   round trip to another section.
 - **Pinned version.** The bottom of the nav column is a divider plus
@@ -123,6 +124,15 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   keeps the Home button's agent-list behaviour); and an `ATextField` whose
   `onEditingFinished` calls `shell.setWebChromiumFlags()` with a caption noting
   it applies after restart and that "Open in browser" always works as a fallback.
+- **`SettingsMarkdownPage`.** The Markdown workbench editor's typing behaviour,
+  all bound to `workbench.markdownEditor*` and written through the matching
+  `workbench.setMarkdownEditor*()` invokables (which persist immediately): an
+  indent-with-spaces `Switch`, a spaces-per-indent `AComboBox` (2/4/8, disabled
+  while the tab-character mode is on), and switches for smart Enter, the
+  editor-scoped formatting shortcuts and mark auto-pairing. Each row carries a
+  caption saying what the switch actually changes; the shortcuts row also names
+  the `Ctrl+B` division of labour (bold in the editor, sidebar collapse
+  everywhere else).
 - **`SettingsPluginsPage`.** The trust notice from
   `workbench.pluginTrustNotice()`, a master `Switch` bound to
   `workbench.pluginsEnabled()`/`setPluginsEnabled()`, an empty-state label when
@@ -176,18 +186,28 @@ Every key below is validated by `Settings::load()` and written back by
 | `markdown.fontSizePx` | int | `0` | Body text size; `0` means the active theme's body size, clamped `[0, 48]`. The window's picker offers `0` and 12, 13, 14, 16, 18, 20, 24 px | `MarkdownPreviewController` → the page's view payload |
 | `markdown.contentWidthPx` | int | `0` | Text column width; `0` means the built-in baseline, clamped `[0, 4000]`. The window's picker offers `0`, 640, 760, 900, 1200 and **Full width** — which is the `4000` ceiling, since a column wider than the viewport renders as full width | `MarkdownPreviewController` → the page's view payload |
 | `markdown.showOutline` | bool | `true` | Whether the outline panel starts open | `MarkdownPreviewController`, the window's outline toggle |
+| `markdown.autoOpenWorkbench` | bool | `false` | Open the Markdown workbench (restored to its last tabs) as part of app startup; takes effect at the next start | `BuiltinPages` startup path, `SettingsLaunchersPage` switch |
+| `markdownEditor.indentWithSpaces` | bool | `true` | `Tab` inserts spaces instead of a `\t` (Markdown renderers read a tab as code indentation, which breaks nested lists) | `WorkbenchContext` → the workbench page → `MarkdownEdit.handleTab/handleBacktab`, `SettingsMarkdownPage` switch |
+| `markdownEditor.indentWidth` | int | `2` | Spaces per indent level; clamped `[1, 8]`. The page's picker offers 2, 4 and 8 | same as above |
+| `markdownEditor.smartEnter` | bool | `true` | `Enter` continues list / numbered / quote / task markers (numbers increment, a checked task continues unchecked); on an empty item it leaves the list | `WorkbenchContext` → the workbench page → `MarkdownEdit.handleEnter`, `SettingsMarkdownPage` switch |
+| `markdownEditor.formatShortcuts` | bool | `true` | `Ctrl+B` bold / `Ctrl+I` italic / `Ctrl+K` link / `Ctrl+E` inline code while the editor has focus (claimed via `Keys.onShortcutOverride`, so the global `Ctrl+B` sidebar toggle keeps working everywhere else) | same as above |
+| `markdownEditor.autoPair` | bool | `true` | Typing `*`, backtick, `~`, `[` or `(` inserts the closing mark and parks the caret between; typing the same mark again skips over the closer; inside an empty pair the mark upgrades it (`*`→`**`, `~`→`~~`) | `WorkbenchContext` → the workbench page → `MarkdownEdit.autoType`, `SettingsMarkdownPage` switch |
 
 The schema's root sections are exactly `window`, `appearance`, `locale`,
-`launcher`, `web`, `skills`, `logging`, `plugins`, `markdown`; any other root
-key warns.
+`launcher`, `web`, `skills`, `logging`, `plugins`, `markdown`,
+`markdownEditor`; any other root key warns.
 
-The four `markdown.*` keys are the only settings group with no Settings-page
-UI: they are the preview window's remembered view state, written when you
-change the mode, text size, column width or outline, and hand-editing them
-still works — but there is nothing to switch them from inside the app, which is
-deliberate. A capability switch would be worse than none: the window exists
-only in Qt 6 + WebEngine builds, and a key the user cannot change and cannot
-explain is not a setting.
+The `markdown.*` view keys are the one settings group with no Settings-page UI
+of their own: they are the workbench's remembered view state, written when you
+change the mode, text size, column width or outline (`autoOpenWorkbench` is the
+exception — its switch lives in Settings → Launchers), and hand-editing them
+still works. That is deliberate: a capability switch would be worse than none,
+because the preview exists only in Qt 6 + WebEngine builds, and a key the user
+cannot change and cannot explain is not a setting. The `markdownEditor.*` keys,
+by contrast, are plain typing behaviour that works in every build, so they got
+their own section page (Settings → Markdown); the workbench page reads them
+through `WorkbenchContext` on every keystroke, which is why toggling a switch
+applies to an already-open workbench immediately.
 
 ## Business logic
 

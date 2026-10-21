@@ -8,7 +8,7 @@
 
 | 文件 | 类 / 组件 | 职责 |
 |---|---|---|
-| `src/markdownedit/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 侧入口：`attach()` 给 `TextArea` 的文档挂高亮；`apply*`/`insert*` 家族执行格式化动作；`is*At`/`headingLevelAt` 查询喂给可勾选按钮；`find` / `replaceAndFindNext` / `replaceAll` 是查找/替换原语。每个动作都是静态 `QTextCursor` 操作包一层 `Q_INVOKABLE`，各占一个编辑块 |
+| `src/markdownedit/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 侧入口：`attach()` 给 `TextArea` 的文档挂高亮；`apply*`/`insert*` 家族执行格式化动作（行内标记类是**切换**语义：对已加粗的文字再执行加粗是去掉标记，不是叠成四层）；`handleTab`/`handleBacktab`/`handleEnter`/`autoType` 是输入动作（按调用方给的单位缩进、回车延续列表、输入时配对标记）；`is*At`/`headingLevelAt` 查询喂给可勾选按钮；`find` / `replaceAndFindNext` / `replaceAll` 是查找/替换原语。每个动作都是静态 `QTextCursor` 操作包一层 `Q_INVOKABLE`，各占一个编辑块 |
 | `src/markdownedit/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块高亮器：围栏代码块（跨块状态机）、标题、分隔线、引用、列表标记，以及行内的代码/粗体/斜体/删除线/链接。刻意不做 CommonMark 全量正确。配色经 `MarkdownColors` 注入——高亮器不认识 `Theme` |
 | `src/markdownedit/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 编辑器右键菜单：格式化工具栏一行 + 撤销/重做/剪切/复制/粘贴条目。它是宿主 UI 外壳而不是引擎逻辑——只转发给单例与编辑器自身的成员 |
 
@@ -17,7 +17,7 @@
 两条对复用要紧的设计性质：
 
 - **动作是静态光标操作。** `applyBoldToCursor()` 及其同族只吃一个 `QTextCursor`，因此能对着裸 `QTextDocument` 测试、无需焦点照常工作（菜单抢走焦点后仍能操作编辑器的选区正是因此）、也不依赖 QQuick 类型。`Q_INVOKABLE` 实例方法只是薄适配：读 `TextArea` 的文档与选区、把结果写回去。
-- **偏好是参数不是状态。** 大小写敏感与全词匹配是 `find` / `replaceAll` 的参数；本模块不持久化任何东西、不读任何配置。宿主想把这类偏好记在哪是宿主的事（本应用存 `tools.json` 的 `editor` 段）。
+- **偏好是参数不是状态。** 大小写敏感与全词匹配是 `find` / `replaceAll` 的参数；缩进单位是 `handleTab`/`handleBacktab` 的 `IndentOptions` 参数（`useSpaces` + `spacesPerIndent`——本应用从 `settings.json` 的 `markdownEditor` 组喂进来）；输入动作 `smartEnterToCursor()` / `autoTypeToCursor()` 返回 `bool`（「这次按键我接了吗」），吞不吞按键由宿主决定，调不调用也由宿主决定。本模块不持久化任何东西、不读任何配置。宿主想把这类偏好记在哪是宿主的事（本应用把查找偏好存 `tools.json` 的 `editor` 段、把输入偏好存 `settings.json`）。
 
 ## 测试
 
@@ -36,7 +36,7 @@ awb::markdownedit::MarkdownEdit markdownEdit(&theme);
 qmlRegisterSingletonInstance("YourApp.App", 1, 0, "MarkdownEdit", &markdownEdit);
 ```
 
-3. **挂编辑器**：每个要高亮的 `TextArea` 里调一次 `MarkdownEdit.attach(textArea)`（重复调用无害）。工具栏/菜单动作转发给 `apply*`/`insert*`；想要 VSCode 风格的多行缩进/反缩进，就把 `Keys.onTabPressed`/`Keys.onBacktabPressed` 接到 `handleTab`/`handleBacktab`。
+3. **挂编辑器**：每个要高亮的 `TextArea` 里调一次 `MarkdownEdit.attach(textArea)`（重复调用无害）。工具栏/菜单动作转发给 `apply*`/`insert*`；想要 VSCode 风格的多行缩进/反缩进，就把 `Keys.onTabPressed`/`Keys.onBacktabPressed` 接到 `handleTab`/`handleBacktab`（传入你的缩进偏好）；可选地，把 `Keys.onReturnPressed` 接到 `handleEnter`、把单字符的 `Keys.onPressed` 接到 `autoType`，获得列表延续与标记配对——两者都返回「是否接管了这次按键」，只在 `true` 时接受事件。
 4. **右键菜单**：`MarkdownContextMenu.qml` 依赖本应用的 shell 组件（`AMenu`、`AIconButton` 等）与它的 `theme.*` 令牌，不能原样带走。要么在同一个 `Q_INVOKABLE` 能力面上写你自己的菜单（它只需要编辑器引用），要么用你自己的菜单原语移植这个组件。
 
 单例暴露的一切都是 `Q_INVOKABLE` 或信号，所以「QML 调用的每个方法都必须可调用」这类校验（`check_architecture` 规则）在宿主同样适用；这条规则在本应用里抓出过三处静默失效，见《分层与依赖》。

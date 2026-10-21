@@ -6,8 +6,34 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **Markdown 工作台编辑器：「输入手感」批次（A）**，每一项都可以在新的
+  **设置 → Markdown** 分区里配置（`settings.json` 的 `markdownEditor` 组）：
+  - **可配置缩进**——`Tab` / `Shift+Tab` 按一个缩进单位进退：默认插空格
+    （每级 2 个，markdown 嵌套列表的可移植形态）而不是字面制表符；宽度可选
+    （2/4/8），制表符模式一个开关即可切回
+    （`markdownEditor.indentWithSpaces` / `indentWidth`）。
+  - **智能回车**——在无序、编号、引用或任务项上按回车会延续标记（编号递增、
+    已勾选的任务延续为未勾选）；空项上按回车退出列表
+    （`markdownEditor.smartEnter`）。
+  - **格式化快捷键**——编辑器聚焦时 `Ctrl+B` 加粗、`Ctrl+I` 斜体、`Ctrl+K`
+    链接、`Ctrl+E` 行内代码。全局的 `Ctrl+B`（折叠侧栏）没有改键：编辑器只在
+    持有焦点时经 shortcut-override 认领这个组合，别处一切照旧
+    （`markdownEditor.formatShortcuts`）。
+  - **自动配对**——输入 `*`、反引号、`~`、`[` 或 `(` 时补上闭合标记并把光标
+    放到中间；再输入同一标记跳过闭合符，空标记对里再输入一次则升级
+    （`*` → `**`、`~` → `~~`）（`markdownEditor.autoPair`）。
+- **格式动作改为切换。** 加粗、斜体、删除线、下划线与行内代码在选区——或
+  光标——已经位于同名标记对内时是去掉标记，而不是叠出第二对（`****x****`）。
+  切换的判据与光标查询形式化的是同一套源码级标记配对。命令条、右键菜单与新
+  快捷键走的是同一条路径，都只是一步撤销。
+
 ### 变更
 
+- **工作台编辑器的 `Tab` 默认插空格**（每级 2 个）而不是字面制表符：markdown
+  渲染器把制表符当代码缩进，会破坏嵌套列表。旧行为在 设置 → Markdown 里一个
+  开关即可切回。
 - **Markdown 编辑引擎独立成模块：`awb_markdownedit`。** `MarkdownEdit`（格式化
   动作、查找替换、Tab 语义）与 `MarkdownHighlighter` 从 `awb_tools` 迁入
   `src/markdownedit/`，编辑器右键菜单一并随迁；命名空间改为

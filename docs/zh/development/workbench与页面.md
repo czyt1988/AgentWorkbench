@@ -13,7 +13,7 @@
 
 | 文件 | 类 | 职责 | 与谁协作 |
 |---|---|---|---|
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent`、`previewMarkdown` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）以及插件开关 API | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`MarkdownPreviewController`、`Settings` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `awb::workbench::WorkbenchContext` | `workbench` 背后的 QML 单例：导航意图、跨域意图（`openWeb`、`launchAgent`、`previewMarkdown` 等）、通用动作（复制、通知、打开 URL/目录/配置目录、退出）、插件开关 API，以及 Markdown 编辑器的输入行为设置 | `NavigationModel`、`UiServices`、`Notifications`、`AgentsFacade`、`WebTabsFacade`、`MarkdownPreviewController`、`Settings` |
 | `src/workbench/BuiltinPages.h` / `.cpp` | `awb::workbench::BuiltinPages` | 注册五个内置页面与侧栏的分组标签，并布线徽标、当前页持久化与跨域 Web 规则 | `NavigationModel`、`ShellController`、`AgentsFacade`、`WebTabsFacade`、`SkillsFacade`、`ToolsFacade`、`Notifications` |
 | `src/workbench/EnvironmentService.h` / `.cpp` | `awb::workbench::EnvironmentService` | 状态栏与设置页的 Python / Node.js 检测：把探测派发到线程池、把结论并入已知状态、按变化落缓存、对没结论的一轮安排重试 | `EnvironmentProbe`、`EnvironmentCache` |
 | `src/workbench/EnvironmentProbe.h` / `.cpp` | `awb::workbench::EnvironmentProbe`（含 `RuntimeState`、`RuntimeProbe`、`EnvironmentSnapshot`） | 线程安全的 worker：逐个试候选程序、问运行时自己装在哪、把结论并入已知状态 | `ProcessRunner`、`TextUtils` |
@@ -34,6 +34,7 @@
 
 - `currentPageId` —— 直读 `NavigationModel::currentPageId()`。
 - `legacyImportNotice` —— 一次性导入提示；正常启动为空串。组装层只设一次。`MainWindow.qml` 里的 `AAlertDialog` 读它。
+- `markdownEditorIndentWithSpaces` / `markdownEditorIndentWidth` / `markdownEditorSmartEnter` / `markdownEditorFormatShortcuts` / `markdownEditorAutoPair` —— Markdown 工作台编辑器的输入行为（`settings.json` 的 `markdownEditor` 组），全部是只读属性、共用一个 `markdownEditorSettingsChanged` 通知，由过滤 `markdownEditor.` 前缀的 `Settings::valueChanged` 驱动。工作台页面在每次按键时读取它们（设置改动对已经打开的页面立即生效）；设置 → Markdown 分区经对应的 `setMarkdownEditor*()` 可调用方法写入——立即持久化，值没变时不落盘。
 
 导航意图：
 
