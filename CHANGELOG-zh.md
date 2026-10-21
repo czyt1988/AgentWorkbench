@@ -8,6 +8,14 @@
 
 ### 变更
 
+- **Markdown 编辑引擎独立成模块：`awb_markdownedit`。** `MarkdownEdit`（格式化
+  动作、查找替换、Tab 语义）与 `MarkdownHighlighter` 从 `awb_tools` 迁入
+  `src/markdownedit/`，编辑器右键菜单一并随迁；命名空间改为
+  `awb::markdownedit`。该模块只依赖 `awb_theme`（外加 Qt，Qt Quick 为
+  `PRIVATE` 链接），不再把提示词撰写域拽在身后，可以原样拷进另一个项目——集成
+  步骤见 `docs/zh/development/Markdown编辑模块.md`。`awb_tools` 从此完全不依赖
+  Qt Quick。行为不变：QML 单例仍叫 `MarkdownEdit`，各页面用法与之前完全一致。
+  引擎的测试随迁为新的 `tst_markdownedit` 目标。
 - **Markdown 工作台页拆成了组件。** 这个页面长到了三千行；能独立成件的区块现在
   各自成文件，并按「它到底依赖哪个门面」落位：工作区文件树面板与两个悬浮窗是
   `tools` 域的容器件，悬浮大纲是 markdown 域的展示件，可拖分隔条则是组件货架上

@@ -12,6 +12,7 @@ This section is for people **changing the code**. Each user-visible feature has 
 | WebEngine crash troubleshooting (renderer crashes, the Debug/Release DCHECK split) | [WebEngine crash troubleshooting](webengine-crash-troubleshooting.md) | [Troubleshooting](../guide/troubleshooting.md) |
 | Skill browser | [Skill browser](skill-browser.md) | [Skills](../guide/skills.md) |
 | Markdown workbench page (prompt writing + document preview, ribbon, chunked rendering) | [Markdown workbench](markdown-workbench.md) | [Markdown workbench](../guide/markdown-workbench.md) |
+| Markdown editing engine (the reusable `awb_markdownedit` module: actions, highlighter, context menu) | [Markdown edit module](markdown-edit-module.md) | [Markdown workbench](../guide/markdown-workbench.md) |
 | Shell, navigation, components | [Shell and navigation](shell-and-navigation.md) | [Getting started](../guide/index.md) |
 | Settings pages and the settings file | [Settings](settings.md) | [Settings](../guide/settings.md) |
 | Theme engine | [Theme engine](theme-engine.md) | [Appearance](../guide/appearance.md) |
@@ -80,9 +81,11 @@ src/
   shell/        L2 UI framework: navigation, window skeleton, toasts, A* components
   skillcatalog/ L2: local-skill catalog (SKILL.md frontmatter, scanner, model, facade) + QML
   tools/        L2: prompt-writing domain (workspace memory, lazy file tree, icon map,
-                prompt draft, Markdown editor actions) + QML
+                prompt draft, templates) + QML
   web/          L2: tabs, surfaces, memory policy + QML
     webengine/  L2 adapter (links Qt WebEngine; one of the two such targets)
+  markdownedit/ L2: Markdown editing engine (formatting actions, find/replace,
+                highlighter) — a self-contained, reusable module
   markdown/     L2: Markdown document pipeline (document I/O, block chunking,
                 awbmd:// URLs, preview controller)
     webengine/  L2 adapter (links Qt WebEngine; the awbmd:// handler — Qt 6 only)
@@ -132,6 +135,7 @@ ctest runs one executable per module plus the architecture gate:
 | `tst_workbench` | cross-domain intents: `openWeb` navigation, external-surface no-tab path, browser-open URL handoff |
 | `tst_skillcatalog` | frontmatter parsing, scanning, plugin version dedup, filtering |
 | `tst_tools` | workspace store semantics, lazy tree model (roles/fetch/incremental refresh), icon mapping, facade wiring, QML invokable surface |
+| `tst_markdownedit` | the editing engine: formatting actions as cursor semantics (bold/italic/code/lists/headings/find/replace/Tab), highlighter block state machine — pure `QTextDocument` level, no theme or QML runtime |
 | `tst_markdown` | the pure layer: document byte-fidelity read/save, block chunking and diffing, `awbmd://` URL and MIME mapping, theme-to-CSS strings, controller state — no WebEngine, so it runs in every build |
 | `tst_markdownpreview` | the page in a real engine: module script graph, per-block mounting, KaTeX/mermaid/highlight.js output, incremental replacement, search, serialize (Qt 6 + WebEngine only) |
 | `tst_markdownpreviewui` | the shipped `MarkdownWorkbenchPage.qml`: it compiles and loads, the command pump runs, find/serialize round-trip, the open-reporting contract and keepAlive residency (Qt 6 + WebEngine only) |

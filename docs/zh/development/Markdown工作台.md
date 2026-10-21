@@ -235,7 +235,7 @@ description: My own shape for bug reports.
 
 ### 格式动作与查询侧
 
-`MarkdownEdit`（tools 域单例，页面把它 attach 到每个编辑器）现在带全集。每个动作都与最初三个同一形状——静态 `*ToCursor(QTextCursor &)` 包一层 `Q_INVOKABLE` 实例方法——正是这让它们无需焦点就可测、菜单抢走焦点后照常工作。每个动作一个 `beginEditBlock`，一次 `Ctrl+Z` 整体回退。
+`MarkdownEdit`（markdown 编辑模块 `awb_markdownedit` 的单例，页面把它 attach 到每个编辑器）现在带全集。每个动作都与最初三个同一形状——静态 `*ToCursor(QTextCursor &)` 包一层 `Q_INVOKABLE` 实例方法——正是这让它们无需焦点就可测、菜单抢走焦点后照常工作。每个动作一个 `beginEditBlock`，一次 `Ctrl+Z` 整体回退。
 
 | 动作 | 行为 |
 |---|---|
@@ -325,10 +325,10 @@ description: My own shape for bug reports.
 | `src/tools/FileTreeModel.{h,cpp}` | `FileTreeModel`（含私有 `Node`） | 单个工作区根上的懒加载目录树；增量 `refresh()`；`QFileSystemWatcher` | `ToolsFacade`、`FileTreeFlatModel` |
 | `src/tools/FileTreeFlatModel.{h,cpp}` | `FileTreeFlatModel`（含私有 `Row`） | 供 QML `ListView` 消费的扁平投影；持有展开路径集合 | 页面 QML、`FileTreeModel` |
 | `src/tools/FileIcons.{h,cpp}` | `FileIcons` | 三张查找表（文件名 / 后缀 / 目录名）加兜底；`forFile()`/`forFolder()` | `FileTreeModel`（`IconRole`）、`core::IconResolver` |
-| `src/tools/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、动作全集（`applyBold/Italic/Underline/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、**光标查询**（`isBoldAt/isItalicAt/isUnderlineAt/isStrikeAt/isCodeAt/headingLevelAt`），以及查找族（`find()`，加暂时无入口的 `replaceAndFindNext()` / `replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 页面 QML、`MarkdownContextMenu`、`theme::Theme` |
+| `src/markdownedit/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 单例（`AgentWorkbench.App`）：`attach()`、动作全集（`applyBold/Italic/Underline/Strike/Code/Bullet/Numbered/Task/Quote/Link/Fence(language)/Heading(level)`、`insertTable(columns)`、`insertDivider()`）、**光标查询**（`isBoldAt/isItalicAt/isUnderlineAt/isStrikeAt/isCodeAt/headingLevelAt`），以及查找族（`find()`，加暂时无入口的 `replaceAndFindNext()` / `replaceAll()`，包着 `QTextDocument::find()`）——全部是 `Q_INVOKABLE` 包着的静态 `QTextCursor`/`QTextDocument` 操作，各一个编辑块 | 页面 QML、`MarkdownContextMenu`、`theme::Theme` |
 | `src/tools/PromptChecks.{h,cpp}` | `PromptChecks`、`ContextBudget` | 纯函数：十条体检规则（文本 → 带 ruleId/严重度/区间/文案的命中；开关列表是调用方的事）与 token 估算 + 分级阈值（同输入同输出——草稿预算标签与文档状态行消费同一个估算器） | `ToolsFacade`（为 QML 包一层）、页面 QML |
-| `src/tools/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
-| `src/tools/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 草稿编辑器的 `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
+| `src/markdownedit/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块 Markdown 高亮器；配色令牌 | `MarkdownEdit` |
+| `src/markdownedit/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 草稿编辑器的 `AMenu`：顶部格式化工具栏 + 撤销/重做/剪切/复制/粘贴条目 | `MarkdownEdit`、`AMenu`/`AMenuItem` |
 | `src/markdown/MarkdownDocument.{h,cpp}` | `MarkdownDocument` | 磁盘上那一个文件：文本、脏标记、只读判定，以及**载入时看到的字节形态**（BOM、行尾、UTF-8 是否合法）；`setVirtual()` 把它变成无文件载体（草稿会话：永不脏、`save()` 拒绝、2 MB 编辑上限照算） | `MarkdownPreviewController`、`core::OpResult` |
 | `src/markdown/MarkdownChunker.{h,cpp}` | `MarkdownChunker`、`MarkdownBlock` | 顶层块切分、两次切分之间的最小替换区间、块摘要 | `MarkdownPreviewController`、`renderer.js`、`scripts/spike-markdown-chunker.js` |
 | `src/markdown/MarkdownRuntime.{h,cpp}` | `MarkdownRuntime` | 页面侧全部的纯字符串与纯计算：URL 布局、MIME 表、资源映射、主题 → CSS 变量、页面文案、大纲、命令/事件名表、能力判定 | 下面所有成员；页面协议唯一对着的 C++ |
@@ -414,6 +414,8 @@ description: My own shape for bug reports.
 `FileIcons` 持有三张表——`fileNames`、`suffixes`、`folderNames`——加每种一个兜底；构造函数并入内置的 `:/config/default_file_icons.json`，`loadUserFile()` 叠加 `<dataRoot>/file_icons.json`，同名键用户赢。查表大小写不敏感，顺序是完整文件名 → 后缀 → 兜底，所有值经 `core::IconResolver` 归一。
 
 ### `MarkdownEdit` 与 `MarkdownHighlighter`
+
+编辑引擎住在自己的模块 `src/markdownedit/`（`awb_markdownedit`）里，本页只是它的消费者而非所有者；模块边界、依赖构成与在其它项目里复用它的方法另见《Markdown编辑模块》。
 
 `MarkdownEdit` 是格式动作背后的 QML 单例。`attach(textArea)` 从控件读 `QQuickTextDocument` 并挂一个以文档为父的 `MarkdownHighlighter`；对同一文档重复调用无害。配色取自当前 `theme::Theme`，在 `Theme::changed` 时重灌并 `rehighlight()`；已死的高亮器指针经 `QPointer` 回收。草稿编辑器与文档源码区都是它的客户。
 

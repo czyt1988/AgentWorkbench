@@ -12,6 +12,7 @@
 | WebEngine 崩溃排查（渲染进程崩溃、Debug/Release 的 DCHECK 分界） | [WebEngine 崩溃排查](WebEngine崩溃排查.md) | [出问题了](../guide/问题排查.md) |
 | Skill 浏览 | [Skill 浏览](Skill浏览.md) | [技能](../guide/技能.md) |
 | Markdown 工作台页（提示词撰写 + 文档预览、Ribbon、分块渲染） | [Markdown 工作台](Markdown工作台.md) | [Markdown 工作台](../guide/Markdown工作台.md) |
+| Markdown 编辑引擎（可复用的 `awb_markdownedit` 模块：动作、高亮器、右键菜单） | [Markdown 编辑模块](Markdown编辑模块.md) | [Markdown 工作台](../guide/Markdown工作台.md) |
 | 外壳、导航与组件 | [外壳与导航](外壳与导航.md) | [入门](../guide/index.md) |
 | 设置页与设置文件 | [设置](设置.md) | [设置](../guide/设置.md) |
 | 主题引擎 | [主题引擎](主题引擎.md) | [外观](../guide/外观.md) |
@@ -79,9 +80,11 @@ src/
   shell/        L2 UI 框架：导航、窗口骨架、通知、A* 组件
   skillcatalog/ L2：本机 skill 目录（SKILL.md frontmatter、扫描、模型、门面）+ QML
   tools/        L2：提示词撰写域（工作区记忆、懒加载文件树、图标映射、提示词
-                草稿、Markdown 编辑动作）+ QML
+                草稿、模板）+ QML
   web/          L2：标签、表面、内存策略 + QML
     webengine/  L2 适配器（链接 Qt WebEngine；这样的目标有两个）
+  markdownedit/ L2：Markdown 编辑引擎（格式化动作、查找替换、高亮器）——
+                自足可复用模块
   markdown/     L2：Markdown 文档管线（文档读写、分块、awbmd:// URL、预览控制器）
     webengine/  L2 适配器（链接 Qt WebEngine；awbmd:// 的 handler——仅 Qt 6）
   workbench/    L3：跨域意图、内置页面、环境检测、插件服务
@@ -130,6 +133,7 @@ ctest 会跑「每个模块一个可执行文件」加上架构门禁：
 | `tst_workbench` | 跨域意图：`openWeb` 导航、外部表面不建标签的路径、交浏览器打开时的 URL 交接 |
 | `tst_skillcatalog` | frontmatter 解析、扫描、插件版本去重、过滤 |
 | `tst_tools` | 工作区记忆语义、懒加载树模型（角色/取子/增量刷新）、图标映射、门面接线、QML 可调用面 |
+| `tst_markdownedit` | 编辑引擎：格式动作的光标语义（粗体/斜体/代码/列表/标题/查找替换/Tab）、高亮器的逐块状态机——纯 `QTextDocument` 层，不依赖主题与 QML 运行时 |
 | `tst_markdown` | 纯层：文档逐字节读写、分块与差异、`awbmd://` URL 与 MIME 映射、主题转 CSS 字符串、控制器状态——不碰 WebEngine，每个构建都跑 |
 | `tst_markdownpreview` | 真引擎里的页面：模块脚本图、按块挂载、KaTeX/mermaid/highlight.js 的实际产物、增量替换、搜索、序列化（仅 Qt 6 + WebEngine） |
 | `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`：它能编译加载、命令泵真在跑、find/serialize 往返、报到契约与 keepAlive 常驻（仅 Qt 6 + WebEngine） |

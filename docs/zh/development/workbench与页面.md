@@ -186,7 +186,7 @@ flowchart TD
 4. 按区域（或 `locale.override` 的值）从 `:/i18n` 安装翻译器；见[国际化](国际化.md)。
 5. 引擎创建之前把 `appearance.fontFamily` 应用到应用字体上。
 6. **`LegacyImport::runOnce()` 在写默认 `settings.json` 之前跑**，因为导入是否行动取决于数据根是否仍未动过。此后，若 `settings.json` 不存在才写一份默认的。
-7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit` → `MarkdownPreviewController` → `EnvironmentService`（+ `start()`）→ `WorkbenchContext`。预览控制器是无条件构造的——Qt 5 与关掉 WebEngine 的构建里它照样存在，只是 `available` 为假；`workbench.setMarkdownPreview(&controller)` 同样不带编译期开关地接上，这样接线处不会是「能力」与门禁之间第二处可能漂移的地方。
+7. **自底向上装配对象图**：`ThemeRegistry` → `Theme` → shell（`NavigationModel`、`ShellController`、`UiServices`、`Notifications`）→ `AgentsFacade`（+ `start()`）→ `WebTabsFacade` → `SkillsFacade`（+ `start()`）→ `ToolsFacade` → `MarkdownEdit`（`awb_markdownedit` 的单例）→ `MarkdownPreviewController` → `EnvironmentService`（+ `start()`）→ `WorkbenchContext`。预览控制器是无条件构造的——Qt 5 与关掉 WebEngine 的构建里它照样存在，只是 `available` 为假；`workbench.setMarkdownPreview(&controller)` 同样不带编译期开关地接上，这样接线处不会是「能力」与门禁之间第二处可能漂移的地方。
 8. **插件在页面注册与恢复之前发现并加载。** manifest 总是要读（设置页即使插件被禁用也要列出它们）；库只在总开关打开时装载，每个 manifest 的启用标志再对照 `plugins.disabledIds` 解析。发现结果被灌进 `WorkbenchContext`。因为 `BuiltinPages` 在这之后才构造，插件页面 id 才能活过一次重启。
 9. 构造 `BuiltinPages`，它注册内置页面并恢复上次的页面。
 10. WebEngine 打开时，创建表面 provider、profile store 与 compat 对象，并把 `WebProfiles` / `WebEngineCompat` 注册为单例。Qt 6 上同一个代码块里还会创建 Markdown 预览的 provider 与 runtime handler——供出 `awbmd://` 的那个适配器才是把 `MarkdownRuntime::isSupportedBuild()` 变成一扇真窗口的东西；Qt 5 上两者都不构造、不注册，因为那条路线带的不是简化版预览，而是完全没有。
@@ -207,7 +207,7 @@ flowchart TD
 | `Web` | `web` | |
 | `Skills` | `skills` | |
 | `Tools` | `tools` | |
-| `MarkdownEdit` | — | 直接以 `MarkdownEdit` 引用 |
+| `MarkdownEdit` | — | 直接以 `MarkdownEdit` 引用；`awb_markdownedit` 编辑引擎的单例 |
 | `Markdown` | `markdown` | 预览控制器；每个构建都注册，这个二进制能不能预览由它的 `available` 属性说话 |
 | `MarkdownPreview` | — | 仅 Qt 6 + WebEngine 注册；预览窗口赋给视图的 `awbmd://` profile |
 | `Workbench` | `workbench` | |

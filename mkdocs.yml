@@ -65,6 +65,7 @@ plugins:
                 - WebEngine crash troubleshooting: development/webengine-crash-troubleshooting.md
                 - Skill browser: development/skill-browser.md
                 - Markdown workbench: development/markdown-workbench.md
+                - Markdown edit module: development/markdown-edit-module.md
                 - Shell and navigation: development/shell-and-navigation.md
                 - Settings: development/settings.md
                 - Theme engine: development/theme-engine.md
@@ -108,6 +109,7 @@ plugins:
                 - WebEngine 崩溃排查: development/WebEngine崩溃排查.md
                 - Skill 浏览: development/Skill浏览.md
                 - Markdown 工作台: development/Markdown工作台.md
+                - Markdown 编辑模块: development/Markdown编辑模块.md
                 - 外壳与导航: development/外壳与导航.md
                 - 设置: development/设置.md
                 - 主题引擎: development/主题引擎.md

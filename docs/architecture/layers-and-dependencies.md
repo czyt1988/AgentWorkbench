@@ -21,6 +21,7 @@ flowchart TB
         tools["awb_tools"]
         web["awb_web"]
         webengine["awb_web_webengine<br/>adapter"]
+        markdownedit["awb_markdownedit"]
         markdown["awb_markdown"]
         mdwebengine["awb_markdown_webengine<br/>adapter, both Qt majors"]
     end
@@ -49,6 +50,7 @@ flowchart TB
     skillcatalog --> theme
     tools --> theme
     web --> theme
+    markdownedit --> theme
     markdown --> theme
     theme --> core
     shell --> core
@@ -70,7 +72,8 @@ The real CMake link lines, for reference:
 | `awb_theme` | `awb_core`, `Qt::Core`, `Qt::Gui` |
 | `awb_shell` | `awb_core`, `awb_theme`, `Qt::Core`, `Qt::Gui`; `comdlg32` on Windows |
 | `awb_agentcatalog`, `awb_skillcatalog`, `awb_web` | `awb_core`, `awb_theme` |
-| `awb_tools` | `awb_core`, `awb_theme`; `Qt::Quick` is `PRIVATE` (only the Markdown editor support touches Quick) |
+| `awb_tools` | `awb_core`, `awb_theme` |
+| `awb_markdownedit` | `awb_theme`, `Qt::Core`, `Qt::Gui`; `Qt::Quick` is `PRIVATE` (only `MarkdownEdit` touches Quick, to read a `TextArea`'s document) — deliberately no `awb_core`, so the module stays copyable into another project together with `awb_theme` alone |
 | `awb_markdown` | `awb_core`, `awb_theme`, `Qt::Core`, `Qt::Gui` |
 | `awb_web_webengine` | `awb_web` + the Qt WebEngine target |
 | `awb_markdown_webengine` | `awb_markdown`, `Qt::Core`, `Qt::Gui` + the Qt WebEngine target — built only on Qt 6 |
@@ -81,7 +84,7 @@ The real CMake link lines, for reference:
 
 ### 1. Domains never depend on each other, or on the shell
 
-`awb_agentcatalog`, `awb_skillcatalog`, `awb_tools`, `awb_web` and `awb_markdown` must not include `shell/`, `workbench/`, or each other's directories.
+`awb_agentcatalog`, `awb_skillcatalog`, `awb_tools`, `awb_web`, `awb_markdownedit` and `awb_markdown` must not include `shell/`, `workbench/`, or each other's directories.
 
 The reason is not purity for its own sake: this is what makes the modules independently testable (each has its own test target that links only that module) and what keeps the dependency graph a tree instead of a tangle. In practice it means a domain must not assume anything about *where* it is being displayed.
 

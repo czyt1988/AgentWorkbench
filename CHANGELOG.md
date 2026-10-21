@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **The Markdown editing engine is its own module: `awb_markdownedit`.**
+  `MarkdownEdit` (formatting actions, find/replace, Tab semantics) and
+  `MarkdownHighlighter` moved out of `awb_tools` into `src/markdownedit/`,
+  together with the editor context menu; the namespace is now
+  `awb::markdownedit`. The module depends only on `awb_theme` (plus Qt, with
+  Qt Quick a `PRIVATE` link) and no longer drags the prompt-writing domain
+  behind it, so it can be copied into another project as-is — the integration
+  steps are in `docs/development/markdown-edit-module.md`. `awb_tools` loses
+  its Qt Quick dependency entirely. Behaviour is unchanged: the QML singleton
+  keeps its `MarkdownEdit` name and every page works exactly as before. The
+  engine's tests moved with it into the new `tst_markdownedit` target.
 - **The Markdown workbench page is broken into components.** The page had
   grown to three thousand lines; the blocks that could stand on their own are
   now separate files, placed by which facade they actually need: the workspace

@@ -43,6 +43,7 @@ docs/
   | `development/webengine-crash-troubleshooting.md` | `development/WebEngine崩溃排查.md` |
   | `development/skill-browser.md` | `development/Skill浏览.md` |
   | `development/markdown-workbench.md` | `development/Markdown工作台.md` |
+  | `development/markdown-edit-module.md` | `development/Markdown编辑模块.md` |
   | `development/shell-and-navigation.md` | `development/外壳与导航.md` |
   | `development/settings.md` | `development/设置.md` |
   | `development/theme-engine.md` | `development/主题引擎.md` |

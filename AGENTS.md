@@ -39,7 +39,7 @@ cmake --build build
 - 生成器：Ninja（推荐）或 MSBuild。脚本新建构建目录时优先用 Ninja；构建目录已配置过则沿用其生成器，因此 `--release` 不需要 MSVC 环境也能跑。
 - 构建选项（`cmake/AwbOptions.cmake`）：`AWB_ENABLE_WEBENGINE`（默认 ON，MinGW + ON 在配置期报错）、`AWB_ENABLE_RIBBON`（默认 ON，构建 `third_party/SARibbon` 的 QML 模块——Markdown 工作台页的 Ribbon，自 dev-3.0 起硬依赖树内构建的 QWindowKit 链（`3rdparty/qwindowkit` → `qmsetup` → `syscmdline`，离线时逐级从已检出的克隆初始化）；关掉时页面退回普通工具栏）、`BUILD_TESTING`（默认 ON）。额外参数经 `bash scripts/build.sh -- -D…` 传入。`BUILD_TESTING` 由 build.sh 的两个互斥开关显式设置：`--test` 配成 ON、`--no-tests` 配成 OFF，所以同一个构建目录在两种用法之间来回切也能正常工作（`--` 里再传一次则以最后一次为准）。
 - 发布打包用 `bash scripts/package.sh`：它调用 build.sh 完成 Release 构建（带 `--no-tests`，测试目标不进包，省掉这部分编译时间），然后 windeployqt + MSVC 运行库 + zip 出 `dist/AgentWorkbench-<version>-win64-Portable.zip`。要改 Qt 前缀只改一处——`package.sh` 通过 `build.sh --print-qt` 取同一个值。**包必须是自足的**：windeployqt 不管 MSVC 运行库（`--compiler-runtime` 只放安装程序，目标机需要管理员），所以运行库由 `build.sh --print-redist` 给出目录后按 app-local 方式拷进包根；打 zip 前还会校验必需文件与全包 DLL 的导入表（MSVC 运行库即便本机 `System32` 里有也算缺失——那份就是运行库），任一不过即失败，`AWB_ALLOW_INCOMPLETE=1` 才允许放行不完整的包。
-- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与宿主层，仅 `AWB_ENABLE_WEBENGINE=ON` 时构建，两个 Qt 大版本都跑——Qt 5 车道的数据通道是推入+console 信标，见 docs/development/markdown-workbench.md）、`tst_workbench`、`tst_ribbonui`（仅 `AWB_ENABLE_RIBBON=ON` 时构建——命令条 QML 装载冒烟与上下文页色带断言：qrc 初始化、命令式注册时机、叶子创建、contextColor 与 accent 可区分、色带只覆盖自己的 tab）与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
+- 测试目标：`tst_core`、`tst_agentcatalog`、`tst_theme`、`tst_shell`、`tst_web`、`tst_webengine`（仅 `AWB_ENABLE_WEBENGINE=ON` 时构建——表面 QML 加载冒烟 + Markdown 适配器的 scheme/路由/信标）、`tst_skillcatalog`、`tst_tools`、`tst_markdownedit`（编辑引擎的纯层，每个构建都跑）、`tst_markdown`（预览的纯层，每个构建都跑）、`tst_markdownpreview` 与 `tst_markdownpreviewui`（页面与宿主层，仅 `AWB_ENABLE_WEBENGINE=ON` 时构建，两个 Qt 大版本都跑——Qt 5 车道的数据通道是推入+console 信标，见 docs/development/markdown-workbench.md）、`tst_workbench`、`tst_ribbonui`（仅 `AWB_ENABLE_RIBBON=ON` 时构建——命令条 QML 装载冒烟与上下文页色带断言：qrc 初始化、命令式注册时机、叶子创建、contextColor 与 accent 可区分、色带只覆盖自己的 tab）与 `check_architecture`；`./build/tst_core testRoundTrip` 这样按名字跑单个用例（约定见下文「测试」）。
 
 ## 目录结构
 
@@ -52,7 +52,8 @@ src/
   agentcatalog/  L2：外部 agent 工具的目录（只编目与启动，不是 agent 实现）：AgentDefinition/AgentState/AgentStateStore、AgentRepository、AgentModel、AgentRuntime、AgentScripts、AgentHealthMonitor、AgentUrls、AgentsFacade + qml/
   shell/         L2 UI 框架：NavigationModel、ShellController、UiServices、Notifications、PageDescriptor + 窗口骨架 QML 与 qml/components/ 的 A* 组件（不认识 agent/skill/web/markdown/tools；所有业务页面——含 workbench 域的 Markdown 工作台页——都经 NavigationModel 以资源 URL 注册，见 docs/architecture/分层与依赖.md）
   skillcatalog/  L2：本机 skill 的目录：SkillDefinition、SkillFrontmatter、SkillRoot/SkillRoots、SkillScanner、SkillModel、SkillsFacade + qml/
-  tools/         L2：提示词撰写域：ToolsStore（工作区记忆 + 草稿 + ribbon 段，tools.json）、FileTreeModel（懒加载文件树 + watcher + 增量刷新）、FileIcons（名字/后缀 → 图标）、ToolsFacade、MarkdownEdit/MarkdownHighlighter + qml/（编辑器右键菜单）
+  tools/         L2：提示词撰写域：ToolsStore（工作区记忆 + 草稿 + ribbon 段，tools.json）、FileTreeModel（懒加载文件树 + watcher + 增量刷新）、FileIcons（名字/后缀 → 图标）、ToolsFacade + qml/
+  markdownedit/  L2：Markdown 编辑引擎（自足可复用模块，只依赖 theme）：MarkdownEdit（格式化动作/查找替换/Tab 语义，静态光标操作 + Q_INVOKABLE 包装）、MarkdownHighlighter（逐块状态机高亮，配色注入）+ qml/（编辑器右键菜单）
   web/           L2：WebTab、WebTabsModel、WebSurfaceRegistry、WebProfilePaths、WebTabsFacade + qml/
     webengine/   L2 适配器（链接 Qt WebEngine 的两个目标之一，含 WebEngineSurface.qml）
   markdown/      L2：Markdown 预览域：MarkdownDocument（逐字节读写）、MarkdownChunker（分块 + 差异）、MarkdownRuntime（awbmd:// URL、MIME、主题串）、MarkdownPreviewController + qml/（预览渲染面 MarkdownPreviewPane，仅能力构建注册）
@@ -95,9 +96,9 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 ### 依赖方向与门禁
 
-`app → workbench → {shell, agentcatalog, skillcatalog, web, tools, markdown, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。链接 Qt WebEngine 的只有 `*_webengine` 适配器目标（`awb_web_webengine` 与 `awb_markdown_webengine`）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 6 条规则，违反即构建失败：
+`app → workbench → {shell, agentcatalog, skillcatalog, web, tools, markdownedit, markdown, theme} → core`；领域模块之间零依赖，跨域行为写在 `awb_workbench`（或经 `WorkbenchContext` 的意图方法）。链接 Qt WebEngine 的只有 `*_webengine` 适配器目标（`awb_web_webengine` 与 `awb_markdown_webengine`）。`scripts/check-architecture.sh` 挂成 ctest 的 `check_architecture`，共 6 条规则，违反即构建失败：
 
-1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web,tools,markdown}` 不许 include `shell/`、`workbench/` 或彼此的目录；
+1. 反向/横向 include：`src/{agentcatalog,skillcatalog,web,tools,markdownedit,markdown}` 不许 include `shell/`、`workbench/` 或彼此的目录；
 2. QML 字面颜色：不许 `#rrggbb`/`#rgb`，也不许 `Qt.rgba(<数字>, …)`（`"transparent"` 与 `Qt.rgba(theme.…)` 这类表达式允许）；
 3. i18n：`tr()`/`qsTr()` 的源串必须是 ASCII；
 4. core/theme 纯净：`src/core/`、`src/theme/` 不许出现 `QtQuick`、`QQuick*`、`QQml*`、`Qt6::Quick`、`QtWebEngine`；
@@ -138,7 +139,7 @@ scripts/       build.sh、package.sh、check-architecture.sh、worktree-add.sh�
 
 ### 测试
 
-- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（12 个测试目标 + `check_architecture`；WebEngine 关闭时 `tst_webengine` 不参与，Qt 5 或 WebEngine 关闭时 `tst_markdownpreview`/`tst_markdownpreviewui` 也不参与），**并且**已按 `docs/AGENTS.md` 的「什么时候必须改文档」对照表检查过文档（该改的英文文档、中文镜像与 `mkdocs.yml` 导航都已同步）。
+- 「做完」的定义是 `bash scripts/build.sh --test` 全绿（13 个测试目标 + `check_architecture`；WebEngine 关闭时 `tst_webengine` 不参与，Qt 5 或 WebEngine 关闭时 `tst_markdownpreview`/`tst_markdownpreviewui` 也不参与），**并且**已按 `docs/AGENTS.md` 的「什么时候必须改文档」对照表检查过文档（该改的英文文档、中文镜像与 `mkdocs.yml` 导航都已同步）。
 - 一个模块一个可执行；多个测试类经 `tests/awbtest.h` 的 `AWB_TEST(Class)` 注册，由 `awbtest_runner.cpp` 依次执行（`tst_shell` 单类且需要 `QApplication`，用 `QTEST_MAIN`）。
 - **用例必须写在 `private Q_SLOTS:` 里**（大写宏，见编程规范；小写 `slots` 已禁用）：写在尾部 `private:` 之后的用例能编译、套件依然报 100% 通过，但根本不会执行，且没有任何警告。新加用例后用 `./build/tst_core -functions` 确认已注册。
 - 测试不许依赖网络、本机已安装的 agent 工具或真实数据目录。

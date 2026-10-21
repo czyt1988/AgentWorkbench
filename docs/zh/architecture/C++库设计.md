@@ -25,7 +25,7 @@ flowchart TB
 
 - **L0** 是 `src/core/`（路径、JSON 存储、设置、日志、进程与脚本执行、HTTP 探测、插件宿主、图标解析、环境变量展开、文本助手、`OpResult`），外加只含头文件的插件 ABI `src/plugin_api/`。
 - **L1** 是主题引擎 `src/theme/`。
-- **L2** 是领域与 UI 框架模块：`src/agentcatalog/`、`src/skillcatalog/`、`src/web/`、`src/tools/` 与 `src/shell/`。
+- **L2** 是领域与 UI 框架模块：`src/agentcatalog/`、`src/skillcatalog/`、`src/web/`、`src/tools/`、`src/markdownedit/`、`src/markdown/` 与 `src/shell/`。
 - **L3** 是应用层 `src/workbench/`。
 
 领域模块之间零依赖，也都不依赖 `shell/` 或 `workbench/`。挂在 ctest 上的 `scripts/check-architecture.sh`（测试名 `check_architecture`）强制这一点：它的第一条规则 grep 每个领域模块的反向/横向 include，违反即构建失败。这就是为什么尽管打开 agent 的 Web UI 同时需要两边，`AgentsFacade` 也不能调用 `WebTabsFacade`；跨域动作住在 `awb_workbench` 里。完整的模块地图（含每个具体类落在哪一层）见[分层与依赖](分层与依赖.md)。
@@ -146,7 +146,7 @@ sequenceDiagram
 - **QML 模块 `AgentWorkbench`** 由 `awb_add_qml_module` 生成（Qt 6 上是 `qt_add_qml_module`，Qt 5 上是生成的 qmldir 加 qrc）。其页面与组件 URL 形如 `qrc:/qt/qml/AgentWorkbench/<area>/<Name>.qml`，`<area>` 由 `app/CMakeLists.txt` 里的 `QT_RESOURCE_ALIAS` 决定。
 - **纯 C++ URI `AgentWorkbench.App`** 承载用 `qmlRegisterSingletonInstance` 注册的单例，那里类型名必须大写。页面实际使用的小写别名层见[前端设计](前端设计.md)。
 
-因此新增或移动一个 `.qml` 文件意味着同时改两份清单：`app/CMakeLists.txt` 里对应的区域清单（`_shell_qml`、`_component_qml`、`_agentcatalog_qml`、`_skillcatalog_qml`、`_web_qml`、`_webengine_qml`、`_tools_qml`），以及文件含 `qsTr()` 时的 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。
+因此新增或移动一个 `.qml` 文件意味着同时改两份清单：`app/CMakeLists.txt` 里对应的区域清单（`_shell_qml`、`_component_qml`、`_agentcatalog_qml`、`_skillcatalog_qml`、`_web_qml`、`_webengine_qml`、`_tools_qml`、`_markdownedit_qml`），以及文件含 `qsTr()` 时的 `cmake/AwbTranslations.cmake` 的 `AWB_TS_SOURCES`。
 
 ## 命名、注释与日志
 
