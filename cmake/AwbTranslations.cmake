@@ -35,6 +35,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsEnvironmentPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsSkillsPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsWebPage.qml
+    ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsMarkdownPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsPluginsPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/SettingsAdvancedPage.qml
     ${CMAKE_SOURCE_DIR}/src/shell/qml/components/AButton.qml

@@ -12,6 +12,7 @@ set(_shell_qml MainWindow Sidebar Workspace StatusBar Toasts PageHeader
                SettingsPage
                SettingsAppearancePage SettingsLaunchersPage
                SettingsEnvironmentPage SettingsSkillsPage SettingsWebPage
+               SettingsMarkdownPage
                SettingsPluginsPage SettingsAdvancedPage
 )
 set(_component_qml AButton AIconButton ASearchField ACard APill ADialog

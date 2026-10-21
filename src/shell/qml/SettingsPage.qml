@@ -22,6 +22,7 @@ Page {
         { id: "environment", title: qsTr("Environment") },
         { id: "skills", title: qsTr("Skills") },
         { id: "web", title: qsTr("Web") },
+        { id: "markdown", title: qsTr("Markdown") },
         { id: "plugins", title: qsTr("Plugins") },
         { id: "advanced", title: qsTr("Advanced") }
     ]
@@ -146,6 +147,7 @@ Page {
             SettingsEnvironmentPage {}
             SettingsSkillsPage {}
             SettingsWebPage {}
+            SettingsMarkdownPage {}
             SettingsPluginsPage {}
             SettingsAdvancedPage {}
         }
