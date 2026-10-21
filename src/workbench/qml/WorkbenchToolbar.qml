@@ -31,6 +31,12 @@ Rectangle {
         toolbarFindField.selectAll()
     }
 
+    // Ctrl+H 的落点：焦点进替换框并全选。
+    function focusReplace() {
+        toolbarReplaceField.forceActiveFocus()
+        toolbarReplaceField.selectAll()
+    }
+
     // 工具栏形态没有标签页；跨页跳转的转发入口保持两份皮同签名（页面
     // 的 setRibbonTab 经命令条调用，Ribbon 形态才有实际切换）。
     function setTabIndex(index) {
@@ -186,7 +192,7 @@ Rectangle {
             onClicked: if (win) win.toggleHistoryWindow()
         }
 
-        // --- 查找：输入框常驻（回车查找/再回车下一个） -------------------
+        // --- 查找/替换：输入框常驻（回车查找/再回车下一个） -------------
         ATextField {
             id: toolbarFindField
             objectName: "toolbarFindField"
@@ -194,6 +200,40 @@ Rectangle {
             Layout.preferredWidth: 150
             placeholderText: qsTr("Find")
             onAccepted: if (win) win.findNext(text)
+        }
+
+        // 命中统计「N/M」：分子随当前选区走，没有查找进行时隐藏。
+        Label {
+            visible: win && win.findMatchCount > 0
+            text: "%1/%2".arg(win.findMatchIndex)
+                          .arg(win.findMatchCount)
+            color: theme.textSecondary
+            font.pixelSize: theme.fontSizeCaption
+        }
+
+        AIconButton {
+            iconSource: "qrc:/icons/search.svg"
+            tooltip: qsTr("Replace the current match and find the next")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.replaceNext(toolbarReplaceField.text,
+                                                toolbarFindField.text)
+        }
+
+        AIconButton {
+            iconSource: "qrc:/icons/copy.svg"
+            tooltip: qsTr("Replace every match in the document")
+            enabled: win && win.activeEditor
+            onClicked: if (win) win.replaceEverywhere(toolbarReplaceField.text,
+                                                      toolbarFindField.text)
+        }
+
+        ATextField {
+            id: toolbarReplaceField
+            objectName: "toolbarReplaceField"
+
+            Layout.preferredWidth: 130
+            placeholderText: qsTr("Replace with")
+            onAccepted: if (win) win.replaceNext(text, toolbarFindField.text)
         }
 
         Item {

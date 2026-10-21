@@ -109,6 +109,78 @@ AMenu {
         })
     }
 
+    AMenuSeparator {}
+
+    // 行级操作（B 批次）：目标是光标/选区覆盖到的行。动作直接走
+    // MarkdownEdit 纯层，与编辑器组合键同一批实现。
+    AMenuItem {
+        icon.source: "qrc:/icons/arrow-up.svg"
+        text: qsTr("Move line up")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.moveLineUp(root.editor)
+        })
+    }
+    AMenuItem {
+        icon.source: "qrc:/icons/arrow-down.svg"
+        text: qsTr("Move line down")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.moveLineDown(root.editor)
+        })
+    }
+    AMenuItem {
+        icon.source: "qrc:/icons/copy.svg"
+        text: qsTr("Duplicate line")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.duplicateLine(root.editor)
+        })
+    }
+    AMenuItem {
+        icon.source: "qrc:/icons/close.svg"
+        text: qsTr("Delete line")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.deleteLine(root.editor)
+        })
+    }
+    AMenuItem {
+        icon.source: "qrc:/icons/code.svg"
+        text: qsTr("Select line")
+        onTriggered: root.run(function() {
+            MarkdownEdit.selectLine(root.editor)
+        })
+    }
+
+    AMenuSeparator {}
+
+    // 大小写转换（作用于选区；无选区时光标处的词）。
+    AMenuItem {
+        text: qsTr("UPPERCASE")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.convertCase(root.editor,
+                                     MarkdownEdit.UpperCase)
+        })
+    }
+    AMenuItem {
+        text: qsTr("lowercase")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.convertCase(root.editor,
+                                     MarkdownEdit.LowerCase)
+        })
+    }
+    AMenuItem {
+        text: qsTr("Title Case")
+        enabled: root.editor && !root.editor.readOnly
+        onTriggered: root.run(function() {
+            MarkdownEdit.convertCase(root.editor,
+                                     MarkdownEdit.TitleCase)
+        })
+    }
+
     /// 关菜单、把焦点还给编辑器，再执行动作。菜单打开时焦点在菜单上，
     /// 编辑器拿回焦点后，随后的输入与选区写入才落在它身上。
     function run(action) {

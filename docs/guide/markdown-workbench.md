@@ -102,14 +102,31 @@ The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Ital
 - **Inline Code wraps, Code Block fences.** Inline Code wraps the selection in backticks. Code Block fences whole lines — the selected lines (or the line the cursor is on) become a code block with the language you picked on its first line; with the cursor on an empty line it drops an empty block and puts the cursor inside, ready to type.
 - In a document tab, the same buttons work in the source editor when the file is editable — the formatting is not prompt-only.
 
-Besides `Ctrl+F` (find — see the next section) and the formatting shortcuts above (`Ctrl+B` / `Ctrl+I` / `Ctrl+K` / `Ctrl+E`, active while the editor has focus), everything else is a button.
+- **Headings can be re-levelled.** The **Heading** menu's **Promote heading** and **Demote heading** entries move the headings under the cursor one level up or down (## becomes #; promoting a # removes the heading entirely).
+
+Besides `Ctrl+F` (find — see [Finding](#finding)), the rest of the keyboard shortcuts are below, and they work while the caret is in the text.
+
+## Editing shortcuts
+
+These work in the prompt editor and in a document's source view. The ones that change text need an editable document; the navigation ones work on read-only files too:
+
+- `Ctrl+B` / `Ctrl+I` / `Ctrl+K` / `Ctrl+E` — bold, italic, link, inline code (the buttons on the **Start** tab, see [Formatting tools](#formatting-tools)). They belong to the editor: outside it, `Ctrl+B` keeps its global meaning (collapse the sidebar).
+- `Alt+↑` / `Alt+↓` — move the line (or the selected lines) up / down.
+- `Shift+Alt+↓` — copy the line below itself.
+- `Ctrl+Shift+K` — delete the whole line.
+- `Ctrl+L` — select the whole line; `Ctrl+D` — select the word at the caret.
+- `Ctrl+G` — go to a line number (a small dialog asks; 1 is the first line).
+- The right-click menu carries the same line operations (move, duplicate, delete, select line) and the three case conversions (**UPPERCASE**, **lowercase**, **Title Case**) — they act on the selection, or on the word at the caret.
+- The status line at the bottom always shows where the caret is (`Ln 3, Col 14`).
 
 ## Finding
 
 A find field sits at the end of the **Start** tab, and `Ctrl+F` jumps to it from anywhere. Type what you are looking for and press `Enter`: the first match is found and selected. Press `Enter` again to jump to the next match (a toast tells you when the search has wrapped back to the start).
 
-- In a document tab the same field searches the rendered page; in the prompt it searches your draft text — you never have to think about which one, the field routes itself (see [Finding text in the document](#finding-text-in-the-document)).
-- The **×** in the field clears it and hands focus back to the editor; `Esc` does the same while the caret is in the field.
+- Every match in the text gets a soft background highlight while you search, and the field shows `3/12` — which match you are on, out of how many.
+- **Replacing:** the field under the find field is the replacement. Type into both, then press `Enter` in the replace field (or click **Replace**) to swap the current match for your text and jump to the next; **Replace All** swaps every match in one undo step and tells you how many it replaced. `Ctrl+H` jumps to the replace field from anywhere.
+- In a document tab the find field searches the rendered page, but replace always writes the source text — switch the document to **Split** or **Source** to see what a replacement changed.
+- The **×** in the field clears it — the highlight and the `3/12` count go with it — and hands focus back to the editor; `Esc` does the same while the caret is in the field.
 - The search is case-insensitive (and whole-word off) by default; the case setting you may have set in an older version still applies.
 
 ## Prompt checks
@@ -153,7 +170,7 @@ The strip above the middle answers one question — *which document am I on*: th
 - **Outline.** A floating panel over the rendered page's right edge lists the headings of whatever is open — the draft's headings included; click one to jump there. A document with no headings shows **No headings**. It takes no space from the prompt tools on the right, and it is only present while a rendered view is. The panel is yours to shape: the button at the right of its title row collapses it down to the title row (click it again to bring the list back), the grip in its bottom-right corner drags its height, and dragging its left edge makes it wider or narrower — the panel stays anchored to the right edge of the rendered page either way. These choices live in the app's memory: they survive switching pages, and restarting the application starts the panel full-height again.
 - **Text size.** The **Font Size** menu on the **View** tab picks the body text size: **Theme size** follows the current appearance theme, or choose a fixed size from 12 px to 24 px.
 - **Width.** The **Width** menu on the **View** tab picks how wide the text column is: **Default width**, a fixed width, or **Full width** to use the whole work area.
-- **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
+- **Status line.** It shows the file's path, its size, the rendering engine's version numbers, a token estimate for the file's text, where the caret is while the source view is on screen (`Ln 3, Col 14`), **Unsaved changes** while you have edits that are not written, and the reason if the file cannot be edited.
 
 ## Finding text in the document
 

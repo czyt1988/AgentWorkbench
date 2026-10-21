@@ -208,6 +208,8 @@ awb_add_resources(AgentWorkbench "i18n"
 
 set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/app-icon.png
+    ${CMAKE_SOURCE_DIR}/icons/arrow-down.svg
+    ${CMAKE_SOURCE_DIR}/icons/arrow-up.svg
     ${CMAKE_SOURCE_DIR}/icons/bot.svg
     ${CMAKE_SOURCE_DIR}/icons/bold.svg
     ${CMAKE_SOURCE_DIR}/icons/bullet-list.svg
