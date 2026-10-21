@@ -63,24 +63,218 @@ TrimmedSelection trimWhitespace(const QString &selected)
 /**
  * @brief 行首一个缩进单位的长度（Shift+Tab 反缩进用）
  *
- * 行首是一个 Tab 就去掉它；空格缩进按一个 Tab 宽（4 个空格）算，不足
- * 4 个就全去掉——Tab 插入的永远是 \t，但手写的空格式嵌套列表同样要能
- * 一次退一级。
+ * 行首是一个 Tab 就去掉它；空格缩进按一个缩进单位（spaceUnit 个空格）
+ * 算，不足就全去掉——空格式嵌套列表同样要能一次退一级。spaceUnit 由
+ * 调用方的缩进偏好带入（空格模式下即每级空格数；\t 模式沿用 4 的宽
+ * Tab 习惯值）。
  *
  * @param line 行文本
+ * @param spaceUnit 一个缩进单位折算的空格数
  * @return 要去掉的字符数（0 = 这行没有缩进）
  */
-int leadingIndentLength(const QString &line)
+int leadingIndentLength(const QString &line, int spaceUnit)
 {
     if (line.startsWith(QLatin1Char('\t'))) {
         return 1;
     }
     int spaces = 0;
-    while (spaces < 4 && spaces < line.length()
+    while (spaces < spaceUnit && spaces < line.length()
            && line.at(spaces) == QLatin1Char(' ')) {
         ++spaces;
     }
     return spaces;
+}
+
+/// 把光标围住的标记对边界（doc 坐标）；openStart = -1 表示没找到。
+struct EnclosedPair
+{
+    int openStart = -1;    ///< 开标记起点
+    int contentStart = 0;  ///< 内容起点（开标记之后）
+    int contentEnd = 0;    ///< 内容终点（闭标记之前）
+    int closeEnd = 0;      ///< 闭标记终点（含）
+};
+
+/**
+ * @brief 在光标所在块里找把光标围住的对称标记对
+ *
+ * 「围住」按查询侧的同一条边界语义：光标贴在内容边界上也算在内（那时
+ * 「再执行一次会切换」的直觉依然成立）。只认恰好 markLen 长的标记 run
+ *（** 里不认单 *，反之亦然），交替配对开闭标记。
+ *
+ * @param cursor 光标（只读）
+ * @param marker 标记字符
+ * @param markLen 标记长度（1 = `*`/`` ` ``，2 = `**`/`~~`）
+ * @return 围住光标的对；openStart = -1 = 没有
+ */
+EnclosedPair enclosingMarkerPair(const QTextCursor &cursor,
+                                 QLatin1Char marker, int markLen)
+{
+    EnclosedPair result;
+    const QTextBlock block = cursor.block();
+    if (!block.isValid()) {
+        return result;
+    }
+    const int blockStart = block.position();
+    const QString text = block.text();
+    const int position = cursor.position();
+
+    // at 处是否恰好是 markLen 长的 run：两侧（若有）不是同一字符。
+    const auto isExactRunAt = [&](int at) {
+        for (int i = 0; i < markLen; ++i) {
+            if (text.at(at + i) != marker) {
+                return false;
+            }
+        }
+        return (at == 0 || text.at(at - 1) != marker)
+               && (at + markLen >= text.length()
+                   || text.at(at + markLen) != marker);
+    };
+
+    int open = -1;
+    for (int i = 0; i + markLen <= text.length(); ++i) {
+        if (!isExactRunAt(i)) {
+            continue;
+        }
+        if (open < 0) {
+            open = i;
+            continue;
+        }
+        const int contentStart = blockStart + open + markLen;
+        const int contentEnd = blockStart + i;
+        if (position >= contentStart && position <= contentEnd) {
+            result.openStart = blockStart + open;
+            result.contentStart = contentStart;
+            result.contentEnd = contentEnd;
+            result.closeEnd = blockStart + i + markLen;
+            return result;
+        }
+        // 未命中：这个闭标记转正为下一对的候选开标记（宽松交替配对）。
+        open = i;
+    }
+    return result;
+}
+
+/**
+ * @brief 光标前后是否正好是同一标记（空对骨架态，如 `**|**`）
+ *
+ * 刚由动作插入的空标记对没有内容可配对（run 长度是 markLen 的两倍），
+ * enclosingMarkerPair 认不出它；骨架态的判定只看光标两侧是不是同一标
+ * 记串。
+ *
+ * @param cursor 光标（无选区）
+ * @param marker 标记字符
+ * @param markLen 标记长度
+ * @return 是骨架态为真
+ */
+bool insideEmptyPair(const QTextCursor &cursor, QLatin1Char marker,
+                     int markLen)
+{
+    const int position = cursor.position();
+    const QTextDocument *document = cursor.document();
+    for (int i = 0; i < markLen; ++i) {
+        if (document->characterAt(position - 1 - i) != marker
+            || document->characterAt(position + i) != marker) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 删掉一对标记，保留内容（toggleWrap 的去标记路径）
+ *
+ * 闭标记先删（其坐标不受开标记删除影响）。空内容时 contentStart ==
+ * contentEnd，一样适用。删完光标落在光标参数处。
+ *
+ * @param cursor 光标（持有编辑块）
+ * @param openStart 开标记起点
+ * @param contentStart 内容起点（开标记之后）
+ * @param contentEnd 内容终点（闭标记之前）
+ * @param closeEnd 闭标记终点（含）
+ */
+void unwrapRange(QTextCursor &cursor, int openStart, int contentStart,
+                 int contentEnd, int closeEnd)
+{
+    cursor.beginEditBlock();
+    cursor.setPosition(contentEnd);
+    cursor.setPosition(closeEnd, QTextCursor::KeepAnchor);
+    cursor.insertText(QString());
+    cursor.setPosition(openStart);
+    cursor.setPosition(contentStart, QTextCursor::KeepAnchor);
+    cursor.insertText(QString());
+    cursor.setPosition(openStart);
+    cursor.endEditBlock();
+}
+
+// wrapSelectionToCursor 定义在本文件后面（包裹路径的唯一实现），切换
+// 助手先声明后使用。
+void wrapSelectionToCursor(QTextCursor &cursor, const QString &marker);
+
+/**
+ * @brief 对称标记对的切换包裹（A5：已是该格式时再执行一次 = 去标记）
+ *
+ * 有选区：去空白后的选区恰好被同名标记夹住 → 去标记并保持内容选中；
+ * 否则包裹（原 wrapSelectionToCursor 行为）。无选区：光标在空标记骨架
+ * 里或被一对标记围住 → 删掉这对标记；否则插入骨架（标记对 ×2、光标放
+ * 中间）。isBoldAt 一类查询的判据在这里被动作真正消费。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ * @param marker 标记字符
+ * @param markLen 标记长度（1 或 2）
+ */
+void toggleWrapToCursor(QTextCursor &cursor, QLatin1Char marker, int markLen)
+{
+    const QString markerText(markLen, marker);
+    QTextDocument *document = cursor.document();
+
+    if (cursor.hasSelection()) {
+        const int selectionStart = cursor.selectionStart();
+        const int selectionEnd = cursor.selectionEnd();
+        const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
+        const int wrapStart = selectionStart + trimmed.start;
+        const int wrapEnd = wrapStart + trimmed.length;
+        const auto isRunAt = [&](int at) {
+            for (int i = 0; i < markLen; ++i) {
+                if (at + i < 0 || at + i >= document->characterCount()) {
+                    return false;
+                }
+                if (document->characterAt(at + i) != marker) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (isRunAt(wrapStart - markLen) && isRunAt(wrapEnd)) {
+            // 去标记：闭标记先删，再把内容重新选回来。
+            cursor.beginEditBlock();
+            cursor.setPosition(wrapEnd);
+            cursor.setPosition(wrapEnd + markLen, QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - markLen);
+            cursor.setPosition(wrapStart, QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - markLen);
+            cursor.setPosition(wrapEnd - markLen, QTextCursor::KeepAnchor);
+            cursor.endEditBlock();
+            return;
+        }
+        wrapSelectionToCursor(cursor, markerText);
+        return;
+    }
+
+    const int position = cursor.position();
+    if (insideEmptyPair(cursor, marker, markLen)) {
+        unwrapRange(cursor, position - markLen, position, position,
+                    position + markLen);
+        return;
+    }
+    const EnclosedPair pair = enclosingMarkerPair(cursor, marker, markLen);
+    if (pair.openStart >= 0) {
+        unwrapRange(cursor, pair.openStart, pair.contentStart,
+                    pair.contentEnd, pair.closeEnd);
+        return;
+    }
+    wrapSelectionToCursor(cursor, markerText);
 }
 
 /**
@@ -440,85 +634,141 @@ void MarkdownEdit::applyTask(QObject *textArea)
 
 /**
  * @brief Tab 键的编辑器行为
+ *
  * @param textArea 目标编辑器
+ * @param useSpaces true = 插空格；false = 插 \t
+ * @param spacesPerIndent 每级缩进的空格数
  * @sa handleTabToCursor
  */
-void MarkdownEdit::handleTab(QObject *textArea)
+void MarkdownEdit::handleTab(QObject *textArea, bool useSpaces,
+                             int spacesPerIndent)
 {
-    editTextArea(textArea, &MarkdownEdit::handleTabToCursor);
+    IndentOptions options;
+    options.useSpaces = useSpaces;
+    options.spacesPerIndent = spacesPerIndent;
+    editTextArea(textArea, &MarkdownEdit::handleTabToCursor, options);
 }
 
 /**
  * @brief Shift+Tab 键的编辑器行为
+ *
  * @param textArea 目标编辑器
+ * @param useSpaces 缩进偏好：空格模式（决定反缩进一次退几个空格）
+ * @param spacesPerIndent 每级缩进的空格数
  * @sa handleBacktabToCursor
  */
-void MarkdownEdit::handleBacktab(QObject *textArea)
+void MarkdownEdit::handleBacktab(QObject *textArea, bool useSpaces,
+                                 int spacesPerIndent)
 {
-    editTextArea(textArea, &MarkdownEdit::handleBacktabToCursor);
+    IndentOptions options;
+    options.useSpaces = useSpaces;
+    options.spacesPerIndent = spacesPerIndent;
+    editTextArea(textArea, &MarkdownEdit::handleBacktabToCursor, options);
 }
 
 /**
- * @brief 给选区加 ** 标记对
+ * @brief 回车键的列表延续
  *
- * 空选区时插入 **** 并把光标放到中间，随后的输入即被包裹。有选区时
- * 前后空白留在标记外，包裹后重新选中原内容（前后各偏移 2 个字符的
- * 标记）。整个动作在一个编辑块内，一次撤销即可回退。
+ * @param textArea 目标编辑器
+ * @return 是否接管了这次回车（false = 调用方放行默认行为）
+ * @sa smartEnterToCursor
+ */
+bool MarkdownEdit::handleEnter(QObject *textArea)
+{
+    if (!textArea) {
+        return false;
+    }
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument()) {
+        return false;
+    }
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    const bool handled = smartEnterToCursor(cursor);
+    if (handled) {
+        QMetaObject::invokeMethod(textArea, "select",
+                                  Q_ARG(int, cursor.selectionStart()),
+                                  Q_ARG(int, cursor.selectionEnd()));
+    }
+    return handled;
+}
+
+/**
+ * @brief 输入单个字符时的自动配对
+ *
+ * @param textArea 目标编辑器
+ * @param typed 输入的文本（只有单字符才可能被接管）
+ * @return 是否接管（false = 调用方放行默认输入）
+ * @sa autoTypeToCursor
+ */
+bool MarkdownEdit::autoType(QObject *textArea, const QString &typed)
+{
+    if (!textArea || typed.length() != 1) {
+        return false;
+    }
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument()) {
+        return false;
+    }
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    const bool handled = autoTypeToCursor(cursor, typed);
+    if (handled) {
+        QMetaObject::invokeMethod(textArea, "select",
+                                  Q_ARG(int, cursor.selectionStart()),
+                                  Q_ARG(int, cursor.selectionEnd()));
+    }
+    return handled;
+}
+
+/**
+ * @brief 切换加粗标记
+ *
+ * A5 起是切换语义：选区已被 ** 夹住（去空白后恰好对齐）→ 去标记并保持
+ * 内容选中；光标在 ** 骨架里或被 **..** 围住 → 删掉这对标记；其余情况
+ * 维持原行为（空选区插入 **** 光标居中，有选区包裹后重选）。整个动作在
+ * 一个编辑块内，一次撤销即可回退。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
  */
 void MarkdownEdit::applyBoldToCursor(QTextCursor &cursor)
 {
-    if (!cursor.hasSelection()) {
-        const int position = cursor.position();
-        cursor.beginEditBlock();
-        cursor.insertText(QStringLiteral("****"));
-        cursor.setPosition(position + 2);
-        cursor.endEditBlock();
-        return;
-    }
-
-    const int selectionStart = cursor.selectionStart();
-    const int selectionEnd = cursor.selectionEnd();
-    const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
-
-    cursor.beginEditBlock();
-    const int wrapStart = selectionStart + trimmed.start;
-    const int wrapEnd = wrapStart + trimmed.length;
-    cursor.setPosition(wrapStart);
-    cursor.insertText(QStringLiteral("**"));
-    cursor.setPosition(wrapEnd + 2);
-    cursor.insertText(QStringLiteral("**"));
-    cursor.setPosition(wrapStart + 2);
-    cursor.setPosition(wrapEnd + 2, QTextCursor::KeepAnchor);
-    cursor.endEditBlock();
+    toggleWrapToCursor(cursor, QLatin1Char('*'), 2);
 }
 
 /**
- * @brief 给选区加 * 标记对（斜体）
+ * @brief 切换斜体标记（单个 *；** 里的光标不算斜体内）
  * @param cursor 选区光标；返回时其位置/选区即动作结果
  */
 void MarkdownEdit::applyItalicToCursor(QTextCursor &cursor)
 {
-    wrapSelectionToCursor(cursor, QStringLiteral("*"));
+    toggleWrapToCursor(cursor, QLatin1Char('*'), 1);
 }
 
 /**
- * @brief 给选区加 ~~ 标记对（删除线）
+ * @brief 切换删除线标记（~~）
  * @param cursor 选区光标；返回时其位置/选区即动作结果
  */
 void MarkdownEdit::applyStrikeToCursor(QTextCursor &cursor)
 {
-    wrapSelectionToCursor(cursor, QStringLiteral("~~"));
+    toggleWrapToCursor(cursor, QLatin1Char('~'), 2);
 }
 
 /**
- * @brief 给选区加 <u></u> 标记对（下划线）
+ * @brief 切换下划线标记（<u>..</u>）
  *
- * markdown 没有下划线的纯文本标记，<u> 是唯一可移植写法。包裹逻辑与
- * 斜体/删除线同一条（wrapSelectionToCursor），只是标记串不对称——
- * 开标记 <u> 与闭标记 </u> 长度不同，光标/选区偏移按闭标记长度（7）
- * 收敛，与对称标记的行为语义一致（重选中原内容）。
+ * markdown 没有下划线的纯文本标记，<u> 是唯一可移植写法。切换语义与
+ * 对称标记一致：选区被 <u>/</u> 恰好夹住 → 去标记；光标在骨架里或被
+ * 一对标记围住 → 删掉这对；否则包裹/插骨架。开闭标记长度不同（3/4），
+ * 配对按块内文本先后交替（与查询侧 isUnderlineAtCursor 同一条纪律）。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
  */
@@ -526,87 +776,170 @@ void MarkdownEdit::applyUnderlineToCursor(QTextCursor &cursor)
 {
     const QString open = QStringLiteral("<u>");
     const QString close = QStringLiteral("</u>");
-    if (!cursor.hasSelection()) {
-        const int position = cursor.position();
+    QTextDocument *document = cursor.document();
+
+    if (cursor.hasSelection()) {
+        const int selectionStart = cursor.selectionStart();
+        const int selectionEnd = cursor.selectionEnd();
+        const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
+        const int wrapStart = selectionStart + trimmed.start;
+        const int wrapEnd = wrapStart + trimmed.length;
+        const auto isTextAt = [&](int at, const QString &text) {
+            for (int i = 0; i < text.length(); ++i) {
+                if (at + i < 0 || at + i >= document->characterCount()) {
+                    return false;
+                }
+                if (document->characterAt(at + i) != text.at(i)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (isTextAt(wrapStart - open.length(), open)
+            && isTextAt(wrapEnd, close)) {
+            cursor.beginEditBlock();
+            cursor.setPosition(wrapEnd);
+            cursor.setPosition(wrapEnd + close.length(),
+                                QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - open.length());
+            cursor.setPosition(wrapStart, QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - open.length());
+            cursor.setPosition(wrapEnd - open.length(),
+                               QTextCursor::KeepAnchor);
+            cursor.endEditBlock();
+            return;
+        }
+        // 包裹路径沿用对称标记的通用包裹（空白留在标记外、重选内容）。
         cursor.beginEditBlock();
-        cursor.insertText(open + close);
-        cursor.setPosition(position + open.length());
+        cursor.setPosition(wrapStart);
+        cursor.insertText(open);
+        cursor.setPosition(wrapEnd + open.length());
+        cursor.insertText(close);
+        cursor.setPosition(wrapStart + open.length());
+        cursor.setPosition(wrapEnd + open.length(),
+                           QTextCursor::KeepAnchor);
         cursor.endEditBlock();
         return;
     }
 
-    const int selectionStart = cursor.selectionStart();
-    const int selectionEnd = cursor.selectionEnd();
-    const TrimmedSelection trimmed = trimWhitespace(selectedText(cursor));
+    // 空选区：先找围住光标的那对 <u>..</u>（骨架态是它的空内容特例）。
+    const QTextBlock block = cursor.block();
+    const int position = cursor.position();
+    if (block.isValid()) {
+        const int blockStart = block.position();
+        const QString text = block.text();
+        int contentStart = -1;
+        for (int scan = 0; scan < text.length();) {
+            if (contentStart >= 0) {
+                const int closeHit = text.indexOf(close, scan);
+                if (closeHit < 0) {
+                    break;
+                }
+                if (position >= blockStart + contentStart
+                    && position <= blockStart + closeHit) {
+                    unwrapRange(cursor, blockStart + contentStart
+                                    - open.length(),
+                                blockStart + contentStart,
+                                blockStart + closeHit,
+                                blockStart + closeHit + close.length());
+                    return;
+                }
+                scan = closeHit + close.length();
+                contentStart = -1;
+            } else {
+                const int openHit = text.indexOf(open, scan);
+                if (openHit < 0) {
+                    break;
+                }
+                contentStart = openHit + open.length();
+                scan = contentStart;
+            }
+        }
+    }
 
+    const int at = cursor.position();
     cursor.beginEditBlock();
-    const int wrapStart = selectionStart + trimmed.start;
-    const int wrapEnd = wrapStart + trimmed.length;
-    cursor.setPosition(wrapStart);
-    cursor.insertText(open);
-    cursor.setPosition(wrapEnd + open.length());
-    cursor.insertText(close);
-    cursor.setPosition(wrapStart + open.length());
-    cursor.setPosition(wrapEnd + open.length(), QTextCursor::KeepAnchor);
+    cursor.insertText(open + close);
+    cursor.setPosition(at + open.length());
     cursor.endEditBlock();
 }
 
 /**
- * @brief 给选区加代码标记
+ * @brief 切换代码标记
  *
- * 空选区时插入 `` 并把光标放到中间。单行选区加行内代码 `text`（前后
- * 空白留在标记外）；含换行的选区改用独立围栏代码块——首尾各垫
- * \n```\n，选区首尾已带的换行不重复，包裹后重新选中原内容。
+ * 空选区：光标在 ` 骨架里或被 `..` 围住 → 删掉这对标记；否则插入 `` 并
+ * 把光标放到中间。单行选区：恰好被 ` 夹住 → 去标记并保持内容选中；否则
+ * 加行内代码 `text`（前后空白留在标记外）。含换行的选区改用独立围栏代
+ * 码块（首尾各垫 \n```\n，选区首尾已带的换行不重复，包裹后重新选中原内
+ * 容）——围栏不参与切换（块级形态的反向动作没有一致的语义）。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
  */
 void MarkdownEdit::applyCodeToCursor(QTextCursor &cursor)
 {
     if (!cursor.hasSelection()) {
-        const int position = cursor.position();
-        cursor.beginEditBlock();
-        cursor.insertText(QStringLiteral("``"));
-        cursor.setPosition(position + 1);
-        cursor.endEditBlock();
+        toggleWrapToCursor(cursor, QLatin1Char('`'), 1);
         return;
     }
 
     const int selectionStart = cursor.selectionStart();
     const int selectionEnd = cursor.selectionEnd();
     const QString selected = selectedText(cursor);
+    QTextDocument *document = cursor.document();
 
-    cursor.beginEditBlock();
     if (!selected.contains(QLatin1Char('\n'))) {
         const TrimmedSelection trimmed = trimWhitespace(selected);
         const int wrapStart = selectionStart + trimmed.start;
         const int wrapEnd = wrapStart + trimmed.length;
+        const bool wrapped = trimmed.length > 0
+                && document->characterAt(wrapStart - 1) == QLatin1Char('`')
+                && document->characterAt(wrapEnd) == QLatin1Char('`');
+        if (wrapped) {
+            cursor.beginEditBlock();
+            cursor.setPosition(wrapEnd);
+            cursor.setPosition(wrapEnd + 1, QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - 1);
+            cursor.setPosition(wrapStart, QTextCursor::KeepAnchor);
+            cursor.insertText(QString());
+            cursor.setPosition(wrapStart - 1);
+            cursor.setPosition(wrapEnd - 1, QTextCursor::KeepAnchor);
+            cursor.endEditBlock();
+            return;
+        }
+        cursor.beginEditBlock();
         cursor.setPosition(wrapStart);
         cursor.insertText(QStringLiteral("`"));
         cursor.setPosition(wrapEnd + 1);
         cursor.insertText(QStringLiteral("`"));
         cursor.setPosition(wrapStart + 1);
         cursor.setPosition(wrapEnd + 1, QTextCursor::KeepAnchor);
-    } else {
-        // 选区首尾已有的换行是现成的行分隔，留在围栏外：开围栏插在
-        // 首换行之后、闭围栏插在尾换行之前；没有的分隔由围栏自带补行。
-        const bool startsWithNewline = selected.startsWith(QLatin1Char('\n'));
-        const bool endsWithNewline = selected.endsWith(QLatin1Char('\n'));
-        const QString open = startsWithNewline
-                ? QStringLiteral("```\n") : QStringLiteral("\n```\n");
-        const QString close = endsWithNewline
-                ? QStringLiteral("\n```") : QStringLiteral("\n```\n");
-        cursor.setPosition(startsWithNewline ? selectionStart + 1
-                                             : selectionStart);
-        cursor.insertText(open);
-        const int contentStart = selectionStart
-                + (startsWithNewline ? 1 : 0) + open.length();
-        const int contentEnd = selectionEnd + open.length()
-                - (endsWithNewline ? 1 : 0);
-        cursor.setPosition(contentEnd);
-        cursor.insertText(close);
-        cursor.setPosition(contentStart);
-        cursor.setPosition(contentEnd, QTextCursor::KeepAnchor);
+        cursor.endEditBlock();
+        return;
     }
+
+    cursor.beginEditBlock();
+    // 选区首尾已有的换行是现成的行分隔，留在围栏外：开围栏插在
+    // 首换行之后、闭围栏插在尾换行之前；没有的分隔由围栏自带补行。
+    const bool startsWithNewline = selected.startsWith(QLatin1Char('\n'));
+    const bool endsWithNewline = selected.endsWith(QLatin1Char('\n'));
+    const QString open = startsWithNewline
+            ? QStringLiteral("```\n") : QStringLiteral("\n```\n");
+    const QString close = endsWithNewline
+            ? QStringLiteral("\n```") : QStringLiteral("\n```\n");
+    cursor.setPosition(startsWithNewline ? selectionStart + 1
+                                         : selectionStart);
+    cursor.insertText(open);
+    const int contentStart = selectionStart
+            + (startsWithNewline ? 1 : 0) + open.length();
+    const int contentEnd = selectionEnd + open.length()
+            - (endsWithNewline ? 1 : 0);
+    cursor.setPosition(contentEnd);
+    cursor.insertText(close);
+    cursor.setPosition(contentStart);
+    cursor.setPosition(contentEnd, QTextCursor::KeepAnchor);
     cursor.endEditBlock();
 }
 
@@ -1090,17 +1423,24 @@ void MarkdownEdit::applyTaskToCursor(QTextCursor &cursor)
  * @brief Tab 键的编辑器行为（VSCode 语义）
  *
  * 多行选区（选区起点与终点落在不同块上）是行级缩进：覆盖到的每行行首
- * 插一个 Tab，完成后重新选中整段（含新增缩进），反复按 Tab 连续右移。
- * 无选区或单行选区保持编辑器原生语义：插入一个 Tab（单行选区被替换）。
- * 选区末尾恰好贴在换行后（光标位于下一行行首）时那行没选到内容，不参
- * 与缩进（与 applyBullet 同一条边界纪律）。
+ * 插一个缩进单位（由 options 决定：空格 × 每级宽度，或字面 \t），完成
+ * 后重新选中整段（含新增缩进），反复按 Tab 连续右移。无选区或单行选区
+ * 保持编辑器原生语义：插入一个缩进单位（单行选区被替换）。选区末尾恰
+ * 好贴在换行后（光标位于下一行行首）时那行没选到内容，不参与缩进（与
+ * applyBullet 同一条边界纪律）。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
+ * @param options 缩进偏好（空格/\t 与每级空格数）
  */
-void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
+void MarkdownEdit::handleTabToCursor(QTextCursor &cursor,
+                                     const IndentOptions &options)
 {
+    const int width = qBound(1, options.spacesPerIndent, 8);
+    const QString unit = options.useSpaces
+            ? QString(width, QLatin1Char(' '))
+            : QStringLiteral("\t");
     if (!cursor.hasSelection()) {
-        cursor.insertText(QStringLiteral("\t"));
+        cursor.insertText(unit);
         return;
     }
     QTextDocument *document = cursor.document();
@@ -1116,14 +1456,14 @@ void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
     }
     cursor.beginEditBlock();
     if (firstBlock == lastBlock) {
-        // 单行选区：原生替换语义（删选区、插一个 Tab）。
+        // 单行选区：原生替换语义（删选区、插一个缩进单位）。
         cursor.removeSelectedText();
-        cursor.insertText(QStringLiteral("\t"));
+        cursor.insertText(unit);
     } else {
         for (QTextBlock block = firstBlock; block.isValid();
              block = block.next()) {
             cursor.setPosition(block.position());
-            cursor.insertText(QStringLiteral("\t"));
+            cursor.insertText(unit);
             if (block == lastBlock) {
                 break;
             }
@@ -1138,12 +1478,11 @@ void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
 /**
  * @brief Shift+Tab 键的编辑器行为（Tab 的反向动作）
  *
- * 覆盖到的每行行首去掉一个缩进单位（一个 Tab，或至多 4 个空格，见
- * leadingIndentLength）。与 handleTabToCursor 的行范围同一条边界纪律：
+ * 覆盖到的每行行首去掉一个缩进单位（一个 Tab，或至多一个单位的空格，
+ * 见 leadingIndentLength）。与 handleTabToCursor 的行范围同一条边界纪律：
  * 选区末尾恰好贴在换行后的那行没选到内容，不参与反缩进。没有选区时
- * 作用于光标所在行——Tab 在无选区时插的是一个字符，这里却是行级动作，
- * 因为「Shift+Tab = 退一级」是编辑器的普遍预期，而单插一个 Tab 退不回
- * 任何东西。
+ * 作用于光标所在行——「Shift+Tab = 退一级」是编辑器的普遍预期，而单插
+ * 一个缩进单位退不回任何东西。
  *
  * 选区端点随内容左移（只减掉落在它前面的缩进，光标停在缩进内部时减到
  * 行首为止），所以多行选区反复按 Shift+Tab 会逐级左移；整段都没有缩进
@@ -1151,13 +1490,17 @@ void MarkdownEdit::handleTabToCursor(QTextCursor &cursor)
  * 过程中保持有效。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
+ * @param options 缩进偏好（空格模式下一次退一个单位宽的空格）
  */
-void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor)
+void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor,
+                                         const IndentOptions &options)
 {
     QTextDocument *document = cursor.document();
     if (!document) {
         return;
     }
+    const int spaceUnit = options.useSpaces
+            ? qBound(1, options.spacesPerIndent, 8) : 4;
     const int selectionStart = cursor.selectionStart();
     const int selectionEnd = cursor.selectionEnd();
     const QTextBlock firstBlock = document->findBlock(selectionStart);
@@ -1177,7 +1520,7 @@ void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor)
 
     QList<Removal> removals;
     for (QTextBlock block = firstBlock; block.isValid(); block = block.next()) {
-        const int indent = leadingIndentLength(block.text());
+        const int indent = leadingIndentLength(block.text(), spaceUnit);
         if (indent > 0) {
             removals.append({block.position(), indent});
         }
@@ -1215,6 +1558,149 @@ void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor)
     cursor.setPosition(newAnchor);
     cursor.setPosition(newPosition, QTextCursor::KeepAnchor);
     cursor.endEditBlock();
+}
+
+/**
+ * @brief 回车延续列表 / 编号 / 引用 / 任务项（A3）
+ *
+ * 光标（无选区）落在带结构前缀的行上时：内容非空 → 插入换行并带上同样
+ * 的前缀（编号递增、任务项回到未勾选、缩进保留）；内容为空（只剩前缀）
+ * → 退出该结构：删掉前缀只留一个空行（再按一次回车就是普通空行）。行
+ * 上没有结构前缀、或光标带着选区时不接管（调用方放行默认行为）。
+ *
+ * 前缀只认行首：引用 `>` 可叠写（`>> ` 一并延续），任务项认
+ * `- [x] `/`- [ ] ` 的勾选两态。
+ *
+ * @param cursor 选区光标
+ * @return 是否接管了这次回车
+ */
+bool MarkdownEdit::smartEnterToCursor(QTextCursor &cursor)
+{
+    if (cursor.hasSelection()) {
+        return false;
+    }
+    QTextDocument *document = cursor.document();
+    if (!document) {
+        return false;
+    }
+    const QTextBlock block = document->findBlock(cursor.position());
+    if (!block.isValid()) {
+        return false;
+    }
+    const QString text = block.text();
+
+    // 任务项要在无序列表之前尝试（`- ` 会先吃掉 `- [ ] ` 的前半）。
+    static const QRegularExpression structurePrefix(
+        QStringLiteral(
+            "^(\\s*)(?:(\\d+)\\. |([-*+]) \\[[xX]\\] |[-*+] |(>+?) ?)"));
+    const QRegularExpressionMatch match = structurePrefix.match(text);
+    if (!match.hasMatch()) {
+        return false;
+    }
+    const QString indent = match.captured(1);
+    // 前缀 = 整个匹配去掉缩进（captured(2) 是编号分支的数字，不能用它
+    // 当通用前缀）。
+    const QString prefix = match.captured(0).mid(indent.length());
+    const int prefixLength = match.capturedLength();
+
+    cursor.beginEditBlock();
+    if (text.mid(prefixLength).trimmed().isEmpty()) {
+        // 空项退出：删掉整段前缀（缩进 + 标记），留一个空行。
+        cursor.setPosition(block.position());
+        cursor.setPosition(block.position() + prefixLength,
+                           QTextCursor::KeepAnchor);
+        cursor.insertText(QString());
+        cursor.setPosition(block.position());
+    } else {
+        QString nextPrefix = prefix;
+        if (match.capturedLength(3) > 0) {
+            // 任务项：延续为未勾选形态。
+            nextPrefix = match.captured(3)
+                    + QStringLiteral(" [ ] ");
+        } else if (match.capturedLength(2) > 0) {
+            // 编号列表：数字 + 1。
+            const int number = match.captured(2).toInt();
+            nextPrefix = QStringLiteral("%1. ").arg(number + 1);
+        }
+        cursor.insertText(QStringLiteral("\n") + indent + nextPrefix);
+    }
+    cursor.endEditBlock();
+    return true;
+}
+
+/**
+ * @brief 输入单个字符时的标记自动配对（A6）
+ *
+ * 对称标记（`*`、反引号、`~`）三态：光标后是同一字符 → 跳过闭合（光标
+ * 右移一位，不插入）；光标夹在空对中间再输入同一字符 → 升级成双标记
+ * （`*|*` → `**|**`，即斜体骨架升级加粗；反引号升级双反引号；`~` 升级
+ * 删除线）；其余情况开新对（`X|X`）。括号类（`[`、`(`）插入对称括号把
+ * 光标放到中间，`]`/`)` 在光标后正好有同一字符时跳过。带选区时不接管
+ * （默认替换选区）；其余字符一律放行。
+ *
+ * @param cursor 选区光标（调用方保证无选区才有意义；带选区直接放行）
+ * @param typed 输入文本（单字符）
+ * @return 是否接管（true = 已插入配对/跳过，调用方吞掉默认输入）
+ */
+bool MarkdownEdit::autoTypeToCursor(QTextCursor &cursor, const QString &typed)
+{
+    if (typed.length() != 1 || cursor.hasSelection()) {
+        return false;
+    }
+    QTextDocument *document = cursor.document();
+    if (!document) {
+        return false;
+    }
+    const QChar ch = typed.at(0);
+    const int position = cursor.position();
+    const auto charAt = [document](int at) {
+        return (at >= 0 && at < document->characterCount())
+                ? document->characterAt(at) : QChar();
+    };
+
+    if (ch == QLatin1Char('*') || ch == QLatin1Char('`')
+        || ch == QLatin1Char('~')) {
+        const QChar next = charAt(position);
+        const QChar previous = charAt(position - 1);
+        if (previous == ch && next == ch) {
+            // 空对升级：X|X → XX|XX。
+            cursor.beginEditBlock();
+            cursor.insertText(typed);
+            cursor.setPosition(position + 1);
+            cursor.insertText(typed);
+            cursor.setPosition(position + 1);
+            cursor.endEditBlock();
+            return true;
+        }
+        if (next == ch) {
+            // 闭合字符跳过：光标越过它，不重复输入。
+            cursor.setPosition(position + 1);
+            return true;
+        }
+        cursor.beginEditBlock();
+        cursor.insertText(typed + typed);
+        cursor.setPosition(position + 1);
+        cursor.endEditBlock();
+        return true;
+    }
+
+    if (ch == QLatin1Char('[') || ch == QLatin1Char('(')) {
+        const QChar close = (ch == QLatin1Char('[')) ? QLatin1Char(']')
+                                                     : QLatin1Char(')');
+        cursor.beginEditBlock();
+        cursor.insertText(QString(ch) + QString(close));
+        cursor.setPosition(position + 1);
+        cursor.endEditBlock();
+        return true;
+    }
+
+    if (ch == QLatin1Char(']') || ch == QLatin1Char(')')) {
+        if (charAt(position) == ch) {
+            cursor.setPosition(position + 1);
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -1593,6 +2079,38 @@ void MarkdownEdit::editTextArea(
     cursor.setPosition(textArea->property("selectionEnd").toInt(),
                        QTextCursor::KeepAnchor);
     operation(cursor, text);
+
+    QMetaObject::invokeMethod(textArea, "select",
+                              Q_ARG(int, cursor.selectionStart()),
+                              Q_ARG(int, cursor.selectionEnd()));
+}
+
+/**
+ * @brief 带缩进偏好操作的通用路径（handleTab/handleBacktab）
+ *
+ * 与无参版同一套取文档/选区/写回纪律，只是操作多带缩进偏好参数。
+ *
+ * @param textArea 目标编辑器
+ * @param operation 静态操作
+ * @param options 缩进偏好（空格/\t 与每级空格数）
+ */
+void MarkdownEdit::editTextArea(
+    QObject *textArea, void (*operation)(QTextCursor &, const IndentOptions &),
+    const IndentOptions &options)
+{
+    if (!textArea)
+        return;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return;
+
+    QTextCursor cursor(quickDocument->textDocument());
+    cursor.setPosition(textArea->property("selectionStart").toInt());
+    cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                       QTextCursor::KeepAnchor);
+    operation(cursor, options);
 
     QMetaObject::invokeMethod(textArea, "select",
                               Q_ARG(int, cursor.selectionStart()),

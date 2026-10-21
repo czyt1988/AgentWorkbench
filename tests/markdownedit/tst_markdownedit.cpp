@@ -12,6 +12,7 @@
 #include <QTextLayout>
 #include <QtTest>
 
+using awb::markdownedit::IndentOptions;
 using awb::markdownedit::MarkdownColors;
 using awb::markdownedit::MarkdownEdit;
 
@@ -72,6 +73,47 @@ void apply(const QString &text, int start, int end,
     cursor->setPosition(start);
     cursor->setPosition(end, QTextCursor::KeepAnchor);
     operation(*cursor);
+}
+
+/**
+ * @brief apply 的缩进偏好重载（handleTab/handleBacktabToCursor 专用）
+ *
+ * @param text 文档初始内容
+ * @param start 选区起点
+ * @param end 选区终点
+ * @param operation 缩进静态操作
+ * @param options 缩进偏好
+ * @param document 承载文档（调用方作用域存活）
+ * @param cursor 操作后的光标（位置/选区即动作结果）
+ */
+void apply(const QString &text, int start, int end,
+           void (*operation)(QTextCursor &, const IndentOptions &),
+           const IndentOptions &options, QTextDocument *document,
+           QTextCursor *cursor)
+{
+    document->setPlainText(text);
+    *cursor = QTextCursor(document);
+    cursor->setPosition(start);
+    cursor->setPosition(end, QTextCursor::KeepAnchor);
+    operation(*cursor, options);
+}
+
+/// \t 模式（旧行为基准）：每级一个 \t，反缩进按 4 空格宽退。
+IndentOptions tabOptions()
+{
+    IndentOptions options;
+    options.useSpaces = false;
+    options.spacesPerIndent = 4;
+    return options;
+}
+
+/// 空格模式：每级 2 空格（markdown 嵌套列表的默认形态）。
+IndentOptions spaceOptions()
+{
+    IndentOptions options;
+    options.useSpaces = true;
+    options.spacesPerIndent = 2;
+    return options;
 }
 
 /**
@@ -671,7 +713,7 @@ private Q_SLOTS:
         // 选区 0..5 盖住 aa 与 bb 两行；终点 5 恰在第三行行首（没选到
         // 内容），cc 不参与缩进——与 applyBullet 同一条边界纪律。
         apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
-              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+              &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(),
                  QStringLiteral("\taa\n\tbb\ncc"));
         // 结果选区覆盖两行连同新增缩进：反复按 Tab 可以继续右移。
@@ -679,7 +721,7 @@ private Q_SLOTS:
         QCOMPARE(cursor.selectionEnd(), 7);
         QCOMPARE(normalizedSelection(cursor),
                  QStringLiteral("\taa\n\tbb"));
-        MarkdownEdit::handleTabToCursor(cursor);
+        MarkdownEdit::handleTabToCursor(cursor, tabOptions());
         QCOMPARE(document.toPlainText(),
                  QStringLiteral("\t\taa\n\t\tbb\ncc"));
         QCOMPARE(normalizedSelection(cursor),
@@ -691,7 +733,7 @@ private Q_SLOTS:
         QTextDocument document;
         QTextCursor cursor;
         apply(QStringLiteral("aa\nbb"), 0, 5,
-              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+              &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
         document.undo(&cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
     }
@@ -702,7 +744,7 @@ private Q_SLOTS:
         QTextCursor cursor;
         // 单行选区保持原生语义：选区被替换为一个 Tab。
         apply(QStringLiteral("aa bb cc"), 3, 5,
-              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+              &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa \t cc"));
         QVERIFY(!cursor.hasSelection());
         QCOMPARE(cursor.position(), 4);
@@ -713,7 +755,7 @@ private Q_SLOTS:
         QTextDocument document;
         QTextCursor cursor;
         apply(QStringLiteral("hello"), 2, 2,
-              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+              &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("he\tllo"));
         QVERIFY(!cursor.hasSelection());
         QCOMPARE(cursor.position(), 3);
@@ -727,7 +769,7 @@ private Q_SLOTS:
         QTextCursor cursor;
         // 与 Tab 同一条边界纪律：选区终点 7 恰在第三行行首，cc 不参与。
         apply(QStringLiteral("\taa\n\tbb\ncc"), 0, 7,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb\ncc"));
         // 选区随内容左移：反复按 Shift+Tab 可以继续退，键位方向保持。
         QCOMPARE(cursor.selectionStart(), 0);
@@ -741,9 +783,9 @@ private Q_SLOTS:
         QTextDocument document;
         QTextCursor cursor;
         apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
-              &MarkdownEdit::handleTabToCursor, &document, &cursor);
+              &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("\taa\n\tbb\ncc"));
-        MarkdownEdit::handleBacktabToCursor(cursor);
+        MarkdownEdit::handleBacktabToCursor(cursor, tabOptions());
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb\ncc"));
         QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
     }
@@ -754,7 +796,7 @@ private Q_SLOTS:
         QTextCursor cursor;
         // 8 空格退 4、2 空格全退、无缩进行不动：一次只退一个缩进单位。
         apply(QStringLiteral("        deep\n  two\nplain"), 0, 24,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(),
                  QStringLiteral("    deep\ntwo\nplain"));
     }
@@ -765,7 +807,7 @@ private Q_SLOTS:
         QTextCursor cursor;
         // 无选区（光标在第二行中间）：只退光标所在行，光标随之左移。
         apply(QStringLiteral("\taa\n\tbb"), 5, 5,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("\taa\nbb"));
         QVERIFY(!cursor.hasSelection());
         QCOMPARE(cursor.position(), 4);
@@ -777,7 +819,7 @@ private Q_SLOTS:
         QTextCursor cursor;
         // 光标停在缩进内部：退到行首为止，不会跑到上一行去。
         apply(QStringLiteral("\taa"), 0, 0,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa"));
         QCOMPARE(cursor.position(), 0);
     }
@@ -787,7 +829,7 @@ private Q_SLOTS:
         QTextDocument document;
         QTextCursor cursor;
         apply(QStringLiteral("aa\nbb"), 0, 5,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
         QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
         // 没有可退的缩进时不留一个空撤销步。
@@ -799,10 +841,302 @@ private Q_SLOTS:
         QTextDocument document;
         QTextCursor cursor;
         apply(QStringLiteral("\taa\n\tbb"), 0, 7,
-              &MarkdownEdit::handleBacktabToCursor, &document, &cursor);
+              &MarkdownEdit::handleBacktabToCursor, tabOptions(), &document, &cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
         document.undo(&cursor);
         QCOMPARE(document.toPlainText(), QStringLiteral("\taa\n\tbb"));
+    }
+
+    // --- A4 可配置缩进（空格模式） ----------------------------------------
+
+    void testTabInsertsSpacesWhenConfigured()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 无选区：插一个缩进单位 = 2 空格。
+        apply(QStringLiteral("hello"), 2, 2,
+              &MarkdownEdit::handleTabToCursor, spaceOptions(),
+              &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("he  llo"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 4);
+        // 多行选区：每行行首插 2 空格，选区随之扩展。
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::handleTabToCursor, spaceOptions(),
+              &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("  aa\n  bb\ncc"));
+        QCOMPARE(normalizedSelection(cursor),
+                 QStringLiteral("  aa\n  bb"));
+    }
+
+    void testBacktabRemovesOneConfiguredUnit()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 每级 2 空格：4 空格退 2、2 空格全退、无缩进不动（旧基准是固定
+        // 退 4，配置生效的判据就是这里）。
+        apply(QStringLiteral("    deep\n  two\nplain"), 0, 18,
+              &MarkdownEdit::handleBacktabToCursor, spaceOptions(),
+              &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("  deep\ntwo\nplain"));
+    }
+
+    void testTabAndBacktabAreInverseWithSpaces()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 5,
+              &MarkdownEdit::handleTabToCursor, spaceOptions(),
+              &document, &cursor);
+        MarkdownEdit::handleBacktabToCursor(cursor, spaceOptions());
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+    }
+
+    // --- A5 格式切换 -------------------------------------------------------
+
+    void testBoldTogglesOffOnSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 选区恰好被 ** 夹住：去标记并保持内容选中。
+        apply(QStringLiteral("a**bold**b"), 3, 7,
+              &MarkdownEdit::applyBoldToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aboldb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("bold"));
+        // 再执行一次 = 重新包裹（切换是往返的）。
+        MarkdownEdit::applyBoldToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("a**bold**b"));
+    }
+
+    void testBoldTogglesOffWithCursorInside()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("a**bold**b"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(5);   // **bold** 内部
+        MarkdownEdit::applyBoldToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aboldb"));
+        QCOMPARE(cursor.position(), 1);   // 落在原开标记起点
+    }
+
+    void testBoldTogglesOffEmptySkeleton()
+    {
+        // 刚插入的骨架（光标夹在 **** 中间）再执行一次 = 整个删掉。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("a****b"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(3);
+        MarkdownEdit::applyBoldToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("ab"));
+        QCOMPARE(cursor.position(), 1);
+    }
+
+    void testItalicTogglesIndependentlyOfBold()
+    {
+        // 斜体骨架里光标处执行斜体 = 去标记。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("*em*"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(2);
+        MarkdownEdit::applyItalicToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("em"));
+        // 加粗动作不认单 * 的 run：同样的位置执行加粗是插入空骨架
+        //（****），不会把斜体误拆。
+        document.setPlainText(QStringLiteral("*em*"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(2);
+        MarkdownEdit::applyBoldToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("*e****m*"));
+    }
+
+    void testCodeTogglesOffOnSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // "a`code`b"：code 在 2..6，两侧反引号在 1 与 6。
+        apply(QStringLiteral("a`code`b"), 2, 6,
+              &MarkdownEdit::applyCodeToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("acodeb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("code"));
+    }
+
+    void testUnderlineTogglesOff()
+    {
+        // 选区被 <u>/</u> 夹住：去标记。
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("a<u>text</u>b"), 4, 8,
+              &MarkdownEdit::applyUnderlineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("atextb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("text"));
+        // 光标在对内：同样去掉这对标记。
+        document.setPlainText(QStringLiteral("a<u>text</u>b"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(6);
+        MarkdownEdit::applyUnderlineToCursor(cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("atextb"));
+    }
+
+    // --- A3 智能回车 -------------------------------------------------------
+
+    void testSmartEnterContinuesBullet()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("- item"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(6);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QStringLiteral("- item\n- "));
+        QCOMPARE(cursor.position(), 9);
+    }
+
+    void testSmartEnterContinuesNumbered()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("3. third"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(8);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QStringLiteral("3. third\n4. "));
+    }
+
+    void testSmartEnterContinuesTaskAsUnchecked()
+    {
+        // 已勾选的任务项延续时回到未勾选形态。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("- [x] done"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(10);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("- [x] done\n- [ ] "));
+    }
+
+    void testSmartEnterContinuesQuote()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("> text"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(6);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QStringLiteral("> text\n> "));
+    }
+
+    void testSmartEnterKeepsIndent()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("  - item"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(8);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QStringLiteral("  - item\n  - "));
+    }
+
+    void testSmartEnterExitsEmptyItem()
+    {
+        // 空项回车退出列表：前缀被删掉，只留一个空行。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("- "));
+        QTextCursor cursor(&document);
+        cursor.setPosition(2);
+        QVERIFY(MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QString());
+        QCOMPARE(cursor.position(), 0);
+        // 退出后再按一次：普通空行，不接管（调用方走默认换行）。
+        QVERIFY(!MarkdownEdit::smartEnterToCursor(cursor));
+    }
+
+    void testSmartEnterIgnoresPlainLine()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("plain"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(3);
+        QVERIFY(!MarkdownEdit::smartEnterToCursor(cursor));
+        QCOMPARE(document.toPlainText(), QStringLiteral("plain"));
+        // 带选区也不接管（默认行为是替换选区）。
+        cursor.setPosition(1);
+        cursor.setPosition(4, QTextCursor::KeepAnchor);
+        QVERIFY(!MarkdownEdit::smartEnterToCursor(cursor));
+    }
+
+    // --- A6 输入配对 -------------------------------------------------------
+
+    void testAutoPairOpensPairs()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("ab"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(1);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("*")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("a**b"));
+        QCOMPARE(cursor.position(), 2);
+        // 反引号与括号同理。
+        cursor.setPosition(4);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("`")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("a**b``"));
+        cursor.setPosition(6);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("[")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("a**b``[]"));
+        cursor.setPosition(8);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("(")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("a**b``[]()"));
+    }
+
+    void testAutoPairSkipsClosingMark()
+    {
+        // 光标停在闭合标记前：再输入同一字符只是越过它，不插入。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("*a*"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(2);   // 闭合 * 之前
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("*")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("*a*"));
+        QCOMPARE(cursor.position(), 3);
+    }
+
+    void testAutoPairUpgradesEmptyPair()
+    {
+        // 斜体骨架里再按一次 * = 加粗骨架（*|* → **|**）。
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("**"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(1);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("*")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("****"));
+        QCOMPARE(cursor.position(), 2);
+        // ~ 同理升级出删除线骨架。
+        document.setPlainText(QStringLiteral("~~"));
+        cursor = QTextCursor(&document);
+        cursor.setPosition(1);
+        QVERIFY(MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("~")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("~~~~"));
+        QCOMPARE(cursor.position(), 2);
+    }
+
+    void testAutoPairPassesThroughOtherChars()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("a"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(1);
+        QVERIFY(!MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("x")));
+        QVERIFY(!MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("ab")));
+        QCOMPARE(document.toPlainText(), QStringLiteral("a"));
+    }
+
+    void testAutoPairIsOneUndoStep()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("a"));
+        QTextCursor cursor(&document);
+        cursor.setPosition(1);
+        MarkdownEdit::autoTypeToCursor(cursor, QStringLiteral("*"));
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("a"));
     }
 
     // --- B2 查找 / 替换 ---------------------------------------------------

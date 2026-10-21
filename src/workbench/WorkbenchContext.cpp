@@ -63,6 +63,141 @@ WorkbenchContext::WorkbenchContext(shell::NavigationModel *nav,
 {
     connect(m_nav, &shell::NavigationModel::currentPageChanged, this,
             &WorkbenchContext::currentPageChanged);
+    if (m_settings) {
+        // Markdown 编辑器的输入行为键：转发成一个信号给 QML（工作台页
+        // 常驻，设置页改完要立即生效）。
+        connect(m_settings, &core::Settings::valueChanged, this,
+                [this](const QString &key) {
+                    if (key.startsWith(QStringLiteral("markdownEditor.")))
+                        Q_EMIT markdownEditorSettingsChanged();
+                });
+    }
+}
+
+// --- Markdown 编辑器输入行为（Q_PROPERTY READ 侧 + 设置页写口） ---------
+
+/**
+ * @brief 取 Tab 缩进是否用空格
+ *
+ * @return true = 插空格；false = 插 \t
+ */
+bool WorkbenchContext::markdownEditorIndentWithSpaces() const
+{
+    return m_settings ? m_settings->markdownEditorOptions()
+                            .indentWithSpaces
+                      : true;
+}
+
+/**
+ * @brief 取每级缩进的空格数
+ *
+ * @return 空格数（默认 2）
+ */
+int WorkbenchContext::markdownEditorIndentWidth() const
+{
+    return m_settings ? m_settings->markdownEditorOptions().indentWidth : 2;
+}
+
+/**
+ * @brief 取回车是否延续列表/引用/任务项
+ */
+bool WorkbenchContext::markdownEditorSmartEnter() const
+{
+    return m_settings ? m_settings->markdownEditorOptions().smartEnter
+                      : true;
+}
+
+/**
+ * @brief 取编辑器聚焦时格式化快捷键是否生效
+ */
+bool WorkbenchContext::markdownEditorFormatShortcuts() const
+{
+    return m_settings ? m_settings->markdownEditorOptions().formatShortcuts
+                      : true;
+}
+
+/**
+ * @brief 取输入时是否自动配对 markdown 标记
+ */
+bool WorkbenchContext::markdownEditorAutoPair() const
+{
+    return m_settings ? m_settings->markdownEditorOptions().autoPair : true;
+}
+
+/**
+ * @brief 写 Tab 缩进是否用空格并持久化
+ *
+ * @param useSpaces true = 插空格；false = 插 \t
+ */
+void WorkbenchContext::setMarkdownEditorIndentWithSpaces(bool useSpaces)
+{
+    if (!m_settings
+        || m_settings->markdownEditorOptions().indentWithSpaces
+               == useSpaces) {
+        return;
+    }
+    m_settings->setMarkdownEditorIndentWithSpaces(useSpaces);
+    m_settings->save();
+}
+
+/**
+ * @brief 写每级缩进的空格数并持久化
+ *
+ * @param spaces 空格数（Settings 夹到 [1, 8]）
+ */
+void WorkbenchContext::setMarkdownEditorIndentWidth(int spaces)
+{
+    if (!m_settings
+        || m_settings->markdownEditorOptions().indentWidth == spaces) {
+        return;
+    }
+    m_settings->setMarkdownEditorIndentWidth(spaces);
+    m_settings->save();
+}
+
+/**
+ * @brief 写回车延续开关并持久化
+ *
+ * @param on true = 延续列表/引用/任务项（空项回车退出）
+ */
+void WorkbenchContext::setMarkdownEditorSmartEnter(bool on)
+{
+    if (!m_settings
+        || m_settings->markdownEditorOptions().smartEnter == on) {
+        return;
+    }
+    m_settings->setMarkdownEditorSmartEnter(on);
+    m_settings->save();
+}
+
+/**
+ * @brief 写格式化快捷键开关并持久化
+ *
+ * @param on true = 编辑器聚焦时 Ctrl+B/I/K/E 生效
+ */
+void WorkbenchContext::setMarkdownEditorFormatShortcuts(bool on)
+{
+    if (!m_settings
+        || m_settings->markdownEditorOptions().formatShortcuts == on) {
+        return;
+    }
+    m_settings->setMarkdownEditorFormatShortcuts(on);
+    m_settings->save();
+}
+
+/**
+ * @brief 写自动配对开关并持久化
+ *
+ * @param on true = 输入标记字符时自动补全配对
+ */
+void WorkbenchContext::setMarkdownEditorAutoPair(bool on)
+{
+    if (!m_settings
+        || m_settings->markdownEditorOptions().autoPair == on) {
+        return;
+    }
+    m_settings->setMarkdownEditorAutoPair(on);
+    m_settings->save();
 }
 
 /**

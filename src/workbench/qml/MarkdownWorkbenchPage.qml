@@ -75,21 +75,89 @@ Item {
         editorFontPx = next
     }
 
-    // Tab 键的编辑器动作（VSCode 语义）：多行选区给每行行首插 Tab（选区
-    // 随内容扩展）；无选区/单行选区保持原生——插入一个 Tab（单行选区被
-    // 替换）。只读文档不接（MarkdownEdit 直接走光标，绕过 readOnly）。
+    // Tab 键的编辑器动作（VSCode 语义）：多行选区给每行行首插缩进单位
+    //（选区随之扩展）；无选区/单行选区保持原生——插入一个缩进单位（单行
+    // 选区被替换）。缩进单位来自设置（空格 × 每级宽度，或字面 \t）。只读
+    // 文档不接（MarkdownEdit 直接走光标，绕过 readOnly）。
     function handleEditorTab(editor) {
         if (editor.readOnly)
             return
-        MarkdownEdit.handleTab(editor)
+        MarkdownEdit.handleTab(editor,
+                               workbench.markdownEditorIndentWithSpaces,
+                               workbench.markdownEditorIndentWidth)
     }
 
     // Shift+Tab：Tab 的反向动作，给覆盖到的每行行首去掉一个缩进单位
-    // （无选区时是光标所在行）。只读文档同样不接。
+    //（无选区时是光标所在行）。只读文档同样不接。
     function handleEditorBacktab(editor) {
         if (editor.readOnly)
             return
-        MarkdownEdit.handleBacktab(editor)
+        MarkdownEdit.handleBacktab(editor,
+                                   workbench.markdownEditorIndentWithSpaces,
+                                   workbench.markdownEditorIndentWidth)
+    }
+
+    // --- 输入手感（A 批；开关在设置 → Markdown，读经 workbench） --------
+    // 草稿区与文件源码区挂同一组处理器，焦点在谁身上动作就落在谁身上。
+
+    // 编辑器聚焦时的格式化快捷键（A1/A2）：只认 Ctrl+B/I/K/E，返回
+    // applyFormat 的 kind；其余按键返回空串。Ctrl+B 的归属由此定——编辑
+    // 器聚焦时被 Keys.onShortcutOverride 拦下做加粗，焦点不在编辑器时仍
+    // 是全局的侧栏折叠（MainWindow 的 Shortcut 不动）。
+    function formatShortcutKind(event) {
+        if ((event.modifiers & Qt.ControlModifier) === 0)
+            return ""
+        switch (event.key) {
+        case Qt.Key_B:
+            return "bold"
+        case Qt.Key_I:
+            return "italic"
+        case Qt.Key_K:
+            return "link"
+        case Qt.Key_E:
+            return "code"
+        }
+        return ""
+    }
+
+    function editorFormatShortcutsEnabled(editor) {
+        return workbench.markdownEditorFormatShortcuts && pageCurrent
+                && editor && !editor.readOnly
+    }
+
+    // Keys.onShortcutOverride：接管了快捷键，窗口级 Shortcut（全局的
+    // Ctrl+B 侧栏折叠）就拿不到这次按键；不接管则一切照旧。
+    function handleEditorShortcutOverride(editor, event) {
+        if (editorFormatShortcutsEnabled(editor)
+                && formatShortcutKind(event).length > 0)
+            event.accepted = true
+    }
+
+    // Keys.onPressed 的合并接线：先给格式化快捷键机会，再做输入配对；
+    // 都不接时放行编辑器默认行为。
+    function handleEditorKeyPressed(editor, event) {
+        if (editorFormatShortcutsEnabled(editor)) {
+            const kind = formatShortcutKind(event)
+            if (kind.length > 0) {
+                applyFormat(kind)
+                event.accepted = true
+                return
+            }
+        }
+        // 输入配对（A6）：无修饰键的单字符输入才接；接管时吞掉默认插入。
+        // 输入法组字走 InputMethod 事件、不经过这里，中文输入不受影响。
+        if (workbench.markdownEditorAutoPair && !editor.readOnly
+                && event.modifiers === Qt.NoModifier
+                && event.text.length === 1
+                && MarkdownEdit.autoType(editor, event.text))
+            event.accepted = true
+    }
+
+    // 智能回车（A3）：列表/引用/任务项上回车延续前缀，空项回车退出；
+    // 没有可延续的结构时放行默认换行。只读文档不接。
+    function handleEditorReturn(editor, event) {
+        if (workbench.markdownEditorSmartEnter && !editor.readOnly)
+            event.accepted = MarkdownEdit.handleEnter(editor)
     }
 
     // 在飞的落盘请求（"export" / "browser"），补渲染轮询结束后交给 requestMarkup
@@ -1158,7 +1226,7 @@ Item {
                             // Ctrl+滚轮缩放的字号（0 = 跟随主题）。
                             font.pixelSize: workbenchWindow.editorFontResolved
 
-                            placeholderText: qsTr("Write your prompt here. Enter only inserts a new line; nothing is sent from this window.")
+                            placeholderText: qsTr("Write your prompt here. Nothing is sent from this window.")
                             // Tab：多行选区整段缩进（VSCode 语义），单行/
                             // 无选区保持原生插入；Keys 附加属性先于编辑器
                             // 自身的按键处理，处理后不再走默认的「替换选区」。
@@ -1168,6 +1236,25 @@ Item {
                             // 单位，无选区时是光标所在行）。
                             Keys.onBacktabPressed:
                                 workbenchWindow.handleEditorBacktab(promptEditor)
+                            // 输入手感：格式化快捷键先于窗口级 Shortcut
+                            //（Keys.onShortcutOverride），回车延续列表，
+                            // 单字符输入自动配对标记；全部可在设置关闭。
+                            Keys.onShortcutOverride: function(event) {
+                                workbenchWindow.handleEditorShortcutOverride(
+                                            promptEditor, event)
+                            }
+                            Keys.onPressed: function(event) {
+                                workbenchWindow.handleEditorKeyPressed(
+                                            promptEditor, event)
+                            }
+                            Keys.onReturnPressed: function(event) {
+                                workbenchWindow.handleEditorReturn(
+                                            promptEditor, event)
+                            }
+                            Keys.onEnterPressed: function(event) {
+                                workbenchWindow.handleEditorReturn(
+                                            promptEditor, event)
+                            }
                             // 只在初始化时从门面取草稿：常驻双向绑定会与
                             // 用户输入互相打架。
                             Component.onCompleted: {
@@ -1292,6 +1379,24 @@ Item {
                                 // Shift+Tab：同一批行的反向动作。
                                 Keys.onBacktabPressed:
                                     workbenchWindow.handleEditorBacktab(editorArea)
+                                // 输入手感：与草稿区同一组处理器（快捷键
+                                // /回车/配对都按各自的设置门控）。
+                                Keys.onShortcutOverride: function(event) {
+                                    workbenchWindow.handleEditorShortcutOverride(
+                                                editorArea, event)
+                                }
+                                Keys.onPressed: function(event) {
+                                    workbenchWindow.handleEditorKeyPressed(
+                                                editorArea, event)
+                                }
+                                Keys.onReturnPressed: function(event) {
+                                    workbenchWindow.handleEditorReturn(
+                                                editorArea, event)
+                                }
+                                Keys.onEnterPressed: function(event) {
+                                    workbenchWindow.handleEditorReturn(
+                                                editorArea, event)
+                                }
 
                                 // 只在初始化与「磁盘那份进来了」时写 text：
                                 // 常驻双向绑定会与用户输入互相打架。

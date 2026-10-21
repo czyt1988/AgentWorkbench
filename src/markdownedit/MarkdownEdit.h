@@ -17,6 +17,14 @@ class Theme;
 
 namespace awb::markdownedit {
 
+/// Tab / Shift+Tab 的缩进偏好：值来自宿主应用的设置，纯层不读配置文件
+///（可复用模块只依赖 theme，参数一律由调用方带入）。
+struct IndentOptions
+{
+    bool useSpaces = true;     ///< true = 插空格；false = 插 \t
+    int spacesPerIndent = 2;   ///< 每级缩进的空格数（useSpaces 时生效）
+};
+
 /// QML 单例：markdown 编辑支持入口——attach 给编辑器（TextArea）挂语法
 /// 高亮，applyBold/applyCode 等是右键菜单与命令条调用的格式化动作。
 /// 本应用把它注册为 AgentWorkbench.App 上的 MarkdownEdit；其它项目按
@@ -34,10 +42,14 @@ public:
     // 把语法高亮挂到编辑器（TextArea）的 textDocument 上；同一文档重复调用无害
     Q_INVOKABLE void attach(QObject *textArea);
 
-    // 给选区加 **（无选区时插入 **** 并把光标放到中间）
+    // 格式动作是**切换**语义（A5）：选区已被同名标记包裹、或光标正停在
+    // 标记对内时，再执行一次 = 去掉标记；否则包裹/插入骨架。
+
+    // 切换加粗：选区加/去 **（无选区且不在加粗内时插入 **** 并把光标放
+    // 到中间）
     Q_INVOKABLE void applyBold(QObject *textArea);
 
-    // 给选区加行内代码；选区含换行时改用独立围栏代码块
+    // 切换行内代码：选区加/去标记；选区含换行时改用独立围栏代码块
     Q_INVOKABLE void applyCode(QObject *textArea);
 
     // 给选区覆盖到的每一行行首加 "- "（无选区时作用于光标所在行）
@@ -45,14 +57,14 @@ public:
 
     // --- M3 新增格式动作（B1：全部沿用静态光标操作形状，一次撤销一步） ---
 
-    // 选区加斜体（单个 *）；空选区时插入 ** 并把光标放到中间
+    // 选区加/去斜体（单个 *）；空选区时插入 ** 并把光标放到中间
     Q_INVOKABLE void applyItalic(QObject *textArea);
 
-    // 选区加删除线（~~）；空选区时插入 ~~~~ 并把光标放到中间
+    // 选区加/去删除线（~~）；空选区时插入 ~~~~ 并把光标放到中间
     Q_INVOKABLE void applyStrike(QObject *textArea);
 
-    // 选区加 <u></u>（markdown 没有下划线标记，窄白名单 HTML 是唯一可移植
-    // 写法）；空选区时插入空元素并把光标放到中间
+    // 选区加/去 <u></u>（markdown 没有下划线标记，窄白名单 HTML 是唯一可
+    // 移植写法）；空选区时插入空元素并把光标放到中间
     Q_INVOKABLE void applyUnderline(QObject *textArea);
 
     // 行首切换 #/##/###；该行已是标题时改为目标级（不叠加），目标级与
@@ -81,17 +93,38 @@ public:
     // 选区每行加 "- [ ] "（agent 提示词的验收清单形态）；无选区时作用于当前行
     Q_INVOKABLE void applyTask(QObject *textArea);
 
-    // Tab 键的编辑器行为（VSCode 语义）：多行选区给覆盖到的每行行首插
-    // 一个 Tab（选区随之扩展）；无选区或单行选区保持原生——插入一个
-    // Tab（单行选区被替换）。QML 侧经 Keys.onTabPressed 接入并吞掉默认
-    // 的「选区替换为 Tab」。
-    Q_INVOKABLE void handleTab(QObject *textArea);
+    // Tab 键的编辑器行为（VSCode 语义）：多行选区给覆盖到的每行行首插一
+    // 个缩进单位（选区随之扩展）；无选区或单行选区保持原生——插入一个
+    // 缩进单位（单行选区被替换）。缩进单位由 options 决定（空格 × 宽度
+    // 或字面 \t）。QML 侧经 Keys.onTabPressed 接入并吞掉默认的「选区替换
+    // 为 Tab」。
+    Q_INVOKABLE void handleTab(QObject *textArea, bool useSpaces,
+                               int spacesPerIndent);
 
     // Tab 的反向动作（Shift+Tab）：覆盖到的每行行首去掉一个缩进单位
-    // （一个 Tab，或至多 4 个空格）；无选区时作用于光标所在行。整段都
-    // 没有缩进时原样返回，不产生撤销步。QML 侧经 Keys.onBacktabPressed
-    // 接入。
-    Q_INVOKABLE void handleBacktab(QObject *textArea);
+    //（一个 Tab，或至多 spacesPerIndent 个空格）；无选区时作用于光标所
+    // 在行。整段都没有缩进时原样返回，不产生撤销步。QML 侧经
+    // Keys.onBacktabPressed 接入。
+    Q_INVOKABLE void handleBacktab(QObject *textArea, bool useSpaces,
+                                   int spacesPerIndent);
+
+    // --- 回车键的列表延续（A3「输入手感」） -------------------------------
+
+    // 回车延续列表 / 编号 / 引用 / 任务项：光标（无选区）在带前缀的行上
+    // 时，插入换行并带上前缀（编号递增、任务项回到未勾选）；行内容为空
+    //（只剩前缀）时退出该结构——删掉前缀只留换行。返回是否接管了这次回
+    // 车（false = 调用方放行默认行为）。QML 侧经 Keys.onReturnPressed /
+    // Keys.onEnterPressed 接入。
+    Q_INVOKABLE bool handleEnter(QObject *textArea);
+
+    // --- 输入时的标记配对（A6「输入手感」） -------------------------------
+
+    // 输入单个字符时的自动配对：`*`/反引号/`~` 插入成对标记并把光标放到
+    // 中间（空对里再按同一字符升级成双标记，如 * → **；~~ 的删除线骨架
+    // 同理）；`[`/`(` 插入对称括号；光标后正好是同一闭合字符时跳过而不插
+    // 入。返回是否接管（false = 调用方放行默认输入）。QML 侧经
+    // Keys.onPressed 的单字符分支接入。
+    Q_INVOKABLE bool autoType(QObject *textArea, const QString &typed);
 
     // --- M3 查询侧（B1 约束：没有查询接口的动作不许设 checkable，这里
     //     就是 Ribbon checkable 按钮的数据源） ---
@@ -123,8 +156,15 @@ public:
     static void insertTableToCursor(QTextCursor &cursor, int columns);
     static void insertDividerToCursor(QTextCursor &cursor);
     static void applyTaskToCursor(QTextCursor &cursor);
-    static void handleTabToCursor(QTextCursor &cursor);
-    static void handleBacktabToCursor(QTextCursor &cursor);
+    static void handleTabToCursor(QTextCursor &cursor,
+                                  const IndentOptions &options);
+    static void handleBacktabToCursor(QTextCursor &cursor,
+                                      const IndentOptions &options);
+    // 回车延续（A3）：返回是否接管（false = 行上没有可延续的结构）
+    static bool smartEnterToCursor(QTextCursor &cursor);
+    // 输入配对（A6）：返回是否接管（false = 该字符不在配对表里或语义上
+    // 应放行默认输入）
+    static bool autoTypeToCursor(QTextCursor &cursor, const QString &typed);
 
     // 纯查询（测试入口）：不修改文档
     static bool isBoldAtCursor(const QTextCursor &cursor);
@@ -192,6 +232,10 @@ private:
     void editTextArea(QObject *textArea,
                       void (*operation)(QTextCursor &, const QString &),
                       const QString &text);
+    // Tab/Shift+Tab 的通用路径（缩进偏好由调用方带入）
+    void editTextArea(QObject *textArea,
+                      void (*operation)(QTextCursor &, const IndentOptions &),
+                      const IndentOptions &options);
 
     // 查询的通用路径：取编辑器的文档与选区，跑静态查询，返回布尔/整数
     bool queryTextAreaBool(QObject *textArea,

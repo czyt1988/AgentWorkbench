@@ -48,6 +48,24 @@ class WorkbenchContext : public QObject
     /// 一次性 legacy 导入提示（启动弹窗用）；正常启动恒为空串。
     Q_PROPERTY(QString legacyImportNotice READ legacyImportNotice
                NOTIFY legacyImportNoticeChanged)
+    /// Markdown 编辑器的输入行为（A 批「输入手感」）：设置页写、工作台
+    /// 页读，任一键变化都发 markdownEditorSettingsChanged。写一律经
+    /// Q_INVOKABLE（改完顺手 save()）。
+    Q_PROPERTY(bool markdownEditorIndentWithSpaces
+               READ markdownEditorIndentWithSpaces
+               NOTIFY markdownEditorSettingsChanged)
+    Q_PROPERTY(int markdownEditorIndentWidth
+               READ markdownEditorIndentWidth
+               NOTIFY markdownEditorSettingsChanged)
+    Q_PROPERTY(bool markdownEditorSmartEnter
+               READ markdownEditorSmartEnter
+               NOTIFY markdownEditorSettingsChanged)
+    Q_PROPERTY(bool markdownEditorFormatShortcuts
+               READ markdownEditorFormatShortcuts
+               NOTIFY markdownEditorSettingsChanged)
+    Q_PROPERTY(bool markdownEditorAutoPair
+               READ markdownEditorAutoPair
+               NOTIFY markdownEditorSettingsChanged)
 
 public:
     // 构造时只接各域的指针；页面注册与规则布线在 BuiltinPages
@@ -126,6 +144,19 @@ public:
     static QByteArray encodeOpenMessage(const QStringList &paths);
     static QStringList decodeOpenMessage(const QByteArray &message);
 
+    // --- Markdown 编辑器输入行为（Q_PROPERTY 的 READ 侧 + 设置页的写口） --
+    bool markdownEditorIndentWithSpaces() const;
+    int markdownEditorIndentWidth() const;
+    bool markdownEditorSmartEnter() const;
+    bool markdownEditorFormatShortcuts() const;
+    bool markdownEditorAutoPair() const;
+    // 设置页的写口：写进 Settings 并立即持久化；值没变时不落盘。
+    Q_INVOKABLE void setMarkdownEditorIndentWithSpaces(bool useSpaces);
+    Q_INVOKABLE void setMarkdownEditorIndentWidth(int spaces);
+    Q_INVOKABLE void setMarkdownEditorSmartEnter(bool on);
+    Q_INVOKABLE void setMarkdownEditorFormatShortcuts(bool on);
+    Q_INVOKABLE void setMarkdownEditorAutoPair(bool on);
+
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void notify(const QString &level, const QString &title,
@@ -174,6 +205,13 @@ Q_SIGNALS:
      * @brief legacy 导入提示变化时发射
      */
     void legacyImportNoticeChanged();
+    /**
+     * @brief Markdown 编辑器任一输入行为键变化时发射
+     *
+     * 转发自 Settings::valueChanged 的 "markdownEditor.*" 键——工作台页
+     * 与设置页据此同步（页面常驻，设置改动要立即生效）。
+     */
+    void markdownEditorSettingsChanged();
 
 private:
     shell::NavigationModel *m_nav;          ///< 导航（页面注册与当前页）
