@@ -211,12 +211,16 @@ const QSet<QString> kMarkdownKeys = {
     QStringLiteral("mode"), QStringLiteral("fontSizePx"),
     QStringLiteral("contentWidthPx"), QStringLiteral("showOutline"),
     QStringLiteral("autoOpenWorkbench") };
+const QSet<QString> kMarkdownEditorKeys = {
+    QStringLiteral("indentWithSpaces"), QStringLiteral("indentWidth"),
+    QStringLiteral("smartEnter"), QStringLiteral("formatShortcuts"),
+    QStringLiteral("autoPair") };
 const QSet<QString> kRootKeys = {
     QStringLiteral("window"), QStringLiteral("appearance"),
     QStringLiteral("locale"), QStringLiteral("launcher"),
     QStringLiteral("web"), QStringLiteral("skills"),
     QStringLiteral("logging"), QStringLiteral("plugins"),
-    QStringLiteral("markdown") };
+    QStringLiteral("markdown"), QStringLiteral("markdownEditor") };
 
 } // namespace
 
@@ -448,6 +452,31 @@ void Settings::load()
     m_markdown.autoOpenWorkbench = readBool(
         markdown, QStringLiteral("autoOpenWorkbench"),
         m_markdown.autoOpenWorkbench, QStringLiteral("markdown"));
+
+    const QJsonObject markdownEditor =
+        root.value(QStringLiteral("markdownEditor")).toObject();
+    warnUnknownKeys(markdownEditor, kMarkdownEditorKeys,
+                    QStringLiteral("markdownEditor"));
+    m_markdownEditor.indentWithSpaces =
+        readBool(markdownEditor, QStringLiteral("indentWithSpaces"),
+                 m_markdownEditor.indentWithSpaces,
+                 QStringLiteral("markdownEditor"));
+    m_markdownEditor.indentWidth =
+        readInt(markdownEditor, QStringLiteral("indentWidth"),
+                m_markdownEditor.indentWidth, 1, 8,
+                QStringLiteral("markdownEditor"));
+    m_markdownEditor.smartEnter =
+        readBool(markdownEditor, QStringLiteral("smartEnter"),
+                 m_markdownEditor.smartEnter,
+                 QStringLiteral("markdownEditor"));
+    m_markdownEditor.formatShortcuts =
+        readBool(markdownEditor, QStringLiteral("formatShortcuts"),
+                 m_markdownEditor.formatShortcuts,
+                 QStringLiteral("markdownEditor"));
+    m_markdownEditor.autoPair =
+        readBool(markdownEditor, QStringLiteral("autoPair"),
+                 m_markdownEditor.autoPair,
+                 QStringLiteral("markdownEditor"));
 }
 
 /**
@@ -726,6 +755,63 @@ void Settings::setMarkdownAutoOpenWorkbench(bool open)
 }
 
 /**
+ * @brief 写 Markdown 编辑器：Tab 是否插空格
+ *
+ * @param useSpaces true = 插空格；false = 插 \t
+ */
+void Settings::setMarkdownEditorIndentWithSpaces(bool useSpaces)
+{
+    m_markdownEditor.indentWithSpaces = useSpaces;
+    Q_EMIT valueChanged(
+        QStringLiteral("markdownEditor.indentWithSpaces"));
+}
+
+/**
+ * @brief 写 Markdown 编辑器：每级缩进的空格数
+ *
+ * @param spaces 空格数（夹到 [1, 8]）
+ */
+void Settings::setMarkdownEditorIndentWidth(int spaces)
+{
+    m_markdownEditor.indentWidth = qBound(1, spaces, 8);
+    Q_EMIT valueChanged(QStringLiteral("markdownEditor.indentWidth"));
+}
+
+/**
+ * @brief 写 Markdown 编辑器：回车是否延续列表/引用/任务项
+ *
+ * @param on true = 延续（空项回车退出）
+ */
+void Settings::setMarkdownEditorSmartEnter(bool on)
+{
+    m_markdownEditor.smartEnter = on;
+    Q_EMIT valueChanged(QStringLiteral("markdownEditor.smartEnter"));
+}
+
+/**
+ * @brief 写 Markdown 编辑器：编辑器聚焦时的格式化快捷键开关
+ *
+ * @param on true = Ctrl+B/I/K/E 等格式化快捷键生效
+ */
+void Settings::setMarkdownEditorFormatShortcuts(bool on)
+{
+    m_markdownEditor.formatShortcuts = on;
+    Q_EMIT valueChanged(
+        QStringLiteral("markdownEditor.formatShortcuts"));
+}
+
+/**
+ * @brief 写 Markdown 编辑器：输入时是否自动配对 markdown 标记
+ *
+ * @param on true = 输入 `*` 等标记时自动补全配对
+ */
+void Settings::setMarkdownEditorAutoPair(bool on)
+{
+    m_markdownEditor.autoPair = on;
+    Q_EMIT valueChanged(QStringLiteral("markdownEditor.autoPair"));
+}
+
+/**
  * @brief 把全部设置写回 settings.json
  *
  * 原子写入（经 JsonStore::writeFile），写入失败记一条警告并把失败
@@ -797,6 +883,17 @@ OpResult Settings::save()
     markdown[QStringLiteral("autoOpenWorkbench")] =
         m_markdown.autoOpenWorkbench;
 
+    QJsonObject markdownEditor;
+    markdownEditor[QStringLiteral("indentWithSpaces")] =
+        m_markdownEditor.indentWithSpaces;
+    markdownEditor[QStringLiteral("indentWidth")] =
+        m_markdownEditor.indentWidth;
+    markdownEditor[QStringLiteral("smartEnter")] =
+        m_markdownEditor.smartEnter;
+    markdownEditor[QStringLiteral("formatShortcuts")] =
+        m_markdownEditor.formatShortcuts;
+    markdownEditor[QStringLiteral("autoPair")] = m_markdownEditor.autoPair;
+
     QJsonObject root;
     root[QStringLiteral("window")] = window;
     root[QStringLiteral("appearance")] = appearance;
@@ -807,6 +904,7 @@ OpResult Settings::save()
     root[QStringLiteral("logging")] = logging;
     root[QStringLiteral("plugins")] = plugins;
     root[QStringLiteral("markdown")] = markdown;
+    root[QStringLiteral("markdownEditor")] = markdownEditor;
 
     const OpResult result = JsonStore::writeFile(settingsFilePath(), root);
     if (!result.ok) {

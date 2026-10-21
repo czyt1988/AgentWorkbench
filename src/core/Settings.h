@@ -103,6 +103,23 @@ struct MarkdownSettings
     bool autoOpenWorkbench = false;
 };
 
+/// Markdown 编辑器的输入行为（A 批「输入手感」）：缩进、回车延续、格式
+/// 化快捷键与自动配对。视图偏好在 MarkdownSettings（"markdown" 组），
+/// 两者消费方不同——这里喂的是编辑引擎的动作参数。
+struct MarkdownEditorSettings
+{
+    /// true = Tab 插空格（markdown 嵌套列表的可移植形态）；false = 插 \t
+    bool indentWithSpaces = true;
+    /// 每级缩进的空格数（indentWithSpaces 时生效），夹取 [1, 8]
+    int indentWidth = 2;
+    /// 回车延续列表 / 引用 / 任务项（空项回车退出）
+    bool smartEnter = true;
+    /// 编辑器聚焦时的格式化快捷键（Ctrl+B 加粗等）
+    bool formatShortcuts = true;
+    /// 输入时自动配对 markdown 标记（`*`、反引号、`~`、`[`、`(`）
+    bool autoPair = true;
+};
+
 /// settings.json 的类型化访问层：应用的其它部分不许直接读这个文件。
 class Settings : public QObject
 {
@@ -124,6 +141,10 @@ public:
     const LoggingSettings &loggingOptions() const { return m_logging; }
     const PluginsSettings &pluginsOptions() const { return m_plugins; }
     const MarkdownSettings &markdownOptions() const { return m_markdown; }
+    const MarkdownEditorSettings &markdownEditorOptions() const
+    {
+        return m_markdownEditor;
+    }
 
     // 按规范命名的快捷取值
     QString themeId() const;
@@ -157,6 +178,12 @@ public:
     void setMarkdownShowOutline(bool show);
     // 「启动时自动打开工作台」开关（默认关，决策 D-10）
     void setMarkdownAutoOpenWorkbench(bool open);
+    // --- Markdown 编辑器输入行为（设置页写、工作台页读） ---
+    void setMarkdownEditorIndentWithSpaces(bool useSpaces);
+    void setMarkdownEditorIndentWidth(int spaces);
+    void setMarkdownEditorSmartEnter(bool on);
+    void setMarkdownEditorFormatShortcuts(bool on);
+    void setMarkdownEditorAutoPair(bool on);
 
     // 把整个设置对象持久化（原子写）
     OpResult save();
@@ -181,6 +208,7 @@ private:
     LoggingSettings m_logging;
     PluginsSettings m_plugins;
     MarkdownSettings m_markdown;
+    MarkdownEditorSettings m_markdownEditor;
 };
 
 } // namespace awb::core

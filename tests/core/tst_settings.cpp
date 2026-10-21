@@ -307,6 +307,60 @@ private Q_SLOTS:
         QVERIFY2(warned, "an invalid markdown preference must be logged");
     }
 
+    // Markdown 编辑器输入行为键（A 批「输入手感」）：默认值、经 save() 的
+    // 文件往返、越界宽度回落默认并告警。
+    void testMarkdownEditorKeys()
+    {
+        {
+            Settings s;
+            QVERIFY(s.markdownEditorOptions().indentWithSpaces);
+            QCOMPARE(s.markdownEditorOptions().indentWidth, 2);
+            QVERIFY(s.markdownEditorOptions().smartEnter);
+            QVERIFY(s.markdownEditorOptions().formatShortcuts);
+            QVERIFY(s.markdownEditorOptions().autoPair);
+
+            QSignalSpy spy(&s, &Settings::valueChanged);
+            s.setMarkdownEditorIndentWithSpaces(false);
+            s.setMarkdownEditorIndentWidth(4);
+            s.setMarkdownEditorSmartEnter(false);
+            s.setMarkdownEditorFormatShortcuts(false);
+            s.setMarkdownEditorAutoPair(false);
+            QCOMPARE(spy.count(), 5);
+            QCOMPARE(spy.at(0).at(0).toString(),
+                     QStringLiteral("markdownEditor.indentWithSpaces"));
+            QCOMPARE(spy.at(1).at(0).toString(),
+                     QStringLiteral("markdownEditor.indentWidth"));
+            // 写入口自己夹取：99 落不进文件。
+            s.setMarkdownEditorIndentWidth(99);
+            QCOMPARE(s.markdownEditorOptions().indentWidth, 8);
+            QVERIFY(s.save().ok);
+        }
+        Settings again;
+        QVERIFY(!again.markdownEditorOptions().indentWithSpaces);
+        QCOMPARE(again.markdownEditorOptions().indentWidth, 8);
+        QVERIFY(!again.markdownEditorOptions().smartEnter);
+        QVERIFY(!again.markdownEditorOptions().formatShortcuts);
+        QVERIFY(!again.markdownEditorOptions().autoPair);
+
+        // 文件里的越界值：回落默认并告警。
+        writeSettingsFile(R"({ "markdownEditor": { "indentWidth": 99,
+            "indentWithSpaces": 3 } })");
+        g_captured.clear();
+        const QtMessageHandler previous =
+            qInstallMessageHandler(&captureMessage);
+        Settings bad;
+        qInstallMessageHandler(previous);
+        QCOMPARE(bad.markdownEditorOptions().indentWidth, 2);
+        QVERIFY(bad.markdownEditorOptions().indentWithSpaces);
+        bool warned = false;
+        for (const QString &msg : std::as_const(g_captured)) {
+            if (msg.contains(QStringLiteral("markdownEditor."))) {
+                warned = true;
+            }
+        }
+        QVERIFY2(warned, "an invalid markdownEditor key must be logged");
+    }
+
     void testValueChangedSignal()
     {
         Settings s;
