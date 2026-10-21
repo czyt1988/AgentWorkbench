@@ -93,6 +93,45 @@ public:
     // 接入。
     Q_INVOKABLE void handleBacktab(QObject *textArea);
 
+    // --- 行与块操作（B 批次：同一静态光标操作形状） -----------------------
+
+    /// convertCase 的目标形态（Q_ENUM 后 QML 可写 MarkdownEdit.UpperCase 等）。
+    enum CaseMode {
+        UpperCase = 0,  ///< 全大写
+        LowerCase = 1,  ///< 全小写
+        TitleCase = 2,  ///< 词首大写、其余小写
+    };
+    Q_ENUM(CaseMode)
+
+    // 选区覆盖到的行（无选区 = 光标所在行）与上一行交换；已在文档顶时
+    // 原样返回，不留空撤销步。选区跟着行走（端点保持段内相对位置）
+    Q_INVOKABLE void moveLineUp(QObject *textArea);
+
+    // 同上，与下一行交换；已在文档底时原样返回
+    Q_INVOKABLE void moveLineDown(QObject *textArea);
+
+    // 覆盖到的行在紧随其后复制一份（含行尾分隔符）；选区落在副本上
+    Q_INVOKABLE void duplicateLine(QObject *textArea);
+
+    // 删掉覆盖到的整行（含行尾分隔符），光标落到紧随其后的行行首
+    Q_INVOKABLE void deleteLine(QObject *textArea);
+
+    // 选区扩展到覆盖到的整行（无选区 = 选中光标所在行；不含行尾换行）
+    Q_INVOKABLE void selectLine(QObject *textArea);
+
+    // 选中光标处的词（字母/数字/下划线连成的段）；光标在空白上或已有
+    // 选区时原样返回
+    Q_INVOKABLE void selectWord(QObject *textArea);
+
+    // 选区文本的大小写转换（无选区时作用于光标处的词）；mode 取 CaseMode
+    Q_INVOKABLE void convertCase(QObject *textArea, int mode);
+
+    // 标题升降级（选区覆盖到的每个标题行）：升 = # 数减一，H1 再升 =
+    // 去标题（循环语义与 applyHeading 同级再点一致）；降 = # 数加一，
+    // 封顶 6。非标题行不动
+    Q_INVOKABLE void promoteHeading(QObject *textArea);
+    Q_INVOKABLE void demoteHeading(QObject *textArea);
+
     // --- M3 查询侧（B1 约束：没有查询接口的动作不许设 checkable，这里
     //     就是 Ribbon checkable 按钮的数据源） ---
 
@@ -125,6 +164,15 @@ public:
     static void applyTaskToCursor(QTextCursor &cursor);
     static void handleTabToCursor(QTextCursor &cursor);
     static void handleBacktabToCursor(QTextCursor &cursor);
+    static void moveLineUpToCursor(QTextCursor &cursor);
+    static void moveLineDownToCursor(QTextCursor &cursor);
+    static void duplicateLineToCursor(QTextCursor &cursor);
+    static void deleteLineToCursor(QTextCursor &cursor);
+    static void selectLineToCursor(QTextCursor &cursor);
+    static void selectWordToCursor(QTextCursor &cursor);
+    static void convertCaseToCursor(QTextCursor &cursor, int mode);
+    static void promoteHeadingToCursor(QTextCursor &cursor);
+    static void demoteHeadingToCursor(QTextCursor &cursor);
 
     // 纯查询（测试入口）：不修改文档
     static bool isBoldAtCursor(const QTextCursor &cursor);
@@ -157,6 +205,22 @@ public:
                                const QString &replacement,
                                bool caseSensitive, bool wholeWords) const;
 
+    // 关键词在编辑器全文的命中总数（「N/M」里的 M）
+    Q_INVOKABLE int findCount(QObject *textArea, const QString &needle,
+                              bool caseSensitive, bool wholeWords) const;
+
+    // 从 from 起第一个命中的序号，1 起（「N/M」里的 N；0 = 没有命中）
+    Q_INVOKABLE int findIndexOf(QObject *textArea, const QString &needle,
+                                int from, bool caseSensitive,
+                                bool wholeWords) const;
+
+    // 给编辑器里全部命中叠背景高亮（经挂着的语法高亮器）；needle 为空
+    // 时清除。关键词变更由调用方驱动，不依赖文档改动事件
+    Q_INVOKABLE void setSearchHighlight(QObject *textArea,
+                                        const QString &needle,
+                                        bool caseSensitive,
+                                        bool wholeWords);
+
     // 从 from 向后查找 needle（到尾部回卷一次）。大小写/全词由参数表达，
     // 持久化偏好由调用方带着进来（宿主应用自己决定存哪）。
     static FindResult findFrom(const QTextDocument *document,
@@ -178,6 +242,16 @@ public:
     static int replaceAll(QTextDocument *document, const QString &needle,
                           const QString &replacement, bool caseSensitive,
                           bool wholeWords);
+
+    // 关键词在全文的命中总数（不重叠计数，与 replaceAll 口径一致）
+    static int countMatches(const QTextDocument *document,
+                            const QString &needle, bool caseSensitive,
+                            bool wholeWords);
+
+    // 从 from 起第一个命中的序号（1 起；0 = 没有命中）——「3/12」里的 3
+    static int matchIndexAt(const QTextDocument *document,
+                            const QString &needle, int from,
+                            bool caseSensitive, bool wholeWords);
 
 private:
     // 从 Theme 提取高亮配色

@@ -241,6 +241,220 @@ void wrapSelectionToCursor(QTextCursor &cursor, const QString &marker)
     cursor.endEditBlock();
 }
 
+/**
+ * @brief 选区覆盖到的块范围
+ *
+ * 行级动作的公共边界纪律（与 applyBulletToCursor 同一条）：选区起点落在
+ * 行中算整行；终点恰好贴在换行后（光标位于下一行行首）时那行没选到内容，
+ * 不参与。无选区 = 光标所在块。
+ *
+ * @param cursor 选区光标（只读，不修改）
+ * @return 首末块；无效文档返回无效块
+ */
+struct BlockRange
+{
+    QTextBlock first;   ///< 覆盖到的第一个块
+    QTextBlock last;    ///< 覆盖到的最后一个块
+};
+
+BlockRange coveredBlocks(const QTextCursor &cursor)
+{
+    QTextDocument *document = cursor.document();
+    if (!document) {
+        return BlockRange();
+    }
+    const int selectionStart = cursor.selectionStart();
+    const int selectionEnd = cursor.selectionEnd();
+    QTextBlock first = document->findBlock(selectionStart);
+    QTextBlock last = document->findBlock(
+                selectionEnd > selectionStart ? selectionEnd - 1
+                                              : selectionEnd);
+    return BlockRange{first, last};
+}
+
+/**
+ * @brief 选区端点在覆盖块范围内的相对偏移（夹取）
+ *
+ * 行级动作（移动/复制）把整段行文本原样搬到新位置，端点随内容走：把
+ * 锚点/位置换算成段内偏移，搬完再加回新基点。终点贴着段尾（下一行行首）
+ * 时夹到段长，方向（正反向选区）保持不变。
+ *
+ * @param value 原始文档坐标
+ * @param base 段起点（覆盖块首块行首）
+ * @param length 段长（含行尾分隔符）
+ * @return 夹到 [0, length] 的段内偏移
+ */
+int clampedOffset(int value, int base, int length)
+{
+    return qBound(0, value - base, length);
+}
+
+/**
+ * @brief 光标处词的文档区间
+ *
+ * 词 = 字母/数字/下划线连成的段（查找全词判据同一条）。光标贴在词边界
+ * 时优先取右侧的词；两侧都不是词（空白、标点之间）时长度 0。
+ *
+ * @param cursor 光标（只读）
+ * @return 区间：start 为文档坐标，length 为 0 表示光标不在词上
+ */
+struct WordSpan
+{
+    int start = 0;   ///< 词起点（文档坐标）
+    int length = 0;  ///< 词长；0 = 光标不在词上
+};
+
+/**
+ * @brief 块内容终点（合法光标位）
+ *
+ * 块 length 含尾部分隔符；position()+length() 对末块落在文档分隔符之后，
+ * 那不是合法光标位（QTextCursor 的上限是 characterCount()-1）。行级动作
+ * 统一在内容边界上操作，替换串自带分隔、原分隔符原位保留，块结构不变。
+ *
+ * @param block 目标块
+ * @return 块内容末尾的文档位置
+ */
+int contentEndOf(const QTextBlock &block)
+{
+    return block.position() + block.length() - 1;
+}
+
+/**
+ * @brief 覆盖块的连接文本（块间以 
+ 连接，不含末块分隔符）
+ *
+ * 行级动作的文本都以这个形态参与替换：插入 
+ 经
+ * QTextCursor::insertText 落成分隔符，与块结构天然一致；末块分隔符从不
+ * 进串——它不是合法光标位能选到的东西。
+ *
+ * @param first 首块
+ * @param last 末块
+ * @return 各块文本以 
+ 连接的结果；first 无效时为空串
+ */
+QString joinedBlockText(const QTextBlock &first, const QTextBlock &last)
+{
+    QString text;
+    for (QTextBlock block = first; block.isValid();
+         block = block.next()) {
+        if (!text.isEmpty()) {
+            text += QLatin1Char('\n');
+        }
+        text += block.text();
+        if (block == last) {
+            break;
+        }
+    }
+    return text;
+}
+
+WordSpan wordAround(const QTextCursor &cursor)
+{
+    WordSpan span;
+    const QTextBlock block = cursor.block();
+    if (!block.isValid()) {
+        return span;
+    }
+    const QString text = block.text();
+    const int blockStart = block.position();
+    const int position = qBound(blockStart, cursor.position(),
+                                blockStart + text.length());
+    const auto isWordChar = [](QChar ch) {
+        return ch.isLetterOrNumber() || ch == QLatin1Char('_');
+    };
+    int start = position - blockStart;
+    int end = start;
+    while (start > 0 && isWordChar(text.at(start - 1))) {
+        --start;
+    }
+    while (end < text.length() && isWordChar(text.at(end))) {
+        ++end;
+    }
+    span.start = blockStart + start;
+    span.length = end - start;
+    return span;
+}
+
+/**
+ * @brief 标题前缀的统一升降级（promote/demote 共用）
+ *
+ * 升（delta = -1）：# 数减一，H1 再升 = 去标题（循环语义与 applyHeading
+ * 的「同级再点去掉」一致，键盘连按可以从 H3 一路升回段落）。降（delta =
+ * +1）：# 数加一，封顶 6。非标题行不动——普通行变成标题走 applyHeading。
+ * 先扫一遍有没有可动的行，没有就不进编辑块（不留空撤销步）。
+ *
+ * @param cursor 选区光标；返回时其选区覆盖被处理的整段行
+ * @param delta -1 升级 / +1 降级
+ */
+void relevelHeading(QTextCursor &cursor, int delta)
+{
+    QTextDocument *document = cursor.document();
+    const BlockRange range = coveredBlocks(cursor);
+    if (!document || !range.first.isValid() || !range.last.isValid()) {
+        return;
+    }
+
+    static const QRegularExpression headingPrefix(
+        QStringLiteral("^(#{1,6})\\s+"));
+    bool anyChange = false;
+    for (QTextBlock block = range.first; block.isValid(); block = block.next()) {
+        const QRegularExpressionMatch match =
+                headingPrefix.match(block.text());
+        // 升级对任何标题行都会动；降级只对 H6 以内的行会动。
+        if (match.hasMatch()
+                && (delta < 0 || match.captured(1).length() < 6)) {
+            anyChange = true;
+            break;
+        }
+        if (block == range.last) {
+            break;
+        }
+    }
+    if (!anyChange) {
+        return;
+    }
+
+    cursor.beginEditBlock();
+    for (QTextBlock block = range.first; block.isValid(); block = block.next()) {
+        const QRegularExpressionMatch match =
+                headingPrefix.match(block.text());
+        if (match.hasMatch()) {
+            const int level = match.captured(1).length();
+            const int newLevel = level + delta;
+            QString replacement;
+            if (newLevel < 1) {
+                replacement = QString();   // H1 再升 = 去标题
+            } else if (newLevel <= 6) {
+                replacement = QString(newLevel, QLatin1Char('#'))
+                        + QLatin1Char(' ');
+            } else {
+                replacement = match.captured(0);   // H6 再降：原样
+            }
+            if (replacement.length() != match.capturedLength()) {
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + match.capturedLength(),
+                                   QTextCursor::KeepAnchor);
+                cursor.insertText(replacement);
+            }
+        }
+        if (block == range.last) {
+            break;
+        }
+    }
+    // 结果选区：整段被处理的行（块句柄是活坐标，与 applyHeadingToCursor
+    // 同一条收尾——按旧句柄的现值重查首末块）。
+    cursor.setPosition(
+                document->findBlock(range.first.position()).position());
+    const QTextBlock newLast =
+            document->findBlock(range.last.position() + 1);
+    if (newLast.isValid()) {
+        cursor.setPosition(newLast.position() + newLast.length() - 1,
+                           QTextCursor::KeepAnchor);
+    }
+    cursor.endEditBlock();
+}
+
 } // namespace
 
 /**
@@ -456,6 +670,97 @@ void MarkdownEdit::handleTab(QObject *textArea)
 void MarkdownEdit::handleBacktab(QObject *textArea)
 {
     editTextArea(textArea, &MarkdownEdit::handleBacktabToCursor);
+}
+
+/**
+ * @brief 选区覆盖到的行与上一行交换
+ * @param textArea 目标编辑器
+ * @sa moveLineUpToCursor
+ */
+void MarkdownEdit::moveLineUp(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::moveLineUpToCursor);
+}
+
+/**
+ * @brief 选区覆盖到的行与下一行交换
+ * @param textArea 目标编辑器
+ * @sa moveLineDownToCursor
+ */
+void MarkdownEdit::moveLineDown(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::moveLineDownToCursor);
+}
+
+/**
+ * @brief 覆盖到的行在下方复制一份
+ * @param textArea 目标编辑器
+ * @sa duplicateLineToCursor
+ */
+void MarkdownEdit::duplicateLine(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::duplicateLineToCursor);
+}
+
+/**
+ * @brief 删掉覆盖到的整行
+ * @param textArea 目标编辑器
+ * @sa deleteLineToCursor
+ */
+void MarkdownEdit::deleteLine(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::deleteLineToCursor);
+}
+
+/**
+ * @brief 选区扩展到覆盖到的整行
+ * @param textArea 目标编辑器
+ * @sa selectLineToCursor
+ */
+void MarkdownEdit::selectLine(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::selectLineToCursor);
+}
+
+/**
+ * @brief 选中光标处的词
+ * @param textArea 目标编辑器
+ * @sa selectWordToCursor
+ */
+void MarkdownEdit::selectWord(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::selectWordToCursor);
+}
+
+/**
+ * @brief 选区文本的大小写转换
+ * @param textArea 目标编辑器
+ * @param mode CaseMode 之一（UpperCase / LowerCase / TitleCase）
+ * @sa convertCaseToCursor
+ */
+void MarkdownEdit::convertCase(QObject *textArea, int mode)
+{
+    editTextArea(textArea, &MarkdownEdit::convertCaseToCursor, mode);
+}
+
+/**
+ * @brief 标题升级（# 数减一，H1 再升去标题）
+ * @param textArea 目标编辑器
+ * @sa promoteHeadingToCursor
+ */
+void MarkdownEdit::promoteHeading(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::promoteHeadingToCursor);
+}
+
+/**
+ * @brief 标题降级（# 数加一，封顶 6）
+ * @param textArea 目标编辑器
+ * @sa demoteHeadingToCursor
+ */
+void MarkdownEdit::demoteHeading(QObject *textArea)
+{
+    editTextArea(textArea, &MarkdownEdit::demoteHeadingToCursor);
 }
 
 /**
@@ -1218,6 +1523,331 @@ void MarkdownEdit::handleBacktabToCursor(QTextCursor &cursor)
 }
 
 /**
+ * @brief 覆盖到的行与上一行交换（Alt+↑）
+ *
+ * 实现按 span 交换：span = 上一行 + 分隔符 + 覆盖行，整段选中后替换成
+ * 「覆盖行 + 分隔符 + 上一行」。只选中到末块**内容**边界（分隔符之后不
+ * 是合法光标位——QTextCursor 的上限是 characterCount()-1），替换串自
+ * 带分隔，原有分隔符原位保留，块结构不变。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::moveLineUpToCursor(QTextCursor &cursor)
+{
+    const BlockRange range = coveredBlocks(cursor);
+    if (!range.first.isValid() || !range.last.isValid()) {
+        return;
+    }
+    const QTextBlock previous = range.first.previous();
+    if (!previous.isValid()) {
+        return;
+    }
+
+    const int spanStart = previous.position();
+    const int spanEnd = contentEndOf(range.last);
+    const QString moved = joinedBlockText(range.first, range.last);
+    const int previousLength = previous.length() - 1;
+    const int oldAnchor = cursor.anchor();
+    const int oldPosition = cursor.position();
+
+    cursor.beginEditBlock();
+    cursor.setPosition(spanStart);
+    cursor.setPosition(spanEnd, QTextCursor::KeepAnchor);
+    cursor.insertText(moved + QLatin1Char('\n') + previous.text());
+    cursor.endEditBlock();
+
+    // 端点随内容走：span = X（上一行）+ \n + Y（覆盖行）交换成
+    // Y + \n + X。落在 X 里的端点平移 len(Y)+1，落在 Y 里的平移
+    // -(len(X)+1)，span 外的不动；先落锚点再带锚落位置，方向保持。
+    const auto shifted = [spanStart, spanEnd, previousLength,
+                          &moved](int position) -> int {
+        const int xEnd = spanStart + previousLength;
+        const int yStart = xEnd + 1;
+        if (position >= spanStart && position <= xEnd) {
+            return spanStart + moved.length() + 1
+                    + (position - spanStart);
+        }
+        if (position >= yStart && position <= spanEnd) {
+            return spanStart + (position - yStart);
+        }
+        return position;
+    };
+    cursor.setPosition(shifted(oldAnchor));
+    cursor.setPosition(shifted(oldPosition), QTextCursor::KeepAnchor);
+}
+
+/**
+ * @brief 覆盖到的行与下一行交换（Alt+↓）
+ *
+ * 与 moveLineUpToCursor 对称：整段搬到下一行之后。删掉区间后下一块从
+ * firstPos 起头（块句柄是活坐标，length 不受影响），插入点 = firstPos +
+ * 下一块 length。已在文档底时原样返回。
+ *
+ * @param cursor 选区光标；返回时其位置/选区即动作结果
+ */
+void MarkdownEdit::moveLineDownToCursor(QTextCursor &cursor)
+{
+    const BlockRange range = coveredBlocks(cursor);
+    if (!range.first.isValid() || !range.last.isValid()) {
+        return;
+    }
+    const QTextBlock next = range.last.next();
+    if (!next.isValid()) {
+        return;
+    }
+
+    // span = 覆盖行 + 分隔符 + 下一行，交换成「下一行 + 分隔符 + 覆盖
+    // 行」。终点收到下一块的**内容**末尾：末块分隔符之后不是合法光标位
+    //（QTextCursor 的上限是 characterCount()-1），行级动作统一在内容
+    // 边界上操作。
+    const int spanStart = range.first.position();
+    const int spanEnd = contentEndOf(next);
+    const QString moved = joinedBlockText(range.first, range.last);
+    const int nextLength = next.length() - 1;
+    const int oldAnchor = cursor.anchor();
+    const int oldPosition = cursor.position();
+
+    cursor.beginEditBlock();
+    cursor.setPosition(spanStart);
+    cursor.setPosition(spanEnd, QTextCursor::KeepAnchor);
+    cursor.insertText(next.text() + QLatin1Char('\n') + moved);
+    cursor.endEditBlock();
+
+    // 端点重算与 moveLineUpToCursor 同一条：X = 覆盖行、Y = 下一行，
+    // 交换后 Y 在前。
+    const auto shifted = [spanStart, spanEnd, nextLength,
+                          &moved](int position) -> int {
+        const int xEnd = spanStart + moved.length();
+        const int yStart = xEnd + 1;
+        if (position >= spanStart && position <= xEnd) {
+            return spanStart + nextLength + 1
+                    + (position - spanStart);
+        }
+        if (position >= yStart && position <= spanEnd) {
+            return spanStart + (position - yStart);
+        }
+        return position;
+    };
+    cursor.setPosition(shifted(oldAnchor));
+    cursor.setPosition(shifted(oldPosition), QTextCursor::KeepAnchor);
+}
+
+/**
+ * @brief 覆盖到的行在下方复制一份（Shift+Alt+↓）
+ *
+ * 副本插在原段紧后（含末行分隔符，副本自成完整行），选区落到副本上——
+ * 连续按住可以把同一行滚成多份，继续输入作用于最后那份。
+ *
+ * @param cursor 选区光标；返回时其选区落在副本上
+ */
+void MarkdownEdit::duplicateLineToCursor(QTextCursor &cursor)
+{
+    const BlockRange range = coveredBlocks(cursor);
+    QTextDocument *document = cursor.document();
+    if (!range.first.isValid() || !range.last.isValid() || !document) {
+        return;
+    }
+    const int firstPos = range.first.position();
+    const QString copy = joinedBlockText(range.first, range.last);
+    const int relAnchor = clampedOffset(cursor.anchor(), firstPos,
+                                        copy.length());
+    const int relPosition = clampedOffset(cursor.position(), firstPos,
+                                         copy.length());
+
+    // 副本插在整段紧后。覆盖段不在文档末尾时插入点 = 下一块行首（合法
+    // 光标位），插入「副本 + 分隔」；覆盖段就是末块时，它的分隔符之后没
+    // 有光标位，改在内容末尾插入「分隔 + 副本」——原分隔符变成覆盖段的
+    // 收尾，副本顶到文档末尾。
+    const bool atEnd = range.last == document->lastBlock();
+    const int insertAt = atEnd ? contentEndOf(range.last)
+                               : range.last.position()
+                                       + range.last.length();
+    const QString inserted = atEnd
+            ? QLatin1Char('\n') + copy : copy + QLatin1Char('\n');
+    const int copyStart = atEnd ? insertAt + 1 : insertAt;
+
+    cursor.beginEditBlock();
+    cursor.setPosition(insertAt);
+    cursor.insertText(inserted);
+    cursor.setPosition(copyStart + relAnchor);
+    cursor.setPosition(copyStart + relPosition, QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 删掉覆盖到的整行（Ctrl+Shift+K）
+ *
+ * 连同行尾分隔符一起删（不留空行），光标落到紧随其后的行行首；删的是
+ * 文档末尾的行时停在文档末尾。
+ *
+ * @param cursor 选区光标；返回时是无选区的纯光标
+ */
+void MarkdownEdit::deleteLineToCursor(QTextCursor &cursor)
+{
+    const BlockRange range = coveredBlocks(cursor);
+    QTextDocument *document = cursor.document();
+    if (!range.first.isValid() || !range.last.isValid() || !document) {
+        return;
+    }
+    const int firstPos = range.first.position();
+
+    // 删除边界：覆盖段不在文档末尾时删到下一块行首（吃掉末行分隔符）；
+    // 覆盖段是末块时只能删到内容末尾（分隔符之后没有光标位），改吃上一
+    // 行的分隔符补位，文档末尾不留空行。
+    const bool atEnd = range.last == document->lastBlock();
+    const bool atStart = range.first == document->firstBlock();
+    int removeStart = firstPos;
+    int removeEnd = atEnd ? contentEndOf(range.last)
+                          : range.last.position()
+                                  + range.last.length();
+    if (atEnd && !atStart) {
+        removeStart = firstPos - 1;
+    }
+
+    cursor.beginEditBlock();
+    cursor.setPosition(removeStart);
+    cursor.setPosition(removeEnd, QTextCursor::KeepAnchor);
+    cursor.removeSelectedText();
+    cursor.setPosition(removeStart);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 选区扩展到覆盖到的整行（Ctrl+L）
+ *
+ * 起点扩到首行行首，终点收到末行行尾（不含换行）。无选区 = 选中光标所
+ * 在行。纯选区操作，不改文档、不进编辑块。
+ *
+ * @param cursor 选区光标
+ */
+void MarkdownEdit::selectLineToCursor(QTextCursor &cursor)
+{
+    const BlockRange range = coveredBlocks(cursor);
+    if (!range.first.isValid() || !range.last.isValid()) {
+        return;
+    }
+    const int start = range.first.position();
+    const int end = range.last.position() + range.last.length() - 1;
+    cursor.setPosition(start);
+    cursor.setPosition(end, QTextCursor::KeepAnchor);
+}
+
+/**
+ * @brief 选中光标处的词（Ctrl+D）
+ *
+ * 词 = 字母/数字/下划线连成的段；光标贴在词边界时取右侧的词；不在词上
+ * （两侧都是空白/标点）时原样返回。已有选区时保持不动——这个动作的语义
+ * 是「把光标处的东西选出来」，不是「扩选」。
+ *
+ * @param cursor 光标
+ */
+void MarkdownEdit::selectWordToCursor(QTextCursor &cursor)
+{
+    if (cursor.hasSelection()) {
+        return;
+    }
+    const WordSpan word = wordAround(cursor);
+    if (word.length == 0) {
+        return;
+    }
+    cursor.setPosition(word.start);
+    cursor.setPosition(word.start + word.length, QTextCursor::KeepAnchor);
+}
+
+/**
+ * @brief 选区文本的大小写转换
+ *
+ * 有选区：只转选区文本，换行与空白原样保留。无选区：转光标处的词（词
+ * 语义与 selectWordToCursor 同一条）；光标不在词上时原样返回。三种形态：
+ * UpperCase 全大写、LowerCase 全小写、TitleCase 词首大写其余小写（词首
+ * = 前一个字符不是字母/数字）。转换后选区落在被转换的区间上。
+ *
+ * @param cursor 选区光标
+ * @param mode CaseMode 之一
+ */
+void MarkdownEdit::convertCaseToCursor(QTextCursor &cursor, int mode)
+{
+    if (mode < UpperCase || mode > TitleCase) {
+        return;
+    }
+    int start = 0;
+    int length = 0;
+    if (cursor.hasSelection()) {
+        start = cursor.selectionStart();
+        length = cursor.selectionEnd() - start;
+    } else {
+        const WordSpan word = wordAround(cursor);
+        if (word.length == 0) {
+            return;
+        }
+        start = word.start;
+        length = word.length;
+    }
+    if (length == 0) {
+        return;
+    }
+
+    QTextDocument *document = cursor.document();
+    if (!document) {
+        return;
+    }
+    QTextCursor reader(document);
+    reader.setPosition(start);
+    reader.setPosition(start + length, QTextCursor::KeepAnchor);
+    const QString source = reader.selectedText();
+
+    const auto isWordChar = [](QChar ch) {
+        return ch.isLetterOrNumber();
+    };
+    QString converted;
+    converted.resize(source.length());
+    for (int i = 0; i < source.length(); ++i) {
+        const QChar ch = source.at(i);
+        QChar out = ch;
+        if (mode == UpperCase) {
+            out = ch.toUpper();
+        } else if (mode == LowerCase) {
+            out = ch.toLower();
+        } else {
+            const bool wordStart = i == 0 || !isWordChar(source.at(i - 1));
+            out = wordStart ? ch.toUpper() : ch.toLower();
+        }
+        converted[i] = out;
+    }
+    if (converted == source) {
+        return;   // 已经是目标形态：不留空撤销步
+    }
+
+    cursor.beginEditBlock();
+    reader.setPosition(start);
+    reader.setPosition(start + length, QTextCursor::KeepAnchor);
+    reader.insertText(converted);
+    cursor.setPosition(start);
+    cursor.setPosition(start + length, QTextCursor::KeepAnchor);
+    cursor.endEditBlock();
+}
+
+/**
+ * @brief 标题升级（# 数减一，H1 再升去标题）
+ * @param cursor 选区光标
+ * @sa relevelHeading
+ */
+void MarkdownEdit::promoteHeadingToCursor(QTextCursor &cursor)
+{
+    relevelHeading(cursor, -1);
+}
+
+/**
+ * @brief 标题降级（# 数加一，封顶 6）
+ * @param cursor 选区光标
+ * @sa relevelHeading
+ */
+void MarkdownEdit::demoteHeadingToCursor(QTextCursor &cursor)
+{
+    relevelHeading(cursor, 1);
+}
+
+/**
  * @brief 从某位置向后查找（B2 纯文档操作）
  *
  * 到尾部没找到时回卷到开头再找一遍（回卷标志置真——界面据此提示
@@ -1243,35 +1873,10 @@ MarkdownEdit::FindResult MarkdownEdit::findFrom(
 
     // 手工 indexOf 而不是 QTextDocument::find 的 flags 重载：大小写与
     // 全词语义完全掌控（那个重载的默认值语义在两代 Qt 上有出入，全词
-    // 档还要走 regex；自己的边界判定一处写清楚，测试也直接覆盖）。
-    const auto isWordChar = [](QChar ch) {
-        return ch.isLetterOrNumber() || ch == QLatin1Char('_');
-    };
-    const auto matchesAt = [&](int at) {
-        if (wholeWords) {
-            const bool leftOk =
-                    at == 0 || !isWordChar(haystack.at(at - 1));
-            const int end = at + needle.length();
-            const bool rightOk =
-                    end >= haystack.length()
-                    || !isWordChar(haystack.at(end));
-            if (!leftOk || !rightOk) {
-                return false;
-            }
-        }
-        for (int i = 0; i < needle.length(); ++i) {
-            const QChar a = haystack.at(at + i);
-            const QChar b = needle.at(i);
-            if (caseSensitive ? (a != b)
-                              : (a.toCaseFolded() != b.toCaseFolded())) {
-                return false;
-            }
-        }
-        return true;
-    };
-
+    // 档还要走 regex）；判定统一走 needleMatchesAt，与计数/高亮同口径。
     for (int at = start; at + needle.length() <= haystack.length(); ++at) {
-        if (matchesAt(at)) {
+        if (needleMatchesAt(haystack, needle, at, caseSensitive,
+                            wholeWords)) {
             result.start = at;
             result.length = needle.length();
             return result;
@@ -1281,7 +1886,8 @@ MarkdownEdit::FindResult MarkdownEdit::findFrom(
     // 的区域刚扫过）。
     for (int at = 0;
          at < start && at + needle.length() <= haystack.length(); ++at) {
-        if (matchesAt(at)) {
+        if (needleMatchesAt(haystack, needle, at, caseSensitive,
+                            wholeWords)) {
             result.start = at;
             result.length = needle.length();
             result.wrapped = true;
@@ -1289,6 +1895,81 @@ MarkdownEdit::FindResult MarkdownEdit::findFrom(
         }
     }
     return result;
+}
+
+/**
+ * @brief 关键词在全文的命中总数（不重叠计数）
+ *
+ * 命中后跳过整个关键词再继续找——与 replaceAll 的替换口径一致（替换后
+ * 的文本不再参与本轮计数），「3/12」的分母。
+ *
+ * @param document 文档（只读）
+ * @param needle 关键词（空串返回 0）
+ * @param caseSensitive 区分大小写
+ * @param wholeWords 全词匹配
+ * @return 命中总数
+ */
+int MarkdownEdit::countMatches(const QTextDocument *document,
+                               const QString &needle, bool caseSensitive,
+                               bool wholeWords)
+{
+    if (!document || needle.isEmpty()) {
+        return 0;
+    }
+    const QString haystack = document->toPlainText();
+    const int needleLength = needle.length();
+    int count = 0;
+    int at = 0;
+    while (at + needleLength <= haystack.length()) {
+        if (needleMatchesAt(haystack, needle, at, caseSensitive,
+                            wholeWords)) {
+            ++count;
+            at += needleLength;
+        } else {
+            ++at;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 从 from 起第一个命中的序号（1 起）
+ *
+ * 跳过 from 之前的命中（同样按不重叠口径数），「3/12」的分子：findNext
+ * 选中一个命中后，用它的起点当 from，返回值即它在全集里的位置。
+ *
+ * @param document 文档（只读）
+ * @param needle 关键词
+ * @param from 计数起点（夹到 [0, length]）
+ * @param caseSensitive 区分大小写
+ * @param wholeWords 全词匹配
+ * @return 1 起的序号；没有命中返回 0
+ */
+int MarkdownEdit::matchIndexAt(const QTextDocument *document,
+                               const QString &needle, int from,
+                               bool caseSensitive, bool wholeWords)
+{
+    if (!document || needle.isEmpty()) {
+        return 0;
+    }
+    const QString haystack = document->toPlainText();
+    const int start = qBound(0, from, haystack.length());
+    const int needleLength = needle.length();
+    int index = 0;
+    int at = 0;
+    while (at + needleLength <= haystack.length()) {
+        if (needleMatchesAt(haystack, needle, at, caseSensitive,
+                            wholeWords)) {
+            ++index;
+            if (at >= start) {
+                return index;
+            }
+            at += needleLength;
+        } else {
+            ++at;
+        }
+    }
+    return 0;
 }
 
 /**
@@ -1453,6 +2134,72 @@ int MarkdownEdit::replaceAll(QObject *textArea, const QString &needle,
 }
 
 /**
+ * @brief QML 版命中计数（编辑器全文）
+ * @sa countMatches
+ */
+int MarkdownEdit::findCount(QObject *textArea, const QString &needle,
+                            bool caseSensitive, bool wholeWords) const
+{
+    if (!textArea)
+        return 0;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return 0;
+    return countMatches(quickDocument->textDocument(), needle,
+                        caseSensitive, wholeWords);
+}
+
+/**
+ * @brief QML 版命中序号（编辑器全文，1 起）
+ * @sa matchIndexAt
+ */
+int MarkdownEdit::findIndexOf(QObject *textArea, const QString &needle,
+                              int from, bool caseSensitive,
+                              bool wholeWords) const
+{
+    if (!textArea)
+        return 0;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return 0;
+    return matchIndexAt(quickDocument->textDocument(), needle, from,
+                        caseSensitive, wholeWords);
+}
+
+/**
+ * @brief 给编辑器里全部命中叠背景高亮
+ *
+ * 经 MarkdownEdit::attach 挂着的语法高亮器完成（同一个高亮器实例上叠
+ * 加，见 MarkdownHighlighter::setSearch）；编辑器没 attach 过（异常
+ * 路径）时静默跳过。needle 为空 = 清除高亮。
+ */
+void MarkdownEdit::setSearchHighlight(QObject *textArea,
+                                      const QString &needle,
+                                      bool caseSensitive, bool wholeWords)
+{
+    if (!textArea)
+        return;
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument())
+        return;
+    QTextDocument *document = quickDocument->textDocument();
+    pruneHighlighters();
+    for (const QPointer<MarkdownHighlighter> &highlighter
+         : std::as_const(m_highlighters)) {
+        if (highlighter->document() == document) {
+            highlighter->setSearch(needle, caseSensitive, wholeWords);
+            return;
+        }
+    }
+}
+
+/**
  * @brief 从 Theme 提取高亮配色
  *
  * 颜色全部落在语义令牌上：标题/链接用 textLink，强调标记用 warning，
@@ -1474,6 +2221,9 @@ MarkdownColors MarkdownEdit::colorsFromTheme(const theme::Theme *theme)
     colors.listMarker = theme->accent();
     colors.link = theme->textLink();
     colors.divider = theme->textMuted();
+    // 查找命中：accent 的低透明度背景叠在语法色之下（setFormat 是合并
+    // 语义，只带背景色的格式不盖前景色），深浅两套主题下都可读。
+    colors.search = theme->alpha(theme->accent(), 0.30);
     return colors;
 }
 

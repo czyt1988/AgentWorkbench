@@ -30,6 +30,7 @@ MarkdownColors distinctColors()
     colors.listMarker = QColor(19, 20, 21);
     colors.link = QColor(22, 23, 24);
     colors.divider = QColor(25, 26, 27);
+    colors.search = QColor(28, 29, 30);
     return colors;
 }
 
@@ -922,6 +923,311 @@ private Q_SLOTS:
                                           false),
                  0);
     }
+
+    // --- 行级动作（B 批次） -------------------------------------------------
+
+    void testMoveLineUpSwapsWithPreviousLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 光标在第二行行首：整行与上一行交换，光标随行落到新位置行首。
+        apply(QStringLiteral("aa\nbb"), 3, 3,
+              &MarkdownEdit::moveLineUpToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("bb\naa"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 0);
+    }
+
+    void testMoveLineUpMovesSelectedBlock()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 两行选区整体上移，选区仍罩住同一段文字。
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::moveLineUpToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("aa\nbb\ncc"));
+        // 首块已在文档顶：整段无处可挪，原样返回。
+        QVERIFY(!document.isUndoAvailable());
+    }
+
+    void testMoveLineDownSwapsWithNextLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 光标在第一行中间（pos 1）：与下一行交换后光标落在同一列。
+        apply(QStringLiteral("aa\nbb\ncc"), 1, 1,
+              &MarkdownEdit::moveLineDownToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("bb\naa\ncc"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 4);
+    }
+
+    void testMoveLineDownMovesSelectedBlock()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 两行选区下移到第三行之后，选区跟着走。
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::moveLineDownToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("cc\naa\nbb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+    }
+
+    void testMoveLineAtEdgeIsNoOp()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 0,
+              &MarkdownEdit::moveLineUpToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+        QVERIFY(!document.isUndoAvailable());
+        apply(QStringLiteral("aa\nbb"), 4, 4,
+              &MarkdownEdit::moveLineDownToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+        QVERIFY(!document.isUndoAvailable());
+    }
+
+    void testMoveLineIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 3, 3,
+              &MarkdownEdit::moveLineUpToCursor, &document, &cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testDuplicateLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 无选区：当前行在下方复制，光标落到副本行首。
+        apply(QStringLiteral("aa\nbb"), 0, 0,
+              &MarkdownEdit::duplicateLineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("aa\naa\nbb"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 3);
+    }
+
+    void testDuplicateLineSelectionLandsOnCopy()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 有选区：副本插在整段之后，选区罩住副本——继续输入作用于副本。
+        apply(QStringLiteral("aa\nbb"), 0, 2,
+              &MarkdownEdit::duplicateLineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("aa\naa\nbb"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa"));
+        QCOMPARE(cursor.selectionStart(), 3);
+    }
+
+    void testDuplicateLineIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 3, 3,
+              &MarkdownEdit::duplicateLineToCursor, &document, &cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testDeleteLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 删中间行：不留空行，光标落到紧随其后的行行首。
+        apply(QStringLiteral("aa\nbb\ncc"), 4, 4,
+              &MarkdownEdit::deleteLineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\ncc"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), 3);
+    }
+
+    void testDeleteLineCoversSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 选区盖住两行：连行尾分隔符一起删。
+        apply(QStringLiteral("aa\nbb\ncc"), 0, 5,
+              &MarkdownEdit::deleteLineToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("cc"));
+        QCOMPARE(cursor.position(), 0);
+    }
+
+    void testDeleteLineIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("aa\nbb"), 0, 0,
+              &MarkdownEdit::deleteLineToCursor, &document, &cursor);
+        document.undo(&cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
+    }
+
+    void testSelectLine()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 无选区：选中光标所在行（不含行尾换行）。
+        apply(QStringLiteral("aa\nbb"), 1, 1,
+              &MarkdownEdit::selectLineToCursor, &document, &cursor);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa"));
+        // 多行选区：扩到整行边界（起点在行中算整行，终点收到行尾）。
+        apply(QStringLiteral("aa\nbb"), 1, 4,
+              &MarkdownEdit::selectLineToCursor, &document, &cursor);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("aa\nbb"));
+    }
+
+    void testSelectWord()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 光标在词中间：选中整个词。
+        apply(QStringLiteral("say hi"), 1, 1,
+              &MarkdownEdit::selectWordToCursor, &document, &cursor);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("say"));
+        // 光标在词左边界（左侧是空白）：取右侧的词。
+        apply(QStringLiteral("say hi"), 4, 4,
+              &MarkdownEdit::selectWordToCursor, &document, &cursor);
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("hi"));
+        // 光标在空白上：不动。
+        QTextDocument blank;
+        blank.setPlainText(QStringLiteral("a  b"));
+        QTextCursor blankCursor(&blank);
+        blankCursor.setPosition(2);
+        MarkdownEdit::selectWordToCursor(blankCursor);
+        QVERIFY(!blankCursor.hasSelection());
+    }
+
+    void testConvertCaseUpperLower()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 选区转换，空白保留。
+        apply(QStringLiteral("say hi"), 0, 3,
+              [](QTextCursor &c) {
+                  MarkdownEdit::convertCaseToCursor(
+                      c, MarkdownEdit::UpperCase);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("SAY hi"));
+        QCOMPARE(normalizedSelection(cursor), QStringLiteral("SAY"));
+        apply(QStringLiteral("SAY HI"), 4, 6,
+              [](QTextCursor &c) {
+                  MarkdownEdit::convertCaseToCursor(
+                      c, MarkdownEdit::LowerCase);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("SAY hi"));
+    }
+
+    void testConvertCaseTitle()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("say hi there"), 0, 12,
+              [](QTextCursor &c) {
+                  MarkdownEdit::convertCaseToCursor(
+                      c, MarkdownEdit::TitleCase);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("Say Hi There"));
+    }
+
+    void testConvertCaseWithoutSelectionUsesWordAtCaret()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 无选区：转光标处的词。
+        apply(QStringLiteral("say hi"), 2, 2,
+              [](QTextCursor &c) {
+                  MarkdownEdit::convertCaseToCursor(
+                      c, MarkdownEdit::UpperCase);
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("SAY hi"));
+        // 已是目标形态：原样返回，不留空撤销步。
+        QTextDocument done;
+        done.setPlainText(QStringLiteral("SAY"));
+        QTextCursor doneCursor(&done);
+        doneCursor.setPosition(1);
+        MarkdownEdit::convertCaseToCursor(doneCursor,
+                                          MarkdownEdit::UpperCase);
+        QCOMPARE(done.toPlainText(), QStringLiteral("SAY"));
+        QVERIFY(!done.isUndoAvailable());
+        // 光标在空白上：不动。
+        QTextDocument blank;
+        blank.setPlainText(QStringLiteral("  "));
+        QTextCursor blankCursor(&blank);
+        blankCursor.setPosition(1);
+        MarkdownEdit::convertCaseToCursor(blankCursor,
+                                          MarkdownEdit::UpperCase);
+        QCOMPARE(blank.toPlainText(), QStringLiteral("  "));
+    }
+
+    void testPromoteAndDemoteHeading()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        // 升级：## → #。
+        apply(QStringLiteral("## old"), 0, 0,
+              &MarkdownEdit::promoteHeadingToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("# old"));
+        // H1 再升 = 去标题（回到段落）。
+        apply(QStringLiteral("# old"), 0, 0,
+              &MarkdownEdit::promoteHeadingToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("old"));
+        // 降级：# → ##，## → ###（不封顶在 3）。
+        apply(QStringLiteral("# a\n## b"), 0, 7,
+              &MarkdownEdit::demoteHeadingToCursor, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("## a\n### b"));
+        // 非标题行两头都不动，不留空撤销步。
+        QTextDocument plain;
+        plain.setPlainText(QStringLiteral("plain"));
+        QTextCursor plainCursor(&plain);
+        plainCursor.setPosition(0);
+        MarkdownEdit::promoteHeadingToCursor(plainCursor);
+        MarkdownEdit::demoteHeadingToCursor(plainCursor);
+        QCOMPARE(plain.toPlainText(), QStringLiteral("plain"));
+        QVERIFY(!plain.isUndoAvailable());
+        // H6 再降：原样。
+        QTextDocument six;
+        six.setPlainText(QStringLiteral("###### deep"));
+        QTextCursor sixCursor(&six);
+        sixCursor.setPosition(0);
+        MarkdownEdit::demoteHeadingToCursor(sixCursor);
+        QCOMPARE(six.toPlainText(), QStringLiteral("###### deep"));
+        QVERIFY(!six.isUndoAvailable());
+    }
+
+    // --- 匹配计数（C 批次） -------------------------------------------------
+
+    void testCountMatchesAndMatchIndex()
+    {
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("foo bar foo baz"));
+        QCOMPARE(MarkdownEdit::countMatches(
+                     &document, QStringLiteral("foo"), false, false), 2);
+        // 全词：foobar 里的 foo 不算。
+        document.setPlainText(QStringLiteral("foobar foo"));
+        QCOMPARE(MarkdownEdit::countMatches(
+                     &document, QStringLiteral("foo"), false, true), 1);
+        // 序号（1 起）：从 0 数到 1，从 8 起是 2，尾部之后没有命中是 0。
+        document.setPlainText(QStringLiteral("foo bar foo baz"));
+        QCOMPARE(MarkdownEdit::matchIndexAt(
+                     &document, QStringLiteral("foo"), 0, false, false), 1);
+        QCOMPARE(MarkdownEdit::matchIndexAt(
+                     &document, QStringLiteral("foo"), 8, false, false), 2);
+        QCOMPARE(MarkdownEdit::matchIndexAt(
+                     &document, QStringLiteral("foo"), 12, false, false), 0);
+        // 空关键词一律 0。
+        QCOMPARE(MarkdownEdit::countMatches(&document, QString(),
+                                            false, false), 0);
+        QCOMPARE(MarkdownEdit::matchIndexAt(&document, QString(), 0,
+                                            false, false), 0);
+    }
 };
 
 // Markdown 高亮器：围栏状态机、整行规则、行内规则与占位区间。
@@ -1082,6 +1388,59 @@ private Q_SLOTS:
         highlighter.rehighlight();
         QCOMPARE(formatAt(document.firstBlock(), 1).format.foreground().color(),
                  swapped.code);
+    }
+
+    // --- 查找高亮（C 批次） ------------------------------------------------
+
+    void testSearchHighlightMarksEveryHit()
+    {
+        const MarkdownColors colors = distinctColors();
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("foo bar foo"));
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
+        highlighter.setSearch(QStringLiteral("foo"), false, false);
+
+        QCOMPARE(formatAt(document.firstBlock(), 0)
+                     .format.background().color(), colors.search);
+        QCOMPARE(formatAt(document.firstBlock(), 8)
+                     .format.background().color(), colors.search);
+        // 命中之外的字符不带查找底色。
+        QCOMPARE(formatAt(document.firstBlock(), 5).length, 0);
+    }
+
+    void testSearchHighlightWorksOnHeadingLines()
+    {
+        // 标题行在语法规则里提前返回——查找高亮必须照样生效，且只叠背景
+        // 色不盖掉语法前景色（setFormat 的合并语义）。
+        const MarkdownColors colors = distinctColors();
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("# foo"));
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
+        highlighter.setSearch(QStringLiteral("foo"), false, false);
+
+        const QTextLayout::FormatRange hit =
+                formatAt(document.firstBlock(), 2);
+        QVERIFY(hit.length > 0);
+        QCOMPARE(hit.format.background().color(), colors.search);
+        QCOMPARE(hit.format.foreground().color(), colors.heading);
+    }
+
+    void testSearchHighlightWholeWordsAndClear()
+    {
+        const MarkdownColors colors = distinctColors();
+        QTextDocument document;
+        document.setPlainText(QStringLiteral("foobar foo"));
+        awb::markdownedit::MarkdownHighlighter highlighter(&document, colors);
+
+        // 全词：foobar 里的 foo 不高亮。
+        highlighter.setSearch(QStringLiteral("foo"), false, true);
+        QCOMPARE(formatAt(document.firstBlock(), 0).length, 0);
+        QCOMPARE(formatAt(document.firstBlock(), 7)
+                     .format.background().color(), colors.search);
+
+        // 空关键词清除查找高亮。
+        highlighter.setSearch(QString(), false, false);
+        QCOMPARE(formatAt(document.firstBlock(), 7).length, 0);
     }
 };
 
