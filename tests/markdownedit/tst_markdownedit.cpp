@@ -589,6 +589,69 @@ private Q_SLOTS:
         QCOMPARE(document.toPlainText(), QStringLiteral("\n---\n\n"));
     }
 
+    // --- 通用插入（图片语法与模板落地共用） -------------------------------
+
+    void testInsertMarkdownAtPosition()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        const QString image = QStringLiteral("![a](a.png)");
+        apply(QStringLiteral("hello world"), 5, 5,
+              [](QTextCursor &c) {
+                  MarkdownEdit::insertMarkdownToCursor(
+                      c, QStringLiteral("![a](a.png)"));
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("hello![a](a.png) world"));
+        QCOMPARE(cursor.position(), 5 + image.length());
+    }
+
+    void testInsertMarkdownReplacesSelection()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        const QString image = QStringLiteral("![a](a.png)");
+        apply(QStringLiteral("hello world"), 0, 5,
+              [](QTextCursor &c) {
+                  MarkdownEdit::insertMarkdownToCursor(
+                      c, QStringLiteral("![a](a.png)"));
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("![a](a.png) world"));
+        QVERIFY(!cursor.hasSelection());
+        QCOMPARE(cursor.position(), image.length());
+    }
+
+    void testInsertMarkdownIsOneUndoStep()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("ab"), 1, 1,
+              [](QTextCursor &c) {
+                  MarkdownEdit::insertMarkdownToCursor(
+                      c, QStringLiteral("![a](a)\n![b](b)"));
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(),
+                 QStringLiteral("a![a](a)\n![b](b)b"));
+        // 多张图片整段插入必须能一次撤销，否则用户拖入十张图要按十次。
+        QVERIFY(document.isUndoAvailable());
+        document.undo();
+        QCOMPARE(document.toPlainText(), QStringLiteral("ab"));
+        QVERIFY(!document.isUndoAvailable());
+    }
+
+    void testInsertMarkdownIgnoresEmptyText()
+    {
+        QTextDocument document;
+        QTextCursor cursor;
+        apply(QStringLiteral("abc"), 1, 1,
+              [](QTextCursor &c) {
+                  QVERIFY(!MarkdownEdit::insertMarkdownToCursor(c, QString()));
+              }, &document, &cursor);
+        QCOMPARE(document.toPlainText(), QStringLiteral("abc"));
+        QVERIFY(!document.isUndoAvailable());
+    }
+
     void testTaskListAddsAndRemoves()
     {
         QTextDocument document;

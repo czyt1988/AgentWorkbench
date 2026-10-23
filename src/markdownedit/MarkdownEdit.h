@@ -90,6 +90,11 @@ public:
     // 在光标处插入分隔线（前后空行规范化：不与正文粘连）
     Q_INVOKABLE void insertDivider(QObject *textArea);
 
+    // 在指定位置插入一段 Markdown 文本；position < 0 时替换当前选区，否则
+    // 把光标移到该位置后插入。整段一次插入，只产生一步撤销
+    Q_INVOKABLE bool insertMarkdown(QObject *textArea, int position,
+                                    const QString &text);
+
     // 选区每行加 "- [ ] "（agent 提示词的验收清单形态）；无选区时作用于当前行
     Q_INVOKABLE void applyTask(QObject *textArea);
 
@@ -194,6 +199,9 @@ public:
                                    const QString &language);
     static void insertTableToCursor(QTextCursor &cursor, int columns);
     static void insertDividerToCursor(QTextCursor &cursor);
+    // 在光标处插入文本（有选区则替换）；返回是否真的插入了内容
+    static bool insertMarkdownToCursor(QTextCursor &cursor,
+                                       const QString &text);
     static void applyTaskToCursor(QTextCursor &cursor);
     static void handleTabToCursor(QTextCursor &cursor,
                                   const IndentOptions &options);

@@ -837,6 +837,52 @@ void MarkdownEdit::insertDivider(QObject *textArea)
 }
 
 /**
+ * @brief 在指定位置插入一段 Markdown 文本
+ *
+ * position >= 0 时把光标移到该位置再插入（原有选区被收起）；position < 0
+ * 时使用编辑器当前选区——有选区即替换。整段文本一次 insertText，只产生
+ * 一步撤销，批量插图因此可以整体撤销。
+ *
+ * @param textArea 目标编辑器
+ * @param position 插入位置；负数表示使用当前选区
+ * @param text 要插入的 Markdown 文本
+ * @return 文本非空且编辑器文档可用时为真
+ * @sa insertMarkdownToCursor
+ */
+bool MarkdownEdit::insertMarkdown(QObject *textArea, int position,
+                                  const QString &text)
+{
+    if (!textArea || text.isEmpty()) {
+        return false;
+    }
+    QQuickTextDocument *quickDocument =
+            qvariant_cast<QQuickTextDocument *>(
+                textArea->property("textDocument"));
+    if (!quickDocument || !quickDocument->textDocument()) {
+        return false;
+    }
+
+    QTextCursor cursor(quickDocument->textDocument());
+    if (position >= 0) {
+        cursor.setPosition(qBound(0, position,
+                                  quickDocument->textDocument()
+                                              ->characterCount()
+                                          - 1));
+    } else {
+        cursor.setPosition(textArea->property("selectionStart").toInt());
+        cursor.setPosition(textArea->property("selectionEnd").toInt(),
+                           QTextCursor::KeepAnchor);
+    }
+    if (!insertMarkdownToCursor(cursor, text)) {
+        return false;
+    }
+    QMetaObject::invokeMethod(textArea, "select",
+                              Q_ARG(int, cursor.position()),
+                              Q_ARG(int, cursor.position()));
+    return true;
+}
+
+/**
  * @brief 选区每行加任务清单标记
  * @param textArea 目标编辑器
  * @sa applyTaskToCursor
@@ -1662,6 +1708,26 @@ void MarkdownEdit::insertDividerToCursor(QTextCursor &cursor)
     cursor.insertText(insert);
     cursor.setPosition(position + insert.length());
     cursor.endEditBlock();
+}
+
+/**
+ * @brief 在光标处插入文本（有选区则替换）
+ *
+ * QTextCursor::insertText 在光标持有选区时本身就是替换，因此插入图片
+ * 语法这类整段文本只产生一步撤销，不需要先删选区再插。
+ *
+ * @param cursor 光标；返回时位于插入文本末尾
+ * @param text 要插入的文本
+ * @return 文本非空时为真
+ */
+bool MarkdownEdit::insertMarkdownToCursor(QTextCursor &cursor,
+                                          const QString &text)
+{
+    if (text.isEmpty()) {
+        return false;
+    }
+    cursor.insertText(text);
+    return true;
 }
 
 /**
