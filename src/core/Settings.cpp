@@ -214,7 +214,7 @@ const QSet<QString> kMarkdownKeys = {
 const QSet<QString> kMarkdownEditorKeys = {
     QStringLiteral("indentWithSpaces"), QStringLiteral("indentWidth"),
     QStringLiteral("smartEnter"), QStringLiteral("formatShortcuts"),
-    QStringLiteral("autoPair") };
+    QStringLiteral("autoPair"), QStringLiteral("imageAssetsDir") };
 const QSet<QString> kRootKeys = {
     QStringLiteral("window"), QStringLiteral("appearance"),
     QStringLiteral("locale"), QStringLiteral("launcher"),
@@ -477,6 +477,10 @@ void Settings::load()
         readBool(markdownEditor, QStringLiteral("autoPair"),
                  m_markdownEditor.autoPair,
                  QStringLiteral("markdownEditor"));
+    m_markdownEditor.imageAssetsDir =
+        readString(markdownEditor, QStringLiteral("imageAssetsDir"),
+                   m_markdownEditor.imageAssetsDir,
+                   QStringLiteral("markdownEditor"));
 }
 
 /**
@@ -812,6 +816,23 @@ void Settings::setMarkdownEditorAutoPair(bool on)
 }
 
 /**
+ * @brief 写粘贴图片的落盘目录
+ *
+ * 只存原样的相对路径；合法性（不得是绝对路径、不得含 `..`）由消费方
+ * ImageImporter 统一校验，Settings 不做迁移或纠正。
+ *
+ * @param dir 相对图片目录（可多级，正斜杠或反斜杠都接受）
+ */
+void Settings::setMarkdownEditorImageAssetsDir(const QString &dir)
+{
+    if (m_markdownEditor.imageAssetsDir == dir) {
+        return;
+    }
+    m_markdownEditor.imageAssetsDir = dir;
+    Q_EMIT valueChanged(QStringLiteral("markdownEditor.imageAssetsDir"));
+}
+
+/**
  * @brief 把全部设置写回 settings.json
  *
  * 原子写入（经 JsonStore::writeFile），写入失败记一条警告并把失败
@@ -893,6 +914,8 @@ OpResult Settings::save()
     markdownEditor[QStringLiteral("formatShortcuts")] =
         m_markdownEditor.formatShortcuts;
     markdownEditor[QStringLiteral("autoPair")] = m_markdownEditor.autoPair;
+    markdownEditor[QStringLiteral("imageAssetsDir")] =
+        m_markdownEditor.imageAssetsDir;
 
     QJsonObject root;
     root[QStringLiteral("window")] = window;

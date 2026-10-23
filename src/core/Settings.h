@@ -104,8 +104,9 @@ struct MarkdownSettings
 };
 
 /// Markdown 编辑器的输入行为（A 批「输入手感」）：缩进、回车延续、格式
-/// 化快捷键与自动配对。视图偏好在 MarkdownSettings（"markdown" 组），
-/// 两者消费方不同——这里喂的是编辑引擎的动作参数。
+/// 化快捷键与自动配对；另含粘贴图片的落盘目录。视图偏好在
+/// MarkdownSettings（"markdown" 组），两者消费方不同——这里喂的是编辑
+/// 引擎的动作参数。
 struct MarkdownEditorSettings
 {
     /// true = Tab 插空格（markdown 嵌套列表的可移植形态）；false = 插 \t
@@ -118,6 +119,8 @@ struct MarkdownEditorSettings
     bool formatShortcuts = true;
     /// 输入时自动配对 markdown 标记（`*`、反引号、`~`、`[`、`(`）
     bool autoPair = true;
+    /// 粘贴图片的落盘目录（相对工作区根或文档目录，可多级）
+    QString imageAssetsDir = QStringLiteral("assets");
 };
 
 /// settings.json 的类型化访问层：应用的其它部分不许直接读这个文件。
@@ -184,6 +187,7 @@ public:
     void setMarkdownEditorSmartEnter(bool on);
     void setMarkdownEditorFormatShortcuts(bool on);
     void setMarkdownEditorAutoPair(bool on);
+    void setMarkdownEditorImageAssetsDir(const QString &dir);
 
     // 把整个设置对象持久化（原子写）
     OpResult save();

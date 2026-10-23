@@ -1,6 +1,7 @@
 #include "core/Paths.h"
 
 #include <QDir>
+#include <QRegularExpression>
 #include <QStandardPaths>
 
 namespace awb::core {
@@ -109,6 +110,29 @@ QString Paths::webProfilesDir()
 QString Paths::markdownPreviewDir()
 {
     return dataRoot() + QStringLiteral("/preview");
+}
+
+/**
+ * @brief 取草稿的图片资源目录
+ *
+ * 没有工作区可绑定时，草稿粘贴的图片落在这里；它同时是草稿预览的资源
+ * 根，因此插入的相对路径能直接渲染。draftId 来自可手改的 tools.json，
+ * 这里只保留安全字符，避免把路径拼出数据目录之外。
+ *
+ * @param draftId 草稿 id；空串或全被过滤时退回 "draft"
+ * @return <dataRoot>/draft-assets/<安全化后的 id>
+ */
+QString Paths::draftAssetsDir(const QString &draftId)
+{
+    static const QRegularExpression unsafe(
+        QStringLiteral("[^A-Za-z0-9._-]"));
+    QString safe = draftId;
+    safe.replace(unsafe, QStringLiteral("_"));
+    if (safe.isEmpty() || safe == QStringLiteral(".")
+        || safe == QStringLiteral("..")) {
+        safe = QStringLiteral("draft");
+    }
+    return dataRoot() + QStringLiteral("/draft-assets/") + safe;
 }
 
 /**

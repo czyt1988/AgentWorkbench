@@ -318,6 +318,8 @@ private Q_SLOTS:
             QVERIFY(s.markdownEditorOptions().smartEnter);
             QVERIFY(s.markdownEditorOptions().formatShortcuts);
             QVERIFY(s.markdownEditorOptions().autoPair);
+            QCOMPARE(s.markdownEditorOptions().imageAssetsDir,
+                     QStringLiteral("assets"));
 
             QSignalSpy spy(&s, &Settings::valueChanged);
             s.setMarkdownEditorIndentWithSpaces(false);
@@ -325,11 +327,14 @@ private Q_SLOTS:
             s.setMarkdownEditorSmartEnter(false);
             s.setMarkdownEditorFormatShortcuts(false);
             s.setMarkdownEditorAutoPair(false);
-            QCOMPARE(spy.count(), 5);
+            s.setMarkdownEditorImageAssetsDir(QStringLiteral("docs/assets/pic"));
+            QCOMPARE(spy.count(), 6);
             QCOMPARE(spy.at(0).at(0).toString(),
                      QStringLiteral("markdownEditor.indentWithSpaces"));
             QCOMPARE(spy.at(1).at(0).toString(),
                      QStringLiteral("markdownEditor.indentWidth"));
+            QCOMPARE(spy.at(5).at(0).toString(),
+                     QStringLiteral("markdownEditor.imageAssetsDir"));
             // 写入口自己夹取：99 落不进文件。
             s.setMarkdownEditorIndentWidth(99);
             QCOMPARE(s.markdownEditorOptions().indentWidth, 8);
@@ -341,10 +346,12 @@ private Q_SLOTS:
         QVERIFY(!again.markdownEditorOptions().smartEnter);
         QVERIFY(!again.markdownEditorOptions().formatShortcuts);
         QVERIFY(!again.markdownEditorOptions().autoPair);
+        QCOMPARE(again.markdownEditorOptions().imageAssetsDir,
+                 QStringLiteral("docs/assets/pic"));
 
         // 文件里的越界值：回落默认并告警。
         writeSettingsFile(R"({ "markdownEditor": { "indentWidth": 99,
-            "indentWithSpaces": 3 } })");
+            "indentWithSpaces": 3, "imageAssetsDir": 42 } })");
         g_captured.clear();
         const QtMessageHandler previous =
             qInstallMessageHandler(&captureMessage);
@@ -352,6 +359,8 @@ private Q_SLOTS:
         qInstallMessageHandler(previous);
         QCOMPARE(bad.markdownEditorOptions().indentWidth, 2);
         QVERIFY(bad.markdownEditorOptions().indentWithSpaces);
+        QCOMPARE(bad.markdownEditorOptions().imageAssetsDir,
+                 QStringLiteral("assets"));
         bool warned = false;
         for (const QString &msg : std::as_const(g_captured)) {
             if (msg.contains(QStringLiteral("markdownEditor."))) {

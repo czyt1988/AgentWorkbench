@@ -26,6 +26,9 @@ public:
     // <dataRoot>/preview —— Markdown 预览「用外部浏览器打开」写出的自包含
     // HTML 落在这里：外部浏览器不认识 awbmd://，必须先有一份真实的盘上文件。
     static QString markdownPreviewDir();
+    // <dataRoot>/draft-assets/<草稿id> —— 没有工作区时草稿粘贴图片的持久
+    // 落点，同时作为该草稿预览的资源根。
+    static QString draftAssetsDir(const QString &draftId);
     // <dataRoot>/skills_cache.json —— skillcatalog 的扫描结果缓存。
     static QString skillCacheFile();
     // <dataRoot>/environment_cache.json —— workbench 的运行时探测缓存。

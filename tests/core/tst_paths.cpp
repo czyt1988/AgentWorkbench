@@ -73,6 +73,16 @@ private Q_SLOTS:
         // 那份自包含 HTML 必须有真实的盘上落点，路径同样只经 Paths 取。
         QCOMPARE(Paths::markdownPreviewDir(),
                  tmp.path() + QStringLiteral("/preview"));
+        // 草稿图片的持久落点：id 来自可手改的 tools.json，只保留安全字符，
+        // 避免把路径拼出数据目录之外。
+        QCOMPARE(Paths::draftAssetsDir(QStringLiteral("draft-123")),
+                 tmp.path() + QStringLiteral("/draft-assets/draft-123"));
+        QCOMPARE(Paths::draftAssetsDir(QStringLiteral("a/b")),
+                 tmp.path() + QStringLiteral("/draft-assets/a_b"));
+        QCOMPARE(Paths::draftAssetsDir(QStringLiteral("..")),
+                 tmp.path() + QStringLiteral("/draft-assets/draft"));
+        QCOMPARE(Paths::draftAssetsDir(QString()),
+                 tmp.path() + QStringLiteral("/draft-assets/draft"));
         // DownloadLocation 跟随系统的已知文件夹：名字与位置都随用户配置
         // 变化（本机就重定向到了自定义名字的目录），不能按名字断言；只验
         // 证拿到的是一条非空绝对路径。另注意 Qt 5.15 的实现不做测试模式
