@@ -47,6 +47,14 @@ public:
     // 弹系统「选文件夹」对话框，返回所选目录；取消返回空串
     Q_INVOKABLE QString pickFolder(const QString &title);
 
+    // 弹系统「保存文件」对话框：defaultDir/defaultName 是预填值，
+    // filter 形如 "Markdown (*.md *.markdown)"。返回所选文件路径；
+    // 取消返回空串
+    Q_INVOKABLE QString pickSaveFile(const QString &title,
+                                     const QString &defaultDir,
+                                     const QString &defaultName,
+                                     const QString &filter);
+
     // 弹系统「选颜色」对话框（Windows 上是 comdlg32 的原生颜色框）。
     // 返回所选颜色的 #rrggbb 串；取消或对话框不可用时返回空串
     Q_INVOKABLE QString pickColor(const QString &initialColor);

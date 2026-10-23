@@ -20,6 +20,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -625,6 +626,51 @@ private Q_SLOTS:
                      qPrintable(QStringLiteral("anchor ") + anchor
                                 + " is not in the DOM: " + answer));
         }
+    }
+
+    /**
+     * @brief 盘符绝对路径的图片也走 asset 通道
+     *
+     * 草稿图片与跨盘迁移的引用都是 `C:/…` 绝对路径。Chromium 会把盘符当
+     * 协议，页面侧必须先把它映射到 @abs 子路由，否则图片永远加载不出来；
+     * C++ 侧只放行本地真实存在的图片文件。
+     */
+    void testAbsoluteImagePathUsesAssetRoute()
+    {
+        Page page;
+        QString error;
+        QVERIFY2(page.open(QStringLiteral("# Head\n\nStart.\n"), &error),
+                 qPrintable(error));
+
+        const QString docDir =
+            QFileInfo(page.state()->filePath()).absolutePath();
+        const QString absolute = QDir::cleanPath(
+            QDir(docDir).filePath(QStringLiteral("dot.png")))
+                                     .replace(QLatin1Char('\\'),
+                                              QLatin1Char('/'));
+        page.state()->setEditorText(
+            QStringLiteral("![abs](<%1>)\n").arg(absolute));
+        page.pumpCommands();
+
+        QString reason;
+        QVERIFY2(page.probeOk(
+                     QStringLiteral("absoluteAsset"),
+                     QStringLiteral(
+                         "(function () {"
+                         "  var miss = [];"
+                         "  var img = document.querySelector('img');"
+                         "  if (!img) { miss.push('img'); return miss; }"
+                         "  var src = img.getAttribute('src') || '';"
+                         "  if (src.indexOf('@abs/') < 0) {"
+                         "    miss.push('src:' + src);"
+                         "  }"
+                         "  if (!img.complete || img.naturalWidth <= 0) {"
+                         "    miss.push('load');"
+                         "  }"
+                         "  return miss;"
+                         "})()"),
+                     &reason),
+                 qPrintable(reason));
     }
 
     /**

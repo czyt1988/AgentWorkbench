@@ -128,6 +128,27 @@ void MarkdownRuntimeHandler::requestStarted(QWebEngineUrlRequestJob *job)
         }
         QString docId;
         const QString rel = assetRelativePath(rest, &docId);
+        // 盘符绝对路径（草稿图片、跨盘迁移动过的图片）走 @abs/ 前缀：
+        // 只放行本地真实存在的图片文件，绝不让页面借这条通道读任意文件。
+        if (rel.startsWith(QLatin1String("@abs/"))) {
+            const QString absolute =
+                QDir::cleanPath(QDir::fromNativeSeparators(rel.mid(5)));
+            const QString mime = MarkdownRuntime::mimeTypeForPath(absolute);
+            if (!QFileInfo(absolute).isAbsolute() || !mime.startsWith(
+                    QLatin1String("image/"))) {
+                job->fail(QWebEngineUrlRequestJob::UrlNotFound);
+                return;
+            }
+            QFile image(absolute);
+            if (!image.open(QIODevice::ReadOnly)) {
+                job->fail(QWebEngineUrlRequestJob::UrlNotFound);
+                return;
+            }
+            const QByteArray bytes = image.readAll();
+            image.close();
+            replyBytes(job, bytes, mime);
+            return;
+        }
         // 资源按 docId 对到**任意活着的会话**（多会话：换页瞬间旧会话的
         // 图片请求还可能在飞），会话不存在就是陈旧页面要东西；形状不对的
         // 一律不给，否则预览一张图片能读出用户主目录。

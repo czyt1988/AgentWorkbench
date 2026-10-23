@@ -27,6 +27,7 @@ struct DraftEntry {
     QString title;      ///< 显示标题；空时由首行推导，再空给 "Untitled"
     QString body;       ///< 正文（Markdown）
     QString workspace;  ///< 绑定的工作区绝对路径；空串 = 未绑定（不要求仍在 workspaces 里）
+    QString savePath;   ///< 上次保存到的 Markdown 文件；空串 = 从未保存
     qint64 createdAt = 0;  ///< 创建时间（ms 纪元）
     qint64 updatedAt = 0;  ///< 最后编辑时间（排序与淘汰用）
 };
@@ -125,6 +126,8 @@ public:
     bool setDraftBody(const QString &id, const QString &body);
     // 重命名（只改标题；KISS——改名不改 id，tab 恢复按 id 不受影响）。
     bool renameDraft(const QString &id, const QString &title);
+    // 记下草稿上次保存到的 Markdown 文件（空串 = 清掉记录）。
+    bool setDraftSavePath(const QString &id, const QString &path);
     // 删除一条草稿（连同它的快照与恢复副本记录）。删的是当前草稿时
     // activeDraftId 顺延为队首剩余项（空则空串）。返回落盘是否成功。
     bool removeDraft(const QString &id);

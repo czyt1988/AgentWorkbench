@@ -53,9 +53,9 @@ The ribbon is the band of buttons across the top of the workbench. Its tabs are:
 3. Bring in files from the tree: **drag a file row into the editor**, or **right-click a file row** and choose **Insert path at cursor**. Either way a reference to that file, written as `` `./relative/path` ``, lands at the cursor. Double-clicking a file row does something else now: it **opens** the file (a Markdown file becomes a new document tab; anything else goes to the app your system associates with it).
 4. Click **Copy Prompt** on the **Start** tab when you are done. The prompt goes to the clipboard with a confirmation message; paste it into the agent.
 
-**Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there.
+**Your drafts are saved automatically.** Close the app, reopen it, and your texts are still there. When you need a real file, **Save** writes the draft to a Markdown file (see [Saving a draft as Markdown](#saving-a-draft-as-markdown)).
 
-The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). While the editor has focus, `Ctrl+B` is bold, `Ctrl+I` italic, `Ctrl+K` link and `Ctrl+E` inline code — everywhere else `Ctrl+B` keeps its global meaning (collapse the sidebar). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions. **Tab** behaves like in a code editor: with several lines selected it indents every selected line (press it again to indent further, `Shift+Tab` to outdent, `Ctrl+Z` to step back); with nothing or one line selected it inserts one indent unit — spaces by default (2 per level, the portable way to nest Markdown lists), configurable in [Settings → Markdown](settings.md#markdown). **Typing a Markdown mark pairs it**: `*`, a backtick, `~`, `[` or `(` also inserts the closing mark and puts the cursor in between; typing the mark again skips over the closer. All of these typing behaviors have switches in [Settings → Markdown](settings.md#markdown). **Hold Ctrl and scroll the mouse wheel** over the text to make the editor's letters bigger or smaller — a reading zoom that resets when the app restarts.
+The usual text shortcuts work in the editor: `Ctrl+Z` to undo, `Ctrl+Y` to redo, `Ctrl+X` / `Ctrl+C` / `Ctrl+V` to cut, copy and paste (see the [User guide](index.md)). While the editor has focus, `Ctrl+B` is bold, `Ctrl+I` italic, `Ctrl+K` link and `Ctrl+E` inline code — everywhere else `Ctrl+B` keeps its global meaning (collapse the sidebar). Right-clicking inside the editor opens a menu with the same formatting buttons and clipboard actions. **Tab** behaves like in a code editor: with any selection it indents every covered line, even when the selection is only part of one line (press it again to indent further, `Shift+Tab` to outdent, `Ctrl+Z` to step back); with nothing selected it inserts one indent unit — spaces by default (2 per level, the portable way to nest Markdown lists), configurable in [Settings → Markdown](settings.md#markdown). **Typing a Markdown mark pairs it**: `*`, a backtick, `~`, `[` or `(` also inserts the closing mark and puts the cursor in between; typing the mark again skips over the closer. All of these typing behaviors have switches in [Settings → Markdown](settings.md#markdown). **Hold Ctrl and scroll the mouse wheel** over the text to make the editor's letters bigger or smaller — a reading zoom that resets when the app restarts.
 
 The draft has a rendered view too, like any document — use the **Preview / Split / Source** buttons above it. **Split** is the natural way to write a long prompt: the text on the left, the rendered result on the right.
 
@@ -66,6 +66,22 @@ You are not limited to one prompt-in-progress. The **+ button at the right end o
 - **Rename** a draft from its tab's right-click menu; the title shows in the tab.
 - **Delete** (also in the right-click menu) asks first and cannot be undone: the draft's text, its saved versions and its crash-recovery copy all go together.
 - **Closing a draft's tab is not deleting it**: the draft lives in the app's own storage and comes back when you open it again.
+
+## Saving a draft as Markdown
+
+A draft lives in the app's own storage; **Save** turns it into a Markdown file you can keep, commit or hand to another tool. The **Save** and **Save As** buttons are in the **File** panel on the ribbon's **Start** tab, and `Ctrl+S` does the same as **Save**.
+
+- With a workspace open, **Save** writes the draft into that workspace under its title (for example `My prompt.md`). If a file with that name is already there and this draft has not saved over it before, the save dialog opens instead — nothing is overwritten by surprise.
+- Without a workspace, or with **Save As**, a standard save dialog asks where the file should go.
+- Saving keeps the draft in its tab. The draft and the file are connected from then on: pressing `Ctrl+S` again updates the same file. **Save As** picks a different file for later saves.
+
+**Images are moved after saving.** If the saved text references images that live in the draft's own storage, a dialog offers three choices:
+
+1. **Use the assets folder** — the images move to an `assets` folder in the workspace (or beside the Markdown file when it is outside the workspace) and the references become relative. This is the default and the recommended choice.
+2. **Choose another folder** — pick any folder for the images. Relative references are used when it is on the same drive, including `../` paths for folders beside or above the Markdown file. If it is on another drive, the app tells you in the dialog that absolute paths will be used instead.
+3. **Keep absolute paths** — the images stay where they are and the file keeps absolute paths. The dialog marks this as not recommended: moving the file to another computer, or deleting the draft's stored images, breaks those references.
+
+Closing or deleting a draft that was **never saved** and still has images in the app's storage asks once whether to delete them. The dialog lists every file it would remove. Choosing **Delete Images** clears the whole image folder for that draft, including images the text no longer references; **Keep Images** leaves them alone. The prompt only concerns the app's own draft storage — images in your workspace are never deleted.
 
 ## Version history
 
@@ -120,9 +136,10 @@ How the path is built:
 - An image elsewhere in the workspace is referenced in place with a `..` path.
 - An image outside the workspace is copied into the image folder first.
 - Pasted bitmaps always go into the image folder. Set that folder in **Settings → Markdown** (default `assets`, relative to the workspace root; without a workspace it is relative to the document folder). Multi-level paths such as `docs/assets/pic` are allowed.
-- A draft with no workspace saves pasted images under the app's data folder, so they survive a restart.
+- **In a draft, inserted images use absolute paths.** A draft has no file on disk, so a relative path would not tell you where the image actually is; the absolute path always points at the real file (in your workspace or under the app's data folder). Saving the draft offers to move those images and rewrite the references — see [Saving a draft as Markdown](#saving-a-draft-as-markdown).
+- A draft with no workspace keeps its pasted images under the app's data folder, so they survive a restart.
 
-The built-in preview only loads images inside the document's folder. Images inserted with a `..` path — including a workspace-level image folder when the document sits in a subfolder — are correct Markdown but do not render in the preview; other Markdown renderers that resolve `..` show them. The exported HTML has the same limitation (see the export note above).
+The built-in preview loads images from the document's folder and from absolute paths (including a draft's images and files moved to another drive). Images inserted with a `..` path — including a workspace-level image folder when the document sits in a subfolder — are correct Markdown but do not render in the preview; other Markdown renderers that resolve `..` show them. The exported HTML has the same limitation (see the export note above).
 
 Non-image files keep their existing behaviour: dragging a tree row inserts the backtick file reference, and external non-image files are ignored.
 
@@ -203,7 +220,7 @@ Two things it will not do, both because of how the workbench renders long files 
 
 ## Editing and saving
 
-Type in **Split** or **Source**. The app asks before discarding your work:
+Type in **Split** or **Source**. In a draft tab `Ctrl+S` saves the draft as a Markdown file (see [Saving a draft as Markdown](#saving-a-draft-as-markdown)); in a document tab it writes that file. The app asks before discarding your work:
 
 - `Ctrl+S` writes the file. A confirmation appears, and the **Unsaved changes** mark goes away.
 - Exiting the app with unsaved edits asks: **Save and exit**, **Discard changes**, or **Cancel**. With more than one edited document the dialog counts them, and **Save all and exit** writes every one of them — not just the tab you are looking at.

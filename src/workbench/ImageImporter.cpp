@@ -34,7 +34,7 @@ QString canonicalPath(const QString &path)
 }
 
 /// 两个文件内容是否相同（先比大小，再分块比字节）
-bool filesEqual(const QString &left, const QString &right)
+bool sameBytes(const QString &left, const QString &right)
 {
     QFile leftFile(left);
     QFile rightFile(right);
@@ -56,8 +56,8 @@ bool filesEqual(const QString &left, const QString &right)
 }
 
 /// 在目标目录里给源文件找一个不覆盖已有文件的落点；同名同内容直接复用
-QString uniqueDestination(const QString &dir, const QString &fileName,
-                          const QString &source)
+QString uniqueDestinationIn(const QString &dir, const QString &fileName,
+                            const QString &source)
 {
     const QFileInfo nameInfo(fileName);
     const QString base = nameInfo.completeBaseName();
@@ -65,7 +65,7 @@ QString uniqueDestination(const QString &dir, const QString &fileName,
     QString candidate = QDir(dir).filePath(fileName);
     int index = 0;
     while (QFileInfo::exists(candidate)) {
-        if (filesEqual(source, candidate)) {
+        if (sameBytes(source, candidate)) {
             return candidate;
         }
         ++index;
@@ -86,7 +86,7 @@ QString relativeFor(const QString &baseDir, const QString &path)
 /// 保存剪贴板位图并按同一套路径规则生成 Markdown
 bool saveBitmap(const QImage &image, const QString &baseDir,
                 const QString &assetsRoot, const QString &assetsSubdir,
-                QString *markdown, QString *error)
+                bool absolutePaths, QString *markdown, QString *error)
 {
     const QString assetsDir = QDir(assetsRoot).absoluteFilePath(assetsSubdir);
     if (!QDir().mkpath(assetsDir)) {
@@ -114,16 +114,18 @@ bool saveBitmap(const QImage &image, const QString &baseDir,
         return false;
     }
 
-    const QString relative = relativeFor(baseDir, path);
+    const QString reference = absolutePaths
+            ? toSlashes(QFileInfo(path).absoluteFilePath())
+            : relativeFor(baseDir, path);
     *markdown = ImageImporter::markdownForImage(
-        relative, QFileInfo(path).completeBaseName());
+        reference, QFileInfo(path).completeBaseName());
     return true;
 }
 
 /// 处理一张图片文件：原地引用或复制进图片目录，再生成 Markdown
 bool appendImage(const QString &sourcePath, const QString &baseDir,
                  const QString &assetsRoot, const QString &assetsSubdir,
-                 QString *markdown, QString *error)
+                 bool absolutePaths, QString *markdown, QString *error)
 {
     const QFileInfo source(sourcePath);
     if (!source.isFile()) {
@@ -147,7 +149,7 @@ bool appendImage(const QString &sourcePath, const QString &baseDir,
                          .arg(assetsDir);
             return false;
         }
-        const QString destination = uniqueDestination(
+        const QString destination = uniqueDestinationIn(
             assetsDir, source.fileName(), source.absoluteFilePath());
         if (!QFileInfo::exists(destination)
             && !QFile::copy(source.absoluteFilePath(), destination)) {
@@ -159,6 +161,12 @@ bool appendImage(const QString &sourcePath, const QString &baseDir,
         target = destination;
     }
 
+    if (absolutePaths) {
+        *markdown = ImageImporter::markdownForImage(
+            toSlashes(QFileInfo(target).absoluteFilePath()),
+            source.completeBaseName());
+        return true;
+    }
     const QString relative = relativeFor(baseDir, target);
     if (relative.isEmpty() || QDir::isAbsolutePath(relative)) {
         *error = QCoreApplication::translate(
@@ -274,11 +282,59 @@ bool ImageImporter::normalizeAssetsDir(const QString &raw, QString *out)
 }
 
 /**
- * @brief 生成 Markdown 图片语法
+ * @brief 把路径转成 Markdown 图片目标（编码 + 必要的尖括号）
  *
  * 目标里含空白或圆括号时用尖括号包住：CommonMark 的裸目标不允许这些
  * 字符。文件名里的 %、#、?、<、> 先自行百分号编码，预览侧先解码再编码
  * 的往返因此能还原成真实文件名。
+ *
+ * @param path 文件路径（相对或绝对；反斜杠会归一）
+ * @return 可直接写进 `![alt](…)` 的目标串
+ */
+QString ImageImporter::markdownDestination(const QString &path)
+{
+    QString destination = toSlashes(path);
+    destination.replace(QStringLiteral("%"), QStringLiteral("%25"));
+    destination.replace(QStringLiteral("#"), QStringLiteral("%23"));
+    destination.replace(QStringLiteral("?"), QStringLiteral("%3F"));
+    destination.replace(QStringLiteral("<"), QStringLiteral("%3C"));
+    destination.replace(QStringLiteral(">"), QStringLiteral("%3E"));
+
+    static const QRegularExpression needsAngles(
+        QStringLiteral("[\\s()]"));
+    if (destination.contains(needsAngles)) {
+        destination = QStringLiteral("<") + destination + QStringLiteral(">");
+    }
+    return destination;
+}
+
+/**
+ * @brief 两个文件内容是否相同
+ *
+ * 迁移与导入共用：迁移到已有同名文件时，内容相同就复用、不同才加序号。
+ */
+bool ImageImporter::filesEqual(const QString &left, const QString &right)
+{
+    return sameBytes(left, right);
+}
+
+/**
+ * @brief 目标目录里不覆盖已有文件的落点
+ *
+ * @param dir 目标目录
+ * @param fileName 期望的文件名
+ * @param source 源文件（同名同内容时直接复用）
+ * @return 目标路径（不保证父目录已存在）
+ */
+QString ImageImporter::uniqueDestination(const QString &dir,
+                                         const QString &fileName,
+                                         const QString &source)
+{
+    return uniqueDestinationIn(dir, fileName, source);
+}
+
+/**
+ * @brief 生成 Markdown 图片语法
  *
  * @param relativePath 相对路径（反斜杠会归一）
  * @param alt alt 文本（文件名去后缀）
@@ -287,18 +343,7 @@ bool ImageImporter::normalizeAssetsDir(const QString &raw, QString *out)
 QString ImageImporter::markdownForImage(const QString &relativePath,
                                         const QString &alt)
 {
-    QString path = toSlashes(relativePath);
-    path.replace(QStringLiteral("%"), QStringLiteral("%25"));
-    path.replace(QStringLiteral("#"), QStringLiteral("%23"));
-    path.replace(QStringLiteral("?"), QStringLiteral("%3F"));
-    path.replace(QStringLiteral("<"), QStringLiteral("%3C"));
-    path.replace(QStringLiteral(">"), QStringLiteral("%3E"));
-
-    static const QRegularExpression needsAngles(
-        QStringLiteral("[\\s()]"));
-    if (path.contains(needsAngles)) {
-        path = QStringLiteral("<") + path + QStringLiteral(">");
-    }
+    const QString path = markdownDestination(relativePath);
 
     QString text = alt;
     text.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
@@ -320,12 +365,14 @@ QString ImageImporter::markdownForImage(const QString &relativePath,
  * @param baseDir 插入路径的基准目录（文档目录或草稿资源根）
  * @param assetsRoot 复制落点所在的根（工作区根或 baseDir）
  * @param assetsSubdir 根之下的图片目录（可多级）
+ * @param absolutePaths 为真时生成绝对路径（草稿没有磁盘文档作基准）
  * @return 导入结果；handled 为假表示这批里没有图片
  */
 ImageImportResult ImageImporter::importFiles(const QStringList &paths,
                                              const QString &baseDir,
                                              const QString &assetsRoot,
-                                             const QString &assetsSubdir)
+                                             const QString &assetsSubdir,
+                                             bool absolutePaths)
 {
     ImageImportResult result;
     if (paths.isEmpty()) {
@@ -354,8 +401,8 @@ ImageImportResult ImageImporter::importFiles(const QStringList &paths,
         sawImage = true;
         QString markdown;
         QString error;
-        if (appendImage(path, baseDir, assetsRoot, subdir, &markdown,
-                        &error)) {
+        if (appendImage(path, baseDir, assetsRoot, subdir, absolutePaths,
+                        &markdown, &error)) {
             items.append(markdown);
         } else {
             failures.append(error);
@@ -383,12 +430,14 @@ ImageImportResult ImageImporter::importFiles(const QStringList &paths,
  * @param baseDir 插入路径的基准目录
  * @param assetsRoot 复制落点所在的根
  * @param assetsSubdir 根之下的图片目录
+ * @param absolutePaths 为真时生成绝对路径（草稿）
  * @return 导入结果
  */
 ImageImportResult ImageImporter::importClipboard(const QMimeData *mime,
                                                  const QString &baseDir,
                                                  const QString &assetsRoot,
-                                                 const QString &assetsSubdir)
+                                                 const QString &assetsSubdir,
+                                                 bool absolutePaths)
 {
     ImageImportResult result;
     if (!mime) {
@@ -404,7 +453,8 @@ ImageImportResult ImageImporter::importClipboard(const QMimeData *mime,
             }
         }
         if (!paths.isEmpty()) {
-            return importFiles(paths, baseDir, assetsRoot, assetsSubdir);
+            return importFiles(paths, baseDir, assetsRoot, assetsSubdir,
+                               absolutePaths);
         }
     }
 
@@ -441,7 +491,8 @@ ImageImportResult ImageImporter::importClipboard(const QMimeData *mime,
 
     QString markdown;
     QString error;
-    if (!saveBitmap(image, baseDir, assetsRoot, subdir, &markdown, &error)) {
+    if (!saveBitmap(image, baseDir, assetsRoot, subdir, absolutePaths,
+                    &markdown, &error)) {
         result.handled = true;
         result.ok = false;
         result.error = error;

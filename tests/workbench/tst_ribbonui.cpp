@@ -112,6 +112,12 @@ class WinStub : public QObject
 public:
     QString preset() const { return QStringLiteral("prompt"); }
     bool ribbonCollapsed() const { return false; }
+    // File 面板的绑定会问这两个动作面；桩给「可保存」并把点击吞掉，
+    // 本套件只压装得起来、排得出来。
+    Q_INVOKABLE bool canSaveCurrentTab() const { return true; }
+    Q_INVOKABLE bool draftCanSave() const { return true; }
+    Q_INVOKABLE void saveCurrentTab() {}
+    Q_INVOKABLE void saveDraftAs() {}
 };
 
 // workbench/ui/nav 桩（第三个用例装整页时用，桩面与 tst_toolsui 同款）：
@@ -139,6 +145,10 @@ public:
     {
         return QString();
     }
+    Q_INVOKABLE QString draftPreviewAssetRoot(const QString &) const
+    {
+        return QString();
+    }
     Q_INVOKABLE QVariantMap importImageFiles(const QStringList &)
     {
         QVariantMap result;
@@ -152,6 +162,49 @@ public:
     Q_INVOKABLE QVariantMap importClipboardImage()
     {
         return importImageFiles(QStringList());
+    }
+    // 草稿保存与图片回收：本套件不点这些按钮，桩给最小可调用面，
+    // 保证页面装载时不会因缺方法抛 TypeError。
+    Q_INVOKABLE QString draftSavePath(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE QVariantMap draftSaveDefaults(const QString &) const
+    {
+        return QVariantMap();
+    }
+    Q_INVOKABLE QString draftImageAssetsFolder(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE bool pathsShareDrive(const QString &, const QString &) const
+    {
+        return true;
+    }
+    Q_INVOKABLE QVariantMap saveDraftMarkdown(const QString &, const QString &,
+                                              const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+    Q_INVOKABLE QVariantMap migrateDraftImages(const QString &, const QString &,
+                                               const QString &,
+                                               const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+    Q_INVOKABLE QVariantList draftAssetFiles(const QString &) const
+    {
+        return QVariantList();
+    }
+    Q_INVOKABLE QVariantMap clearDraftAssets(const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
     }
 };
 
@@ -168,6 +221,11 @@ class UiStub : public QObject
     Q_OBJECT
 public:
     Q_INVOKABLE QString pickFolder(const QString &) { return QString(); }
+    Q_INVOKABLE QString pickSaveFile(const QString &, const QString &,
+                                     const QString &, const QString &)
+    {
+        return QString();
+    }
 };
 
 // 视觉树递归查找（objectName 匹配）：Repeater 的 delegate 只设视觉父

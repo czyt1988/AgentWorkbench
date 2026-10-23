@@ -67,6 +67,11 @@ var PATHS = {
            + '<path d="M3 10h18"/><path d="M10 10v10"/>',
 
     // --- 交付与提示词域 ---
+    "save": '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3"/>'
+          + '<path d="M8 21v-7h8v7"/>',
+    "saveAs": '<path d="M5 3h10l3 3v6"/><path d="M5 3v18h8"/>'
+            + '<path d="M8 3v6h6V3"/>'
+            + '<path d="m17.5 21 4-4 1.5 1.5-4 4h-1.5z"/>',
     "copy": '<rect x="9" y="9" width="12" height="12" rx="2"/>'
           + '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9'
           + 'a2 2 0 0 1 2 2v1"/>',

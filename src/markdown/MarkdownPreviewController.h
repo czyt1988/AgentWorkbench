@@ -198,6 +198,12 @@ public:
     Q_INVOKABLE void setDraftText(const QString &draftId,
                                   const QString &text);
 
+    /// 改草稿的图片解析根：草稿保存成 .md 之后，迁移成相对路径的引用要
+    /// 以该文件所在目录为基准（否则草稿预览仍去翻数据目录）。会话不存在
+    /// 或 assetRoot 为空时忽略。
+    Q_INVOKABLE void setDraftAssetRoot(const QString &draftId,
+                                       const QString &assetRoot);
+
     // ------------------------------------------------------------------
     /// 这个路径是否归预览管（后缀判定与 openFile() 同一处，见 .cpp）。
     /// 文件树右键菜单用它决定条目出不出——后缀清单不是 QML 该知道的事。

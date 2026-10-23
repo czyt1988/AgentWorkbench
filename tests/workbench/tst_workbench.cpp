@@ -10,11 +10,13 @@
 #include "shell/NavigationModel.h"
 #include "shell/Notifications.h"
 #include "shell/UiServices.h"
+#include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
 #include "web/WebTabsModel.h"
 #include "workbench/EnvironmentCache.h"
 #include "workbench/EnvironmentProbe.h"
 #include "workbench/EnvironmentService.h"
+#include "workbench/DraftFiles.h"
 #include "workbench/ImageImporter.h"
 #include "workbench/WorkbenchContext.h"
 
@@ -42,6 +44,10 @@ using awb::shell::Notifications;
 using awb::shell::PageDescriptor;
 using awb::shell::UiServices;
 using awb::web::WebTabsFacade;
+using awb::workbench::DraftFiles;
+using awb::workbench::DraftImageEdit;
+using awb::workbench::DraftImageMigrationRequest;
+using awb::workbench::DraftImageMigrationResult;
 using awb::workbench::EnvironmentCache;
 using awb::workbench::EnvironmentProbe;
 using awb::workbench::EnvironmentService;
@@ -296,8 +302,83 @@ private Q_SLOTS:
         QCOMPARE(nav.currentPageId(), QStringLiteral("tools"));
     }
 
-    /// 单实例 open 消息的编解码往返：路径数组进、路径数组出；
-    /// "raise" 与坏 JSON 得到空列表（首实例把它当一次普通唤醒）。
+    /// 草稿 → Markdown 的完整落账：写文件、记保存路径、图片计数、
+    /// 迁移到 assets、改写正文；清理只作用于 dataRoot/draft-assets。
+    void testSaveDraftMarkdownAndMigrateImages()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        Paths::setDataRootForTesting(tmp.path());
+
+        Settings settings;
+        AgentsFacade agents(&settings, tmp.path());
+        WebTabsFacade web(&settings);
+        NavigationModel nav;
+        Notifications notifications;
+        UiServices ui;
+        WorkbenchContext workbench(&nav, &ui, &notifications, &agents,
+                                   &web, &settings);
+        MarkdownPreviewController markdown(&settings, nullptr);
+        awb::tools::ToolsFacade tools(tmp.path());
+        workbench.setMarkdownPreview(&markdown);
+        workbench.setToolsFacade(&tools);
+
+        // 没有工作区的草稿：图片落在 dataRoot/draft-assets/<id>。
+        const awb::core::OpResult created =
+            tools.createDraft(QStringLiteral("Note"), QStringLiteral("body"),
+                              QString());
+        QVERIFY2(created.ok, qPrintable(created.error));
+        const QString id = tools.activeDraftId();
+        QVERIFY(!id.isEmpty());
+
+        const QString assetsDir =
+            Paths::draftAssetsDir(id) + QStringLiteral("/assets");
+        QVERIFY(QDir().mkpath(assetsDir));
+        const QString imagePath = assetsDir + QStringLiteral("/pic.png");
+        QFile image(imagePath);
+        QVERIFY(image.open(QIODevice::WriteOnly));
+        QCOMPARE(image.write("png"), 3);
+        image.close();
+
+        const QString absolute =
+            QDir::cleanPath(imagePath).replace(QLatin1Char('\\'),
+                                              QLatin1Char('/'));
+        const QString body =
+            QStringLiteral("![pic](%1)").arg(absolute);
+        const QString target = tmp.path() + QStringLiteral("/out/note.md");
+        const QVariantMap saved =
+            workbench.saveDraftMarkdown(id, target, body);
+        QVERIFY2(saved.value(QStringLiteral("ok")).toBool(),
+                 qPrintable(saved.value(QStringLiteral("error")).toString()));
+        QCOMPARE(saved.value(QStringLiteral("imageCount")).toInt(), 1);
+        QCOMPARE(workbench.draftSavePath(id),
+                 QFileInfo(target).absoluteFilePath());
+        QVERIFY(QFileInfo::exists(target));
+
+        // 开一个草稿会话，迁移后正文要同时回到控制器。
+        markdown.openDraftSession(id, QStringLiteral("Note"), body,
+                                  workbench.draftAssetRoot(id));
+        markdown.activateSession(id);
+
+        const QVariantMap migrated = workbench.migrateDraftImages(
+            id, target, QStringLiteral("assets"), QString());
+        QVERIFY2(migrated.value(QStringLiteral("ok")).toBool(),
+                 qPrintable(migrated.value(QStringLiteral("error")).toString()));
+        QCOMPARE(migrated.value(QStringLiteral("moved")).toInt(), 1);
+        const QString rewritten = QStringLiteral("![pic](assets/pic.png)");
+        QCOMPARE(tools.draftBody(id), rewritten);
+        QCOMPARE(markdown.editorText(), rewritten);
+        QVERIFY(QFileInfo::exists(tmp.path()
+                                  + QStringLiteral("/out/assets/pic.png")));
+        QVERIFY(!QFileInfo::exists(imagePath));
+
+        // 保存路径已记录 → 关闭草稿时不再询问（资源列表为空即证）。
+        QCOMPARE(workbench.draftAssetFiles(id).size(), 0);
+
+        Paths::setDataRootForTesting(QString());
+    }
+
+    /// 单实例 open 消息的编解码往返：路径数组进、路径数组出；    /// "raise" 与坏 JSON 得到空列表（首实例把它当一次普通唤醒）。
     void testOpenMessageRoundTrip()
     {
         QCOMPARE(WorkbenchContext::encodeOpenMessage({}),
@@ -633,6 +714,29 @@ private Q_SLOTS:
         QVERIFY(!QFileInfo::exists(docDir + QStringLiteral("/assets")));
     }
 
+    // 草稿模式：插入的是绝对路径。草稿没有磁盘文档，相对路径在用户的
+    // 眼里没有基准（截图里那个 assets/xxx 不知道在哪）。
+    void testImportAbsolutePaths()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        const QString outside = tmp.path() + QStringLiteral("/outside");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(outside));
+        const QString source = writeFile(
+            outside + QStringLiteral("/pic.png"), QByteArray("png"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {source}, docDir, docDir, QStringLiteral("assets"), true);
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        const QString expected =
+            QDir::cleanPath(docDir + QStringLiteral("/assets/pic.png"))
+                .replace(QLatin1Char('\\'), QLatin1Char('/'));
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![pic](%1)").arg(expected));
+    }
+
     void testImportInsideWorkspaceUsesParent()
     {
         QTemporaryDir tmp;
@@ -843,9 +947,203 @@ private:
     }
 };
 
+/// 草稿与磁盘 Markdown 之间的文件规则：默认保存名、图片目标解析、三种
+/// 迁移策略与资源清理。全部在 QTemporaryDir 里跑，不碰真实数据目录。
+class TestDraftFiles : public QObject
+{
+    Q_OBJECT
+
+private Q_SLOTS:
+    void init()
+    {
+        QStandardPaths::setTestModeEnabled(true);
+    }
+
+    void testDefaultSavePath()
+    {
+        const QString dir = QStringLiteral("C:/work");
+        QCOMPARE(DraftFiles::defaultSavePath(dir, QStringLiteral("My note")),
+                 QStringLiteral("C:/work/My note.md"));
+        QCOMPARE(DraftFiles::defaultSavePath(dir,
+                                             QStringLiteral("a/b:c?.md")),
+                 QStringLiteral("C:/work/a_b_c_.md"));
+        // 标题已带 Markdown 后缀时不叠加。
+        QCOMPARE(DraftFiles::defaultSavePath(dir, QStringLiteral("readme.md")),
+                 QStringLiteral("C:/work/readme.md"));
+        QCOMPARE(DraftFiles::defaultSavePath(dir, QStringLiteral("  ")),
+                 QStringLiteral("C:/work/draft.md"));
+        QVERIFY(DraftFiles::defaultSavePath(QString(), QStringLiteral("x"))
+                    .isEmpty());
+    }
+
+    void testImageDestinations()
+    {
+        const QString text = QStringLiteral(
+            "![a](assets/a.png)\n"
+            "![b](<assets/b b.png> \"title\")\n"
+            "![c](C:/tmp/c%20c.png)\n"
+            "text ![d](images/d.png) tail");
+        const QList<DraftImageEdit> edits =
+            DraftFiles::imageDestinations(text);
+        QCOMPARE(edits.size(), 4);
+        QCOMPARE(edits.at(0).target, QStringLiteral("assets/a.png"));
+        QCOMPARE(edits.at(1).target, QStringLiteral("assets/b b.png"));
+        QCOMPARE(edits.at(2).target, QStringLiteral("C:/tmp/c c.png"));
+        QCOMPARE(edits.at(3).target, QStringLiteral("images/d.png"));
+        // 区间落点：替换后原文其余部分保持不动。
+        for (const DraftImageEdit &edit : edits) {
+            QVERIFY(edit.end > edit.start);
+        }
+    }
+
+    void testMigrateToAssets()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString draftRoot = tmp.path() + QStringLiteral("/draft-assets/d1");
+        const QString workspace = tmp.path() + QStringLiteral("/ws");
+        QVERIFY(QDir().mkpath(draftRoot + QStringLiteral("/assets")));
+        QVERIFY(QDir().mkpath(workspace));
+        const QString image =
+            draftRoot + QStringLiteral("/assets/pic.png");
+        QVERIFY(writeFile(image, QByteArray("png")));
+        const QString markdownPath =
+            workspace + QStringLiteral("/note.md");
+        const QString markdown =
+            QStringLiteral("![pic](%1)").arg(QDir::cleanPath(image)
+                                                .replace(QLatin1Char('\\'),
+                                                         QLatin1Char('/')));
+
+        DraftImageMigrationRequest request;
+        request.markdownPath = markdownPath;
+        request.workspace = workspace;
+        request.draftRoot = draftRoot;
+        request.assetsSubdir = QStringLiteral("assets");
+        request.mode = QStringLiteral("assets");
+        const DraftImageMigrationResult result =
+            DraftFiles::migrateImages(markdown, request);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.moved, 1);
+        QCOMPARE(result.text, QStringLiteral("![pic](assets/pic.png)"));
+        QVERIFY(QFileInfo::exists(workspace
+                                  + QStringLiteral("/assets/pic.png")));
+        QVERIFY(!QFileInfo::exists(image));
+    }
+
+    void testMigrateToCustomFolderUsesRelativePath()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString draftRoot = tmp.path() + QStringLiteral("/draft-assets/d1");
+        const QString docDir = tmp.path() + QStringLiteral("/ws/docs");
+        const QString imageDir = tmp.path() + QStringLiteral("/ws/images");
+        QVERIFY(QDir().mkpath(draftRoot + QStringLiteral("/assets")));
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(imageDir));
+        const QString image =
+            draftRoot + QStringLiteral("/assets/pic.png");
+        QVERIFY(writeFile(image, QByteArray("png")));
+
+        DraftImageMigrationRequest request;
+        request.markdownPath = docDir + QStringLiteral("/note.md");
+        request.workspace = tmp.path() + QStringLiteral("/ws");
+        request.draftRoot = draftRoot;
+        request.mode = QStringLiteral("folder");
+        request.folder = imageDir;
+        const DraftImageMigrationResult result =
+            DraftFiles::migrateImages(QStringLiteral("![pic](%1)")
+                                          .arg(QDir::cleanPath(image)
+                                                   .replace(QLatin1Char('\\'),
+                                                            QLatin1Char('/'))),
+                                      request);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        // 文档在 ws/docs，图片在 ws/images：同一盘符 → ../ 相对路径。
+        QCOMPARE(result.text, QStringLiteral("![pic](../images/pic.png)"));
+        QVERIFY(QFileInfo::exists(
+            imageDir + QStringLiteral("/pic.png")));
+    }
+
+    void testMigrateAbsoluteKeepsFiles()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString draftRoot = tmp.path() + QStringLiteral("/draft-assets/d1");
+        const QString docDir = tmp.path() + QStringLiteral("/ws");
+        QVERIFY(QDir().mkpath(draftRoot + QStringLiteral("/assets")));
+        QVERIFY(QDir().mkpath(docDir));
+        const QString image =
+            draftRoot + QStringLiteral("/assets/pic.png");
+        QVERIFY(writeFile(image, QByteArray("png")));
+        const QString absolute = QDir::cleanPath(image).replace(
+            QLatin1Char('\\'), QLatin1Char('/'));
+
+        DraftImageMigrationRequest request;
+        request.markdownPath = docDir + QStringLiteral("/note.md");
+        request.workspace = docDir;
+        request.draftRoot = draftRoot;
+        request.mode = QStringLiteral("absolute");
+        const DraftImageMigrationResult result =
+            DraftFiles::migrateImages(
+                QStringLiteral("![pic](%1)").arg(absolute), request);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.text,
+                 QStringLiteral("![pic](%1)").arg(absolute));
+        QVERIFY(QFileInfo::exists(image));
+        QCOMPARE(result.targets.size(), 1);
+    }
+
+    void testReferencedAssetsAndClear()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString draftRoot = tmp.path() + QStringLiteral("/draft-assets/d1");
+        QVERIFY(QDir().mkpath(draftRoot + QStringLiteral("/assets")));
+        const QString first =
+            draftRoot + QStringLiteral("/assets/a.png");
+        const QString second =
+            draftRoot + QStringLiteral("/assets/b.png");
+        QVERIFY(writeFile(first, QByteArray("a")));
+        QVERIFY(writeFile(second, QByteArray("b")));
+        const QString absolute = QDir::cleanPath(first).replace(
+            QLatin1Char('\\'), QLatin1Char('/'));
+        const QStringList referenced = DraftFiles::referencedAssets(
+            QStringLiteral("![a](%1)\n![a again](%1)").arg(absolute),
+            tmp.path() + QStringLiteral("/note.md"), draftRoot);
+        QCOMPARE(referenced, QStringList{first});
+
+        const QStringList listed = DraftFiles::listAssets(draftRoot);
+        QCOMPARE(listed.size(), 2);
+        QVERIFY(DraftFiles::clearAssets(draftRoot));
+        QVERIFY(DraftFiles::listAssets(draftRoot).isEmpty());
+        QVERIFY(QDir(draftRoot).exists());
+    }
+
+    void testClearMissingRootIsNoOp()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        QVERIFY(DraftFiles::clearAssets(
+            tmp.path() + QStringLiteral("/does-not-exist")));
+        QVERIFY(DraftFiles::listAssets(
+            tmp.path() + QStringLiteral("/does-not-exist")).isEmpty());
+    }
+
+private:
+    static bool writeFile(const QString &path, const QByteArray &bytes)
+    {
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return false;
+        }
+        return file.write(bytes) == bytes.size();
+    }
+};
+
 AWB_TEST(TestWorkbenchContext)
 AWB_TEST(TestEnvironmentService)
 AWB_TEST(TestImageImporter)
+AWB_TEST(TestDraftFiles)
 #include "tst_workbench.moc"
 
 /**

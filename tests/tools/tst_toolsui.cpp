@@ -107,6 +107,10 @@ public:
     {
         return QString();
     }
+    Q_INVOKABLE QString draftPreviewAssetRoot(const QString &) const
+    {
+        return QString();
+    }
     Q_INVOKABLE QVariantMap importImageFiles(const QStringList &)
     {
         QVariantMap result;
@@ -129,8 +133,75 @@ public:
         return result;
     }
 
+    // 草稿保存与图片回收：保存用例断言请求真的到了 C++ 门面；其余路径
+    // 回答「从未保存、没有资源」，让关闭草稿的流程直接走原路径。
+    Q_INVOKABLE QString draftSavePath(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE QVariantMap draftSaveDefaults(const QString &) const
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("path"), saveDefaultsPath);
+        result.insert(QStringLiteral("directory"), saveDefaultsDir);
+        result.insert(QStringLiteral("fileName"),
+                      QStringLiteral("draft.md"));
+        return result;
+    }
+    Q_INVOKABLE QString draftImageAssetsFolder(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE bool pathExists(const QString &) const
+    {
+        return false;
+    }
+    Q_INVOKABLE bool pathsShareDrive(const QString &, const QString &) const
+    {
+        return true;
+    }
+    Q_INVOKABLE QVariantMap saveDraftMarkdown(const QString &draftId,
+                                              const QString &path,
+                                              const QString &text)
+    {
+        savedDraftId = draftId;
+        savedPath = path;
+        savedText = text;
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        result.insert(QStringLiteral("path"), path);
+        result.insert(QStringLiteral("imageCount"), saveImageCount);
+        return result;
+    }
+    Q_INVOKABLE QVariantMap migrateDraftImages(const QString &, const QString &,
+                                               const QString &,
+                                               const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+    Q_INVOKABLE QVariantList draftAssetFiles(const QString &) const
+    {
+        return QVariantList();
+    }
+    Q_INVOKABLE QVariantMap clearDraftAssets(const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+
     /// 模拟「剪贴板里有图片」：为真时上面的入口返回一张已导入的图片。
     bool imagePasteAvailable = false;
+
+    // 保存用例的落点与记录（保存对话框预填值与门面收到的请求）。
+    QString saveDefaultsPath;
+    QString saveDefaultsDir;
+    QString savedDraftId;
+    QString savedPath;
+    QString savedText;
+    int saveImageCount = 0;
 };
 
 // nav 桩：工作台页是 keepAlive 页，快捷键与回页复查门控在读
@@ -148,6 +219,11 @@ class UiStub : public QObject
     Q_OBJECT
 public:
     Q_INVOKABLE QString pickFolder(const QString &) { return QString(); }
+    Q_INVOKABLE QString pickSaveFile(const QString &, const QString &,
+                                     const QString &, const QString &)
+    {
+        return QString();
+    }
     Q_INVOKABLE void revealFile(const QString &) {}
 };
 
@@ -1241,6 +1317,41 @@ private Q_SLOTS:
                 .contains(QStringLiteral("first draft body")),
             "switching back did not restore the first draft's text",
             4000);
+    }
+
+    /// 保存草稿：动作层把编辑器正文与默认落点交给 workbench 门面。
+    /// 这里只验接线（名字拼错会静默 TypeError，按钮看起来像没反应），
+    /// 写盘与图片迁移的真规则在 tst_workbench 的 TestDraftFiles 里。
+    void testSaveDraftDelegatesToWorkbench()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QObject *const pageRoot = m_view->rootObject();
+        QVERIFY2(pageRoot, "no page root in the host view");
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+        const QPointF center = editor->mapToScene(QPointF(
+            editor->width() / 2.0, editor->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        typeText(window, QStringLiteral("save this prompt"));
+
+        const QString target = QDir(m_dataRoot->path())
+                                   .filePath(QStringLiteral("prompt.md"));
+        m_workbench->saveDefaultsPath = target;
+        m_workbench->saveDefaultsDir = m_dataRoot->path();
+
+        QVERIFY(QMetaObject::invokeMethod(pageRoot, "saveCurrentTab"));
+        QTRY_COMPARE(m_workbench->savedPath, target);
+        QCOMPARE(m_workbench->savedDraftId, tools->activeDraftId());
+        QVERIFY2(m_workbench->savedText.contains(
+                     QStringLiteral("save this prompt")),
+                 qPrintable(m_workbench->savedText));
     }
 
     /// 快照与回滚：存一版 → 历史列表有行 → 回滚（确认弹窗真实点击）→

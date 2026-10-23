@@ -236,6 +236,8 @@ set(AWB_ICON_FILES
     ${CMAKE_SOURCE_DIR}/icons/plus.svg
     ${CMAKE_SOURCE_DIR}/icons/qwen-code.svg
     ${CMAKE_SOURCE_DIR}/icons/refresh.svg
+    ${CMAKE_SOURCE_DIR}/icons/save.svg
+    ${CMAKE_SOURCE_DIR}/icons/save-as.svg
     ${CMAKE_SOURCE_DIR}/icons/search.svg
     ${CMAKE_SOURCE_DIR}/icons/skills.svg
     ${CMAKE_SOURCE_DIR}/icons/terminal.svg

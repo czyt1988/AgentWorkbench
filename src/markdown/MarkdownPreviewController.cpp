@@ -555,6 +555,42 @@ void MarkdownPreviewController::setDraftText(const QString &draftId,
 }
 
 /**
+ * @brief 改草稿的图片解析根
+ *
+ * 草稿保存并迁移图片后，引用可能变成相对 .md 的路径；草稿会话的资源根
+ * 必须同步到该文件所在目录，否则预览仍按数据目录解析。
+ */
+void MarkdownPreviewController::setDraftAssetRoot(const QString &draftId,
+                                                  const QString &assetRoot)
+{
+    if (draftId.isEmpty() || assetRoot.isEmpty()) {
+        return;
+    }
+    for (const auto &session : m_drafts) {
+        if (session->docId != draftId) {
+            continue;
+        }
+        if (session->assetRoot == assetRoot) {
+            return;
+        }
+        session->assetRoot = assetRoot;
+        if (m_active == session) {
+            // doc.json 里的资源基址没变（assetBase 只带 docId），但页面
+            // 上已经渲染的图片要按新根重取：整篇重建一次最省事。
+            ++session->rev;
+            session->cachedRev = -1;
+            if (m_windowOpen) {
+                QVariantMap args;
+                args.insert(QStringLiteral("rev"), session->rev);
+                enqueue(QStringLiteral("setDocument"), args);
+            }
+            Q_EMIT documentChanged();
+        }
+        return;
+    }
+}
+
+/**
  * @brief 文件会话的 tab 清单
  * @return [{docId, title, path, mode, dirty, active, draft}]
  *

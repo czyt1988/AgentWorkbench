@@ -3,6 +3,8 @@
 add_library(awb_workbench STATIC
     BuiltinPages.cpp
     BuiltinPages.h
+    DraftFiles.cpp
+    DraftFiles.h
     EnvironmentCache.cpp
     EnvironmentCache.h
     EnvironmentProbe.cpp

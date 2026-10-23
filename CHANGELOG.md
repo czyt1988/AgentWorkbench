@@ -12,10 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   tree or File Explorer) into the prompt editor or a document's source editor,
   or press `Ctrl+V` with an image file or a bitmap on the clipboard: the app
   inserts `![name](path)` at the caret or drop point.
-  - Paths are relative to the document. Images already in the document folder
-    are referenced in place; images elsewhere in the workspace use a `..`
-    path; images from outside the workspace are copied into the image folder
-    first.
+  - Paths are relative to the document in a document tab. Images already in
+    the document folder are referenced in place; images elsewhere in the
+    workspace use a `..` path; images from outside the workspace are copied
+    into the image folder first. **In a draft the inserted path is absolute**:
+    a draft has no file on disk, so `assets/pic.png` gave no clue where the
+    image actually lived.
   - Pasted bitmaps are saved as PNG. The image folder is configurable in
     **Settings → Markdown** (`markdownEditor.imageAssetsDir`, default
     `assets`, relative to the workspace root — or to the document folder when
@@ -29,7 +31,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
     files keep their old behaviour.
   - The built-in preview now decodes before re-encoding asset paths, so spaces
     and Chinese filenames render instead of 404ing, and image `alt` text is
-    kept.
+    kept. Absolute image paths (`C:/…`, used by drafts and cross-drive
+    migrations) resolve through a dedicated local-file route instead of being
+    mistaken for a URL scheme.
+- **Save a draft as Markdown.** **Save** / **Save As** live in the new
+  **File** panel on the ribbon's **Start** tab, and `Ctrl+S` saves a draft the
+  same way. With a workspace open the first save goes straight to
+  `<workspace>/<title>.md`; a name collision or no workspace opens the native
+  save dialog. The target is remembered on the draft (`savePath` in
+  `tools.json`), so later saves update the same file and **Save As** moves to
+  a new one.
+  - After saving, a dialog offers to migrate the images referenced from the
+    draft: move them to the workspace `assets` folder and write relative
+    paths (default), move them to a folder you pick (relative on the same
+    drive, including `../`; absolute with an in-dialog warning on another
+    drive), or keep absolute paths without moving anything (marked not
+    recommended).
+  - Closing or deleting a draft that was never saved and still has images in
+    the application data folder asks once whether to delete them and lists
+    every file. The cleanup only touches `<dataRoot>/draft-assets/<id>` and
+    removes everything there, whether or not the text references it; images in
+    a workspace are never deleted.
 - **Markdown workbench editor: the "input feel" batch**, with every part of it
   switchable in the new **Settings → Markdown** section (`settings.json` group
   `markdownEditor`):
@@ -95,6 +117,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **`Tab` on a single-line selection now indents the line instead of replacing
+  the selected text.** Any selection — including part of one line — takes the
+  line-level path, matching VSCode; only a caret inserts one indent unit.
 - **The portable zip shipped without the MSVC C++ runtime.** `windeployqt`
   deploys Qt and nothing else — its `--compiler-runtime` only drops the
   redistributable *installer* into the package, which needs an administrator on

@@ -37,6 +37,7 @@ constexpr auto kDraftIdKey = "id";
 constexpr auto kDraftTitleKey = "title";
 constexpr auto kDraftBodyKey = "body";
 constexpr auto kDraftWorkspaceKey = "workspace";
+constexpr auto kDraftSavePathKey = "savePath";
 constexpr auto kDraftCreatedAtKey = "createdAt";
 constexpr auto kDraftUpdatedAtKey = "updatedAt";
 
@@ -143,6 +144,8 @@ QList<DraftEntry> draftsFromJson(const QJsonArray &array)
             object.value(QLatin1String(kDraftBodyKey)).toString();
         entry.workspace =
             object.value(QLatin1String(kDraftWorkspaceKey)).toString();
+        entry.savePath =
+            object.value(QLatin1String(kDraftSavePathKey)).toString();
         entry.createdAt = static_cast<qint64>(
             object.value(QLatin1String(kDraftCreatedAtKey)).toDouble(0));
         entry.updatedAt = static_cast<qint64>(
@@ -171,6 +174,7 @@ QJsonObject draftToJson(const DraftEntry &entry)
     object.insert(QLatin1String(kDraftTitleKey), entry.title);
     object.insert(QLatin1String(kDraftBodyKey), entry.body);
     object.insert(QLatin1String(kDraftWorkspaceKey), entry.workspace);
+    object.insert(QLatin1String(kDraftSavePathKey), entry.savePath);
     object.insert(QLatin1String(kDraftCreatedAtKey),
                   double(entry.createdAt));
     object.insert(QLatin1String(kDraftUpdatedAtKey),
@@ -740,6 +744,27 @@ bool ToolsStore::renameDraft(const QString &id, const QString &title)
             if (entry.id == m_activeDraftId) {
                 syncDraftMirror();
             }
+            return save();
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief 记下草稿上次保存到的 Markdown 文件
+ *
+ * 只影响「是否已保存过」与下次存盘的默认落点，不动正文与标题。路径原样
+ * 存储（调用方已归一为绝对路径）。
+ */
+bool ToolsStore::setDraftSavePath(const QString &id, const QString &path)
+{
+    for (DraftEntry &entry : m_drafts) {
+        if (entry.id == id) {
+            if (entry.savePath == path) {
+                return true;
+            }
+            entry.savePath = path;
+            entry.updatedAt = QDateTime::currentMSecsSinceEpoch();
             return save();
         }
     }

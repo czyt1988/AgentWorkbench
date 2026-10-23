@@ -58,7 +58,7 @@ src/
     webengine/   L2 适配器（链接 Qt WebEngine 的两个目标之一，含 WebEngineSurface.qml）
   markdown/      L2：Markdown 预览域：MarkdownDocument（逐字节读写）、MarkdownChunker（分块 + 差异）、MarkdownRuntime（awbmd:// URL、MIME、主题串）、MarkdownPreviewController + qml/（预览渲染面 MarkdownPreviewPane，仅能力构建注册）
     webengine/   L2 适配器（另一个链接 Qt WebEngine 的目标：scheme handler 与预览 profile，两个 Qt 大版本都构建）
-  workbench/     L3：WorkbenchContext、BuiltinPages、EnvironmentService、PluginServices + qml/（MarkdownWorkbenchPage：提示词与预览合体的工作台页（Agent Tools 分组下的 keepAlive 页），命令条 Ribbon/工具栏两形态）
+  workbench/     L3：WorkbenchContext、BuiltinPages、DraftFiles、EnvironmentService、PluginServices + qml/（MarkdownWorkbenchPage：提示词与预览合体的工作台页（Agent Tools 分组下的 keepAlive 页），命令条 Ribbon/工具栏两形态）
 cmake/         AwbOptions.cmake、AwbTranslations.cmake（可翻译源清单）
 resources/     内置主题 JSON（mocha-dark、latte-light）
 config/        default_agents.json、default_file_icons.json（打包为 Qt 资源）

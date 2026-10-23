@@ -3,6 +3,7 @@
 
 #include "core/OpResult.h"
 
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -171,6 +172,39 @@ public:
     Q_INVOKABLE QVariantMap importClipboardImage();
     // 草稿的图片资源根：绑定的工作区，或 <dataRoot>/draft-assets/<id>
     Q_INVOKABLE QString draftAssetRoot(const QString &draftId) const;
+    // 草稿预览的资源根：已保存过的草稿用 .md 所在目录（相对引用以它为
+    // 基准），否则用 draftAssetRoot。
+    Q_INVOKABLE QString draftPreviewAssetRoot(const QString &draftId) const;
+
+    // --- 草稿保存到 Markdown 与草稿图片回收 --------------------------------
+    // 上次保存到的文件；空串 = 从未保存（关闭草稿时据此问是否清图片）。
+    Q_INVOKABLE QString draftSavePath(const QString &draftId) const;
+    // 保存对话框的预填值 {path, directory, fileName}；没有工作区时
+    // directory 为空、fileName 仍是清洗后的标题。
+    Q_INVOKABLE QVariantMap draftSaveDefaults(const QString &draftId) const;
+    // 迁移选项 1 的默认图片目录（文档在工作区内 = 工作区/assets）
+    Q_INVOKABLE QString draftImageAssetsFolder(
+        const QString &markdownPath) const;
+    // 两个本地路径是否在同一盘符（跨盘时相对引用不存在，界面据此提示）
+    Q_INVOKABLE bool pathsShareDrive(const QString &left,
+                                     const QString &right) const;
+    Q_INVOKABLE bool pathExists(const QString &path) const;
+    // 把草稿正文写成 Markdown 文件并记录保存位置。返回
+    // {ok, error, path, imageCount}；imageCount > 0 时界面应弹图片迁移窗。
+    Q_INVOKABLE QVariantMap saveDraftMarkdown(const QString &draftId,
+                                              const QString &path,
+                                              const QString &text);
+    // 保存后的图片迁移：mode = assets | folder | absolute。返回
+    // {ok, error, warning, text, moved, reused, targets}；text 是改写后的
+    // 正文（界面要同步回编辑器）。
+    Q_INVOKABLE QVariantMap migrateDraftImages(const QString &draftId,
+                                               const QString &markdownPath,
+                                               const QString &mode,
+                                               const QString &folder);
+    // 草稿数据目录下将要清除的资源：[{path, relativePath, size}]
+    Q_INVOKABLE QVariantList draftAssetFiles(const QString &draftId) const;
+    // 清空 <dataRoot>/draft-assets/<id> 下的全部内容（不碰工作区）
+    Q_INVOKABLE QVariantMap clearDraftAssets(const QString &draftId);
 
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
@@ -235,6 +269,7 @@ private:
         QString baseDir;
         QString assetsRoot;
         QString assetsSubdir;
+        bool absolutePaths = false;  ///< 草稿：没有磁盘文档，插入绝对路径
     };
     ImageContext imageContext() const;
 
@@ -253,6 +288,11 @@ private:
     QStringList m_recentDocuments;          ///< 最近文档 MRU（新在前）
     QString m_legacyImportNotice;           ///< 一次性导入提示；正常启动为空串
     QVariantList m_discoveredPlugins;       ///< 发现的插件快照（设置页列表）
+    /// 已由迁移界面处理过的图片（草稿 id → 源路径）。进程内记忆：同一批
+    /// 图片不会在每次 Ctrl+S 时重复弹窗，新增图片仍会触发。
+    QHash<QString, QStringList> m_migratedImages;
+    /// 上次保存目标（草稿 id → 路径）；换文件后重置迁移记忆。
+    QHash<QString, QString> m_savedTargets;
 
     // 把一个路径触进 MRU（打开文档的两条路共用；不落盘，saveMarkdownSession
     // 时随现场一起写）。

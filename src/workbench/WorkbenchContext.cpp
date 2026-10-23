@@ -11,6 +11,7 @@
 #include "shell/UiServices.h"
 #include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
+#include "workbench/DraftFiles.h"
 #include "workbench/ImageImporter.h"
 #include "workbench/MarkdownSessionStore.h"
 
@@ -18,11 +19,13 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMimeData>
+#include <QSaveFile>
 #include <QSettings>
 #include <QUrl>
 
@@ -265,7 +268,8 @@ QVariantMap WorkbenchContext::importImageFiles(const QStringList &paths)
 {
     const ImageContext context = imageContext();
     return imageResultMap(ImageImporter::importFiles(
-        paths, context.baseDir, context.assetsRoot, context.assetsSubdir));
+        paths, context.baseDir, context.assetsRoot, context.assetsSubdir,
+        context.absolutePaths));
 }
 
 /**
@@ -302,7 +306,8 @@ QVariantMap WorkbenchContext::importClipboardImage()
     const ImageContext context = imageContext();
     const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
     return imageResultMap(ImageImporter::importClipboard(
-        mime, context.baseDir, context.assetsRoot, context.assetsSubdir));
+        mime, context.baseDir, context.assetsRoot, context.assetsSubdir,
+        context.absolutePaths));
 }
 
 /**
@@ -337,11 +342,28 @@ QString WorkbenchContext::draftAssetRoot(const QString &draftId) const
 }
 
 /**
+ * @brief 草稿预览的资源根
+ *
+ * 保存过的草稿以 Markdown 文件所在目录为基准（迁移后的相对引用按它
+ * 解析）；从未保存过的草稿仍是 draftAssetRoot。
+ */
+QString WorkbenchContext::draftPreviewAssetRoot(const QString &draftId) const
+{
+    const QString savePath = draftSavePath(draftId);
+    if (!savePath.isEmpty()) {
+        return QFileInfo(savePath).absolutePath();
+    }
+    return draftAssetRoot(draftId);
+}
+
+/**
  * @brief 计算一次图片导入的路径基准
  *
- * 草稿用草稿的资源根；文件文档用文档目录，只有文档位于当前工作区内时
- * 才把复制落点放回工作区根。没有活跃文档时退回当前工作区，再退回数据
- * 目录下的草稿资源目录（拖放落到空编辑器的极端情况）。
+ * 草稿用草稿的资源根，并且**插入绝对路径**：草稿没有磁盘文档，相对路径
+ * 没有可解释的基准（用户看到 `assets/x.png` 无从判断它在数据目录的哪
+ * 一层）。文件文档用文档目录，只有文档位于当前工作区内时才把复制落点
+ * 放回工作区根。没有活跃文档时退回当前工作区，再退回数据目录下的草稿
+ * 资源目录（拖放落到空编辑器的极端情况）。
  */
 WorkbenchContext::ImageContext WorkbenchContext::imageContext() const
 {
@@ -357,6 +379,7 @@ WorkbenchContext::ImageContext WorkbenchContext::imageContext() const
     if (m_markdown && m_markdown->isDraftActive()) {
         context.baseDir = draftAssetRoot(m_markdown->activeDraftId());
         context.assetsRoot = context.baseDir;
+        context.absolutePaths = true;
         return context;
     }
 
@@ -383,6 +406,315 @@ WorkbenchContext::ImageContext WorkbenchContext::imageContext() const
         context.assetsRoot = context.baseDir;
     }
     return context;
+}
+
+/**
+ * @brief 上次保存到的 Markdown 文件
+ *
+ * @param draftId 草稿 id
+ * @return 绝对路径；从未保存过时为空串
+ */
+QString WorkbenchContext::draftSavePath(const QString &draftId) const
+{
+    if (!m_tools || draftId.isEmpty()) {
+        return QString();
+    }
+    const QVariantList drafts = m_tools->drafts();
+    for (const QVariant &entry : drafts) {
+        const QVariantMap map = entry.toMap();
+        if (map.value(QStringLiteral("id")).toString() == draftId) {
+            return map.value(QStringLiteral("savePath")).toString();
+        }
+    }
+    return QString();
+}
+
+/**
+ * @brief 保存对话框的预填值
+ *
+ * 界面不能自己解析路径（QML 没有 QFileInfo）：目录与文件名在这里一次
+ * 算好。没有工作区时 directory 为空，文件名仍是清洗后的标题 + .md。
+ */
+QVariantMap WorkbenchContext::draftSaveDefaults(const QString &draftId) const
+{
+    QVariantMap map;
+    if (!m_tools || draftId.isEmpty()) {
+        return map;
+    }
+    QString title;
+    QString directory;
+    const QVariantList drafts = m_tools->drafts();
+    for (const QVariant &entry : drafts) {
+        const QVariantMap item = entry.toMap();
+        if (item.value(QStringLiteral("id")).toString() != draftId) {
+            continue;
+        }
+        title = item.value(QStringLiteral("title")).toString();
+        const QString bound =
+            item.value(QStringLiteral("workspace")).toString();
+        if (!bound.isEmpty() && QDir(bound).exists()) {
+            directory = bound;
+        }
+        break;
+    }
+    if (directory.isEmpty()) {
+        directory = m_tools->currentWorkspace();
+    }
+    const QString path = DraftFiles::defaultSavePath(directory, title);
+    map.insert(QStringLiteral("path"), path);
+    map.insert(QStringLiteral("directory"),
+               path.isEmpty() ? QString() : QFileInfo(path).absolutePath());
+    map.insert(QStringLiteral("fileName"),
+               path.isEmpty()
+                   ? DraftFiles::sanitizedBaseName(title) + QStringLiteral(".md")
+                   : QFileInfo(path).fileName());
+    return map;
+}
+
+/**
+ * @brief 迁移选项 1 的默认图片目录
+ */
+QString WorkbenchContext::draftImageAssetsFolder(
+    const QString &markdownPath) const
+{
+    if (markdownPath.isEmpty()) {
+        return QString();
+    }
+    return DraftFiles::defaultAssetsFolder(
+        markdownPath, m_tools ? m_tools->currentWorkspace() : QString(),
+        markdownEditorImageAssetsDir());
+}
+
+/**
+ * @brief 两个本地路径是否在同一盘符
+ *
+ * Windows 上比较绝对路径的前两个字符（`C:`）；其它平台恒为真。仅用于
+ * 界面提示——真正的路径形态由 DraftFiles 在迁移时决定。
+ */
+bool WorkbenchContext::pathsShareDrive(const QString &left,
+                                       const QString &right) const
+{
+#ifdef Q_OS_WIN
+    const QString leftRoot = QFileInfo(left).absoluteFilePath().left(2);
+    const QString rightRoot = QFileInfo(right).absoluteFilePath().left(2);
+    return leftRoot.compare(rightRoot, Qt::CaseInsensitive) == 0;
+#else
+    Q_UNUSED(left);
+    Q_UNUSED(right);
+    return true;
+#endif
+}
+
+/**
+ * @brief 本地路径是否已存在（界面用来避开静默覆盖）
+ */
+bool WorkbenchContext::pathExists(const QString &path) const
+{
+    return !path.isEmpty() && QFileInfo::exists(path);
+}
+
+/**
+ * @brief 把草稿正文写成 Markdown 文件
+ *
+ * 文件写入是 UTF-8、无 BOM（Markdown 的通用形态）；父目录不存在时先建。
+ * 写成功后正文立即落账到 tools（绕过编辑防抖）并记录保存位置。返回的
+ * imageCount 是「引用到的、在草稿资源根内的图片」数量，界面据此决定
+ * 是否弹图片迁移窗。
+ */
+QVariantMap WorkbenchContext::saveDraftMarkdown(const QString &draftId,
+                                                const QString &path,
+                                                const QString &text)
+{
+    QVariantMap map;
+    map.insert(QStringLiteral("ok"), false);
+    if (!m_tools || draftId.isEmpty()) {
+        map.insert(QStringLiteral("error"), QCoreApplication::translate(
+                       "WorkbenchContext", "There is no draft to save."));
+        return map;
+    }
+    QString target = path.trimmed();
+    if (target.isEmpty()) {
+        map.insert(QStringLiteral("error"), QCoreApplication::translate(
+                       "WorkbenchContext", "No file name was chosen."));
+        return map;
+    }
+    target = QFileInfo(target).absoluteFilePath();
+    if (QFileInfo(target).suffix().isEmpty()) {
+        target += QStringLiteral(".md");
+    }
+    const QString directory = QFileInfo(target).absolutePath();
+    if (!QDir().mkpath(directory)) {
+        map.insert(QStringLiteral("error"), QCoreApplication::translate(
+                       "WorkbenchContext",
+                       "Could not create the folder: %1").arg(directory));
+        return map;
+    }
+
+    QSaveFile file(target);
+    if (!file.open(QIODevice::WriteOnly)) {
+        map.insert(QStringLiteral("error"), file.errorString());
+        return map;
+    }
+    if (file.write(text.toUtf8()) < 0 || !file.commit()) {
+        map.insert(QStringLiteral("error"), file.errorString());
+        return map;
+    }
+
+    const core::OpResult recorded =
+        m_tools->markDraftSaved(draftId, text, target);
+    if (!recorded) {
+        map.insert(QStringLiteral("error"), recorded.error);
+        return map;
+    }
+    if (m_markdown && m_markdown->activeDraftId() == draftId) {
+        m_markdown->setDraftText(draftId, text);
+    }
+    if (m_markdown) {
+        // 保存之后相对引用以文件目录为基准；绝对引用走 @abs，不受影响。
+        m_markdown->setDraftAssetRoot(draftId,
+                                      QFileInfo(target).absolutePath());
+    }
+
+    const QString assetRoot = draftAssetRoot(draftId);
+    const QStringList images =
+        DraftFiles::referencedAssets(text, target, assetRoot);
+    // 同一批图片已经由迁移界面处理过：不再每次保存都弹一遍。换了保存
+    // 目标就重来（相对引用的基准变了）。
+    if (m_savedTargets.value(draftId) != target) {
+        m_migratedImages.remove(draftId);
+        m_savedTargets.insert(draftId, target);
+    }
+    const QStringList handled = m_migratedImages.value(draftId);
+    QStringList pending;
+    for (const QString &image : images) {
+        if (!handled.contains(image)) {
+            pending.append(image);
+        }
+    }
+    map.insert(QStringLiteral("ok"), true);
+    map.insert(QStringLiteral("path"), target);
+    map.insert(QStringLiteral("imageCount"), pending.size());
+    map.insert(QStringLiteral("error"), QString());
+    return map;
+}
+
+/**
+ * @brief 保存后的图片迁移
+ *
+ * 移动的是草稿资源根内的本地图片；改写后的正文同时写回文件、tools 与
+ * 预览会话。应用内不持有对话框的模态状态——调用发生在用户确认策略之后。
+ */
+QVariantMap WorkbenchContext::migrateDraftImages(const QString &draftId,
+                                                 const QString &markdownPath,
+                                                 const QString &mode,
+                                                 const QString &folder)
+{
+    QVariantMap map;
+    map.insert(QStringLiteral("ok"), false);
+    if (!m_tools || draftId.isEmpty() || markdownPath.isEmpty()) {
+        map.insert(QStringLiteral("error"), QCoreApplication::translate(
+                       "WorkbenchContext", "There is no draft to save."));
+        return map;
+    }
+
+    DraftImageMigrationRequest request;
+    request.markdownPath = QFileInfo(markdownPath).absoluteFilePath();
+    request.workspace = m_tools->currentWorkspace();
+    request.draftRoot = draftAssetRoot(draftId);
+    request.assetsSubdir = markdownEditorImageAssetsDir();
+    request.mode = mode;
+    request.folder = folder;
+
+    const QString before = m_tools->draftBody(draftId);
+    // 迁移前的引用列表：成功之后记成「已处理」，下次保存不再弹窗（尤其
+    // 是选择保留绝对路径时，图片仍留在草稿目录里）。
+    const QStringList handled = DraftFiles::referencedAssets(
+        before, request.markdownPath, request.draftRoot);
+    const DraftImageMigrationResult migrated =
+        DraftFiles::migrateImages(before, request);
+    if (migrated.ok) {
+        m_migratedImages.insert(draftId, handled);
+    }
+
+    if (migrated.text != before) {
+        QSaveFile file(request.markdownPath);
+        if (!file.open(QIODevice::WriteOnly)
+            || file.write(migrated.text.toUtf8()) < 0 || !file.commit()) {
+            map.insert(QStringLiteral("error"), file.errorString());
+            return map;
+        }
+        const core::OpResult recorded =
+            m_tools->markDraftSaved(draftId, migrated.text,
+                                    request.markdownPath);
+        if (!recorded) {
+            map.insert(QStringLiteral("error"), recorded.error);
+            return map;
+        }
+        if (m_markdown && m_markdown->activeDraftId() == draftId) {
+            m_markdown->setDraftText(draftId, migrated.text);
+        }
+        if (m_markdown) {
+            m_markdown->setDraftAssetRoot(
+                draftId, QFileInfo(request.markdownPath).absolutePath());
+        }
+    }
+
+    map.insert(QStringLiteral("ok"), migrated.ok);
+    map.insert(QStringLiteral("error"), migrated.error);
+    map.insert(QStringLiteral("warning"), migrated.warning);
+    map.insert(QStringLiteral("text"), migrated.text);
+    map.insert(QStringLiteral("moved"), migrated.moved);
+    map.insert(QStringLiteral("reused"), migrated.reused);
+    map.insert(QStringLiteral("targets"), migrated.targets);
+    return map;
+}
+
+/**
+ * @brief 草稿数据目录下将要清除的资源
+ *
+ * 只列 <dataRoot>/draft-assets/<id>（不碰绑定的工作区）：关闭未保存草稿
+ * 时的清理必须只动应用自己的数据目录。
+ */
+QVariantList WorkbenchContext::draftAssetFiles(const QString &draftId) const
+{
+    QVariantList result;
+    if (draftId.isEmpty()) {
+        return result;
+    }
+    const QString root = core::Paths::draftAssetsDir(draftId);
+    const QStringList files = DraftFiles::listAssets(root);
+    for (const QString &file : files) {
+        QVariantMap item;
+        item.insert(QStringLiteral("path"), file);
+        item.insert(QStringLiteral("relativePath"),
+                    QDir(root).relativeFilePath(file));
+        item.insert(QStringLiteral("size"), double(QFileInfo(file).size()));
+        result.append(item);
+    }
+    return result;
+}
+
+/**
+ * @brief 清空草稿数据目录下的全部图片
+ *
+ * 「无论是否被文档引用都清除」：用户确认后的资源回收，不做引用分析。
+ */
+QVariantMap WorkbenchContext::clearDraftAssets(const QString &draftId)
+{
+    QVariantMap map;
+    map.insert(QStringLiteral("ok"), true);
+    if (draftId.isEmpty()) {
+        return map;
+    }
+    const QString root = core::Paths::draftAssetsDir(draftId);
+    const bool ok = DraftFiles::clearAssets(root);
+    map.insert(QStringLiteral("ok"), ok);
+    if (!ok) {
+        map.insert(QStringLiteral("error"), QCoreApplication::translate(
+                       "WorkbenchContext",
+                       "Some image files could not be removed: %1").arg(root));
+    }
+    return map;
 }
 
 /**

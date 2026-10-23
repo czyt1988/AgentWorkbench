@@ -116,6 +116,21 @@ Rectangle {
         }
 
         // --- 主交付与剪贴板 ---------------------------------------------
+        AIconButton {
+            objectName: "saveDraftButton"
+            iconSource: "qrc:/icons/save.svg"
+            tooltip: qsTr("Save as Markdown (Ctrl+S)")
+            enabled: win && win.canSaveCurrentTab()
+            onClicked: if (win) win.saveCurrentTab()
+        }
+        AIconButton {
+            objectName: "saveDraftAsButton"
+            iconSource: "qrc:/icons/save-as.svg"
+            tooltip: qsTr("Save as a new Markdown file")
+            enabled: win && win.draftCanSave()
+            onClicked: if (win) win.saveDraftAs()
+        }
+
         AButton {
             text: qsTr("Copy Prompt")
             variant: "primary"

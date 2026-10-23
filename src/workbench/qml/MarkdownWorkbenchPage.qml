@@ -79,10 +79,10 @@ Item {
         editorFontPx = next
     }
 
-    // Tab 键的编辑器动作（VSCode 语义）：多行选区给每行行首插缩进单位
-    //（选区随之扩展）；无选区/单行选区保持原生——插入一个缩进单位（单行
-    // 选区被替换）。缩进单位来自设置（空格 × 每级宽度，或字面 \t）。只读
-    // 文档不接（MarkdownEdit 直接走光标，绕过 readOnly）。
+    // Tab 键的编辑器动作（VSCode 语义）：任何选区都给覆盖到的每行行首
+    // 插缩进单位（选区随之扩展到整行）；无选区在光标处插入一个缩进单位。
+    // 缩进单位来自设置（空格 × 每级宽度，或字面 \t）。只读文档不接
+    //（MarkdownEdit 直接走光标，绕过 readOnly）。
     function handleEditorTab(editor) {
         if (editor.readOnly)
             return
@@ -483,8 +483,8 @@ Item {
         renameDraftDialog.close()
     }
 
-    // 删除当前草稿：非空先确认（判据；空草稿直接删）。删除后控制器
-    // 会话由 closeDraftSession 收掉，激活位顺延。
+    // 删除当前草稿：非空先确认（判据；空草稿直接删）。确认后与关 tab
+    // 走同一条图片守卫：从未保存过的草稿先问是否清掉数据目录里的图片。
     function deleteCurrentDraft() {
         const id = tools.activeDraftId
         if (id.length === 0)
@@ -493,11 +493,16 @@ Item {
             deleteDraftDialog.open()
             return
         }
-        doDeleteDraft()
+        requestDraftImageCleanup(id, "delete")
     }
 
     function doDeleteDraft() {
-        const id = tools.activeDraftId
+        requestDraftImageCleanup(tools.activeDraftId, "delete")
+    }
+
+    // 图片询问之后的真正删除（id 由对话框流程原样带回来，不再读激活位：
+    // 询问期间激活位可能被别的动作换走）。
+    function doDeleteDraftNow(id) {
         markdown.closeDraftSession(id)
         const result = tools.removeDraft(id)
         if (!result.ok) {
@@ -512,9 +517,10 @@ Item {
 
     // 关掉当前草稿的 tab（关视图不删草稿——与文件 tab 同一语义）。
     function closeCurrentDraftTab() {
-        if (tools.activeDraftId.length === 0)
+        const id = tools.activeDraftId
+        if (id.length === 0)
             return
-        markdown.closeDraftSession(tools.activeDraftId)
+        requestDraftImageCleanup(id, "close")
     }
 
     // 切换草稿（tab 点击与快照回滚后的兜底共用）：切走前存一版。
@@ -599,11 +605,11 @@ Item {
         const id = tools.activeDraftId
         if (id.length === 0)
             return
-        // 资源根 = 草稿绑定的工作区（或数据目录下的草稿资源目录），
-        // 图片导入与预览用同一个结论。
+        // 资源根 = 已保存草稿的 .md 所在目录，或草稿绑定的工作区/数据目录
+        // 下的草稿资源目录。迁移成相对路径后预览必须按文件目录解析。
         markdown.activateSession(
             markdown.openDraftSession(id, draftTitleById(id), tools.draft,
-                                      workbench.draftAssetRoot(id)))
+                                      workbench.draftPreviewAssetRoot(id)))
     }
 
     function applyPreset(requested) {
@@ -952,6 +958,167 @@ Item {
         return result.ok
     }
 
+    // --- 草稿保存为 Markdown ------------------------------------------------
+    // 草稿的正文一直自动落在 tools.json 里，但那是应用内部数据，不是用户
+    // 能拿走的文件。Ctrl+S / 命令条的「保存」把当前草稿写成磁盘上的 .md；
+    // 有工作区时默认落点是工作区（用户要求），同名文件已存在时转「另存为」，
+    // 绝不静默覆盖别人的文件。
+    function draftCanSave() {
+        return preset === "prompt" && markdown.draftActive
+                && tools.activeDraftId.length > 0
+    }
+
+    function canSaveCurrentTab() {
+        return draftCanSave()
+                || (preset === "document" && markdown.canEdit)
+    }
+
+    function saveDraftMarkdown(forceSaveAs) {
+        const id = tools.activeDraftId
+        if (id.length === 0)
+            return
+        const defaults = workbench.draftSaveDefaults(id)
+        let path = forceSaveAs ? "" : workbench.draftSavePath(id)
+        if (path.length === 0) {
+            const fallback = defaults.path ? defaults.path : ""
+            if (!forceSaveAs && fallback.length > 0
+                    && !workbench.pathExists(fallback)) {
+                path = fallback
+            } else {
+                path = ui.pickSaveFile(qsTr("Save the draft as Markdown"),
+                                       defaults.directory
+                                           ? defaults.directory
+                                           : tools.currentWorkspace,
+                                       defaults.fileName
+                                           ? defaults.fileName : "draft.md",
+                                       qsTr("Markdown (*.md *.markdown)"))
+                if (path.length === 0)
+                    return
+            }
+        }
+        const result = workbench.saveDraftMarkdown(id, path,
+                                                   promptEditor.text)
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not save"), result.error)
+            return
+        }
+        workbench.notify("success", qsTr("Saved"), result.path)
+        if (result.imageCount > 0)
+            openImageMigration(result.path, result.imageCount)
+    }
+
+    function saveDraftAs() {
+        saveDraftMarkdown(true)
+    }
+
+    // 命令条与 Ctrl+S 的共用入口：草稿存成 .md，文件 tab 走原来的存盘。
+    function saveCurrentTab() {
+        if (draftCanSave())
+            saveDraftMarkdown(false)
+        else if (preset === "document" && markdown.canEdit)
+            saveDocument()
+    }
+
+    // --- 保存后的图片迁移 ---------------------------------------------------
+    property string imageMigrationDraftId: ""
+    property string imageMigrationPath: ""
+    property int imageMigrationCount: 0
+    property string imageMigrationMode: "assets"
+    property string imageMigrationFolder: ""
+    property string imageMigrationAssetsFolder: ""
+
+    function openImageMigration(path, count) {
+        imageMigrationDraftId = tools.activeDraftId
+        imageMigrationPath = path
+        imageMigrationCount = count
+        imageMigrationMode = "assets"
+        imageMigrationAssetsFolder = workbench.draftImageAssetsFolder(path)
+        imageMigrationFolder = imageMigrationAssetsFolder
+        imageMigrationDialog.open()
+    }
+
+    function chooseImageMigrationFolder() {
+        const picked = ui.pickFolder(qsTr("Choose the image folder"))
+        if (picked.length === 0)
+            return
+        imageMigrationFolder = picked
+        imageMigrationMode = "folder"
+    }
+
+    function applyImageMigration() {
+        if (imageMigrationMode === "folder"
+                && imageMigrationFolder.length === 0) {
+            workbench.notify("error", qsTr("Could not move the images"),
+                             qsTr("Choose an image folder first."))
+            return
+        }
+        const result = workbench.migrateDraftImages(
+                    imageMigrationDraftId, imageMigrationPath,
+                    imageMigrationMode,
+                    imageMigrationMode === "folder"
+                        ? imageMigrationFolder : "")
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not move the images"),
+                             result.error)
+            return
+        }
+        // 改写后的正文回到编辑器（tools 与预览会话在 C++ 侧已经同步）。
+        if (result.text !== undefined && promptEditor.text !== result.text) {
+            promptEditor.text = result.text
+            draftSyncTimer.restart()
+        }
+        if (result.warning && result.warning.length > 0)
+            workbench.notify("info", qsTr("Images moved"), result.warning)
+        else
+            workbench.notify("success", qsTr("Images moved"),
+                             qsTr("The Markdown references are up to date."))
+        imageMigrationDialog.close()
+    }
+
+    // --- 关闭未保存草稿时的图片回收 -----------------------------------------
+    // 从未保存过（savePath 为空）且数据目录里还有粘贴图片时，先问用户是否
+    // 清除。只清 <dataRoot>/draft-assets/<id>：工作区里的图片绝不在这里删。
+    property string pendingDraftCloseId: ""
+    property string pendingDraftCloseAction: "close"
+    property var pendingDraftCloseFiles: []
+
+    function requestDraftImageCleanup(id, action) {
+        const files = workbench.draftAssetFiles(id)
+        if (workbench.draftSavePath(id).length === 0
+                && files.length > 0) {
+            pendingDraftCloseId = id
+            pendingDraftCloseAction = action
+            pendingDraftCloseFiles = files
+            draftImageCleanupDialog.open()
+            return
+        }
+        finishDraftCloseWith(id, action, false)
+    }
+
+    function finishDraftClose(deleteImages) {
+        const id = pendingDraftCloseId
+        const action = pendingDraftCloseAction
+        pendingDraftCloseId = ""
+        draftImageCleanupDialog.close()
+        finishDraftCloseWith(id, action, deleteImages)
+    }
+
+    function finishDraftCloseWith(id, action, deleteImages) {
+        if (id.length === 0)
+            return
+        if (deleteImages) {
+            const cleared = workbench.clearDraftAssets(id)
+            if (!cleared.ok)
+                workbench.notify("error", qsTr("Could not delete the images"),
+                                 cleared.error)
+        }
+        pendingDraftCloseFiles = []
+        if (action === "delete")
+            doDeleteDraftNow(id)
+        else
+            markdown.closeDraftSession(id)
+    }
+
     function toggleRibbonCollapsed() {
         setRibbonCollapsed(!ribbonCollapsed)
     }
@@ -1114,9 +1281,10 @@ Item {
     Shortcut {
         sequence: "Ctrl+S"
         context: Qt.ApplicationShortcut
-        enabled: pageCurrent && preset === "document"
-                 && markdown.canEdit
-        onActivated: workbenchWindow.saveDocument()
+        // 两种预设都能存：草稿写成 .md（有工作区直接落工作区），文件 tab
+        // 沿用原来的存盘。
+        enabled: pageCurrent && workbenchWindow.canSaveCurrentTab()
+        onActivated: workbenchWindow.saveCurrentTab()
     }
     Shortcut {
         sequence: "Ctrl+F"
@@ -1528,8 +1696,8 @@ Item {
                             font.pixelSize: workbenchWindow.editorFontResolved
 
                             placeholderText: qsTr("Write your prompt here. Nothing is sent from this window.")
-                            // Tab：多行选区整段缩进（VSCode 语义），单行/
-                            // 无选区保持原生插入；Keys 附加属性先于编辑器
+                            // Tab：任何选区整行缩进（VSCode 语义），无选区
+                            // 在光标处插入缩进单位；Keys 附加属性先于编辑器
                             // 自身的按键处理，处理后不再走默认的「替换选区」。
                             Keys.onTabPressed:
                                 workbenchWindow.handleEditorTab(promptEditor)
@@ -2710,6 +2878,265 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Cancel")
                     onClicked: deleteDraftDialog.close()
+                }
+            }
+        }
+    }
+
+    // 保存后的图片迁移：草稿里的图片是绝对路径（粘贴时落在应用数据目录
+    // 或工作区），存成 .md 之后由用户决定它们该住哪。
+    ADialog {
+        id: imageMigrationDialog
+        objectName: "imageMigrationDialog"
+        width: 560
+        titleText: qsTr("Move the images")
+
+        ColumnLayout {
+            width: imageMigrationDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("The draft references %1 local image(s). Choose where the saved Markdown should keep them.")
+                            .arg(workbenchWindow.imageMigrationCount)
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+
+            Repeater {
+                model: [
+                    {
+                        "key": "assets",
+                        "title": qsTr("Use the assets folder"),
+                        "detail": qsTr("Move the images to %1 and write relative paths.")
+                                    .arg(workbenchWindow.imageMigrationAssetsFolder)
+                    },
+                    {
+                        "key": "folder",
+                        "title": qsTr("Choose another folder"),
+                        "detail": qsTr("Move the images to a folder you pick. "
+                                       + "References stay relative while the "
+                                       + "folder is on the same drive.")
+                    },
+                    {
+                        "key": "absolute",
+                        "title": qsTr("Keep absolute paths"),
+                        "detail": qsTr("Do not move the images. Not recommended: "
+                                       + "the references break if these draft "
+                                       + "images are deleted or the file moves "
+                                       + "to another computer.")
+                    }
+                ]
+
+                delegate: Rectangle {
+                    id: migrationChoice
+
+                    required property var modelData
+                    readonly property bool selected: workbenchWindow.imageMigrationMode
+                                                     === modelData.key
+
+                    Layout.fillWidth: true
+                    implicitHeight: choiceText.implicitHeight
+                                    + theme.spacingM * 2
+                    radius: theme.radiusControl
+                    color: selected ? theme.alpha(theme.accent, 0.12)
+                                    : "transparent"
+                    border.color: selected ? theme.accent : theme.borderSubtle
+                    border.width: selected ? 2 : 1
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: theme.spacingM
+                        spacing: theme.spacingM
+
+                        Rectangle {
+                            Layout.alignment: Qt.AlignTop
+                            implicitWidth: 16
+                            implicitHeight: 16
+                            radius: 8
+                            color: "transparent"
+                            border.color: migrationChoice.selected
+                                          ? theme.accent : theme.textMuted
+                            border.width: 2
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: theme.accent
+                                visible: migrationChoice.selected
+                            }
+                        }
+
+                        ColumnLayout {
+                            id: choiceText
+                            Layout.fillWidth: true
+                            spacing: theme.spacingXs
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: migrationChoice.modelData.title
+                                color: theme.textPrimary
+                                font.pixelSize: theme.fontSizeBody
+                                font.bold: migrationChoice.selected
+                                wrapMode: Text.Wrap
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: migrationChoice.modelData.detail
+                                color: theme.textSecondary
+                                font.pixelSize: theme.fontSizeCaption
+                                wrapMode: Text.Wrap
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: workbenchWindow.imageMigrationMode
+                                   = migrationChoice.modelData.key
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                AButton {
+                    objectName: "chooseImageFolderButton"
+                    text: qsTr("Choose folder...")
+                    onClicked: workbenchWindow.chooseImageMigrationFolder()
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: workbenchWindow.imageMigrationFolder.length > 0
+                          ? workbenchWindow.imageMigrationFolder
+                          : qsTr("No folder chosen yet.")
+                    color: theme.textSecondary
+                    font.pixelSize: theme.fontSizeCaption
+                    elide: Text.ElideMiddle
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: workbenchWindow.imageMigrationMode === "folder"
+                         && workbenchWindow.imageMigrationFolder.length > 0
+                         && !workbench.pathsShareDrive(
+                                 workbenchWindow.imageMigrationPath,
+                                 workbenchWindow.imageMigrationFolder)
+                text: qsTr("This folder is on another drive, so the references "
+                           + "will use absolute paths.")
+                color: theme.warning
+                font.pixelSize: theme.fontSizeCaption
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item {
+                    Layout.fillWidth: true
+                }
+                AButton {
+                    text: qsTr("Cancel")
+                    onClicked: imageMigrationDialog.close()
+                }
+                AButton {
+                    objectName: "applyImageMigrationButton"
+                    variant: "primary"
+                    text: qsTr("Apply")
+                    enabled: workbenchWindow.imageMigrationMode !== "folder"
+                             || workbenchWindow.imageMigrationFolder.length > 0
+                    onClicked: workbenchWindow.applyImageMigration()
+                }
+            }
+        }
+    }
+
+    // 关闭未保存草稿时的图片回收：只清应用数据目录里的草稿资源，逐项
+    // 列出将删除的内容（用户也可能选择保留）。
+    ADialog {
+        id: draftImageCleanupDialog
+        objectName: "draftImageCleanupDialog"
+        width: 520
+        danger: true
+        titleText: qsTr("Delete the draft images?")
+
+        ColumnLayout {
+            width: draftImageCleanupDialog.availableWidth
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("This draft was never saved to a Markdown file. "
+                           + "Its images are stored in the application data "
+                           + "folder:")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+                wrapMode: Text.Wrap
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(180,
+                                                 cleanupFileList.contentHeight
+                                                 + theme.spacingM * 2)
+                color: theme.surfaceBg
+                radius: theme.radiusControl
+                border.color: theme.borderSubtle
+                border.width: 1
+
+                ListView {
+                    id: cleanupFileList
+                    anchors.fill: parent
+                    anchors.margins: theme.spacingM
+                    clip: true
+                    model: workbenchWindow.pendingDraftCloseFiles
+
+                    delegate: Label {
+                        required property var modelData
+                        width: cleanupFileList.width
+                        text: modelData.relativePath
+                        color: theme.textSecondary
+                        font.pixelSize: theme.fontSizeCaption
+                        elide: Text.ElideMiddle
+                    }
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Everything in this folder is deleted, even images "
+                           + "the draft no longer references. If you reopen "
+                           + "the draft, its image links will be broken.")
+                color: theme.textMuted
+                font.pixelSize: theme.fontSizeCaption
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: theme.spacingS
+
+                Item {
+                    Layout.fillWidth: true
+                }
+                AButton {
+                    objectName: "keepDraftImagesButton"
+                    text: qsTr("Keep Images")
+                    onClicked: workbenchWindow.finishDraftClose(false)
+                }
+                AButton {
+                    objectName: "deleteDraftImagesButton"
+                    variant: "danger"
+                    text: qsTr("Delete Images")
+                    onClicked: workbenchWindow.finishDraftClose(true)
                 }
             }
         }

@@ -192,6 +192,12 @@ public:
     Q_INVOKABLE awb::core::OpResult switchDraft(const QString &id);
     // 活跃草稿的正文回写（编辑防抖的落点）
     Q_INVOKABLE void setDraftBody(const QString &id, const QString &body);
+    // 保存到 Markdown 文件后的落账：正文立即落盘（跳过防抖），并记下
+    // 目标路径（空串 = 清掉记录）。草稿 tab 保持原样，后续 Ctrl+S 存回同一
+    // 文件；「从未保存」的判据就是这里写下的路径为空。
+    Q_INVOKABLE awb::core::OpResult markDraftSaved(const QString &id,
+                                                   const QString &body,
+                                                   const QString &path);
 
     // --- 历史快照（M4） ------------------------------------------------------
     // 某条草稿的快照（新在前）：[{body, reason, createdAt, charCount}]

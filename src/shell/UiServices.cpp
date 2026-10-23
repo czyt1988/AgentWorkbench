@@ -217,6 +217,101 @@ QString UiServices::pickFolder(const QString &title)
 }
 
 /**
+ * @brief 弹系统「保存文件」对话框
+ *
+ * 与 pickFolder 同一条路线（Win32 IFileDialog），Qt 5/Qt 6 行为一致且不
+ * 需要 QtWidgets。filter 只取第一组，形如 "Markdown (*.md *.markdown)"；
+ * 对话框自己处理覆盖确认。
+ *
+ * @param title 对话框标题；空串用系统默认
+ * @param defaultDir 预填目录；空串用系统默认
+ * @param defaultName 预填文件名；空串用系统默认
+ * @param filter 文件类型过滤器
+ * @return 所选文件的绝对路径；取消返回空串
+ */
+QString UiServices::pickSaveFile(const QString &title,
+                                 const QString &defaultDir,
+                                 const QString &defaultName,
+                                 const QString &filter)
+{
+#ifdef Q_OS_WIN
+    IFileSaveDialog *dialog = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr,
+                                  CLSCTX_INPROC_SERVER, IID_IFileSaveDialog,
+                                  reinterpret_cast<void **>(&dialog));
+    if (FAILED(hr)) {
+        qWarning() << "[ui] pickSaveFile: CoCreateInstance failed" << hr;
+        return QString();
+    }
+
+    DWORD options = 0;
+    dialog->GetOptions(&options);
+    dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_OVERWRITEPROMPT);
+    if (!title.isEmpty()) {
+        dialog->SetTitle(reinterpret_cast<const wchar_t *>(title.utf16()));
+    }
+    if (!defaultDir.isEmpty() && QDir(defaultDir).exists()) {
+        IShellItem *folder = nullptr;
+        const std::wstring native = QDir::toNativeSeparators(defaultDir)
+                                        .toStdWString();
+        if (SUCCEEDED(SHCreateItemFromParsingName(
+                native.c_str(), nullptr, IID_IShellItem,
+                reinterpret_cast<void **>(&folder)))
+            && folder) {
+            dialog->SetFolder(folder);
+            folder->Release();
+        }
+    }
+    if (!defaultName.isEmpty()) {
+        dialog->SetFileName(
+            reinterpret_cast<const wchar_t *>(defaultName.utf16()));
+    }
+
+    // "显示名 (*.md *.markdown)" → 显示名 + 分号分隔的模式表。
+    std::wstring filterName;
+    std::wstring filterPattern;
+    const int open = filter.indexOf(QLatin1Char('('));
+    const int close = filter.lastIndexOf(QLatin1Char(')'));
+    if (open >= 0 && close > open) {
+        filterName = filter.left(open).trimmed().toStdWString();
+        QString patterns = filter.mid(open + 1, close - open - 1).trimmed();
+        patterns.replace(QLatin1Char(' '), QLatin1Char(';'));
+        filterPattern = patterns.toStdWString();
+        COMDLG_FILTERSPEC spec;
+        spec.pszName = filterName.c_str();
+        spec.pszSpec = filterPattern.c_str();
+        dialog->SetFileTypes(1, &spec);
+        dialog->SetFileTypeIndex(1);
+    }
+    dialog->SetDefaultExtension(L"md");
+
+    QString result;
+    hr = dialog->Show(ownerHwnd());
+    if (SUCCEEDED(hr)) {
+        IShellItem *item = nullptr;
+        if (SUCCEEDED(dialog->GetResult(&item)) && item) {
+            PWSTR path = nullptr;
+            if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))
+                && path) {
+                result = QString::fromWCharArray(path);
+                CoTaskMemFree(path);
+            }
+            item->Release();
+        }
+    }
+    dialog->Release();
+    return result;
+#else
+    Q_UNUSED(title);
+    Q_UNUSED(defaultDir);
+    Q_UNUSED(defaultName);
+    Q_UNUSED(filter);
+    qWarning() << "[ui] pickSaveFile is only implemented on Windows";
+    return QString();
+#endif
+}
+
+/**
  * @brief 弹系统「选颜色」对话框
  *
  * Windows 上走 comdlg32 的 ChooseColor——QColorDialog 需要 QtWidgets，

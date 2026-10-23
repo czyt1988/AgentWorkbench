@@ -47,10 +47,21 @@ function isExternalRef(ref)
     if (!text || text.charAt(0) === "#") {
         return true;        // 锚点不映射
     }
+    if (isAbsoluteLocalPath(text)) {
+        return false;       // 盘符绝对路径：草稿图片与跨盘迁移的落点
+    }
     if (text.charAt(0) === "/" && text.slice(0, 2) !== "//") {
         return false;       // 站外绝对路径：按文档目录处理（少数 md 这么写）
     }
     return /^[a-z][a-z0-9+.-]*:/i.test(text) || text.slice(0, 2) === "//";
+}
+
+// Windows 盘符绝对路径（C:\x 或 C:/x）。不能用「有冒号就是协议」判定：
+// Chromium 会把 C: 当成协议名，图片永远不会被加载；草稿与跨盘迁移都要
+// 走 asset 通道把它交给本地文件服务。
+function isAbsoluteLocalPath(ref)
+{
+    return /^[a-zA-Z]:[\\/]/.test(String(ref || "").trim());
 }
 
 export function createRenderer(options)
@@ -84,10 +95,16 @@ export function createRenderer(options)
     }
 
     // 文档相对资源 → awbmd://runtime/asset/<docId>/<rel>
+    // 盘符绝对路径走 @abs/ 子路由：assetRoot 的目录边界在这里没有意义，
+    // 由 C++ 侧按「本地存在的图片文件」校验后再供出。
     function assetUrl(relPath)
     {
         if (!doc || !doc.assetBase || isExternalRef(relPath)) {
             return "";
+        }
+        if (isAbsoluteLocalPath(relPath)) {
+            const absolute = String(relPath).trim().replace(/\\/g, "/");
+            return doc.assetBase + "@abs/" + encodeSegments(absolute);
         }
         const rel = normalizeRelative(relPath).replace(/^\/+/, "");
         if (!rel) {

@@ -353,17 +353,18 @@ engine loads.
 
 The single place for system-level UI operations: `copyText()`,
 `openExternalUrl()`, `revealFile()`, `openFolder()`, `pickFolder()`,
-`pickColor()`, `rememberColor()`, and the colour-picker support data
-(`colorThemes`, `standardColors`, `recentColors`). All fallible operations return
-`awb::core::OpResult` **written fully qualified**: Qt 5's moc records the return
-type as written while QML resolves the `QMetaType` registration name (the
-classes' fully qualified name), so a short type name throws "Unknown method
-return type" and the call silently fails. `pickFolder`/`pickColor` use native
-Win32 dialogs because `QFileDialog`/`QColorDialog` need QtWidgets (linked into the shell only for the
-tray; core must stay widget-free) and QML's `FolderDialog` is Qt 6 QuickDialogs2
-only; the
-native route is the only version-independent one. Recent colours are an
-in-process, non-persisted list capped at 10, newest first.
+`pickSaveFile()`, `pickColor()`, `rememberColor()`, and the colour-picker
+support data (`colorThemes`, `standardColors`, `recentColors`). All fallible
+operations return `awb::core::OpResult` **written fully qualified**: Qt 5's moc
+records the return type as written while QML resolves the `QMetaType`
+registration name (the classes' fully qualified name), so a short type name
+throws "Unknown method return type" and the call silently fails.
+`pickFolder`/`pickSaveFile`/`pickColor` use native Win32 dialogs because
+`QFileDialog`/`QColorDialog` need QtWidgets (linked into the shell only for the
+tray; core must stay widget-free) and QML's `FolderDialog` is Qt 6
+QuickDialogs2 only; the native route is the only version-independent one.
+Recent colours are an in-process, non-persisted list capped at 10, newest
+first.
 
 ### `Notifications`
 

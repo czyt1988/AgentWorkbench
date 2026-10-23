@@ -178,6 +178,10 @@ public:
     {
         return QString();
     }
+    Q_INVOKABLE QString draftPreviewAssetRoot(const QString &) const
+    {
+        return QString();
+    }
     Q_INVOKABLE QVariantMap importImageFiles(const QStringList &)
     {
         QVariantMap result;
@@ -191,6 +195,49 @@ public:
     Q_INVOKABLE QVariantMap importClipboardImage()
     {
         return importImageFiles(QStringList());
+    }
+    // 草稿保存与图片回收：本套件不点这些入口，桩给最小可调用面，
+    // 保证页面装载与关 tab 流程不会因缺方法抛 TypeError。
+    Q_INVOKABLE QString draftSavePath(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE QVariantMap draftSaveDefaults(const QString &) const
+    {
+        return QVariantMap();
+    }
+    Q_INVOKABLE QString draftImageAssetsFolder(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE bool pathsShareDrive(const QString &, const QString &) const
+    {
+        return true;
+    }
+    Q_INVOKABLE QVariantMap saveDraftMarkdown(const QString &, const QString &,
+                                              const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+    Q_INVOKABLE QVariantMap migrateDraftImages(const QString &, const QString &,
+                                               const QString &,
+                                               const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
+    }
+    Q_INVOKABLE QVariantList draftAssetFiles(const QString &) const
+    {
+        return QVariantList();
+    }
+    Q_INVOKABLE QVariantMap clearDraftAssets(const QString &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("ok"), true);
+        return result;
     }
 
 public:
@@ -221,6 +268,11 @@ public:
     {
         folderTitle = title;
         return folder;
+    }
+    Q_INVOKABLE QString pickSaveFile(const QString &, const QString &,
+                                     const QString &, const QString &)
+    {
+        return QString();
     }
     Q_INVOKABLE void revealFile(const QString &path)
     {

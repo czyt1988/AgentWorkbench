@@ -243,6 +243,7 @@ QVariantList ToolsFacade::drafts() const
         item.insert(QStringLiteral("id"), entry.id);
         item.insert(QStringLiteral("title"), entry.title);
         item.insert(QStringLiteral("workspace"), entry.workspace);
+        item.insert(QStringLiteral("savePath"), entry.savePath);
         item.insert(QStringLiteral("updatedAt"),
                     double(entry.updatedAt));
         result.append(item);
@@ -396,6 +397,37 @@ void ToolsFacade::setDraftBody(const QString &id, const QString &body)
     }
     m_store.setDraftBody(id, body);
     Q_EMIT draftsChanged();
+}
+
+/**
+ * @brief 保存到 Markdown 文件后的落账
+ *
+ * 保存必须是「按下 Ctrl+S 的那一刻正文就落盘」，所以这里绕过防抖：停掉
+ * 定时器、把缓冲原样写进 store，再记下目标路径。正文没变时 store 不写盘，
+ * 路径变化仍单独写。
+ */
+core::OpResult ToolsFacade::markDraftSaved(const QString &id,
+                                           const QString &body,
+                                           const QString &path)
+{
+    if (m_store.draftById(id).id.isEmpty()) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "ToolsFacade", "The draft no longer exists."));
+    }
+    if (id == m_activeDraftIdCache) {
+        m_draftTimer->stop();
+        m_draft = body;
+    }
+    if (!m_store.setDraftBody(id, body)
+        || !m_store.setDraftSavePath(id, path)) {
+        return core::OpResult::failure(QCoreApplication::translate(
+            "ToolsFacade", "Could not record the save location."));
+    }
+    Q_EMIT draftsChanged();
+    if (id == m_activeDraftIdCache) {
+        Q_EMIT draftChanged();
+    }
+    return core::OpResult::success();
 }
 
 /**

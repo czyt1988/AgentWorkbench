@@ -137,6 +137,31 @@ Item {
         RibbonCategory {
             title: qsTr("Start")
 
+            // 保存：草稿写成磁盘上的 .md（有工作区时默认落工作区），文件
+            // tab 则是普通存盘。另存为永远弹系统保存框。
+            RibbonPanel {
+                panelTitle: qsTr("File")
+
+                RibbonToolButton {
+                    objectName: "saveDraftButton"
+                    text: qsTr("Save")
+                    toolButtonStyle: commandBar.startIconStyle()
+                    iconSource: commandBar.icon("save")
+                    toolTip: qsTr("Save as Markdown (Ctrl+S)")
+                    enabled: win && win.canSaveCurrentTab()
+                    onClicked: if (win) win.saveCurrentTab()
+                }
+                RibbonToolButton {
+                    objectName: "saveDraftAsButton"
+                    text: qsTr("Save As")
+                    toolButtonStyle: commandBar.startIconStyle()
+                    iconSource: commandBar.icon("saveAs")
+                    toolTip: qsTr("Save the draft as a new Markdown file")
+                    enabled: win && win.draftCanSave()
+                    onClicked: if (win) win.saveDraftAs()
+                }
+            }
+
             // 剪贴板与撤销：高频动作用图标（紧凑档 icon-only、宽松档
             // 带文字，见 startIconStyle()）。
             RibbonPanel {
