@@ -63,6 +63,7 @@ struct MarkdownPreviewController::Session {
 
     QString docId;                  ///< 资源寻址 id（文件会话 dN，草稿固定 "draft"）
     MarkdownDocument document;      ///< 文档本体（含 watcher 与字节形态）
+    QString assetRoot;              ///< 资源根覆盖值；空 = 用文档目录
     QVector<MarkdownBlock> blocks;  ///< 块序列（增量渲染的依据）
     QVariantList outline;           ///< 由块序列派生的大纲
     int rev = 0;                    ///< 会话内容版本，进 doc.json 的 query
@@ -470,6 +471,8 @@ void MarkdownPreviewController::closeDraftSession(const QString &draftId)
  * @param draftId tools.json 里那条草稿的 id（docId 与之相同）
  * @param title 草稿标题（tab 与渲染标题用）
  * @param body 草稿正文
+ * @param assetRoot 草稿图片的解析根（绑定的工作区或数据目录下的草稿资源
+ *                  目录）；空串表示没有资源根
  * @return docId（= draftId）；draftId 空时返回空串
  *
  * 草稿是虚拟文档：编辑面在 tools 域的草稿编辑器（tools.json 持久化），
@@ -478,18 +481,24 @@ void MarkdownPreviewController::closeDraftSession(const QString &draftId)
  */
 QString MarkdownPreviewController::openDraftSession(const QString &draftId,
                                                     const QString &title,
-                                                    const QString &body)
+                                                    const QString &body,
+                                                    const QString &assetRoot)
 {
     if (draftId.isEmpty()) {
         return QString();
     }
     for (const auto &existing : m_drafts) {
         if (existing->docId == draftId) {
+            // 草稿可能被重新绑定到别的工作区；会话复用，但资源根要跟上。
+            if (!assetRoot.isEmpty() && existing->assetRoot != assetRoot) {
+                existing->assetRoot = assetRoot;
+            }
             return existing->docId;   // 幂等
         }
     }
     auto session = std::make_shared<Session>(draftId);
     session->document.setVirtual(title, body);
+    session->assetRoot = assetRoot;
     session->blocks = MarkdownChunker::split(body);
     session->outline = MarkdownRuntime::outlineFromBlocks(session->blocks);
     session->rev = 1;
@@ -1146,18 +1155,25 @@ QString MarkdownPreviewController::docId() const
 }
 
 /**
- * @brief 活跃会话的文档目录
+ * @brief 活跃会话的资源根
+ *
+ * 草稿的会话带覆盖值（绑定的工作区或数据目录下的草稿资源目录）；文件
+ * 会话没有覆盖值时用文档目录。
  */
 QString MarkdownPreviewController::assetRoot() const
 {
-    return activeSession() ? activeSession()->document.directory()
-                           : QString();
+    const Session *session = activeSession();
+    if (!session) {
+        return QString();
+    }
+    return session->assetRoot.isEmpty() ? session->document.directory()
+                                        : session->assetRoot;
 }
 
 /**
- * @brief 任意活着会话的文档目录
+ * @brief 任意活着会话的资源根
  * @param docId 资源寻址 id
- * @return 文档目录；会话不存在或没有目录（草稿）时为空串
+ * @return 资源根；会话不存在时为空串
  *
  * 适配器按 asset/<docId>/… 寻址：换页瞬间旧会话的图片请求还可能在飞，
  * 所以解析范围是**所有**活着的会话，不只是活跃的那个。
@@ -1165,7 +1181,11 @@ QString MarkdownPreviewController::assetRoot() const
 QString MarkdownPreviewController::assetRootFor(const QString &docId) const
 {
     const std::shared_ptr<Session> session = sessionById(docId);
-    return session ? session->document.directory() : QString();
+    if (!session) {
+        return QString();
+    }
+    return session->assetRoot.isEmpty() ? session->document.directory()
+                                        : session->assetRoot;
 }
 
 // --- 命令队列 ------------------------------------------------------------

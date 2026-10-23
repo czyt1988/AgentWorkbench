@@ -1086,6 +1086,46 @@ Command: %2
     </message>
 </context>
 <context>
+    <name>ImageImporter</name>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="93"/>
+        <location filename="../src/workbench/ImageImporter.cpp" line="144"/>
+        <source>Could not create the image folder: %1</source>
+        <translation>无法创建图片目录：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="110"/>
+        <source>Could not save the pasted image to %1</source>
+        <translation>无法把粘贴的图片保存到 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="130"/>
+        <source>Image file not found: %1</source>
+        <translation>找不到图片文件：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="154"/>
+        <source>Could not copy the image to %1</source>
+        <translation>无法把图片复制到 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="164"/>
+        <source>Could not build a relative image path.</source>
+        <translation>无法生成相对图片路径。</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="342"/>
+        <location filename="../src/workbench/ImageImporter.cpp" line="428"/>
+        <source>No document folder is available for images.</source>
+        <translation>没有可用于图片的文档目录。</translation>
+    </message>
+    <message>
+        <location filename="../src/workbench/ImageImporter.cpp" line="437"/>
+        <source>The clipboard image is empty.</source>
+        <translation>剪贴板图片为空。</translation>
+    </message>
+</context>
+<context>
     <name>LegacyImport</name>
     <message>
         <location filename="../src/core/LegacyImport.cpp" line="144"/>
@@ -1204,82 +1244,82 @@ Command: %2
 <context>
     <name>MarkdownContextMenu</name>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="44"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="48"/>
         <source>Bold</source>
         <translation>加粗</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="52"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="56"/>
         <source>Code</source>
         <translation>代码段</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="60"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="64"/>
         <source>Bulleted list</source>
         <translation>要点列表</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="70"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="74"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="78"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="82"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="89"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="93"/>
         <source>Cut</source>
         <translation>剪切</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="97"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="101"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="105"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="109"/>
         <source>Paste</source>
         <translation>粘贴</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="118"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="124"/>
         <source>Move line up</source>
         <translation>上移一行</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="126"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="132"/>
         <source>Move line down</source>
         <translation>下移一行</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="134"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="140"/>
         <source>Duplicate line</source>
         <translation>复制一行</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="142"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="148"/>
         <source>Delete line</source>
         <translation>删除一行</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="150"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="156"/>
         <source>Select line</source>
         <translation>选中整行</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="160"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="166"/>
         <source>UPPERCASE</source>
         <translation>全部大写</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="168"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="174"/>
         <source>lowercase</source>
         <translation>全部小写</translation>
     </message>
     <message>
-        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="176"/>
+        <location filename="../src/markdownedit/qml/MarkdownContextMenu.qml" line="182"/>
         <source>Title Case</source>
         <translation>词首大写</translation>
     </message>
@@ -1348,33 +1388,33 @@ Command: %2
 <context>
     <name>MarkdownPreviewController</name>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="150"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="151"/>
         <source>Markdown preview is unavailable: the preview surface is not installed.</source>
         <translation>Markdown 预览不可用：预览组件未安装。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="312"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="313"/>
         <source>Only Markdown files can be previewed here.</source>
         <translation>这里只能预览 Markdown 文件。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="319"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="320"/>
         <source>Too many documents are open. Close a tab before opening another one.</source>
         <translation>打开的文档太多了。先关一个标签页再开新的。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="819"/>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="851"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="828"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="860"/>
         <source>There is no file to save to.</source>
         <translation>没有可保存的文件。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="863"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="872"/>
         <source>There is no file to reload.</source>
         <translation>没有可重新加载的文件。</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="1276"/>
+        <location filename="../src/markdown/MarkdownPreviewController.cpp" line="1296"/>
         <source>There is no folder to export into: open a saved file first, or pick a folder.</source>
         <translation>没有可导出到的目录：先打开一份已存盘的文件，或选择一个文件夹。</translation>
     </message>
@@ -1382,142 +1422,142 @@ Command: %2
 <context>
     <name>MarkdownPreviewPage</name>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="502"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="503"/>
         <source>Outline</source>
         <translation>大纲</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="504"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="505"/>
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="506"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="507"/>
         <source>Find in document</source>
         <translation>在文档中查找</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="508"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="509"/>
         <source>No matches</source>
         <translation>无匹配</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="510"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="511"/>
         <source>%1 of %2</source>
         <translation>第 %1 处，共 %2 处</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="512"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="513"/>
         <source>Match case</source>
         <translation>区分大小写</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="514"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="515"/>
         <source>Previous match</source>
         <translation>上一处匹配</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="516"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="517"/>
         <source>Next match</source>
         <translation>下一处匹配</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="518"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="519"/>
         <source>Close search</source>
         <translation>关闭搜索</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="520"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="521"/>
         <source>Copy selection</source>
         <translation>复制所选内容</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="522"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="523"/>
         <source>Copy Markdown source</source>
         <translation>复制 Markdown 源码</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="524"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="525"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="526"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="527"/>
         <source>Export standalone HTML</source>
         <translation>导出独立 HTML</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="528"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="529"/>
         <source>Exported</source>
         <translation>已导出</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="530"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="531"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="532"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="533"/>
         <source>Saved</source>
         <translation>已保存</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="534"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="535"/>
         <source>Discard changes</source>
         <translation>放弃更改</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="536"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="537"/>
         <source>Reload from disk</source>
         <translation>从磁盘重新加载</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="538"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="539"/>
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="540"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="541"/>
         <source>Preview only</source>
         <translation>仅预览</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="542"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="543"/>
         <source>Font size</source>
         <translation>字号</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="544"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="545"/>
         <source>Content width</source>
         <translation>正文宽度</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="546"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="547"/>
         <source>This block failed to render</source>
         <translation>此块渲染失败</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="548"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="549"/>
         <source>Diagram could not be drawn</source>
         <translation>图表无法绘制</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="550"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="551"/>
         <source>Click to render this diagram</source>
         <translation>点击渲染此图表</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="552"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="553"/>
         <source>The document is empty</source>
         <translation>文档为空</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="554"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="555"/>
         <source>The file changed on disk while you were editing</source>
         <translation>你编辑期间文件在磁盘上已被修改</translation>
     </message>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="556"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="557"/>
         <source>%1 lines, %2 words, %3 blocks</source>
         <translation>%1 行 · %2 词 · %3 块</translation>
     </message>
@@ -1749,7 +1789,7 @@ Command: %2
 <context>
     <name>MarkdownRuntime</name>
     <message>
-        <location filename="../src/markdown/MarkdownRuntime.cpp" line="217"/>
+        <location filename="../src/markdown/MarkdownRuntime.cpp" line="218"/>
         <source>This build has no Markdown preview: it needs Qt 6 with WebEngine enabled.</source>
         <translation>此构建没有 Markdown 预览：需要启用 WebEngine 的 Qt 6 构建。</translation>
     </message>
@@ -1784,28 +1824,28 @@ Command: %2
 <context>
     <name>MarkdownWorkbenchPage</name>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="316"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="413"/>
         <source>Nothing to save</source>
         <translation>没有可保存的内容</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="317"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="533"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="414"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="633"/>
         <source>The editor is empty.</source>
         <translation>编辑区是空的。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="321"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="418"/>
         <source>Saved to favorites</source>
         <translation>已存入收藏夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="322"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="419"/>
         <source>Insert it from the favorites panel.</source>
         <translation>请从收藏夹段插入。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="362"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="459"/>
         <source>Could not create the draft</source>
         <translation>无法创建草稿</translation>
     </message>
@@ -1822,54 +1862,54 @@ Command: %2
         <translation type="vanished">无法复制草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="407"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="504"/>
         <source>Could not delete the draft</source>
         <translation>无法删除草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="439"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="536"/>
         <source>Version saved</source>
         <translation>版本已保存</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="440"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="537"/>
         <source>It is in the draft&apos;s history list.</source>
         <translation>它已在该草稿的历史列表里。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="532"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="937"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="632"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1037"/>
         <source>Nothing to copy</source>
         <translation>没有可复制的内容</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="541"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="641"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="542"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="642"/>
         <source>The prompt is on the clipboard.</source>
         <translation>提示词已复制到剪贴板。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="548"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="648"/>
         <source>Choose a workspace folder</source>
         <translation>选择工作区文件夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="553"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="653"/>
         <source>Could not add the workspace</source>
         <translation>无法添加工作区</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="667"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="672"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="767"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="772"/>
         <source>Find</source>
         <translation>查找</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="673"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="773"/>
         <source>Searched from the start.</source>
         <translation>已从头开始查找。</translation>
     </message>
@@ -1890,22 +1930,22 @@ Command: %2
         <translation type="vanished">草稿已清空。按 Ctrl+Z 可撤销。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="849"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="949"/>
         <source>Could not save</source>
         <translation>无法保存</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="927"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1027"/>
         <source>Nothing selected</source>
         <translation>未选中内容</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="928"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1028"/>
         <source>Select some text in the preview first.</source>
         <translation>请先在预览区选中一些文字。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="938"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1038"/>
         <source>The document is empty.</source>
         <translation>文档是空的。</translation>
     </message>
@@ -2014,22 +2054,22 @@ Command: %2
         <translation type="vanished">删除这条收藏</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1296"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1396"/>
         <source>Close this tab</source>
         <translation>关闭此标签页</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1960"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2067"/>
         <source>Preview</source>
         <translation>预览</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1952"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2059"/>
         <source>Split</source>
         <translation>分栏</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1944"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2051"/>
         <source>Source</source>
         <translation>源码</translation>
     </message>
@@ -2054,7 +2094,7 @@ Command: %2
         <translation type="vanished">满栏</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1378"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1478"/>
         <source>More actions</source>
         <translation>更多操作</translation>
     </message>
@@ -2087,7 +2127,7 @@ Command: %2
         <translation type="vanished">下一处</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="767"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="867"/>
         <source>Replace</source>
         <translation>替换</translation>
     </message>
@@ -2120,58 +2160,58 @@ Command: %2
         <translation type="vanished">在这里撰写提示词。回车只换行；这个窗口不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1633"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1726"/>
         <source>Nothing to edit</source>
         <translation>没有可编辑的内容</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1678"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1785"/>
         <source>Preview failed</source>
         <translation>预览失败</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1679"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1786"/>
         <source>The preview page could not be loaded.</source>
         <translation>预览页面无法加载。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1771"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1878"/>
         <source>%1 chars</source>
         <translation>%1 字符</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1777"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1884"/>
         <source>%1 lines</source>
         <translation>%1 行</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1812"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1919"/>
         <source>Ln %1, Col %2</source>
         <translation>第 %1 行，第 %2 列</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1826"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1898"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1933"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2005"/>
         <source>~%1 tokens (estimated)</source>
         <translation>约 %1 tokens（估算）</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1836"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1943"/>
         <source>A rough estimate of the context the agent will read, against a %1-token window.</source>
         <translation>按 %1-token 窗口粗略估算 agent 将读到的上下文量。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1870"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1977"/>
         <source>Unsaved changes</source>
         <translation>有未保存的改动</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1907"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2014"/>
         <source>%1 KB</source>
         <translation>%1 KB</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1973"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2080"/>
         <source>Outline</source>
         <translation>大纲</translation>
     </message>
@@ -2212,177 +2252,183 @@ Command: %2
         <translation type="vanished">复制、清空、替换或切换时都会留下版本。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2115"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2222"/>
         <source>Saved</source>
         <translation>已保存</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2137"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2244"/>
         <source>Something did not render</source>
         <translation>有内容未渲染成功</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2138"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2245"/>
         <source>A part of the document failed to render. See the log for details.</source>
         <translation>文档中有一部分渲染失败，详见日志。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2147"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2254"/>
         <source>Exported</source>
         <translation>已导出</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2152"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2259"/>
         <source>Could not write the file</source>
         <translation>无法写入文件</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2209"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2316"/>
         <source>Copy selection</source>
         <translation>复制所选内容</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2214"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2321"/>
         <source>Copy Markdown source</source>
         <translation>复制 Markdown 源码</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2220"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2327"/>
         <source>Open in browser</source>
         <translation>在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2225"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2332"/>
         <source>Export HTML next to the document</source>
         <translation>在文档旁导出 HTML</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2234"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2341"/>
         <source>Export HTML to a folder...</source>
         <translation>导出 HTML 到指定文件夹…</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2237"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2344"/>
         <source>Choose a folder for the exported HTML</source>
         <translation>选择导出 HTML 的文件夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2247"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2290"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2354"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2397"/>
         <source>Reload from disk</source>
         <translation>从磁盘重新加载</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2288"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2395"/>
         <source>File changed on disk</source>
         <translation>文件在磁盘上被改动</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2289"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2396"/>
         <source>The file was changed outside this window while you have unsaved changes.</source>
         <translation>本窗口之外有程序改动了该文件，而你有未保存的改动。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2291"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2398"/>
         <source>Keep my changes</source>
         <translation>保留我的改动</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2296"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2403"/>
         <source>Could not reload</source>
         <translation>无法重新读取</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2329"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2436"/>
         <source>Empty fields stay as {{placeholders}} in the text.</source>
         <translation>留空的项会以 {{占位符}} 的形式留在正文里。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2382"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2482"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2563"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2604"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2646"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2689"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2489"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2589"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2670"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2711"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2753"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2796"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2387"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2494"/>
         <source>Insert</source>
         <translation>插入</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2428"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2535"/>
         <source>Save as template</source>
         <translation>存为模板</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2438"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2545"/>
         <source>Title</source>
         <translation>标题</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2450"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2557"/>
         <source>Category</source>
         <translation>分类</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2459"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2566"/>
         <source>My templates</source>
         <translation>我的模板</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2463"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2570"/>
         <source>Description</source>
         <translation>描述</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2203"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2487"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2310"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2594"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
+    <message>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="192"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="244"/>
+        <source>Could not insert image</source>
+        <translation>无法插入图片</translation>
+    </message>
     <message numerus="yes">
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="768"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="868"/>
         <source>Replaced %n occurrence(s).</source>
         <translation>
             <numerusform>已替换 %n 处。</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="781"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2617"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="881"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2724"/>
         <source>Go to line</source>
         <translation>跳转到行</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="782"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="882"/>
         <source>Switch to the source view first.</source>
         <translation>请先切到源码视图。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1430"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1530"/>
         <source>Write your prompt here. Nothing is sent from this window.</source>
         <translation>在这里撰写提示词。这个窗口不会发送任何内容。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2507"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2614"/>
         <source>New template</source>
         <translation>新建模板</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2519"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2626"/>
         <source>Template saved</source>
         <translation>模板已保存</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2520"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2627"/>
         <source>It is in your template library and in the template folder.</source>
         <translation>它已在你的模板库里，也在模板文件夹里。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2523"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2630"/>
         <source>Could not save the template</source>
         <translation>无法保存模板</translation>
     </message>
@@ -2407,23 +2453,23 @@ Command: %2
         <translation type="vanished">清空</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2536"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2643"/>
         <source>Rename the draft</source>
         <translation>重命名草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2548"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2655"/>
         <source>Draft title</source>
         <translation>草稿标题</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2037"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2558"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2144"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2665"/>
         <source>Rename</source>
         <translation>重命名</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="668"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="768"/>
         <source>No more matches.</source>
         <translation>没有更多匹配。</translation>
     </message>
@@ -2432,7 +2478,7 @@ Command: %2
         <translation type="vanished">插入路径到光标处</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1371"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="1471"/>
         <source>New draft</source>
         <translation>新建草稿</translation>
     </message>
@@ -2453,78 +2499,78 @@ Command: %2
         <translation type="vanished">复制、替换或切换草稿时会出现版本。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2043"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2150"/>
         <source>Delete draft</source>
         <translation>删除草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2049"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2156"/>
         <source>Close tab</source>
         <translation>关闭标签页</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2574"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2681"/>
         <source>Delete the draft</source>
         <translation>删除草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2582"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2689"/>
         <source>Delete &apos;%1&apos; and its version history? This cannot be undone.</source>
         <translation>删除「%1」及其版本历史？此操作无法撤销。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2596"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2703"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2633"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2740"/>
         <source>Line number</source>
         <translation>行号</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2651"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2758"/>
         <source>Go</source>
         <translation>跳转</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2664"/>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2684"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2771"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2791"/>
         <source>Roll back</source>
         <translation>回滚</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2672"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2779"/>
         <source>Replace the draft with this version? The current text is saved to the history first.</source>
         <translation>用这一版替换草稿吗？当前文本会先存入历史。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2702"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2809"/>
         <source>Recovered draft</source>
         <translation>恢复的草稿</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2710"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2817"/>
         <source>The app closed unexpectedly. Restore the draft text from that session as a new draft?</source>
         <translation>应用上次异常退出。要把那次会话的草稿文本恢复为一条新草稿吗？</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2722"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2829"/>
         <source>Restore</source>
         <translation>恢复</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2730"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2837"/>
         <source>Draft restored</source>
         <translation>草稿已恢复</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2731"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2838"/>
         <source>It is open as a new draft tab.</source>
         <translation>它已作为新的草稿标签页打开。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2737"/>
+        <location filename="../src/workbench/qml/MarkdownWorkbenchPage.qml" line="2844"/>
         <source>Discard</source>
         <translation>丢弃</translation>
     </message>
@@ -3550,6 +3596,26 @@ Command: %2
         <location filename="../src/shell/qml/SettingsMarkdownPage.qml" line="161"/>
         <source>Typing * ` ~ [ ( inserts the closing mark and puts the cursor in between; typing the same mark again skips over the closer.</source>
         <translation>输入 *、`、~、[ 或 ( 时会补上闭合标记并把光标放到中间；再输入同一标记则跳过闭合符。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsMarkdownPage.qml" line="176"/>
+        <source>Image assets folder</source>
+        <translation>图片目录</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsMarkdownPage.qml" line="186"/>
+        <source>Invalid image folder</source>
+        <translation>图片目录无效</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsMarkdownPage.qml" line="187"/>
+        <source>Use a relative path inside the workspace, such as docs/assets/pic.</source>
+        <translation>请使用工作区内的相对路径，例如 docs/assets/pic。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/qml/SettingsMarkdownPage.qml" line="198"/>
+        <source>Where pasted images are saved, relative to the workspace root (or the document folder when no workspace is open). Multi-level paths such as docs/assets/pic are allowed. Images outside the document folder are inserted with .. paths and are not shown in the built-in preview.</source>
+        <translation>粘贴的图片保存位置，相对工作区根（没有打开工作区时相对文档目录）。支持 docs/assets/pic 这类多级路径。文档目录之外的图片会以 .. 路径插入，不会显示在内置预览里。</translation>
     </message>
 </context>
 <context>
@@ -4729,62 +4795,62 @@ Command: %2
 <context>
     <name>WorkbenchContext</name>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="303"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="488"/>
         <source>Opening in the browser</source>
         <translation>正在浏览器中打开</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="364"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="549"/>
         <source>Markdown preview</source>
         <translation>Markdown 预览</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="366"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="551"/>
         <source>Markdown preview is unavailable.</source>
         <translation>本构建没有 Markdown 预览能力。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="374"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="559"/>
         <source>Cannot preview this file</source>
         <translation>无法预览这个文件</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="607"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="793"/>
         <source>File association is only available on Windows.</source>
         <translation>文件关联仅在 Windows 上可用。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="613"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="799"/>
         <source>The application path could not be determined.</source>
         <translation>无法确定应用程序路径。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="632"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="818"/>
         <source>The registry could not be written (policy or permission).</source>
         <translation>注册表写入失败（策略或权限）。</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="745"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="931"/>
         <source>Copied</source>
         <translation>已复制</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="750"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="936"/>
         <source>Copy failed</source>
         <translation>复制失败</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="779"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="965"/>
         <source>Cannot open link</source>
         <translation>无法打开链接</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="809"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="995"/>
         <source>Cannot open folder</source>
         <translation>无法打开文件夹</translation>
     </message>
     <message>
-        <location filename="../src/workbench/WorkbenchContext.cpp" line="929"/>
+        <location filename="../src/workbench/WorkbenchContext.cpp" line="1115"/>
         <source>Plugins run inside this application&apos;s process. Their trust level is the same as the application itself — only enable plugins you trust. Changes take effect after a restart.</source>
         <translation>插件运行在本应用的进程内，信任级别等同于应用本身——只启用你信任的插件。修改在重启后生效。</translation>
     </message>

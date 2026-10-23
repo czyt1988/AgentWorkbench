@@ -9,6 +9,8 @@ add_library(awb_workbench STATIC
     EnvironmentProbe.h
     EnvironmentService.cpp
     EnvironmentService.h
+    ImageImporter.cpp
+    ImageImporter.h
     MarkdownSessionStore.cpp
     MarkdownSessionStore.h
     PluginServices.cpp

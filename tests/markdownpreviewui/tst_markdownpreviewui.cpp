@@ -173,6 +173,25 @@ public:
         return result;
     }
     Q_INVOKABLE void saveMarkdownSession(const QVariantMap &) {}
+    // 图片导入：本套件不测拖放/剪贴板，桩一律回答「未接管」。
+    Q_INVOKABLE QString draftAssetRoot(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE QVariantMap importImageFiles(const QStringList &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("handled"), false);
+        return result;
+    }
+    Q_INVOKABLE QVariantMap importImageUrls(const QVariantList &)
+    {
+        return importImageFiles(QStringList());
+    }
+    Q_INVOKABLE QVariantMap importClipboardImage()
+    {
+        return importImageFiles(QStringList());
+    }
 
 public:
     QStringList notices;    ///< 每次 notify 的 level|title|text

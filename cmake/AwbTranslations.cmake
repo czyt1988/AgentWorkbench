@@ -20,6 +20,7 @@ set(AWB_TS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/shell/TrayController.cpp
     # application layer
     ${CMAKE_SOURCE_DIR}/src/workbench/BuiltinPages.cpp
+    ${CMAKE_SOURCE_DIR}/src/workbench/ImageImporter.cpp
     ${CMAKE_SOURCE_DIR}/src/workbench/PluginServices.cpp
     ${CMAKE_SOURCE_DIR}/src/workbench/WorkbenchContext.cpp
     # shell QML

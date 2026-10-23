@@ -877,11 +877,11 @@ void TestMarkdownPreviewController::testSessionsOpenSwitchCloseAndDraft()
     //（draft 徽标区分来源）、按 id 寻址、标题与正文由 tools 域喂进来
     const QString draftId = controller.openDraftSession(
         QStringLiteral("d1"), QStringLiteral("My Draft"),
-        QStringLiteral("# draft body\n"));
+        QStringLiteral("# draft body\n"), QString());
     QCOMPARE(draftId, QStringLiteral("d1"));
     QCOMPARE(controller.openDraftSession(QStringLiteral("d1"),
                                          QStringLiteral("My Draft"),
-                                         QString()),
+                                         QString(), QString()),
              draftId);   // 幂等：重复开不建第二个
     controller.setDraftText(draftId, QStringLiteral("# draft body\n"));
     controller.activateSession(draftId);
@@ -911,15 +911,18 @@ void TestMarkdownPreviewController::testSessionsOpenSwitchCloseAndDraft()
     QCOMPARE(controller.activeDocId(), idA);
     QVERIFY(!controller.isDraftActive());
     QCOMPARE(controller.tabs().size(), 1);
-    // 第二条草稿：互不干扰，各自的正文隔离
+    // 第二条草稿：互不干扰，各自的正文隔离；带资源根的草稿按该根解析
     const QString draft2 = controller.openDraftSession(
-        QStringLiteral("d2"), QStringLiteral("Two"), QString());
+        QStringLiteral("d2"), QStringLiteral("Two"), QString(), m_dir.path());
+    QCOMPARE(controller.assetRootFor(draft2), m_dir.path());
     controller.setDraftText(draft2, QStringLiteral("second body\n"));
     QVERIFY(controller.openDraftSession(QStringLiteral("d1"),
                                         QStringLiteral("Renamed"),
-                                        QStringLiteral("# draft body\n"))
+                                        QStringLiteral("# draft body\n"),
+                                        QString())
             == draftId);
     controller.activateSession(draft2);
+    QCOMPARE(controller.assetRoot(), m_dir.path());
     QVERIFY(controller.documentBodyJson().contains(QStringLiteral("second body")));
     QCOMPARE(controller.tabs().at(0).toMap()
                  .value(QStringLiteral("docId")).toString(), draft2);

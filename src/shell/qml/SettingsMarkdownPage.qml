@@ -163,5 +163,42 @@ ScrollView {
             font.pixelSize: theme.fontSizeCaption
             wrapMode: Text.WordWrap
         }
+
+        // --- 图片目录 -------------------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            spacing: theme.spacingM
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Image assets folder")
+                color: theme.textPrimary
+                font.pixelSize: theme.fontSizeBody
+            }
+            ATextField {
+                Layout.preferredWidth: 260
+                text: workbench.markdownEditorImageAssetsDir
+                onEditingFinished: {
+                    if (!workbench.setMarkdownEditorImageAssetsDir(text)) {
+                        workbench.notify("warning",
+                                         qsTr("Invalid image folder"),
+                                         qsTr("Use a relative path inside the workspace, such as docs/assets/pic."))
+                    }
+                    // 非法值不落盘：回显当前生效值（规范化后的旧值）。
+                    text = workbench.markdownEditorImageAssetsDir
+                }
+            }
+        }
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: theme.spacingL
+            Layout.rightMargin: theme.spacingL
+            text: qsTr("Where pasted images are saved, relative to the workspace root (or the document folder when no workspace is open). Multi-level paths such as docs/assets/pic are allowed. Images outside the document folder are inserted with .. paths and are not shown in the built-in preview.")
+            color: theme.textMuted
+            font.pixelSize: theme.fontSizeCaption
+            wrapMode: Text.WordWrap
+        }
     }
 }

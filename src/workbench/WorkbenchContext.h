@@ -66,6 +66,9 @@ class WorkbenchContext : public QObject
     Q_PROPERTY(bool markdownEditorAutoPair
                READ markdownEditorAutoPair
                NOTIFY markdownEditorSettingsChanged)
+    Q_PROPERTY(QString markdownEditorImageAssetsDir
+               READ markdownEditorImageAssetsDir
+               NOTIFY markdownEditorSettingsChanged)
 
 public:
     // 构造时只接各域的指针；页面注册与规则布线在 BuiltinPages
@@ -150,12 +153,24 @@ public:
     bool markdownEditorSmartEnter() const;
     bool markdownEditorFormatShortcuts() const;
     bool markdownEditorAutoPair() const;
+    QString markdownEditorImageAssetsDir() const;
     // 设置页的写口：写进 Settings 并立即持久化；值没变时不落盘。
     Q_INVOKABLE void setMarkdownEditorIndentWithSpaces(bool useSpaces);
     Q_INVOKABLE void setMarkdownEditorIndentWidth(int spaces);
     Q_INVOKABLE void setMarkdownEditorSmartEnter(bool on);
     Q_INVOKABLE void setMarkdownEditorFormatShortcuts(bool on);
     Q_INVOKABLE void setMarkdownEditorAutoPair(bool on);
+    // 图片目录的写口：合法才写入；非法值保持原值并返回 false
+    Q_INVOKABLE bool setMarkdownEditorImageAssetsDir(const QString &dir);
+
+    // --- Markdown 编辑器图片导入（拖入/粘贴） ------------------------------
+    // 返回 {handled, ok, markdown, error}。handled 为假表示这次输入不属于
+    // 图片，QML 应继续走原生粘贴或文件引用。
+    Q_INVOKABLE QVariantMap importImageFiles(const QStringList &paths);
+    Q_INVOKABLE QVariantMap importImageUrls(const QVariantList &urls);
+    Q_INVOKABLE QVariantMap importClipboardImage();
+    // 草稿的图片资源根：绑定的工作区，或 <dataRoot>/draft-assets/<id>
+    Q_INVOKABLE QString draftAssetRoot(const QString &draftId) const;
 
     // 通用动作
     Q_INVOKABLE void copyText(const QString &text);
@@ -214,6 +229,15 @@ Q_SIGNALS:
     void markdownEditorSettingsChanged();
 
 private:
+    /// 图片导入的路径基准：baseDir 决定插入路径，assetsRoot 决定复制落点
+    struct ImageContext
+    {
+        QString baseDir;
+        QString assetsRoot;
+        QString assetsSubdir;
+    };
+    ImageContext imageContext() const;
+
     shell::NavigationModel *m_nav;          ///< 导航（页面注册与当前页）
     shell::UiServices *m_ui;                ///< 剪贴板、打开 URL/目录等系统能力
     shell::Notifications *m_notifications;  ///< toast 通知

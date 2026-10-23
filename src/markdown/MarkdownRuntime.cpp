@@ -36,6 +36,7 @@ const QHash<QString, QString> &mimeTable()
         m.insert(QStringLiteral("webp"), QStringLiteral("image/webp"));
         m.insert(QStringLiteral("avif"), QStringLiteral("image/avif"));
         m.insert(QStringLiteral("ico"), QStringLiteral("image/x-icon"));
+        m.insert(QStringLiteral("bmp"), QStringLiteral("image/bmp"));
         m.insert(QStringLiteral("woff2"), QStringLiteral("font/woff2"));
         m.insert(QStringLiteral("woff"), QStringLiteral("font/woff"));
         m.insert(QStringLiteral("ttf"), QStringLiteral("font/ttf"));

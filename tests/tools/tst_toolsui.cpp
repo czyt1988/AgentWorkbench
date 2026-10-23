@@ -102,6 +102,35 @@ public:
     {
         externallyOpened.append(path);
     }
+    // 图片导入：本套件不测拖放/剪贴板，桩一律回答「未接管」。
+    Q_INVOKABLE QString draftAssetRoot(const QString &) const
+    {
+        return QString();
+    }
+    Q_INVOKABLE QVariantMap importImageFiles(const QStringList &)
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("handled"), false);
+        return result;
+    }
+    Q_INVOKABLE QVariantMap importImageUrls(const QVariantList &)
+    {
+        return importImageFiles(QStringList());
+    }
+    Q_INVOKABLE QVariantMap importClipboardImage()
+    {
+        QVariantMap result;
+        result.insert(QStringLiteral("handled"), imagePasteAvailable);
+        result.insert(QStringLiteral("ok"), true);
+        if (imagePasteAvailable) {
+            result.insert(QStringLiteral("markdown"),
+                          QStringLiteral("![pasted](assets/pasted.png)"));
+        }
+        return result;
+    }
+
+    /// 模拟「剪贴板里有图片」：为真时上面的入口返回一张已导入的图片。
+    bool imagePasteAvailable = false;
 };
 
 // nav 桩：工作台页是 keepAlive 页，快捷键与回页复查门控在读
@@ -293,6 +322,35 @@ private Q_SLOTS:
 
         // 草稿同步不受撤销/重做干扰（undo 走 text 变化，draft 跟随）。
         QCOMPARE(m_tools->draft(), QStringLiteral("hello"));
+    }
+
+    // 图片粘贴必须走 workbench 的导入入口：纯图片剪贴板时编辑器原生
+    // paste() 不可用，QML 若不拦截就什么都不会发生。桩在这里假装剪贴板
+    // 里有一张图，断言 Ctrl+V 后落进编辑器的是导入器给的 Markdown。
+    void testImagePasteGoesThroughImporter()
+    {
+        QString error;
+        QQuickWindow *window = nullptr;
+        ToolsFacade *tools = nullptr;
+        Q_UNUSED(tools);
+        QVERIFY2(loadPage(&error, &window, &tools), qPrintable(error));
+
+        QQuickItem *const editor = window->findChild<QQuickItem *>(
+            QStringLiteral("promptEditor"));
+        QVERIFY2(editor, "promptEditor not found by objectName");
+
+        editor->setProperty("text", QString());
+        const QPointF center = editor->mapToScene(
+            QPointF(editor->width() / 2, editor->height() / 2));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                          center.toPoint());
+        QVERIFY2(editor->hasActiveFocus(),
+                 "clicking the editor did not give it focus");
+
+        m_workbench->imagePasteAvailable = true;
+        QTest::keyClick(window, Qt::Key_V, Qt::ControlModifier);
+        QCOMPARE(editor->property("text").toString(),
+                 QStringLiteral("![pasted](assets/pasted.png)"));
     }
 
     // 长文必须能滚动。回归锚点：编辑区曾是裸 ATextArea——TextArea 的文本

@@ -177,11 +177,13 @@ public:
     // --- 多草稿会话（M4） --------------------------------------------------
     /// 建一个草稿会话（幂等）：draftId 是 tools.json 里那条草稿的 id，
     /// docId 与之相同（资源寻址共用一个键，不需要第二套名字）。正文与
-    /// 标题由 tools 域持有，这里只做渲染镜像。返回 docId；draftId 空时
-    /// 返回空串。
+    /// 标题由 tools 域持有，这里只做渲染镜像。assetRoot 是草稿图片的解析
+    /// 根（绑定的工作区或数据目录下的草稿资源目录）；空串表示没有资源根。
+    /// 返回 docId；draftId 空时返回空串。
     Q_INVOKABLE QString openDraftSession(const QString &draftId,
                                          const QString &title,
-                                         const QString &body);
+                                         const QString &body,
+                                         const QString &assetRoot);
 
     /// 草稿标题变了（重命名后刷新 tab 与渲染标题）。不存在则忽略。
     Q_INVOKABLE void setDraftTitle(const QString &draftId,
@@ -232,9 +234,9 @@ public:
 
     /// 活跃会话的 docId（资源寻址键）；无会话时为空串。
     QString docId() const;
-    /// 活跃会话的文档目录（相对图片的解析基准）。
+    /// 活跃会话的资源根（相对图片的解析基准；草稿用会话里存的覆盖值）。
     QString assetRoot() const;
-    /// 任意活着会话的文档目录；会话不存在（或草稿）返回空串。适配器按
+    /// 任意活着会话的资源根；会话不存在时返回空串。适配器按
     /// asset/<docId>/… 寻址时用：换页瞬间旧会话的图片请求还可能在飞。
     QString assetRootFor(const QString &docId) const;
 

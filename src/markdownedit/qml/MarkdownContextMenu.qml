@@ -15,6 +15,10 @@ AMenu {
     /// 操作的目标编辑器（ToolsPage 的提示词编辑区）。
     property var editor: null
 
+    /// 粘贴请求：纯图片剪贴板时编辑器自己的 paste() 不可用，由宿主页面
+    /// 决定走图片导入还是原生粘贴，菜单不直接调编辑器。
+    signal pasteRequested()
+
     width: 220
 
     // --- 顶部工具栏：markdown 格式化 -------------------------------------
@@ -103,9 +107,11 @@ AMenu {
     AMenuItem {
         icon.source: "qrc:/icons/paste.svg"
         text: qsTr("Paste")
-        enabled: root.editor && root.editor.canPaste
+        // 纯图片剪贴板时 canPaste 为假，不能拿它门控；真正的分派在宿主
+        // 页面（图片导入失败才回落到编辑器原生粘贴）。
+        enabled: root.editor !== null
         onTriggered: root.run(function() {
-            root.editor.paste()
+            root.pasteRequested()
         })
     }
 

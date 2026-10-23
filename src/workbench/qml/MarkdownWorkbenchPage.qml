@@ -142,6 +142,14 @@ Item {
     // Keys.onPressed 的合并接线：先给格式化快捷键机会，再做输入配对；
     // 都不接时放行编辑器默认行为。
     function handleEditorKeyPressed(editor, event) {
+        // 图片粘贴：纯图片剪贴板时编辑器原生 paste() 不可用，先问
+        // workbench；它没接管才放行默认粘贴。
+        if (!editor.readOnly && isPasteShortcut(event)) {
+            if (pasteInto(editor)) {
+                event.accepted = true
+                return
+            }
+        }
         if (editorFormatShortcutsEnabled(editor)) {
             const kind = formatShortcutKind(event)
             if (kind.length > 0) {
@@ -157,6 +165,95 @@ Item {
                 && event.text.length === 1
                 && MarkdownEdit.autoType(editor, event.text))
             event.accepted = true
+    }
+
+    // 粘贴快捷键：显式认 Ctrl+V 与 Shift+Insert，不依赖 KeyEvent.matches
+    // 在各 Qt 版本的枚举映射（macOS 的 Command 默认映射为 Control）。
+    function isPasteShortcut(event) {
+        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
+        const alt = (event.modifiers & Qt.AltModifier) !== 0
+        const meta = (event.modifiers & Qt.MetaModifier) !== 0
+        if (ctrl && !shift && !alt && !meta && event.key === Qt.Key_V)
+            return true
+        return ctrl && shift && !alt && !meta && event.key === Qt.Key_Insert
+    }
+
+    // 粘贴入口：返回 true 表示这次粘贴已被图片导入接管（成功或失败都算），
+    // false 才走编辑器原生粘贴。
+    function pasteInto(editor) {
+        if (!editor || editor.readOnly)
+            return false
+        const result = workbench.importClipboardImage()
+        if (!result.handled)
+            return false
+        editor.forceActiveFocus()
+        if (!result.ok) {
+            workbench.notify("error", qsTr("Could not insert image"),
+                             result.error)
+            return true
+        }
+        MarkdownEdit.insertMarkdown(editor, -1, result.markdown)
+        return true
+    }
+
+    // 把导入结果插到落点：单张保持内联，多张每行一张；多张落在一行中间
+    // 时前后补换行，让它成为独立块，整段仍是一次插入、一步撤销。
+    function insertImportedImages(editor, position, content) {
+        if (!content || content.length === 0)
+            return false
+        let text = content
+        if (content.indexOf("\n") >= 0) {
+            const before = position > 0
+                    ? editor.text.charAt(position - 1) : "\n"
+            const after = position < editor.text.length
+                    ? editor.text.charAt(position) : "\n"
+            if (before !== "\n")
+                text = "\n" + text
+            if (after !== "\n")
+                text = text + "\n"
+        }
+        return MarkdownEdit.insertMarkdown(editor, position, text)
+    }
+
+    // 拖放悬停：外部文件或应用内文件树行才显示可放置光标。
+    function handleEditorDragEntered(drag) {
+        if (drag.hasUrls
+                || (drag.source && drag.source.isFileReferenceDrag))
+            drag.accept(Qt.CopyAction)
+    }
+
+    // 拖放落点：外部文件地址走 URL 导入；应用内文件树用 delegate 的绝对
+    // 路径（path 是 required property）。都不是图片时，文件树行保持原来
+    // 的反引号文件引用。
+    function handleEditorDrop(editor, drop) {
+        if (!editor || editor.readOnly)
+            return
+        const position = editor.positionAt(drop.x, drop.y)
+        editor.forceActiveFocus()
+
+        let result = null
+        if (drop.hasUrls)
+            result = workbench.importImageUrls(drop.urls)
+        else if (drop.source && drop.source.isFileReferenceDrag
+                 && drop.source.path)
+            result = workbench.importImageFiles([drop.source.path])
+
+        if (result !== null && result.handled) {
+            if (!result.ok) {
+                workbench.notify("error", qsTr("Could not insert image"),
+                                 result.error)
+            } else {
+                insertImportedImages(editor, position, result.markdown)
+            }
+            drop.acceptProposedAction()
+            return
+        }
+
+        if (drop.source && drop.source.isFileReferenceDrag) {
+            editor.insert(position, drop.text)
+            drop.acceptProposedAction()
+        }
     }
 
     // 智能回车（A3）：列表/引用/任务项上回车延续前缀，空项回车退出；
@@ -502,8 +599,11 @@ Item {
         const id = tools.activeDraftId
         if (id.length === 0)
             return
+        // 资源根 = 草稿绑定的工作区（或数据目录下的草稿资源目录），
+        // 图片导入与预览用同一个结论。
         markdown.activateSession(
-            markdown.openDraftSession(id, draftTitleById(id), tools.draft))
+            markdown.openDraftSession(id, draftTitleById(id), tools.draft,
+                                      workbench.draftAssetRoot(id)))
     }
 
     function applyPreset(requested) {
@@ -840,7 +940,7 @@ Item {
         else if (action === "copy")
             editor.copy()
         else if (action === "paste")
-            editor.paste()
+            pasteInto(editor)
     }
 
     function saveDocument() {
@@ -1482,27 +1582,18 @@ Item {
                                 findStatsTimer.restart()
                             }
 
-                            // 拖放目标：接住来自文件树的行，把文件引用插到
-                            // 落点光标处。
+                            // 拖放目标：外部图片落成 ![alt](路径)；文件树
+                            // 行按同一套规则处理，非图片保持反引号引用。
                             DropArea {
                                 anchors.fill: parent
 
                                 onEntered: function(drag) {
-                                    drag.accept(Qt.CopyAction)
+                                    workbenchWindow.handleEditorDragEntered(
+                                                drag)
                                 }
                                 onDropped: function(drop) {
-                                    // 只接受文件树来的行：编辑区自身的选区
-                                    // 拖动（source 为空）不在此列。
-                                    if (!drop.source
-                                            || !drop.source.isFileReferenceDrag)
-                                        return
-                                    // 落点坐标即文档坐标：滚动是 Flickable
-                                    // 整体平移编辑器，positionAt 直接用本地
-                                    // 坐标即可。
-                                    promptEditor.insert(
-                                                promptEditor.positionAt(drop.x, drop.y),
-                                                drop.text)
-                                    drop.acceptProposedAction()
+                                    workbenchWindow.handleEditorDrop(
+                                                promptEditor, drop)
                                 }
                             }
 
@@ -1523,6 +1614,8 @@ Item {
                             MarkdownContextMenu {
                                 id: editorMenu
                                 objectName: "editorMenu"
+                                onPasteRequested: workbenchWindow.pasteInto(
+                                                      editorMenu.editor)
                             }
                         }
                     }
@@ -1643,6 +1736,20 @@ Item {
                                         return
                                     editorSyncTimer.restart()
                                     findStatsTimer.restart()
+                                }
+
+                                // 与草稿区同一条拖放规则；只读文档不接受。
+                                DropArea {
+                                    anchors.fill: parent
+                                    enabled: !editorArea.readOnly
+                                    onEntered: function(drag) {
+                                        workbenchWindow.handleEditorDragEntered(
+                                                    drag)
+                                    }
+                                    onDropped: function(drop) {
+                                        workbenchWindow.handleEditorDrop(
+                                                    editorArea, drop)
+                                    }
                                 }
                             }
                         }

@@ -11,14 +11,20 @@
 #include "shell/UiServices.h"
 #include "tools/ToolsFacade.h"
 #include "web/WebTabsFacade.h"
+#include "workbench/ImageImporter.h"
 #include "workbench/MarkdownSessionStore.h"
 
+#include <QClipboard>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QMimeData>
 #include <QSettings>
+#include <QUrl>
 
 namespace awb::workbench {
 
@@ -30,6 +36,17 @@ namespace {
 constexpr auto kAssocProgId = "AgentWorkbench.Markdown.1";
 const char kAssocClassRoot[] = "HKEY_CURRENT_USER\\Software\\Classes";
 const char *const kAssocSuffixes[] = { ".md", ".markdown" };
+
+/// ImageImporter 的结果 → QML 可直接读的 map
+QVariantMap imageResultMap(const ImageImportResult &result)
+{
+    QVariantMap map;
+    map.insert(QStringLiteral("handled"), result.handled);
+    map.insert(QStringLiteral("ok"), result.ok);
+    map.insert(QStringLiteral("markdown"), result.markdown);
+    map.insert(QStringLiteral("error"), result.error);
+    return map;
+}
 
 } // namespace
 
@@ -125,6 +142,18 @@ bool WorkbenchContext::markdownEditorAutoPair() const
 }
 
 /**
+ * @brief 取粘贴图片的落盘目录
+ *
+ * 返回 settings.json 里的原始值；合法性由 setter 与 ImageImporter 校验。
+ */
+QString WorkbenchContext::markdownEditorImageAssetsDir() const
+{
+    return m_settings
+        ? m_settings->markdownEditorOptions().imageAssetsDir
+        : QStringLiteral("assets");
+}
+
+/**
  * @brief 写 Tab 缩进是否用空格并持久化
  *
  * @param useSpaces true = 插空格；false = 插 \t
@@ -198,6 +227,162 @@ void WorkbenchContext::setMarkdownEditorAutoPair(bool on)
     }
     m_settings->setMarkdownEditorAutoPair(on);
     m_settings->save();
+}
+
+/**
+ * @brief 写粘贴图片的落盘目录并持久化
+ *
+ * 非法值（绝对路径、盘符、含 `..` 的路径）不写入，调用方据此回显原值。
+ * 合法值会先做斜杠与冗余段归一，再与当前值比较。
+ *
+ * @param dir 相对图片目录（可多级）
+ * @return 值合法（无论是否有变化）时为真
+ */
+bool WorkbenchContext::setMarkdownEditorImageAssetsDir(const QString &dir)
+{
+    if (!m_settings) {
+        return false;
+    }
+    QString normalized;
+    if (!ImageImporter::normalizeAssetsDir(dir, &normalized)) {
+        return false;
+    }
+    if (m_settings->markdownEditorOptions().imageAssetsDir == normalized) {
+        return true;
+    }
+    m_settings->setMarkdownEditorImageAssetsDir(normalized);
+    m_settings->save();
+    return true;
+}
+
+/**
+ * @brief 导入一批本地图片文件
+ *
+ * @param paths 本地绝对路径（QML 侧不做 URL 转换）
+ * @return {handled, ok, markdown, error}
+ */
+QVariantMap WorkbenchContext::importImageFiles(const QStringList &paths)
+{
+    const ImageContext context = imageContext();
+    return imageResultMap(ImageImporter::importFiles(
+        paths, context.baseDir, context.assetsRoot, context.assetsSubdir));
+}
+
+/**
+ * @brief 导入拖放带来的 URL 列表
+ *
+ * 只认本地文件地址；远程图片不在本功能的处理范围（离线编辑器不额外
+ * 下载网络资源）。
+ *
+ * @param urls QML 的 drop.urls（QVariant 里可能是 QUrl 或字符串）
+ * @return {handled, ok, markdown, error}
+ */
+QVariantMap WorkbenchContext::importImageUrls(const QVariantList &urls)
+{
+    QStringList paths;
+    for (const QVariant &value : urls) {
+        const QUrl url = value.toUrl();
+        if (url.isLocalFile()) {
+            paths.append(url.toLocalFile());
+        }
+    }
+    return importImageFiles(paths);
+}
+
+/**
+ * @brief 导入剪贴板里的图片
+ *
+ * 文件地址优先，其次无文本的纯位图；其余情况 handled 为假，由 QML 交回
+ * 编辑器原生粘贴。
+ *
+ * @return {handled, ok, markdown, error}
+ */
+QVariantMap WorkbenchContext::importClipboardImage()
+{
+    const ImageContext context = imageContext();
+    const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
+    return imageResultMap(ImageImporter::importClipboard(
+        mime, context.baseDir, context.assetsRoot, context.assetsSubdir));
+}
+
+/**
+ * @brief 草稿的图片资源根
+ *
+ * 草稿创建时绑定的工作区优先（目录必须还在）；否则落到数据目录下的
+ * 草稿资源目录。预览会话与图片导入共用这一个结论。
+ *
+ * @param draftId 草稿 id；空串返回空串
+ * @return 绝对目录路径
+ */
+QString WorkbenchContext::draftAssetRoot(const QString &draftId) const
+{
+    if (draftId.isEmpty()) {
+        return QString();
+    }
+    QString workspace;
+    if (m_tools) {
+        const QVariantList drafts = m_tools->drafts();
+        for (const QVariant &entry : drafts) {
+            const QVariantMap map = entry.toMap();
+            if (map.value(QStringLiteral("id")).toString() == draftId) {
+                workspace = map.value(QStringLiteral("workspace")).toString();
+                break;
+            }
+        }
+    }
+    if (!workspace.isEmpty() && QDir(workspace).exists()) {
+        return QDir(workspace).absolutePath();
+    }
+    return core::Paths::draftAssetsDir(draftId);
+}
+
+/**
+ * @brief 计算一次图片导入的路径基准
+ *
+ * 草稿用草稿的资源根；文件文档用文档目录，只有文档位于当前工作区内时
+ * 才把复制落点放回工作区根。没有活跃文档时退回当前工作区，再退回数据
+ * 目录下的草稿资源目录（拖放落到空编辑器的极端情况）。
+ */
+WorkbenchContext::ImageContext WorkbenchContext::imageContext() const
+{
+    ImageContext context;
+    const QString configured = m_settings
+        ? m_settings->markdownEditorOptions().imageAssetsDir
+        : QStringLiteral("assets");
+    if (!ImageImporter::normalizeAssetsDir(configured,
+                                          &context.assetsSubdir)) {
+        context.assetsSubdir = QStringLiteral("assets");
+    }
+
+    if (m_markdown && m_markdown->isDraftActive()) {
+        context.baseDir = draftAssetRoot(m_markdown->activeDraftId());
+        context.assetsRoot = context.baseDir;
+        return context;
+    }
+
+    if (m_markdown) {
+        const QString filePath = m_markdown->filePath();
+        if (!filePath.isEmpty()) {
+            context.baseDir = QFileInfo(filePath).absolutePath();
+        }
+    }
+    if (context.baseDir.isEmpty() && m_tools) {
+        context.baseDir = m_tools->currentWorkspace();
+    }
+    if (context.baseDir.isEmpty()) {
+        context.baseDir =
+            core::Paths::draftAssetsDir(QStringLiteral("scratch"));
+    }
+
+    const QString workspace = m_tools ? m_tools->currentWorkspace()
+                                      : QString();
+    if (!workspace.isEmpty()
+        && ImageImporter::isInsideDirectory(context.baseDir, workspace)) {
+        context.assetsRoot = workspace;
+    } else {
+        context.assetsRoot = context.baseDir;
+    }
+    return context;
 }
 
 /**
@@ -453,7 +638,8 @@ QVariantMap WorkbenchContext::restoreMarkdownSession()
             }
             const QString docId = m_markdown->openDraftSession(
                 tab.draftId, title,
-                m_tools->draftBody(tab.draftId));
+                m_tools->draftBody(tab.draftId),
+                draftAssetRoot(tab.draftId));
             if (docId.isEmpty()) {
                 continue;
             }

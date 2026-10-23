@@ -145,8 +145,18 @@ function normalizeRelative(relPath)
 
 function encodeSegments(relPath)
 {
+    // markdown-it 已经把空格与非 ASCII 字符百分号编码过一次（例如中文名
+    // 变成 %E5%9B%BE…）。这里再直接 encodeURIComponent 会把 % 变成 %25，
+    // 资源路由解码一次后拿到字面 %E5，永远找不到文件。先解码再编码才是
+    // 同一条路径的往返；非法的 %XX 原样交给编码器。
     return relPath.split("/").map((segment) => {
-        return encodeURIComponent(segment);
+        let decoded = segment;
+        try {
+            decoded = decodeURIComponent(segment);
+        } catch (error) {
+            decoded = segment;
+        }
+        return encodeURIComponent(decoded);
     }).join("/");
 }
 
@@ -202,6 +212,13 @@ export function createMarkdown(options)
                 if (mapped) {
                     token.attrs[at][1] = mapped;
                 }
+            }
+            // markdown-it 把图片的 alt 放在 token.content 里，attrs 里的
+            // alt 只是空占位；自定义规则直接 renderToken 不会从 content
+            // 回填，预览会丢掉 alt。这里显式写回。
+            const altAt = token.attrIndex("alt");
+            if (altAt >= 0) {
+                token.attrs[altAt][1] = token.content;
             }
             return self.renderToken(tokens, idx, options);
         };

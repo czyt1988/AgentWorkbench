@@ -15,14 +15,17 @@
 #include "workbench/EnvironmentCache.h"
 #include "workbench/EnvironmentProbe.h"
 #include "workbench/EnvironmentService.h"
+#include "workbench/ImageImporter.h"
 #include "workbench/WorkbenchContext.h"
 
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMimeData>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QUrl>
@@ -42,6 +45,8 @@ using awb::web::WebTabsFacade;
 using awb::workbench::EnvironmentCache;
 using awb::workbench::EnvironmentProbe;
 using awb::workbench::EnvironmentService;
+using awb::workbench::ImageImporter;
+using awb::workbench::ImageImportResult;
 using awb::workbench::RuntimeProbe;
 using awb::workbench::RuntimeState;
 using awb::workbench::WorkbenchContext;
@@ -526,8 +531,321 @@ private Q_SLOTS:
     }
 };
 
+/// 图片导入的纯层：路径判定、目录规范化、Markdown 生成、复制与剪贴板
+/// 分派。这里不碰 QML，也不依赖真实数据目录。
+class TestImageImporter : public QObject
+{
+    Q_OBJECT
+
+private Q_SLOTS:
+    void testIsImageFile()
+    {
+        QVERIFY(ImageImporter::isImageFile(QStringLiteral("a.PNG")));
+        QVERIFY(ImageImporter::isImageFile(QStringLiteral("dir/a.jpeg")));
+        QVERIFY(ImageImporter::isImageFile(QStringLiteral("a.svg")));
+        QVERIFY(ImageImporter::isImageFile(QStringLiteral("a.bmp")));
+        QVERIFY(!ImageImporter::isImageFile(QStringLiteral("a.txt")));
+        QVERIFY(!ImageImporter::isImageFile(QStringLiteral("Makefile")));
+        QVERIFY(!ImageImporter::isImageFile(QString()));
+    }
+
+    void testNormalizeAssetsDir()
+    {
+        QString out;
+        QVERIFY(ImageImporter::normalizeAssetsDir(
+            QStringLiteral("docs/assets/pic"), &out));
+        QCOMPARE(out, QStringLiteral("docs/assets/pic"));
+        QVERIFY(ImageImporter::normalizeAssetsDir(
+            QStringLiteral(" docs\\assets\\pic/ "), &out));
+        QCOMPARE(out, QStringLiteral("docs/assets/pic"));
+        QVERIFY(ImageImporter::normalizeAssetsDir(QString(), &out));
+        QCOMPARE(out, QStringLiteral("assets"));
+        QVERIFY(ImageImporter::normalizeAssetsDir(QStringLiteral("."),
+                                                  &out));
+        QCOMPARE(out, QStringLiteral("assets"));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("C:/images"), &out));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("/images"), &out));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("../images"), &out));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("docs/../assets"), &out));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("docs/../../assets"), &out));
+        QVERIFY(!ImageImporter::normalizeAssetsDir(
+            QStringLiteral("docs/assets"), nullptr));
+    }
+
+    void testMarkdownForImage()
+    {
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("images/pic.png"),
+                     QStringLiteral("pic")),
+                 QStringLiteral("![pic](images/pic.png)"));
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("images/a b.png"),
+                     QStringLiteral("a b")),
+                 QStringLiteral("![a b](<images/a b.png>)"));
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("images/a(1).png"),
+                     QStringLiteral("a(1)")),
+                 QStringLiteral("![a(1)](<images/a(1).png>)"));
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("images/100%.png"),
+                     QStringLiteral("100%")),
+                 QStringLiteral("![100%](images/100%25.png)"));
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("a]b.png"), QStringLiteral("a]b")),
+                 QStringLiteral("![a\\]b](a]b.png)"));
+        QCOMPARE(ImageImporter::markdownForImage(
+                     QStringLiteral("dir\\pic.png"),
+                     QStringLiteral("pic")),
+                 QStringLiteral("![pic](dir/pic.png)"));
+    }
+
+    void testIsInsideDirectory()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString root = tmp.path();
+        QVERIFY(ImageImporter::isInsideDirectory(
+            root + QStringLiteral("/sub/a.png"), root));
+        QVERIFY(!ImageImporter::isInsideDirectory(root, root));
+        // 前缀相同的兄弟目录不能算「在里面」。
+        QVERIFY(!ImageImporter::isInsideDirectory(
+            root + QStringLiteral("2/a.png"), root));
+    }
+
+    void testImportInsideBaseDir()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        QVERIFY(QDir().mkpath(docDir));
+        const QString source = writeFile(
+            docDir + QStringLiteral("/pic.png"), QByteArray("png"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {source}, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY(result.ok);
+        QCOMPARE(result.markdown, QStringLiteral("![pic](pic.png)"));
+        QVERIFY(!QFileInfo::exists(docDir + QStringLiteral("/assets")));
+    }
+
+    void testImportInsideWorkspaceUsesParent()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString workspace = tmp.path() + QStringLiteral("/ws");
+        const QString docDir = workspace + QStringLiteral("/docs");
+        const QString imageDir = workspace + QStringLiteral("/images");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(imageDir));
+        const QString source = writeFile(
+            imageDir + QStringLiteral("/pic.png"), QByteArray("png"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {source}, docDir, workspace, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY(result.ok);
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![pic](../images/pic.png)"));
+        QVERIFY(!QFileInfo::exists(workspace + QStringLiteral("/assets")));
+    }
+
+    void testImportOutsideWorkspaceCopies()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString workspace = tmp.path() + QStringLiteral("/ws");
+        const QString docDir = workspace + QStringLiteral("/docs");
+        const QString outside = tmp.path() + QStringLiteral("/outside");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(outside));
+        const QString source = writeFile(
+            outside + QStringLiteral("/pic.png"), QByteArray("png"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {source}, docDir, workspace, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![pic](../assets/pic.png)"));
+        QVERIFY(QFileInfo::exists(workspace
+                                  + QStringLiteral("/assets/pic.png")));
+    }
+
+    void testImportWithoutWorkspaceUsesDocumentDir()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        const QString outside = tmp.path() + QStringLiteral("/outside");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(outside));
+        const QString source = writeFile(
+            outside + QStringLiteral("/pic.png"), QByteArray("png"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {source}, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![pic](assets/pic.png)"));
+        QVERIFY(QFileInfo::exists(docDir
+                                  + QStringLiteral("/assets/pic.png")));
+    }
+
+    void testImportMultipleImagesOnePerLine()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        const QString outside = tmp.path() + QStringLiteral("/outside");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(outside));
+        const QString first = writeFile(
+            outside + QStringLiteral("/one.png"), QByteArray("one"));
+        const QString second = writeFile(
+            outside + QStringLiteral("/two.png"), QByteArray("two"));
+        const ImageImportResult result = ImageImporter::importFiles(
+            {first, second}, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![one](assets/one.png)\n"
+                                "![two](assets/two.png)"));
+    }
+
+    void testCopyDedupesAndSuffixes()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        const QString firstDir = tmp.path() + QStringLiteral("/a");
+        const QString secondDir = tmp.path() + QStringLiteral("/b");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(firstDir));
+        QVERIFY(QDir().mkpath(secondDir));
+        const QString first = writeFile(
+            firstDir + QStringLiteral("/pic.png"), QByteArray("same"));
+        const QString second = writeFile(
+            secondDir + QStringLiteral("/pic.png"), QByteArray("different"));
+
+        // 同名同内容：复用已复制的文件，不再产生 -1。
+        QVERIFY(ImageImporter::importFiles(
+            {first}, docDir, docDir, QStringLiteral("assets")).ok);
+        const ImageImportResult again = ImageImporter::importFiles(
+            {first}, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(again.ok);
+        QCOMPARE(again.markdown, QStringLiteral("![pic](assets/pic.png)"));
+
+        // 同名不同内容：追加序号，绝不覆盖。
+        const ImageImportResult different = ImageImporter::importFiles(
+            {second}, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY2(different.ok, qPrintable(different.error));
+        QCOMPARE(different.markdown,
+                 QStringLiteral("![pic](assets/pic-1.png)"));
+        QCOMPARE(readAll(docDir + QStringLiteral("/assets/pic.png")),
+                 QByteArray("same"));
+        QCOMPARE(readAll(docDir + QStringLiteral("/assets/pic-1.png")),
+                 QByteArray("different"));
+    }
+
+    void testClipboardUrlBeatsText()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        const QString outside = tmp.path() + QStringLiteral("/outside");
+        QVERIFY(QDir().mkpath(docDir));
+        QVERIFY(QDir().mkpath(outside));
+        const QString source = writeFile(
+            outside + QStringLiteral("/pic.png"), QByteArray("png"));
+
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(source)});
+        mime.setText(QStringLiteral("copied text"));
+        const ImageImportResult result = ImageImporter::importClipboard(
+            &mime, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QCOMPARE(result.markdown,
+                 QStringLiteral("![pic](assets/pic.png)"));
+    }
+
+    void testClipboardBitmapWithoutText()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        QVERIFY(QDir().mkpath(docDir));
+
+        QImage image(4, 4, QImage::Format_ARGB32);
+        image.fill(Qt::blue);
+        QMimeData mime;
+        mime.setImageData(image);
+        const ImageImportResult result = ImageImporter::importClipboard(
+            &mime, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(result.handled);
+        QVERIFY2(result.ok, qPrintable(result.error));
+        QVERIFY(result.markdown.startsWith(QStringLiteral("![image-")));
+        QVERIFY(result.markdown.contains(QStringLiteral("](assets/image-")));
+        const QStringList files = QDir(docDir + QStringLiteral("/assets"))
+            .entryList(QStringList() << QStringLiteral("*.png"),
+                       QDir::Files);
+        QCOMPARE(files.size(), 1);
+    }
+
+    void testClipboardTextOnlyNotHandled()
+    {
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        const QString docDir = tmp.path() + QStringLiteral("/doc");
+        QVERIFY(QDir().mkpath(docDir));
+
+        QMimeData text;
+        text.setText(QStringLiteral("just text"));
+        const ImageImportResult textResult = ImageImporter::importClipboard(
+            &text, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(!textResult.handled);
+
+        // 位图 + 文本：文本优先，交回编辑器原生粘贴。
+        QImage image(2, 2, QImage::Format_ARGB32);
+        image.fill(Qt::red);
+        QMimeData both;
+        both.setImageData(image);
+        both.setText(QStringLiteral("html-ish text"));
+        const ImageImportResult bothResult = ImageImporter::importClipboard(
+            &both, docDir, docDir, QStringLiteral("assets"));
+        QVERIFY(!bothResult.handled);
+        QVERIFY(!QFileInfo::exists(docDir + QStringLiteral("/assets")));
+    }
+
+private:
+    static QString writeFile(const QString &path, const QByteArray &bytes)
+    {
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return QString();
+        }
+        file.write(bytes);
+        file.close();
+        return path;
+    }
+
+    static QByteArray readAll(const QString &path)
+    {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            return QByteArray();
+        }
+        return file.readAll();
+    }
+};
+
 AWB_TEST(TestWorkbenchContext)
 AWB_TEST(TestEnvironmentService)
+AWB_TEST(TestImageImporter)
 #include "tst_workbench.moc"
 
 /**
