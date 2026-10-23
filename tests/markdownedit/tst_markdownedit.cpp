@@ -802,16 +802,21 @@ private Q_SLOTS:
         QCOMPARE(document.toPlainText(), QStringLiteral("aa\nbb"));
     }
 
-    void testTabSingleLineSelectionReplaced()
+    void testTabSingleLineSelectionIndentsLine()
     {
         QTextDocument document;
         QTextCursor cursor;
-        // 单行选区保持原生语义：选区被替换为一个 Tab。
+        // 单行选区与多行同一语义：整行加缩进，选中的文字不被替换。
         apply(QStringLiteral("aa bb cc"), 3, 5,
               &MarkdownEdit::handleTabToCursor, tabOptions(), &document, &cursor);
-        QCOMPARE(document.toPlainText(), QStringLiteral("aa \t cc"));
-        QVERIFY(!cursor.hasSelection());
-        QCOMPARE(cursor.position(), 4);
+        QCOMPARE(document.toPlainText(), QStringLiteral("\taa bb cc"));
+        QCOMPARE(cursor.selectionStart(), 0);
+        QCOMPARE(cursor.selectionEnd(), 9);
+        QCOMPARE(normalizedSelection(cursor),
+                 QStringLiteral("\taa bb cc"));
+        // 反复按 Tab 连续右移。
+        MarkdownEdit::handleTabToCursor(cursor, tabOptions());
+        QCOMPARE(document.toPlainText(), QStringLiteral("\t\taa bb cc"));
     }
 
     void testTabWithoutSelectionInsertsTab()

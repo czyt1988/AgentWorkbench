@@ -1793,11 +1793,12 @@ void MarkdownEdit::applyTaskToCursor(QTextCursor &cursor)
 /**
  * @brief Tab 键的编辑器行为（VSCode 语义）
  *
- * 多行选区（选区起点与终点落在不同块上）是行级缩进：覆盖到的每行行首
- * 插一个缩进单位（由 options 决定：空格 × 每级宽度，或字面 \t），完成
- * 后重新选中整段（含新增缩进），反复按 Tab 连续右移。无选区或单行选区
- * 保持编辑器原生语义：插入一个缩进单位（单行选区被替换）。选区末尾恰
- * 好贴在换行后（光标位于下一行行首）时那行没选到内容，不参与缩进（与
+ * 任何选区都是行级缩进：覆盖到的每行行首插一个缩进单位（由 options
+ * 决定：空格 × 每级宽度，或字面 \t），完成后重新选中整段（含新增缩进），
+ * 反复按 Tab 连续右移。单行选区同样按行处理而不是替换选区——VSCode 里
+ * 选中一行的一部分按 Tab 是给整行加缩进，替换掉选中的文字会丢内容。
+ * 无选区保持编辑器原生语义：在光标处插入一个缩进单位。选区末尾恰好贴
+ * 在换行后（光标位于下一行行首）时那行没选到内容，不参与缩进（与
  * applyBullet 同一条边界纪律）。
  *
  * @param cursor 选区光标；返回时其位置/选区即动作结果
@@ -1826,23 +1827,19 @@ void MarkdownEdit::handleTabToCursor(QTextCursor &cursor,
         return;
     }
     cursor.beginEditBlock();
-    if (firstBlock == lastBlock) {
-        // 单行选区：原生替换语义（删选区、插一个缩进单位）。
-        cursor.removeSelectedText();
+    // 单行与多行走同一条行级路径：插在行首、保持整行选中。单行选区若用
+    // 原生替换语义会吃掉选中的文字，与「Tab = 缩进」的预期相悖。
+    for (QTextBlock block = firstBlock; block.isValid();
+         block = block.next()) {
+        cursor.setPosition(block.position());
         cursor.insertText(unit);
-    } else {
-        for (QTextBlock block = firstBlock; block.isValid();
-             block = block.next()) {
-            cursor.setPosition(block.position());
-            cursor.insertText(unit);
-            if (block == lastBlock) {
-                break;
-            }
+        if (block == lastBlock) {
+            break;
         }
-        cursor.setPosition(firstBlock.position());
-        cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
-                           QTextCursor::KeepAnchor);
     }
+    cursor.setPosition(firstBlock.position());
+    cursor.setPosition(lastBlock.position() + lastBlock.length() - 1,
+                       QTextCursor::KeepAnchor);
     cursor.endEditBlock();
 }
 

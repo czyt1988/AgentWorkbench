@@ -21,7 +21,7 @@
 
 ## 测试
 
-`tst_markdownedit` 在 `QTextDocument` 层驱动引擎：每个动作的光标语义（空选区、单行选区、多行选区、行尾换行处的边界纪律）、`insertMarkdown` 的按位置插入与选区替换（含多行块必须一步撤销）、行/块与大小写操作、标题升降级、命中计数与 1 起序号、查找高亮（含标题行上与语法色的合并）、高亮器的逐块状态机，以及含回卷行为的查找/替换原语。它只链接 `awb_markdownedit` 和 Qt——不需要主题、不需要 QML 引擎，所以 Qt 5 与关掉 WebEngine 的每个构建配置都跑。
+`tst_markdownedit` 在 `QTextDocument` 层驱动引擎：每个动作的光标语义（空选区、单行选区、多行选区、行尾换行处的边界纪律——包括单行选区按 Tab 是给整行加缩进、而不是替换选区）、`insertMarkdown` 的按位置插入与选区替换（含多行块必须一步撤销）、行/块与大小写操作、标题升降级、命中计数与 1 起序号、查找高亮（含标题行上与语法色的合并）、高亮器的逐块状态机，以及含回卷行为的查找/替换原语。它只链接 `awb_markdownedit` 和 Qt——不需要主题、不需要 QML 引擎，所以 Qt 5 与关掉 WebEngine 的每个构建配置都跑。
 
 ## 在其它项目里使用本模块
 
@@ -36,7 +36,7 @@ awb::markdownedit::MarkdownEdit markdownEdit(&theme);
 qmlRegisterSingletonInstance("YourApp.App", 1, 0, "MarkdownEdit", &markdownEdit);
 ```
 
-3. **挂编辑器**：每个要高亮的 `TextArea` 里调一次 `MarkdownEdit.attach(textArea)`（重复调用无害）。工具栏/菜单动作转发给 `apply*`/`insert*`；想要 VSCode 风格的多行缩进/反缩进，就把 `Keys.onTabPressed`/`Keys.onBacktabPressed` 接到 `handleTab`/`handleBacktab`（传入你的缩进偏好）；可选地，把 `Keys.onReturnPressed` 接到 `handleEnter`、把单字符的 `Keys.onPressed` 接到 `autoType`，获得列表延续与标记配对——两者都返回「是否接管了这次按键」，只在 `true` 时接受事件。
+3. **挂编辑器**：每个要高亮的 `TextArea` 里调一次 `MarkdownEdit.attach(textArea)`（重复调用无害）。工具栏/菜单动作转发给 `apply*`/`insert*`；想要 VSCode 风格的行级缩进/反缩进，就把 `Keys.onTabPressed`/`Keys.onBacktabPressed` 接到 `handleTab`/`handleBacktab`（传入你的缩进偏好）——任何选区（包括只选中一行的一部分）都按行范围处理，只有光标才插入一个单位；可选地，把 `Keys.onReturnPressed` 接到 `handleEnter`、把单字符的 `Keys.onPressed` 接到 `autoType`，获得列表延续与标记配对——两者都返回「是否接管了这次按键」，只在 `true` 时接受事件。
 4. **右键菜单**：`MarkdownContextMenu.qml` 依赖本应用的 shell 组件（`AMenu`、`AIconButton` 等）与它的 `theme.*` 令牌，不能原样带走。要么在同一个 `Q_INVOKABLE` 能力面上写你自己的菜单（它只需要编辑器引用），要么用你自己的菜单原语移植这个组件。
 
 单例暴露的一切都是 `Q_INVOKABLE` 或信号，所以「QML 调用的每个方法都必须可调用」这类校验（`check_architecture` 规则）在宿主同样适用；这条规则在本应用里抓出过三处静默失效，见《分层与依赖》。
