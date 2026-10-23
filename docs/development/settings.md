@@ -34,11 +34,11 @@ Boundaries:
 | `src/shell/qml/SettingsEnvironmentPage.qml` | `SettingsEnvironmentPage` | One row per runtime (version + install path) and a Re-detect action | `environment.*` |
 | `src/shell/qml/SettingsSkillsPage.qml` | `SettingsSkillsPage` | Skill root list with enable switches, remove, add field and stats | `skills.roots`, `skills.setRootEnabled()`, `skills.addRoot()`, `skills.removeRoot()`, `skills.kindLabel()`, `skills.statsText` |
 | `src/shell/qml/SettingsWebPage.qml` | `SettingsWebPage` | Surface selection, Home URL field and Chromium flags field | `web.engineAvailable`, `web.homeUrl`, `web.setHomeUrl()`, `shell.webSurface`, `shell.setWebSurface()`, `shell.setWebChromiumFlags()` |
-| `src/shell/qml/SettingsMarkdownPage.qml` | `SettingsMarkdownPage` | Markdown workbench editor typing behaviour: indent-with-spaces switch, spaces-per-indent picker, smart-Enter / formatting-shortcuts / auto-pair switches | `workbench.markdownEditor*` properties and `workbench.setMarkdownEditor*()` invokables |
+| `src/shell/qml/SettingsMarkdownPage.qml` | `SettingsMarkdownPage` | Markdown workbench editor typing behaviour: indent-with-spaces switch, spaces-per-indent picker, smart-Enter / formatting-shortcuts / auto-pair switches, and the image assets folder field | `workbench.markdownEditor*` properties and `workbench.setMarkdownEditor*()` invokables |
 | `src/shell/qml/SettingsPluginsPage.qml` | `SettingsPluginsPage` | Plugin master switch, per-plugin switches, trust notice | `workbench.pluginsEnabled()`, `workbench.setPluginsEnabled()`, `workbench.pluginList()`, `workbench.setPluginEnabled()`, `workbench.pluginTrustNotice()` |
 | `src/shell/qml/SettingsAdvancedPage.qml` | `SettingsAdvancedPage` | Data-file path, open data folder, restore default launchers | `agents.configFilePath()`, `agents.restoreDefaults()`, `workbench.openFolder()` |
 | `src/shell/ShellController.h` / `.cpp` | `ShellController` | Window-level keys as bindable properties; setters persist immediately; `valueChanged` re-broadcast | `core::Settings` |
-| `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | Plugin switches and trust notice; `legacyImportNotice`; the `markdownEditor*` properties (READ + `markdownEditorSettingsChanged`, fed by filtering `Settings::valueChanged` on the `markdownEditor.` prefix) with persisting setters | `core::Settings`, `PluginHost` |
+| `src/workbench/WorkbenchContext.h` / `.cpp` | `WorkbenchContext` | Plugin switches and trust notice; `legacyImportNotice`; the `markdownEditor*` properties (READ + `markdownEditorSettingsChanged`, fed by filtering `Settings::valueChanged` on the `markdownEditor.` prefix) with persisting setters; the image import entry points (`importImageFiles` / `importImageUrls` / `importClipboardImage`) and `draftAssetRoot` | `core::Settings`, `PluginHost`, `ImageImporter` |
 | `src/theme/Theme.h` / `.cpp` | `Theme` | `applyTheme()` (rejects unknown ids) and `setFontFamily()`; `availableThemes`, `family`, `fontFamilies` | `core::Settings`, `ThemeRegistry` |
 | `src/core/Logging.h` / `.cpp` | `Logging` | `install()` and `isValidLevelName()` used to validate `logging.level` | `core::Settings` |
 | `app/main.cpp` | `main()` | Reads settings before the application object, applies Chromium flags and logging options, loads the translator and font, drives plugin loading, runs the single-instance guard | `core::Settings`, `SingleApplication` |
@@ -128,11 +128,14 @@ Each section page shares the skeleton of `ScrollView` + `ColumnLayout` +
   all bound to `workbench.markdownEditor*` and written through the matching
   `workbench.setMarkdownEditor*()` invokables (which persist immediately): an
   indent-with-spaces `Switch`, a spaces-per-indent `AComboBox` (2/4/8, disabled
-  while the tab-character mode is on), and switches for smart Enter, the
-  editor-scoped formatting shortcuts and mark auto-pairing. Each row carries a
-  caption saying what the switch actually changes; the shortcuts row also names
-  the `Ctrl+B` division of labour (bold in the editor, sidebar collapse
-  everywhere else).
+  while the tab-character mode is on), switches for smart Enter, the
+  editor-scoped formatting shortcuts and mark auto-pairing, and an
+  `ATextField` for the image assets folder. Each row carries a caption saying
+  what the switch actually changes; the shortcuts row also names the `Ctrl+B`
+  division of labour (bold in the editor, sidebar collapse everywhere else),
+  and the image folder caption states that it is relative to the workspace
+  root and that `..`-relative image paths are not shown by the built-in
+  preview.
 - **`SettingsPluginsPage`.** The trust notice from
   `workbench.pluginTrustNotice()`, a master `Switch` bound to
   `workbench.pluginsEnabled()`/`setPluginsEnabled()`, an empty-state label when
@@ -192,6 +195,7 @@ Every key below is validated by `Settings::load()` and written back by
 | `markdownEditor.smartEnter` | bool | `true` | `Enter` continues list / numbered / quote / task markers (numbers increment, a checked task continues unchecked); on an empty item it leaves the list | `WorkbenchContext` → the workbench page → `MarkdownEdit.handleEnter`, `SettingsMarkdownPage` switch |
 | `markdownEditor.formatShortcuts` | bool | `true` | `Ctrl+B` bold / `Ctrl+I` italic / `Ctrl+K` link / `Ctrl+E` inline code while the editor has focus (claimed via `Keys.onShortcutOverride`, so the global `Ctrl+B` sidebar toggle keeps working everywhere else) | same as above |
 | `markdownEditor.autoPair` | bool | `true` | Typing `*`, backtick, `~`, `[` or `(` inserts the closing mark and parks the caret between; typing the same mark again skips over the closer; inside an empty pair the mark upgrades it (`*`→`**`, `~`→`~~`) | `WorkbenchContext` → the workbench page → `MarkdownEdit.autoType`, `SettingsMarkdownPage` switch |
+| `markdownEditor.imageAssetsDir` | string | `"assets"` | Folder for pasted images and images copied in from outside the workspace; relative to the workspace root (or the document folder when no workspace is open), multi-level paths allowed. Absolute paths and `..` are rejected and the setter returns false | `WorkbenchContext::setMarkdownEditorImageAssetsDir()`, `ImageImporter`, `SettingsMarkdownPage` field |
 
 The schema's root sections are exactly `window`, `appearance`, `locale`,
 `launcher`, `web`, `skills`, `logging`, `plugins`, `markdown`,

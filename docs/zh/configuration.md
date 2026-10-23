@@ -48,7 +48,7 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
                "autoOpenWorkbench": false },
   "markdownEditor": { "indentWithSpaces": true, "indentWidth": 2,
                "smartEnter": true, "formatShortcuts": true,
-               "autoPair": true }
+               "autoPair": true, "imageAssetsDir": "assets" }
 }
 ```
 
@@ -104,7 +104,10 @@ AgentWorkbench 采用配置化驱动。应用写入的所有内容都放在同�
   `formatShortcuts`（默认 `true`）开启编辑器聚焦时的 `Ctrl+B` / `Ctrl+I` /
   `Ctrl+K` / `Ctrl+E`（焦点在别处时 `Ctrl+B` 仍是折叠侧栏）；`autoPair`
   （默认 `true`）让输入的 markdown 标记（`*`、反引号、`~`、`[`、`(`）自动
-  补全配对、再输入同一标记时跳过闭合符。参见
+  补全配对、再输入同一标记时跳过闭合符；`imageAssetsDir`（默认 `assets`）
+  是粘贴图片与从工作区外复制进来的图片的落盘目录，相对工作区根（没有打开
+  工作区时相对文档目录），支持 `docs/assets/pic` 这类多级路径；绝对路径与
+  含 `..` 的路径会被拒绝。参见
   [Markdown 工作台](guide/Markdown工作台.md)。
 
 ## 提示词工作台自己的文件

@@ -149,6 +149,12 @@ effect at once, also in a workbench that is already open.
   typing the same mark again skips over the closer instead of repeating it.
   Inside an empty pair, typing the mark once more upgrades it (`*` becomes
   `**`, `~` becomes `~~`).
+- **Image assets folder** - where pasted images and images copied in from
+  outside the workspace are saved (default `assets`; relative to the workspace
+  root, or to the document folder when no workspace is open). A multi-level
+  path such as `docs/assets/pic` is allowed. Absolute paths and paths
+  containing `..` are refused. Images that end up on a `..` path are not shown
+  by the built-in preview.
 
 See [Markdown workbench](markdown-workbench.md) for the editor itself.
 

@@ -344,6 +344,7 @@ B 批次的编辑器操作住在 `MarkdownEdit` 里，与格式动作同一形�
 | `src/workbench/qml/WorkbenchToolbar.qml` | `WorkbenchToolbar` | 无 Ribbon 的降级形态：一条普通工具栏、同一批动作（格式图标、Copy Prompt、模板菜单、保存动作、体检/历史开关、常驻查找框、视图选项），ribbon 文件缺席时装载它 | 页面 QML |
 | `src/markdown/qml/MarkdownPreviewPane.qml` | `MarkdownPreviewPane` | 预览面（`WebEngineView` 及其接线），仅在有能力的构建里按资源 URL 装载 | `Markdown`、页面 QML |
 | `src/workbench/BuiltinPages.{h,cpp}` | `BuiltinPages` | 注册内置页面与侧栏分组标签，含 **Agent Tools** 分组下的 **Prompt Writing** 条目（`id: tools`、`keepAlive`、`level: 1`） | `NavigationModel`、`WorkbenchContext` |
+| `src/workbench/ImageImporter.{h,cpp}` | `ImageImporter` | 图片导入的纯策略：后缀判定、图片目录规范化、Markdown 生成、复制去重与剪贴板分派；返回 `{handled, ok, markdown, error}` | `WorkbenchContext`、页面 QML |
 | `src/tools/ToolsStore.{h,cpp}` | `ToolsStore` | `tools.json` 状态：MRU 工作区列表、当前工作区、提示词草稿、`ribbon` 段（`collapsed` / `style` / `followAppTheme` / `lastTabIndex`）、`favorites` 数组（新在前、上限 50、同标题同全文幂等重存）、`editor` 段（`findCaseSensitive` / `findWholeWords` / `contextWindowTokens`，默认 32000）与 `checks` 段（`disabled` 规则 id 列表）；`kMaxWorkspaces` = 20 | `ToolsFacade`、`core::JsonStore` |
 | `src/tools/ToolsFacade.{h,cpp}` | `ToolsFacade` | QML 门面：工作区属性、草稿属性、`addWorkspace`/`removeWorkspace`/`refresh`/`fileReference`、经 `model` 暴露的扁平树模型、四个 `ribbon*` 界面偏好；M2 的面——`templates` / `filteredTemplates` / `templateVariables` / `renderTemplate` / `saveAsTemplate` / `removeTemplate` / `templateDirectory` 与 `favorites` / `addFavorite` / `removeFavorite`（加 `templatesChanged` / `favoritesChanged` 信号）；M3 的面——`findCaseSensitive` / `findWholeWords` / `contextWindowTokens` / `disabledCheckIds` 属性与 `runChecks()` / `checkRuleTitle()` / `checkRuleIds()` / `estimateTokens()` / `budgetLevel()`；500 ms 草稿防抖加析构补写 | 页面 QML、`app/main.cpp`（`tools` 别名）、`FileTreeModel`、`FileTreeFlatModel`、`PromptTemplateLibrary`、`PromptChecks` |
 | `src/tools/PromptTemplate.{h,cpp}` | `PromptTemplate`、`PromptTemplateIo`、`PromptVariables` | 值类型（id/title/category/tags/description/body/scope）、最小头部的解析/序列化，以及纯字符串变量引擎（提取/求值，内置 `workspace`/`date`） | `PromptTemplateLibrary`、`ToolsFacade::renderTemplate()` |
@@ -362,7 +363,7 @@ B 批次的编辑器操作住在 `MarkdownEdit` 里，与格式动作同一形�
 | `src/markdown/webengine/MarkdownPreviewProvider.{h,cpp}` | `MarkdownPreviewProvider` | 注册 scheme、持有只服务预览的 profile、装好供体，并告诉控制器「表面现在真的存在」 | `app/main.cpp`、`MarkdownRuntimeHandler` |
 | `src/markdown/webengine/MarkdownRuntimeHandler.{h,cpp}` | `MarkdownRuntimeHandler` | `awbmd://runtime/…` 的唯一供体，随包字节带内存缓存 | `MarkdownPreviewController` |
 | `src/markdown/webengine/runtime/*` | `shell.html`、`bridge.js`、`renderer.js`、`markdown-config.js`、`math-rule.js`、`diagram.js`、`find.js`、`theme.css` | 页面：启动与命令分发、分块管线、markdown-it 配置、KaTeX/任务项/告警规则、懒加载 mermaid、文档内搜索 | `MarkdownRuntime`（协议）、`third_party/markdown-runtime/` |
-| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | 跨域入口：文档形态走 `previewMarkdown()` / `canPreviewMarkdown()`，提示词形态走 `openMarkdownWorkbench()`，会话文件走 `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()`，文件关联走 `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` 加单实例的 `encodeOpenMessage()` / `decodeOpenMessage()`，以及 `openTemplateDirectory()`（按需建用户模板目录并在文件管理器里打开）——替不许互相点名的域说话 | `MarkdownPreviewController`、`MarkdownSessionStore`、页面 QML、`BuiltinPages`、`app/main.cpp` |
+| `src/workbench/WorkbenchContext.{h,cpp}` | `WorkbenchContext` | 跨域入口：文档形态走 `previewMarkdown()` / `canPreviewMarkdown()`，提示词形态走 `openMarkdownWorkbench()`，会话文件走 `restoreMarkdownSession()` / `saveMarkdownSession()` / `recentMarkdownDocuments()`，文件关联走 `registerMarkdownFileAssociation()` / `markdownFileAssociationRegistered()` 加单实例的 `encodeOpenMessage()` / `decodeOpenMessage()`，图片走 `importImageFiles()` / `importImageUrls()` / `importClipboardImage()` / `draftAssetRoot()`，以及 `openTemplateDirectory()`（按需建用户模板目录并在文件管理器里打开）——替不许互相点名的域说话 | `MarkdownPreviewController`、`MarkdownSessionStore`、`ImageImporter`、页面 QML、`BuiltinPages`、`app/main.cpp` |
 | `src/workbench/MarkdownSessionStore.{h,cpp}` | `MarkdownSessionStore`、`MarkdownSessionState` | `markdown_session.json`：tab 组（路径 + 三态）、激活位、预设与面板状态、20 条最近文档 MRU；损坏 = 默认态加一条警告 | `WorkbenchContext`、`core::JsonStore` |
 | `src/shell/qml/MainWindow.qml` | `MainWindow` | 承载未保存 markdown 文档的退出守卫（页面常驻，守卫住主窗的退出流：`requestExit()` 拦一道，对话框给全部保存 / 放弃 / 取消三选） | `Markdown`、`WorkbenchContext` |
 | `cmake/AwbOptions.cmake`、`app/CMakeLists.txt` | `AWB_ENABLE_RIBBON` 接线 | SARibbon submodule 构建（含嵌套的 QWindowKit 链）与页面的资源登记 | `third_party/SARibbon` |
@@ -397,13 +398,21 @@ B 批次的编辑器操作住在 `MarkdownEdit` 里，与格式动作同一形�
 
 编辑器就是迁过来的提示词编辑器，如今住在页面的编辑槽位里。一个纵向 `Flickable`（`objectName: "promptScroll"`、`clip`、`StopAtBounds`、`ScrollBar.vertical: AScrollBar {}`）经 `TextArea.flickable` 附加属性挂一个 `ATextArea`（`objectName: "promptEditor"`）。文本只在 `Component.onCompleted` 初始化一次（`text = tools.draft`，随后 `MarkdownEdit.attach(promptEditor)`），不做双向绑定——常驻绑定会与用户输入打架。写路径是**双写**：`onTextChanged` 既写 `tools.draft`（tools 域经它自己的 500 ms 防抖持久化），又重启 200 ms 的 `draftSyncTimer`，由它把草稿**会话**喂给 `setDraftText()`——一次敲键要整篇重切块，逐键喂是把 CPU 花在马上会被改掉的中间态上。占位文本把契约写在明处：回车只插入一个新行，这个页面不发送任何东西。
 
-铺满编辑器的 `DropArea` 只接受来自文件树的拖拽（`drop.source.isFileReferenceDrag`），用 `promptEditor.positionAt(drop.x, drop.y)` 求插入偏移并把 `drop.text` 插进去；落点坐标本身就是文档坐标。只吃右键的 `MouseArea` 设 `editorMenu.editor = promptEditor` 再弹 `MarkdownContextMenu`。
+铺满编辑器的 `DropArea`（文档源码区也有一份，只读时禁用）接受文件树拖拽与外部文件地址。`handleEditorDrop()` 把外部 `drop.urls` 交给 `workbench.importImageUrls()`、把文件树 delegate 的绝对 `path` 交给 `workbench.importImageFiles()`；非图片的文件树行仍回落到原来的 `drop.text` 引用。插入偏移用 `positionAt(drop.x, drop.y)` 求——落点坐标本身就是文档坐标。只吃右键的 `MouseArea` 设 `editorMenu.editor = promptEditor` 再弹 `MarkdownContextMenu`；菜单的**粘贴**条目发 `pasteRequested`，由页面先试图片导入、再回落到编辑器原生粘贴。
 
 ### 文档主体
 
 中间主体在编辑槽位装源码编辑器（文件会话激活时；草稿激活时这个槽位装的是草稿编辑器）。源码编辑器是第二个 `ATextArea`（`editorArea`），同样走 `Flickable` 那套结构，用主题的等宽字体（表格与代码块依赖对齐），文档不可编辑时只读，并且与草稿一样挂着 `MarkdownEdit.attach()` 高亮——只读文档也挂，读源码与写源码同样受益。它的文本只在初始化与「换文档/磁盘那份进来了」时写入，从不双向绑定；编辑经 200 ms 防抖交给控制器：一次敲键要把整篇重新切块并算差异，2 MB 文档上每键一次就是把 CPU 花在马上会被改掉的中间态上。
 
 预览面是一个 `Loader`（`active: markdown.available`），`source` 是 `MarkdownPreviewPane.qml` 的资源 URL——只在跑得动它的构建里登记进二进制，无 WebEngine 的构建里进程根本不会创建 `WebEngineView`。装载失败弹 error toast，不留一个无声的空白。
+
+### 图片
+
+两个编辑器都接受图片拖入与 `Ctrl+V`。QML 侧从不拼路径：`handleEditorDrop()` 与 `pasteInto()` 调 `workbench.importImageUrls()` / `importImageFiles()` / `importClipboardImage()`，拿到 `{handled, ok, markdown, error}`；被接管的结果经 `MarkdownEdit.insertMarkdown(editor, position, text)` 插入——一次 `QTextCursor::insertText` 替换选区、只产生一步撤销；多张图片拼成一个换行分隔的块。
+
+规则住在 `workbench::ImageImporter`。插入基准是文档目录；草稿用 `WorkbenchContext::draftAssetRoot()`——草稿绑定且仍存在的工作区，否则 `<dataRoot>/draft-assets/<draftId>`。资源根（复制与粘贴位图的落点）在文档位于当前工作区内时取工作区根，否则取插入基准。图片在插入基准内就原地引用；在资源根内但在插入基准外，写带 `..` 的路径；两者之外，先复制进 `<资源根>/<markdownEditor.imageAssetsDir>`。复制绝不覆盖：字节相同就复用已有文件，不同则追加 `-1`、`-2`……后缀。粘贴的位图存成 `image-<yyyyMMdd-HHmmss>.png`。算作图片的后缀只有预览 MIME 表那一组（`png`、`jpg`、`jpeg`、`gif`、`webp`、`avif`、`ico`、`svg`、`bmp`）。
+
+内置预览仍然拒绝 `..` 与绝对路径（`MarkdownRuntimeHandler::isSafeRelativePath()`），所以产品有意写出的 `..` 路径是合法 Markdown、但在预览里不显示。随本次功能还有两处预览侧修复：`openDraftSession()` 的第 4 个参数是草稿的资源根，`assetRootFor()` / `assetRoot()` 优先用这个会话级覆盖值，草稿的工作区相对图片才可能解析；`markdown-config.js` 的 `encodeSegments()` 改成先解码再编码，markdown-it 已经编码过的空格与中文文件名不会被二次编码。同一个规则还把 `token.content` 写回 `alt` 属性——直接调 `renderToken` 时它本来会留空。
 
 ### 文件树面板
 
@@ -521,7 +530,7 @@ flowchart TD
 | `awbmd://runtime/app/<file>.js` / `.css` | `:/markdown/app/` | 本项目自有的页面运行时 |
 | `awbmd://runtime/vendor/<dir>/<file>` | `:/markdown/vendor/` | markdown-it、KaTeX（含字体）、mermaid、highlight.js |
 | `awbmd://runtime/doc.json?rev=N` | `MarkdownPreviewController::documentBodyJson()` | 文本、`strings`、CSS 变量、大纲、块数；`rev` 只在内容真的变了时才动 |
-| `awbmd://runtime/asset/<docId>/<rel>` | 文档自己所在目录 | 文档里的相对图片路径以此为基准解析；解析后的绝对路径必须仍落在该目录内 |
+| `awbmd://runtime/asset/<docId>/<rel>` | 文档自己所在目录，或草稿会话的资源根覆盖值 | 文档里的相对图片路径以会话资源根为基准解析；解析后的绝对路径必须仍落在该根内 |
 | `awbmd://runtime/event?k=<kind>&p=<json>` | —— | 页面 → C++ 的信标；回一张 1×1 的 PNG |
 
 URL 的形状只由 `MarkdownRuntime` 一处决定；`MarkdownRuntimeHandler::routeOf()` 把 URL 归到 `Resource`、`Document`、`Asset`、`Event`、`Unknown` 之一，认不出来的一律 `UrlNotFound` 而不是猜。信标天然只有 GET，供体把其它方法一律挡在这里，页面脚本就借不到这条通道去碰本机任何东西。
@@ -675,14 +684,14 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 | 目标 | 覆盖 |
 |---|---|
 | `tst_tools` | `ToolsStore` 语义（MRU、上限、草稿防抖、ribbon 段容错、**favorites 生命周期、旧三键文件兼容红线，以及 M2 时代文件上 `editor`/`checks` 取默认值**）、懒加载树模型（角色、取子、增量刷新）、图标映射、门面接线，以及 `TestPromptTemplates`——头部往返/容错、变量提取/求值、库合并（覆盖 + 追加）/检索/存删，以及随包资源真的装着那十条内置模板；`TestPromptChecks`——规则表、空文本干净、确定性、每条规则的正反例，以及估算的稳定性（纯 ASCII、纯中文、混合）与分级阈值 |
-| `tst_markdownedit`（在 `tst_tools` 内） | B1 动作对着真实 `QTextDocument`：每个动作的三种输入形态（空 / 单行 / 跨行选区）、一次撤销回退、标题改级与同级取消、列表类动作的再点去除（编号/任务/引用全已应用时）、有无选区的链接、带语言的围栏、表格骨架与分隔线的空行规范化、若干光标位置上的查询——以及 B2 纯层：正向查找带回卷、大小写与全词开关、替换并前进、全部替换的计数（含替换词里含查找词的自包含用例）与一步撤销 |
-| `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；模板用例覆盖入口按钮、内置模板表与变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、经页面动作层插入收藏、经工具栏真实点击把草稿存进收藏；查找用例覆盖 `Ctrl+F` 聚焦命令条查找框、`Enter` 在编辑器里选中命中；工具栏真实点击把草稿格式化成编号列表；体检用例经工具栏按钮开体检悬浮窗并出现预算标签；草稿用例覆盖经 tab 条的 + 新建并切换（编辑器换正文、undo 历史不串草稿）、经历史悬浮窗存快照并走确认弹窗真实回滚；左栏手柄用例以真实鼠标事件拖分隔条——+80 把文件树拖宽且不收起、拖过阈值才收起（2026-10「一拖整个面板就收起」的回归——宽度公式减了面板当前宽度）；无工作区用例锁左栏布局几何——工作区段落贴顶起始、填满到底、收起键落在段头标题行里（2026-10「标题悬在面板中间」的回归：固定高的空态把段落的可增长上限压塌、extra 键渲染到分割线下方） |
-| `tst_markdown` | `MarkdownChunker`（含语料等价性）、`MarkdownDocument`（保形态存盘、两个上限、只读的来源、watcher 语义、**虚拟文档**）、`MarkdownRuntime`（URL、MIME、路由、协议表、主题 → CSS、大纲）、`MarkdownPreviewController`（**会话容器**：开/切/关、路径去重、8 tab 上限、脏隔离、doc.json 跟随活跃会话、活会话的资源解析、草稿会话、关窗保留会话、按 id 存盘不换激活；队列去重、打开/保存/导出、能力判定），以及 vendor 的 sha256 表 |
+| `tst_markdownedit`（在 `tst_tools` 内） | B1 动作对着真实 `QTextDocument`：每个动作的三种输入形态（空 / 单行 / 跨行选区）、一次撤销回退、标题改级与同级取消、列表类动作的再点去除（编号/任务/引用全已应用时）、有无选区的链接、带语言的围栏、表格骨架与分隔线的空行规范化、若干光标位置上的查询——通用 `insertMarkdown` 动作（按位置插入、替换选区、空输入、多图整段一步撤销）——以及 B2 纯层：正向查找带回卷、大小写与全词开关、替换并前进、全部替换的计数（含替换词里含查找词的自包含用例）与一步撤销 |
+| `tst_toolsui` | 页面级交互冒烟：把工作台页装进宿主视图，经 `objectName` 契约驱动草稿编辑器、文件树与右键菜单；模板用例覆盖入口按钮、内置模板表与变量表单端到端（含跳过语义——留空字段在正文里留下 `{{占位符}}`）、经页面动作层插入收藏、经工具栏真实点击把草稿存进收藏；查找用例覆盖 `Ctrl+F` 聚焦命令条查找框、`Enter` 在编辑器里选中命中；工具栏真实点击把草稿格式化成编号列表；图片粘贴用例证明 `Ctrl+V` 先走 `workbench.importClipboardImage()`、再回落到编辑器原生粘贴；体检用例经工具栏按钮开体检悬浮窗并出现预算标签；草稿用例覆盖经 tab 条的 + 新建并切换（编辑器换正文、undo 历史不串草稿）、经历史悬浮窗存快照并走确认弹窗真实回滚；左栏手柄用例以真实鼠标事件拖分隔条——+80 把文件树拖宽且不收起、拖过阈值才收起（2026-10「一拖整个面板就收起」的回归——宽度公式减了面板当前宽度）；无工作区用例锁左栏布局几何——工作区段落贴顶起始、填满到底、收起键落在段头标题行里（2026-10「标题悬在面板中间」的回归：固定高的空态把段落的可增长上限压塌、extra 键渲染到分割线下方） |
+| `tst_markdown` | `MarkdownChunker`（含语料等价性）、`MarkdownDocument`（保形态存盘、两个上限、只读的来源、watcher 语义、**虚拟文档**）、`MarkdownRuntime`（URL、MIME、路由、协议表、主题 → CSS、大纲）、`MarkdownPreviewController`（**会话容器**：开/切/关、路径去重、8 tab 上限、脏隔离、doc.json 跟随活跃会话、活会话的资源解析、**草稿资源根覆盖**、草稿会话、关窗保留会话、按 id 存盘不换激活；队列去重、打开/保存/导出、能力判定），以及 vendor 的 sha256 表 |
 | `tst_markdownpreview` | 对着真实 `WebEngineView` 的页面管线：文档挂载、块出现、增量更新落地。大文档用例只在 `AWB_MD_PERF` 下跑 |
 | `tst_markdownpreviewui` | 随包那份 `MarkdownWorkbenchPage.qml`（装进宿主窗口与 keepAlive 式 Loader 两种形态）：能编译加载、命令泵真在跑、find/serialize 往返、报到契约、第二次请求不重建页面（WebEngine 构建，两个大版本都跑）；悬浮大纲用例经真实鼠标事件驱动收起按钮、右下角手柄与左边界——收起把面板折半并隐藏列表，手柄与边界各自独立地拖动两个自由度 |
 | `tst_webengine` | scheme 端到端供出资源、字体、`doc.json` 与信标 |
-| `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` 的委派与只报原因不开窗的失败路径；单实例 **open 消息的编解码往返**；文件关联的**注册态判定**（默认与已注册两态，注册表可写的构建上） |
-| `tst_core` | 五个 `markdown.*` 设置键与 `Paths::markdownPreviewDir()` |
+| `tst_workbench` | `previewMarkdown()` / `openMarkdownWorkbench()` 的委派与只报原因不开窗的失败路径；单实例 **open 消息的编解码往返**；文件关联的**注册态判定**（默认与已注册两态，注册表可写的构建上）；`TestImageImporter`——后缀判定、图片目录规范化、空格/中文的 Markdown 与 alt 生成、三条路径分支（原地、`..`、复制）、无工作区回落、多图排布、同内容去重与序号后缀，以及剪贴板优先级（文件地址优先，纯文本与「位图 + 文本」交回编辑器） |
+| `tst_core` | 五个 `markdown.*` 设置键、含 `imageAssetsDir` 的 `markdownEditor.*` 键、`Paths::markdownPreviewDir()` 与 `Paths::draftAssetsDir()` |
 
 把 `tst_markdownpreview` 与 `tst_markdownpreviewui` 挡在 Qt 5 与无 WebEngine 构建之外的条件写在 `tests/CMakeLists.txt`，与功能自身的守卫同一个判据。命令带那条轴（`AWB_ENABLE_RIBBON` 开/关）作用于整个套件：两态都必须全绿。
 
@@ -693,6 +702,7 @@ bash scripts/build.sh --test                            # tst_markdown 断言 sh
 - [ ] 交互冒烟依赖的 `objectName` 未改，或同一提交里改了测试。
 - [ ] `tools.json` 的键名（`workspaces`、`current`、`draft`、含四个内键的 `ribbon`、含 `title`/`body`/`tags`/`createdAt` 的 `favorites`、含 `findCaseSensitive`/`findWholeWords`/`contextWindowTokens` 的 `editor`、含 `disabled` 的 `checks`）未变——它们是磁盘格式。模板头部的键（`id`/`title`/`category`/`tags`/`description`）也是磁盘格式——改一个等于丢用户模板。`PromptChecks.cpp` 里的规则 id 同样是磁盘格式：改一个 id 会把用户「不再提醒」的选择变成孤儿。
 - [ ] `markdown_session.json` 的键名（`tabs`、`activeIndex`、`preset`、`promptLeftOpen`、`documentLeftOpen`、`documentRibbonCollapsed`、`recentDocuments`，及每 tab 的 `path`/`mode`）未变——同一条纪律。
+- [ ] `settings.json` 的 `markdownEditor.imageAssetsDir` 同样是磁盘格式；改名会把用户的图片目录静默重置成 `assets`。`Paths::draftAssetsDir()` 是草稿图片目录的唯一构造点——不要在页面或导入器里再拼一遍。
 - [ ] 单实例消息格式（`open:<JSON 数组>` / `raise`）在 `encodeOpenMessage()` 与 `decodeOpenMessage()` 之间保持同步，ProgId（`AgentWorkbench.Markdown.1`）不改名——改名会把用户已注册的注册表条目变成孤儿。
 - [ ] `config/default_file_icons.json` 里的键名未被改名。
 - [ ] `AWB_ENABLE_RIBBON` 两态都能配置、构建、过测试。

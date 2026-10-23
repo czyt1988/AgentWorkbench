@@ -65,7 +65,7 @@ Missing keys take their defaults in place — there is no migration code:
                "autoOpenWorkbench": false },
   "markdownEditor": { "indentWithSpaces": true, "indentWidth": 2,
                "smartEnter": true, "formatShortcuts": true,
-               "autoPair": true }
+               "autoPair": true, "imageAssetsDir": "assets" }
 }
 ```
 
@@ -146,7 +146,11 @@ Missing keys take their defaults in place — there is no migration code:
   `formatShortcuts` (default `true`) enables `Ctrl+B` / `Ctrl+I` / `Ctrl+K` /
   `Ctrl+E` while the editor has focus (elsewhere `Ctrl+B` keeps collapsing the
   sidebar); `autoPair` (default `true`) pairs typed Markdown marks (`*`,
-  backtick, `~`, `[`, `(`) and skips over closers.
+  backtick, `~`, `[`, `(`) and skips over closers. `imageAssetsDir` (default
+  `assets`) is where pasted images and images copied in from outside the
+  workspace are written, relative to the workspace root (or the document
+  folder when no workspace is open); multi-level paths such as
+  `docs/assets/pic` are allowed, while absolute paths and `..` are rejected.
   See [Markdown workbench](guide/markdown-workbench.md).
 
 ## The prompt workbench's own files

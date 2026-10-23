@@ -8,9 +8,9 @@
 
 | 文件 | 类 / 组件 | 职责 |
 |---|---|---|
-| `src/markdownedit/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 侧入口：`attach()` 给 `TextArea` 的文档挂高亮；`apply*`/`insert*` 家族执行格式化动作（行内标记类是**切换**语义：对已加粗的文字再执行加粗是去掉标记，不是叠成四层）；`handleTab`/`handleBacktab`/`handleEnter`/`autoType` 是输入动作（按调用方给的单位缩进、回车延续列表、输入时配对标记）；行与块操作（`moveLine*`、`duplicateLine`、`deleteLine`、`selectLine`、`selectWord`、`convertCase`、`promoteHeading`/`demoteHeading`）以同一形状住在旁边；`is*At`/`headingLevelAt` 查询喂给可勾选按钮；`find` / `replaceAndFindNext` / `replaceAll` / `findCount` / `findIndexOf` 是查找/替换原语。每个动作都是静态 `QTextCursor` 操作包一层 `Q_INVOKABLE`，各占一个编辑块 |
+| `src/markdownedit/MarkdownEdit.{h,cpp}` | `MarkdownEdit` | QML 侧入口：`attach()` 给 `TextArea` 的文档挂高亮；`apply*`/`insert*` 家族执行格式化动作（行内标记类是**切换**语义：对已加粗的文字再执行加粗是去掉标记，不是叠成四层）；`insertMarkdown()` 是通用的插入/替换原语，用来放置图片引用这类整段 Markdown（一次编辑、一步撤销）；`handleTab`/`handleBacktab`/`handleEnter`/`autoType` 是输入动作（按调用方给的单位缩进、回车延续列表、输入时配对标记）；行与块操作（`moveLine*`、`duplicateLine`、`deleteLine`、`selectLine`、`selectWord`、`convertCase`、`promoteHeading`/`demoteHeading`）以同一形状住在旁边；`is*At`/`headingLevelAt` 查询喂给可勾选按钮；`find` / `replaceAndFindNext` / `replaceAll` / `findCount` / `findIndexOf` 是查找/替换原语。每个动作都是静态 `QTextCursor` 操作包一层 `Q_INVOKABLE`，各占一个编辑块 |
 | `src/markdownedit/MarkdownHighlighter.{h,cpp}` | `MarkdownHighlighter`、`MarkdownColors` | 轻量逐块高亮器：围栏代码块（跨块状态机）、标题、分隔线、引用、列表标记，以及行内的代码/粗体/斜体/删除线/链接。刻意不做 CommonMark 全量正确。配色经 `MarkdownColors` 注入——高亮器不认识 `Theme`。`setSearch()` 另在语法规则之后给每个命中画一层背景色，查找因此不依赖选区也可见 |
-| `src/markdownedit/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 编辑器右键菜单：格式化工具栏一行 + 撤销/重做/剪切/复制/粘贴条目 + 行操作（上移/下移/复制/删行/选行）与大小写转换条目。它是宿主 UI 外壳而不是引擎逻辑——只转发给单例与编辑器自身的成员 |
+| `src/markdownedit/qml/MarkdownContextMenu.qml` | `MarkdownContextMenu` | 编辑器右键菜单：格式化工具栏一行 + 撤销/重做/剪切/复制/粘贴条目 + 行操作（上移/下移/复制/删行/选行）与大小写转换条目。**粘贴**条目发 `pasteRequested()` 而不是直接调编辑器，宿主因此能先把图片剪贴板交给自己的导入器、再回落原生粘贴。它是宿主 UI 外壳而不是引擎逻辑——只转发给单例与编辑器自身的成员 |
 
 引擎半边（`MarkdownEdit`、`MarkdownHighlighter`）不依赖 `awb_core`、不依赖任何其它领域、不依赖应用本身：链接清单是 `awb_theme` + Qt Core/Gui，Qt Quick 是 `PRIVATE` 链接且只为 `MarkdownEdit` 读 `QQuickTextDocument` 而存在。高亮器单独看是纯 Qt Gui——测试直接构造一组 `MarkdownColors`，不需要主题。
 
@@ -21,7 +21,7 @@
 
 ## 测试
 
-`tst_markdownedit` 在 `QTextDocument` 层驱动引擎：每个动作的光标语义（空选区、单行选区、多行选区、行尾换行处的边界纪律）、行/块与大小写操作、标题升降级、命中计数与 1 起序号、查找高亮（含标题行上与语法色的合并）、高亮器的逐块状态机，以及含回卷行为的查找/替换原语。它只链接 `awb_markdownedit` 和 Qt——不需要主题、不需要 QML 引擎，所以 Qt 5 与关掉 WebEngine 的每个构建配置都跑。
+`tst_markdownedit` 在 `QTextDocument` 层驱动引擎：每个动作的光标语义（空选区、单行选区、多行选区、行尾换行处的边界纪律）、`insertMarkdown` 的按位置插入与选区替换（含多行块必须一步撤销）、行/块与大小写操作、标题升降级、命中计数与 1 起序号、查找高亮（含标题行上与语法色的合并）、高亮器的逐块状态机，以及含回卷行为的查找/替换原语。它只链接 `awb_markdownedit` 和 Qt——不需要主题、不需要 QML 引擎，所以 Qt 5 与关掉 WebEngine 的每个构建配置都跑。
 
 ## 在其它项目里使用本模块
 

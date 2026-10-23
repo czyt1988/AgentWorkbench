@@ -14,9 +14,9 @@ The boundary is enforced, not merely conventional:
 
 | File | Class / struct | Responsibility | Collaborates with |
 |---|---|---|---|
-| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | The single source of the data directory and every path derived from it (`themesDir()`, `pluginsDir()`, `logsDir()`, `webProfilesDir()`, `markdownPreviewDir()`, `skillCacheFile()`, `environmentCacheFile()`, `downloadsDir()`); test injection | every module that touches disk |
+| `src/core/Paths.h` / `.cpp` | `awb::core::Paths` | The single source of the data directory and every path derived from it (`themesDir()`, `pluginsDir()`, `logsDir()`, `webProfilesDir()`, `markdownPreviewDir()`, `draftAssetsDir()`, `skillCacheFile()`, `environmentCacheFile()`, `downloadsDir()`); test injection | every module that touches disk |
 | `src/core/JsonStore.h` / `.cpp` | `awb::core::JsonStore` | Atomic JSON read/write: `readFile()`, `writeFile()`, `writeBytes()` | `Settings`, `agentcatalog`, `tools`, test fixtures |
-| `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings`, `MarkdownSettings` | The typed accessor for `settings.json`; nothing else may read that file | `Paths`, `JsonStore`, `Logging::isValidLevelName` |
+| `src/core/Settings.h` / `.cpp` | `awb::core::Settings` + `WindowSettings`, `AppearanceSettings`, `LocaleSettings`, `LauncherSettings`, `WebSettings`, `SkillsSettings`, `LoggingSettings`, `PluginsSettings`, `MarkdownSettings`, `MarkdownEditorSettings` | The typed accessor for `settings.json`; nothing else may read that file | `Paths`, `JsonStore`, `Logging::isValidLevelName` |
 | `src/core/Logging.h` / `.cpp` | `awb::core::Logging`, `RotatingFileSink` (internal), macros `AWB_DEBUG`/`AWB_INFO`/`AWB_WARNING`/`AWB_CRITICAL`/`AWB_PERF` | Asynchronous rotating file log plus stderr mirror; installs the Qt message handler | `Paths`, `TextUtils`, spdlog |
 | `src/core/ProcessRunner.h` / `.cpp` | `awb::core::ProcessRunner`, `awb::core::ProcessResult` | External-command mechanics: PATH/PATHEXT resolution, detached start with optional output capture, synchronous run with timeout, process-tree kill, command-line splitting, output decoding | `agentcatalog` (launch, version checks), `workbench::EnvironmentProbe` |
 | `src/core/ScriptRunner.h` / `.cpp` | `awb::core::ScriptRunner` (+ private `Slot`) | Keyed one-shot command executor with streaming output and the epoch rule | `agentcatalog` (install/update/version/setup) |
@@ -86,6 +86,8 @@ flowchart TD
 Every subdirectory is derived from `dataRoot()`; **do not assemble these paths anywhere else**. `setDataRootForTesting()` also clears the override when passed an empty string, and `isDataRootOverridden()` reports whether an override is active. A home directory containing non-ASCII characters must be handed to `QFile`/`QDir`; never pass such a path to a narrow-character API.
 
 `markdownPreviewDir()` is `<dataRoot>/preview`: the folder that holds the self-contained HTML the Markdown preview writes when you choose "open in external browser", because an outside browser has no way to resolve `awbmd://` and needs a real file on disk. Like the others, it is not a path the preview domain assembles itself.
+
+`draftAssetsDir(draftId)` is `<dataRoot>/draft-assets/<draftId>`: the persistent image folder for a draft that has no workspace, and the resource root the draft preview resolves against. The draft id comes from a hand-editable `tools.json`, so the path segment is filtered down to `[A-Za-z0-9._-]` and an empty or all-filtered id becomes `draft`.
 
 ### JsonStore
 

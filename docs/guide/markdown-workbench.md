@@ -106,6 +106,26 @@ The **Start** tab of the ribbon carries the formatting buttons: **Bold**, **Ital
 
 Besides `Ctrl+F` (find — see [Finding](#finding)), the rest of the keyboard shortcuts are below, and they work while the caret is in the text.
 
+## Images
+
+You can bring an image into the Markdown text in three ways:
+
+- **Drag an image file** from the file tree or from File Explorer into either editor (the prompt editor or a document's source editor). The app inserts `![name](path)` at the drop point.
+- **Copy an image file** in File Explorer and press `Ctrl+V`; this behaves exactly like dragging it.
+- **Copy a screenshot or another bitmap** (no file behind it) and press `Ctrl+V`. The app saves it as a PNG in the image folder and inserts a relative reference.
+
+How the path is built:
+
+- An image that already sits in the document's folder is referenced in place.
+- An image elsewhere in the workspace is referenced in place with a `..` path.
+- An image outside the workspace is copied into the image folder first.
+- Pasted bitmaps always go into the image folder. Set that folder in **Settings → Markdown** (default `assets`, relative to the workspace root; without a workspace it is relative to the document folder). Multi-level paths such as `docs/assets/pic` are allowed.
+- A draft with no workspace saves pasted images under the app's data folder, so they survive a restart.
+
+The built-in preview only loads images inside the document's folder. Images inserted with a `..` path — including a workspace-level image folder when the document sits in a subfolder — are correct Markdown but do not render in the preview; other Markdown renderers that resolve `..` show them. The exported HTML has the same limitation (see the export note above).
+
+Non-image files keep their existing behaviour: dragging a tree row inserts the backtick file reference, and external non-image files are ignored.
+
 ## Editing shortcuts
 
 These work in the prompt editor and in a document's source view. The ones that change text need an editable document; the navigation ones work on read-only files too:
@@ -229,7 +249,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 - **Click a folder** to expand or collapse it. Folders with contents show an arrow.
 - **Double-click a file** to open it: a Markdown file opens as a new document tab in the workbench, any other file opens with whatever app your system associates with it.
-- **Drag a file row** into the draft to insert its reference at the drop point.
+- **Drag a file row** into the draft to insert its reference at the drop point. Dragging an image file inserts an image reference (`![name](path)`) instead; see [Images](#images).
 - **Right-click a file row** for **Preview Markdown**, **Insert path at cursor**, **Copy relative path** or **Copy absolute path**. **Insert path at cursor** puts the file's `` `./relative/path` `` reference into the draft where your cursor is. **Preview Markdown** is greyed out when the file is not a Markdown file by extension or when this build cannot preview — it stays visible, disabled rather than hidden.
 - The tree refreshes automatically when files change; the refresh button next to the workspace menu forces a refresh.
 
@@ -256,7 +276,7 @@ Formulas, diagrams, tables, task lists and code highlighting work. Specifically:
 
 **The file tree is empty.** Check that the selected folder still exists and is not empty. The workbench says **The workspace folder is empty or unavailable.** in that case. Use the refresh button, or pick another folder.
 
-**I cannot drag a file into the editor.** Make sure you are dragging a row from the file tree, not text from elsewhere. Dragging from the tree into the editor inserts a reference; dragging text within the editor moves that text.
+**I cannot drag a file into the editor.** Make sure you are dragging a row from the file tree, a local file from File Explorer, or an image file. Dragging from the tree inserts a reference (an image becomes an image reference); dragging a picture file in inserts it as an image; dragging text within the editor moves that text. Non-image files dragged in from outside the app are ignored.
 
 **Copy does nothing.** If the editor is empty, the app tells you there is nothing to copy.
 

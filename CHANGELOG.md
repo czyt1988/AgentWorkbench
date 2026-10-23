@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Images in the Markdown editor.** Drag an image file (from the workspace
+  tree or File Explorer) into the prompt editor or a document's source editor,
+  or press `Ctrl+V` with an image file or a bitmap on the clipboard: the app
+  inserts `![name](path)` at the caret or drop point.
+  - Paths are relative to the document. Images already in the document folder
+    are referenced in place; images elsewhere in the workspace use a `..`
+    path; images from outside the workspace are copied into the image folder
+    first.
+  - Pasted bitmaps are saved as PNG. The image folder is configurable in
+    **Settings → Markdown** (`markdownEditor.imageAssetsDir`, default
+    `assets`, relative to the workspace root — or to the document folder when
+    no workspace is open; multi-level paths are allowed).
+  - A draft with no workspace stores its images under
+    `<dataRoot>/draft-assets/<draftId>` so they survive restarts.
+  - Clipboard priority: image file URLs win, then a bitmap with no text; text
+    and rich content keep the editor's native paste.
+  - Multi-image drops insert one image per line in one undo step; only the
+    image formats the preview can serve are treated as images, and non-image
+    files keep their old behaviour.
+  - The built-in preview now decodes before re-encoding asset paths, so spaces
+    and Chinese filenames render instead of 404ing, and image `alt` text is
+    kept.
 - **Markdown workbench editor: the "input feel" batch**, with every part of it
   switchable in the new **Settings → Markdown** section (`settings.json` group
   `markdownEditor`):
